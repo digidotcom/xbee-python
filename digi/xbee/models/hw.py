@@ -85,6 +85,7 @@ class HardwareVersion(Enum):
     XBEE3_SMT = (0x42, "XBEE3 SMT")
     XBEE3_TH = (0x43, "XBEE3 TH")
     CELLULAR_3G = (0x44, "XBee Cellular 3G")
+    XB8X = (0x45, "XB8X")
     CELLULAR_LTE_VERIZON = (0x46, "XBee Cellular LTE-M Verizon")
     CELLULAR_LTE_ATT = (0x47, "XBee Cellular LTE-M AT&T")
     CELLULAR_NBIOT_EUROPE = (0x48, "XBee Cellular NBIoT Europe")

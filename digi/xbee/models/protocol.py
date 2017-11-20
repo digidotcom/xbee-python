@@ -241,10 +241,13 @@ class XBeeProtocol(Enum):
         elif hardware_version == HardwareVersion.CELLULAR_NBIOT_EUROPE.code:
             return XBeeProtocol.CELLULAR_NBIOT
 
-        elif hardware_version in [HardwareVersion.XBEE3,
-                                  HardwareVersion.XBEE3_SMT,
-                                  HardwareVersion.XBEE3_TH]:
+        elif hardware_version in [HardwareVersion.XBEE3.code,
+                                  HardwareVersion.XBEE3_SMT.code,
+                                  HardwareVersion.XBEE3_TH.code]:
             return XBeeProtocol.ZIGBEE
+
+        elif hardware_version == HardwareVersion.XB8X.code:
+            return XBeeProtocol.DIGI_MESH
 
         return XBeeProtocol.ZIGBEE
 
