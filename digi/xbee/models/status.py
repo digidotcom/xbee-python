@@ -251,6 +251,8 @@ class ModemStatus(Enum):
     NETWORK_WOKE_UP = (0x0B, "Network Woke Up")
     NETWORK_WENT_TO_SLEEP = (0x0C, "Network Went To Sleep")
     VOLTAGE_SUPPLY_LIMIT_EXCEEDED = (0x0D, "Voltage supply limit exceeded")
+    REMOTE_MANAGER_CONNECTED = (0x0E, "Remote Manager connected")
+    REMOTE_MANAGER_DISCONNECTED = (0x0F, "Remote Manager disconnected")
     MODEM_CONFIG_CHANGED_WHILE_JOINING = (0x11, "Modem configuration changed while joining")
     ERROR_STACK = (0x80, "Stack error")
     ERROR_AP_NOT_CONNECTED = (0x82, "Send/join command issued without connecting from AP")
