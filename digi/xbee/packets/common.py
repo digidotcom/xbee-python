@@ -2619,7 +2619,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         Returns:
             Integer: the source endpoint of the transmission.
         """
-        return self.__dest_endpoint
+        return self.__source_endpoint
 
     def __set_source_endpoint(self, source_endpoint):
         """
