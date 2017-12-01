@@ -22,10 +22,12 @@ from digi.xbee.models.atcomm import SpecialByte
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
     SMSMessage
+from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.options import ReceiveOptions
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
+from digi.xbee.packets.base import XBeePacket
 from digi.xbee.packets.common import ReceivePacket
 from digi.xbee.packets.raw import RX64Packet, RX16Packet
 from digi.xbee.util import utils
@@ -294,7 +296,7 @@ class PacketListener(threading.Thread):
             self.__stop = False
             while not self.__stop:
                 # Try to read a packet.
-                raw_packet = self.__try_read_packet()
+                raw_packet = self.__try_read_packet(self.__xbee_device.operating_mode)
 
                 if raw_packet is not None:
                     # If the current protocol is 802.15.4, the packet may have to be discarded.
@@ -623,7 +625,7 @@ class PacketListener(threading.Thread):
                                                     sender=str(xbee_packet.phone_number),
                                                     more_data=xbee_packet.data))
 
-    def __try_read_packet(self):
+    def __try_read_packet(self, operating_mode=OperatingMode.API_MODE):
         """
         Reads the next packet. Starts to read when finds the start delimiter.
         The last byte read is the checksum.
@@ -639,13 +641,22 @@ class PacketListener(threading.Thread):
         """
         try:
             xbee_packet = bytearray(1)
+            # Add packet delimiter.
             xbee_packet[0] = self.__serial_port.read_byte()
             while xbee_packet[0] != SpecialByte.HEADER_BYTE.value:
                 xbee_packet[0] = self.__serial_port.read_byte()
             packet_length = self.__serial_port.read_bytes(2)
+            # Add packet length.
             xbee_packet += packet_length
             length = utils.length_to_int(packet_length)
-            xbee_packet += self.__serial_port.read_bytes(length)
+            # Add packet payload.
+            for _ in range(0, length):
+                read_byte = self.__serial_port.read_byte()
+                xbee_packet.append(read_byte)
+                # Read escaped bytes in API escaped mode.
+                if operating_mode == OperatingMode.ESCAPED_API_MODE and read_byte == XBeePacket.ESCAPE_BYTE:
+                    xbee_packet.append(self.__serial_port.read_byte())
+            # Add packet checksum.
             xbee_packet.append(self.__serial_port.read_byte())
             return xbee_packet
         except TimeoutException:

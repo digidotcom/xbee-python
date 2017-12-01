@@ -88,7 +88,7 @@ class XBeePacket:
     __metaclass__ = ABCMeta
     __ESCAPE_BYTES = [i.value for i in SpecialByte]
     __ESCAPE_FACTOR = 0x20
-    __ESCAPE_BYTE = SpecialByte.ESCAPE_BYTE.code
+    ESCAPE_BYTE = SpecialByte.ESCAPE_BYTE.code
 
     def __init__(self):
         """
@@ -242,10 +242,10 @@ class XBeePacket:
         new_data = bytearray(0)
         des_escape = False
         for byte in data:
-            if byte == XBeePacket.__ESCAPE_BYTE:
+            if byte == XBeePacket.ESCAPE_BYTE:
                 des_escape = True
             else:
-                new_data += chr(byte ^ 0x20 if des_escape else byte)
+                new_data.append(byte ^ 0x20 if des_escape else byte)
                 des_escape = False
         return new_data
 
