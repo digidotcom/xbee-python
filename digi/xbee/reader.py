@@ -561,7 +561,7 @@ class PacketListener(threading.Thread):
                 xbee_packet.get_frame_type() == ApiFrameType.RECEIVE_PACKET):
             _data = xbee_packet.rf_data
             is_broadcast = xbee_packet.receive_options == ReceiveOptions.BROADCAST_PACKET
-            self.__data_received(XBeeMessage(_data, remote, time.clock(), is_broadcast))
+            self.__data_received(XBeeMessage(_data, remote, time.time(), is_broadcast))
             self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="DATA",
@@ -583,7 +583,7 @@ class PacketListener(threading.Thread):
         elif (xbee_packet.get_frame_type() == ApiFrameType.RX_IO_16 or
               xbee_packet.get_frame_type() == ApiFrameType.RX_IO_64 or
               xbee_packet.get_frame_type() == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR):
-            self.__io_sample_received(xbee_packet.io_sample, remote, time.clock())
+            self.__io_sample_received(xbee_packet.io_sample, remote, time.time())
             self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="IOSAMPLE",
@@ -596,7 +596,7 @@ class PacketListener(threading.Thread):
             is_broadcast = False
             # If it's 'special' packet, notify the data_received callbacks too:
             if self.__is_special_explicit_packet(xbee_packet):
-                self.__data_received(XBeeMessage(xbee_packet.rf_data, remote, time.clock(), is_broadcast))
+                self.__data_received(XBeeMessage(xbee_packet.rf_data, remote, time.time(), is_broadcast))
             self.__explicit_packet_received(PacketListener.__expl_to_message(remote, is_broadcast, xbee_packet))
             self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
@@ -816,7 +816,7 @@ class PacketListener(threading.Thread):
         Returns:
             :class:`.ExplicitXBeeMessage`: the explicit message generated from the provided parameters.
         """
-        return ExplicitXBeeMessage(xbee_packet.rf_data, remote, time.clock(), xbee_packet.source_endpoint,
+        return ExplicitXBeeMessage(xbee_packet.rf_data, remote, time.time(), xbee_packet.source_endpoint,
                                    xbee_packet.dest_endpoint, xbee_packet.cluster_id,
                                    xbee_packet.profile_id, broadcast)
 
@@ -899,8 +899,8 @@ class XBeeQueue(Queue):
             return None
         else:
             xbee_packet = self.get_by_remote(remote_xbee_device, None)
-            dead_line = time.clock() + timeout
-            while xbee_packet is None and dead_line > time.clock():
+            dead_line = time.time() + timeout
+            while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
                 xbee_packet = self.get_by_remote(remote_xbee_device, None)
             if xbee_packet is None:
@@ -937,8 +937,8 @@ class XBeeQueue(Queue):
             return None
         else:
             xbee_packet = self.get_by_ip(ip_addr, None)
-            dead_line = time.clock() + timeout
-            while xbee_packet is None and dead_line > time.clock():
+            dead_line = time.time() + timeout
+            while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
                 xbee_packet = self.get_by_ip(ip_addr, None)
             if xbee_packet is None:

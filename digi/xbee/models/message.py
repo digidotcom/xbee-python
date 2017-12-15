@@ -66,11 +66,11 @@ class XBeeMessage(object):
 
     def __get_timestamp(self):
         """
-        Returns the moment when the message was received as a ``time.clock()``
+        Returns the moment when the message was received as a ``time.time()``
         function returned value.
 
         Returns:
-            Float: the returned value of using :meth:`time.clock()` function when the message was received.
+            Float: the returned value of using :meth:`time.time()` function when the message was received.
         """
         return self.__timestamp
 

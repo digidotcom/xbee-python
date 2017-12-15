@@ -88,9 +88,9 @@ def main(argv):
 
         print("Sending data...\n")
 
-        dead_line = time.clock() + duration
+        dead_line = time.time() + duration
 
-        while dead_line > time.clock():
+        while dead_line > time.time():
             retries = MAX_RETRIES
             data_received = False
             while not data_received:

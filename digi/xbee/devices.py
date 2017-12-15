@@ -2528,11 +2528,11 @@ class XBeeDevice(AbstractXBeeDevice):
             remote = RemoteXBeeDevice(self, x64addr, x16addr)
 
         if explicit:
-            msg = ExplicitXBeeMessage(packet.rf_data, remote, time.clock(), packet.source_endpoint,
+            msg = ExplicitXBeeMessage(packet.rf_data, remote, time.time(), packet.source_endpoint,
                                       packet.dest_endpoint, packet.cluster_id,
                                       packet.profile_id, packet.is_broadcast())
         else:
-            msg = XBeeMessage(packet.rf_data, remote, time.clock(), packet.is_broadcast())
+            msg = XBeeMessage(packet.rf_data, remote, time.time(), packet.is_broadcast())
 
         return msg
 
@@ -4312,8 +4312,8 @@ class WiFiDevice(IPDevice):
         try:
             self.send_packet(ATCommPacket(self.get_next_frame_id(), "AS"), False)
 
-            dead_line = time.clock() + self.__DISCOVER_TIMEOUT
-            while self.__scanning_aps and time.clock() < dead_line:
+            dead_line = time.time() + self.__DISCOVER_TIMEOUT
+            while self.__scanning_aps and time.time() < dead_line:
                 time.sleep(0.1)
 
             # Check if we exited because of a timeout.
@@ -4376,8 +4376,8 @@ class WiFiDevice(IPDevice):
             self.set_parameter("PK", bytearray(password, "utf8"))
 
         # Wait for the module to connect to the access point.
-        dead_line = time.clock() + self.__ap_timeout
-        while time.clock() < dead_line:
+        dead_line = time.time() + self.__ap_timeout
+        while time.time() < dead_line:
             time.sleep(0.1)
             # Get the association indication value of the module.
             status = self.get_parameter("AI")
@@ -4459,8 +4459,8 @@ class WiFiDevice(IPDevice):
            | :meth:`.WiFiDevice.set_access_point_timeout`
         """
         self.execute_command("NR")
-        dead_line = time.clock() + self.__ap_timeout
-        while time.clock() < dead_line:
+        dead_line = time.time() + self.__ap_timeout
+        while time.time() < dead_line:
             time.sleep(0.1)
             # Get the association indication value of the module.
             status = self.get_parameter("AI")
@@ -5686,7 +5686,7 @@ class XBeeNetwork(object):
             node_id (String, optional): node identifier of the remote XBee device to discover. Optional.
         """
         try:
-            init_time = time.clock()
+            init_time = time.time()
 
             # In 802.15.4 devices, the discovery finishes when the 'end' command 
             # is received, so it's not necessary to calculate the timeout.
@@ -5704,7 +5704,7 @@ class XBeeNetwork(object):
             if not is_802_compatible:
                 # If XBee device is not 802.15.4, wait until timeout expires.
                 while self.__discovering or self.__sought_device_id is not None:
-                    if (time.clock() - init_time) > timeout:
+                    if (time.time() - init_time) > timeout:
                         with self.__lock:
                             self.__discovering = False
                         break
