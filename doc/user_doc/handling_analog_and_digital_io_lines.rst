@@ -599,8 +599,8 @@ event is raised:
 * The received IO sample as an ``IOSample`` object.
 * The remote XBee device that sent the IO sample as a ``RemoteXBeeDevice``
   object.
-* The time in which the IO sample was received as an ``Integer`` (calculated
-  with Python standard ``time.clock()``).
+* The time in which the IO sample was received as an ``Float`` (calculated
+  with Python standard ``time.time()``).
 
 To stop receiving notifications of new IO samples, remove the added callback
 using the ``del_io_sample_received_callback()`` method.
