@@ -89,16 +89,16 @@ class RXIPv4Packet(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        _raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
+        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
 
-        XBeeAPIPacket._check_api_packet(_raw, min_length=RXIPv4Packet.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(raw, min_length=RXIPv4Packet.__MIN_PACKET_LENGTH)
 
-        if _raw[3] != ApiFrameType.RX_IPV4.code:
+        if raw[3] != ApiFrameType.RX_IPV4.code:
             raise InvalidPacketException("This packet is not an RXIPv4Packet.")
 
         return RXIPv4Packet(IPv4Address(bytes(raw[4:8])), utils.bytes_to_int(raw[8:10]),
                             utils.bytes_to_int(raw[10:12]), IPProtocol.get(raw[12]),
-                            _raw[14:-1])
+                            raw[14:-1])
 
     def needs_id(self):
         """
@@ -243,7 +243,7 @@ class RXIPv4Packet(XBeeAPIPacket):
                 DictKeys.SRC_PORT:      self.__source_port,
                 DictKeys.IP_PROTOCOL:   "%s (%s)" % (self.__ip_protocol.code, self.__ip_protocol.description),
                 DictKeys.STATUS:        self.__status,
-                DictKeys.DATA:          bytearray(self.__data)}
+                DictKeys.RF_DATA:       bytearray(self.__data)}
 
     source_address = property(__get_source_address, __set_source_address)
     """:class:`ipaddress.IPv4Address`. IPv4 address of the source device."""
@@ -511,7 +511,7 @@ class TXIPv4Packet(XBeeAPIPacket):
                 DictKeys.SRC_PORT:       self.source_port,
                 DictKeys.IP_PROTOCOL:    "%s (%s)" % (self.__ip_protocol.code, self.__ip_protocol.description),
                 DictKeys.OPTIONS:        self.__transmit_options,
-                DictKeys.DATA:           bytearray(self.__data)}
+                DictKeys.RF_DATA:        bytearray(self.__data)}
 
     dest_address = property(__get_dest_address, __set_dest_address)
     """:class:`ipaddress.IPv4Address`. IPv4 address of the destination device."""
