@@ -625,6 +625,19 @@ class PacketListener(threading.Thread):
                                                     sender=str(xbee_packet.phone_number),
                                                     more_data=xbee_packet.data))
 
+    def __read_byte_into_packet(self, xbee_packet, operating_mode):
+        """
+        Reads the next byte and appends it to ``xbee_packet``.
+
+        If in escaped API mode and the byte that was read was the escape byte,
+        it will also read the next byte.
+        """
+        read_byte = self.__serial_port.read_byte()
+        xbee_packet.append(read_byte)
+        # Read escaped bytes in API escaped mode.
+        if operating_mode == OperatingMode.ESCAPED_API_MODE and read_byte == XBeePacket.ESCAPE_BYTE:
+            xbee_packet.append(self.__serial_port.read_byte())
+
     def __try_read_packet(self, operating_mode=OperatingMode.API_MODE):
         """
         Reads the next packet. Starts to read when finds the start delimiter.
@@ -649,15 +662,9 @@ class PacketListener(threading.Thread):
             # Add packet length.
             xbee_packet += packet_length
             length = utils.length_to_int(packet_length)
-            # Add packet payload.
-            for _ in range(0, length):
-                read_byte = self.__serial_port.read_byte()
-                xbee_packet.append(read_byte)
-                # Read escaped bytes in API escaped mode.
-                if operating_mode == OperatingMode.ESCAPED_API_MODE and read_byte == XBeePacket.ESCAPE_BYTE:
-                    xbee_packet.append(self.__serial_port.read_byte())
-            # Add packet checksum.
-            xbee_packet.append(self.__serial_port.read_byte())
+            # Add packet payload and checksum.
+            for _ in range(0, length + 1):
+                self.__read_byte_into_packet(xbee_packet, operating_mode)
             return xbee_packet
         except TimeoutException:
             return None
