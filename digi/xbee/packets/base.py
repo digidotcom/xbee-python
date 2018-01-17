@@ -229,7 +229,7 @@ class XBeePacket:
         return esc_data
 
     @staticmethod
-    def _unescape_data(data):
+    def unescape_data(data):
         """
         Un-escapes the provided bytearray data.
 
@@ -482,15 +482,13 @@ class GenericXBeePacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode + " is not supported.")
 
-        unesc_raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
+        XBeeAPIPacket._check_api_packet(raw, min_length=GenericXBeePacket.__MIN_PACKET_LENGTH)
 
-        XBeeAPIPacket._check_api_packet(unesc_raw, min_length=GenericXBeePacket.__MIN_PACKET_LENGTH)
-
-        if unesc_raw[3] != ApiFrameType.GENERIC.code:
+        if raw[3] != ApiFrameType.GENERIC.code:
             raise InvalidPacketException("Wrong frame type, expected: " + ApiFrameType.GENERIC.description +
                                          ". Value: " + ApiFrameType.GENERIC.code)
 
-        return GenericXBeePacket(unesc_raw[4:-1])
+        return GenericXBeePacket(raw[4:-1])
 
     def _get_api_packet_spec_data(self):
         """

@@ -93,8 +93,6 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
-
         XBeeAPIPacket._check_api_packet(raw, min_length=IODataSampleRxIndicatorWifiPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR_WIFI.code:
@@ -378,8 +376,6 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
-
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandWifiPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_REQUEST_WIFI.code:
@@ -606,8 +602,6 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
-
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandResponseWifiPacket.__MIN_PACKET_LENGTH)
 

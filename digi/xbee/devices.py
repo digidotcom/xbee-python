@@ -24,7 +24,6 @@ from serial.serialutil import SerialTimeoutException
 
 from digi.xbee.packets.cellular import TXSMSPacket
 from digi.xbee.models.accesspoint import AccessPoint, WiFiEncryptionType
-from digi.xbee.models.atcomm import SpecialByte
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, XBeeIMEIAddress
@@ -34,7 +33,6 @@ from digi.xbee.models.protocol import XBeeProtocol, IPProtocol
 from digi.xbee.models.status import ATCommandStatus, TransmitStatus, PowerLevel, \
     ModemStatus, CellularAssociationIndicationStatus, WiFiAssociationIndicationStatus, AssociationIndicationStatus,\
     NetworkDiscoveryStatus
-from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.common import ATCommPacket, TransmitPacket, RemoteATCommandPacket, ExplicitAddressingPacket
 from digi.xbee.packets.network import TXIPv4Packet
@@ -107,6 +105,8 @@ class AbstractXBeeDevice(object):
         self._firmware_version = None
         self._protocol = None
         self._node_id = None
+
+        self._packet_listener = None
 
         self._log.addHandler(logging.NullHandler())
 
@@ -1055,13 +1055,14 @@ class AbstractXBeeDevice(object):
             ValueError: if ``frame_id`` is less than 0 or greater than 255.
             TimeoutException: if there was not any XBee packet matching the provided frame ID that could be read.
         """
-        operating_mode = OperatingMode.API_MODE if self.is_remote() else self._operating_mode
         if not (0 <= frame_id <= 255):
             raise ValueError("Frame ID must be between 0 and 255.")
-        packet_read = factory.build_frame(self.__read_next_packet(), operating_mode)
-        while not packet_read.needs_id() or packet_read.frame_id != frame_id:
-            packet_read = factory.build_frame(self.__read_next_packet(), operating_mode)
-        return packet_read
+
+        queue = self._packet_listener.get_queue()
+
+        packet = queue.get_by_id(frame_id, XBeeDevice.TIMEOUT_READ_PACKET)
+
+        return packet
 
     @staticmethod
     def __is_api_packet(xbee_packet):
@@ -1078,31 +1079,6 @@ class AbstractXBeeDevice(object):
         except ValueError:
             return False
         return True
-
-    def __read_next_packet(self):
-        """
-        Reads the next XBee packet. Starts to read when finds the start delimiter.
-        The last byte read is the checksum.
-        
-        If there is something in the COM port buffer before the
-        start delimiter, this method discards it.
-        
-        Returns:
-            :class:XBeePacket: the next XBee packet read.
-            
-        Raises:
-            TimeoutException: if it could not read any new XBee packet.
-        """
-        xbee_packet = bytearray(1)
-        xbee_packet[0] = self._serial_port.read_byte()
-        while xbee_packet[0] != SpecialByte.HEADER_BYTE.code:
-            xbee_packet[0] = self._serial_port.read_byte()
-        packet_length = self._serial_port.read_bytes(2)
-        xbee_packet += packet_length
-        length = utils.length_to_int(packet_length)
-        xbee_packet += self._serial_port.read_bytes(length)
-        xbee_packet.append(self._serial_port.read_byte())
-        return xbee_packet
 
     def __get_log(self):
         """
@@ -1147,7 +1123,7 @@ class XBeeDevice(AbstractXBeeDevice):
     Timeout to wait when resetting the module.
     """
 
-    _TIMEOUT_READ_PACKET = 3  # seconds
+    TIMEOUT_READ_PACKET = 3  # seconds
     """
     Timeout to read packets.
     """
@@ -1203,7 +1179,6 @@ class XBeeDevice(AbstractXBeeDevice):
 
         self._network = XBeeNetwork(self)
 
-        self._packet_listener = None
         self.__packet_queue = None
         self.__data_queue = None
         self.__explicit_queue = None
@@ -2463,7 +2438,7 @@ class XBeeDevice(AbstractXBeeDevice):
         
         This method can be synchronous or asynchronous.
         
-        If is synchronous, this method  will discards all response
+        If is synchronous, this method  will discard all response
         packets until it finds the one that has the appropriate frame ID,
         that is, the sent packet's frame ID.
         
@@ -3481,7 +3456,7 @@ class IPDevice(XBeeDevice):
         return self.send_ip_data(IPv4Address(self.BROADCAST_IP), dest_port, IPProtocol.UDP, data)
 
     @AbstractXBeeDevice._before_send_method
-    def read_ip_data(self, timeout=XBeeDevice._TIMEOUT_READ_PACKET):
+    def read_ip_data(self, timeout=XBeeDevice.TIMEOUT_READ_PACKET):
         """
         Reads new IP data received by this XBee device during the
         provided timeout.
@@ -3512,7 +3487,7 @@ class IPDevice(XBeeDevice):
         return self.__read_ip_data_packet(timeout)
 
     @AbstractXBeeDevice._before_send_method
-    def read_ip_data_from(self, ip_addr, timeout=XBeeDevice._TIMEOUT_READ_PACKET):
+    def read_ip_data_from(self, ip_addr, timeout=XBeeDevice.TIMEOUT_READ_PACKET):
         """
         Reads new IP data received from the given IP address during the
         provided timeout.
