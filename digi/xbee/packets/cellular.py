@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -83,13 +83,12 @@ class RXSMSPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
         
-        _raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
-        
-        XBeeAPIPacket._check_api_packet(_raw, min_length=RXSMSPacket.__MIN_PACKET_LENGTH)
-        if _raw[3] != ApiFrameType.RX_SMS.code:
+        XBeeAPIPacket._check_api_packet(raw, min_length=RXSMSPacket.__MIN_PACKET_LENGTH)
+
+        if raw[3] != ApiFrameType.RX_SMS.code:
             raise InvalidPacketException("This packet is not an RXSMSPacket")
 
-        return RXSMSPacket(_raw[4:23].decode("utf8").replace("\0", ""), _raw[24:-1].decode("utf8"))
+        return RXSMSPacket(raw[4:23].decode("utf8").replace("\0", ""), raw[24:-1].decode("utf8"))
 
     def needs_id(self):
         """
@@ -252,13 +251,12 @@ class TXSMSPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
         
-        _raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
-        
         XBeeAPIPacket._check_api_packet(raw, min_length=TXSMSPacket.__MIN_PACKET_LENGTH)
-        if _raw[3] != ApiFrameType.TX_SMS.code:
+
+        if raw[3] != ApiFrameType.TX_SMS.code:
             raise InvalidPacketException("This packet is not a TXSMSPacket")
 
-        return TXSMSPacket(_raw[4], _raw[6:25].decode("utf8").replace("\0", ""), _raw[26:-1].decode("utf8"))
+        return TXSMSPacket(raw[4], raw[6:25].decode("utf8").replace("\0", ""), raw[26:-1].decode("utf8"))
 
     def needs_id(self):
         """
