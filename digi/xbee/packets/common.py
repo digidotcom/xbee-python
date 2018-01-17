@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -91,7 +91,6 @@ class ATCommPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.AT_COMMAND.code:
@@ -252,8 +251,6 @@ class ATCommResponsePacket(XBeeAPIPacket):
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
-
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommResponsePacket.__MIN_PACKET_LENGTH)
 
@@ -440,8 +437,6 @@ class ReceivePacket(XBeeAPIPacket):
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
-
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ReceivePacket.__MIN_PACKET_LENGTH)
 
@@ -677,8 +672,6 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
-
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandPacket.__MIN_PACKET_LENGTH)
 
@@ -936,8 +929,6 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
-
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandResponsePacket.__MIN_PACKET_LENGTH)
 
@@ -1211,8 +1202,6 @@ class TransmitPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
-
         XBeeAPIPacket._check_api_packet(raw, min_length=TransmitPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TRANSMIT_REQUEST.code:
@@ -1463,8 +1452,6 @@ class TransmitStatusPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
-
         XBeeAPIPacket._check_api_packet(raw, min_length=TransmitStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TRANSMIT_STATUS.code:
@@ -1663,8 +1650,6 @@ class ModemStatusPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
-
         XBeeAPIPacket._check_api_packet(raw, min_length=ModemStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.MODEM_STATUS.code:
@@ -1798,8 +1783,6 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
-
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
 
         XBeeAPIPacket._check_api_packet(raw, min_length=IODataSampleRxIndicatorPacket.__MIN_PACKET_LENGTH)
 
@@ -2150,7 +2133,6 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
         XBeeAPIPacket._check_api_packet(raw, min_length=ExplicitAddressingPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.EXPLICIT_ADDRESSING.code:
@@ -2511,7 +2493,6 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
-        raw = XBeeAPIPacket._unescape_data(raw) if operating_mode == OperatingMode.ESCAPED_API_MODE else raw
         XBeeAPIPacket._check_api_packet(raw, min_length=ExplicitRXIndicatorPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.EXPLICIT_RX_INDICATOR.code:

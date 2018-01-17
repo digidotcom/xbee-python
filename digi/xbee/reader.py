@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -27,7 +27,7 @@ from digi.xbee.models.options import ReceiveOptions
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.base import XBeePacket
+from digi.xbee.packets.base import XBeePacket, XBeeAPIPacket
 from digi.xbee.packets.common import ReceivePacket
 from digi.xbee.packets.raw import RX64Packet, RX16Packet
 from digi.xbee.util import utils
@@ -295,7 +295,7 @@ class PacketListener(threading.Thread):
         try:
             self.__stop = False
             while not self.__stop:
-                # Try to read a packet.
+                # Try to read a packet. Read packet is unescaped.
                 raw_packet = self.__try_read_packet(self.__xbee_device.operating_mode)
 
                 if raw_packet is not None:
@@ -625,18 +625,28 @@ class PacketListener(threading.Thread):
                                                     sender=str(xbee_packet.phone_number),
                                                     more_data=xbee_packet.data))
 
-    def __read_byte_into_packet(self, xbee_packet, operating_mode):
+    def __read_next_byte(self, operating_mode):
         """
-        Reads the next byte and appends it to ``xbee_packet``.
+        Returns the next byte in bytearray format. If the operating mode is
+        OperatingMode.ESCAPED_API_MODE, the bytearray could contain 2 bytes.
 
         If in escaped API mode and the byte that was read was the escape byte,
         it will also read the next byte.
+
+        Args:
+            operating_mode (:class:`.OperatingMode`): the operating mode in which the byte should be read.
+
+        Returns:
+            Bytearray: the read byte or bytes as bytearray, ``None`` otherwise.
         """
+        read_data = bytearray()
         read_byte = self.__serial_port.read_byte()
-        xbee_packet.append(read_byte)
+        read_data.append(read_byte)
         # Read escaped bytes in API escaped mode.
         if operating_mode == OperatingMode.ESCAPED_API_MODE and read_byte == XBeePacket.ESCAPE_BYTE:
-            xbee_packet.append(self.__serial_port.read_byte())
+            read_data.append(self.__serial_port.read_byte())
+
+        return read_data
 
     def __try_read_packet(self, operating_mode=OperatingMode.API_MODE):
         """
@@ -649,6 +659,9 @@ class PacketListener(threading.Thread):
         If the method can't read a complete and correct packet,
         it will return ``None``.
 
+        Args:
+            operating_mode (:class:`.OperatingMode`): the operating mode in which the packet should be read.
+
         Returns:
             Bytearray: the read packet as bytearray if a packet is read, ``None`` otherwise.
         """
@@ -658,14 +671,28 @@ class PacketListener(threading.Thread):
             xbee_packet[0] = self.__serial_port.read_byte()
             while xbee_packet[0] != SpecialByte.HEADER_BYTE.value:
                 xbee_packet[0] = self.__serial_port.read_byte()
-            packet_length = self.__serial_port.read_bytes(2)
+
             # Add packet length.
-            xbee_packet += packet_length
-            length = utils.length_to_int(packet_length)
-            # Add packet payload and checksum.
-            for _ in range(0, length + 1):
-                self.__read_byte_into_packet(xbee_packet, operating_mode)
-            return xbee_packet
+            packet_length_byte = bytearray()
+            for _ in range(0, 2):
+                packet_length_byte += self.__read_next_byte(operating_mode)
+            xbee_packet += packet_length_byte
+            # Length needs to be un-escaped to obtain its integer equivalent.
+            length = utils.length_to_int(XBeeAPIPacket.unescape_data(packet_length_byte))
+
+            # Add packet payload.
+            for _ in range(0, length):
+                xbee_packet += self.__read_next_byte(operating_mode)
+
+            # Add packet checksum.
+            for _ in range(0, 1):
+                xbee_packet += self.__read_next_byte(operating_mode)
+
+            # Return the packet unescaped.
+            if operating_mode == OperatingMode.ESCAPED_API_MODE:
+                return XBeeAPIPacket.unescape_data(xbee_packet)
+            else:
+                return xbee_packet
         except TimeoutException:
             return None
 
@@ -948,6 +975,44 @@ class XBeeQueue(Queue):
             while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
                 xbee_packet = self.get_by_ip(ip_addr, None)
+            if xbee_packet is None:
+                raise TimeoutException()
+            return xbee_packet
+
+    def get_by_id(self, frame_id, timeout=None):
+        """
+        Returns the first packet from the queue whose frame ID
+        matches the provided one.
+
+        If timeout is ``None``, this method is non-blocking. In this case, if there isn't
+        any received packet with the provided frame ID in the queue, it returns ``None``,
+        otherwise it returns an :class:`.XBeeAPIPacket`.
+
+        Args:
+            frame_id (Integer): The frame ID to look for in the list of packets.
+            timeout (Integer, optional): Timeout in seconds.
+
+        Returns:
+            :class:`.XBeeAPIPacket`: if there is any packet available before the timeout expires. If timeout is
+                ``None``, the returned value may be ``None``.
+
+        Raises:
+            TimeoutException: if timeout is not ``None`` and there isn't any packet available that matches
+            the provided frame ID before the timeout expires.
+        """
+        if timeout is None:
+            with self.mutex:
+                for xbee_packet in self.queue:
+                    if xbee_packet.needs_id() and xbee_packet.frame_id == frame_id:
+                        self.queue.remove(xbee_packet)
+                        return xbee_packet
+            return None
+        else:
+            xbee_packet = self.get_by_id(frame_id, None)
+            dead_line = time.time() + timeout
+            while xbee_packet is None and dead_line > time.time():
+                time.sleep(0.1)
+                xbee_packet = self.get_by_id(frame_id, None)
             if xbee_packet is None:
                 raise TimeoutException()
             return xbee_packet
