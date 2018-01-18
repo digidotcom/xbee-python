@@ -1,6 +1,20 @@
 Changelog
 =========
 
+v1.1.0 - 01/19/2018
+-------------------
+
+* Add support for new hardware variants:
+  * XB8X
+* Add missing 'Modem Status' values for Remote Manager connect and disconnect
+  events.
+* Bug Fixing:
+  * Fix timeouts on Unix plaforms.
+  * Fix the return source endpoint method from the 'ExplicitRXIndicatorPacket'
+    class.
+  * Perform general bug fixing when working in API escaped mode.
+
+
 v1.0.0 - 10/02/2017
 -------------------
 
