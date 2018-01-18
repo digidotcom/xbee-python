@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -294,9 +294,9 @@ class IOSample(object):
         self.__io_sample_payload = io_sample_payload
 
         if len(self.__io_sample_payload) % 2 != 0:
-            self.parse_raw_io_sample()
+            self.__parse_raw_io_sample()
         else:
-            self.parse_io_sample()
+            self.__parse_io_sample()
 
     def __str__(self):
         s = "{"
@@ -325,7 +325,7 @@ class IOSample(object):
         """
         return IOSample.__MIN_IO_SAMPLE_PAYLOAD_LENGTH
 
-    def parse_raw_io_sample(self):
+    def __parse_raw_io_sample(self):
         """
         Parses the information contained in the IO sample bytes reading the 
         value of each configured DIO and ADC.
@@ -378,7 +378,7 @@ class IOSample(object):
             data_index += 2
             adc_index += 1
 
-    def parse_io_sample(self):
+    def __parse_io_sample(self):
         """
         Parses the information contained in the IO sample bytes reading the 
         value of each configured DIO and ADC.
