@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2017 Digi International Inc. All Rights Reserved.
+# Copyright (c) 2017, 2018, Digi International Inc. All Rights Reserved.
 
 from setuptools import setup, find_packages
 from codecs import open
@@ -20,7 +20,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
  
 setup(
     name='digi-xbee',
-    version='1.0.0',
+    version='1.1.0',
     description='Digi XBee Python library',
     long_description=long_description,
     url='https://github.com/digidotcom/python-xbee',
