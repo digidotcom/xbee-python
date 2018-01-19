@@ -1,9 +1,9 @@
 Handle analog and digital IO lines
 ==================================
 
-All the XBee modules, regardless of the protocol they run, have a set of lines
-(pins). You can use these pins to connect sensors or actuators and configure
-them with specific behavior.
+All the XBee modules, regardless of the protocol they run, have a set of IO
+lines (pins). You can use these pins to connect sensors or actuators and
+configure them with specific behavior.
 
 You can configure the IO lines of an XBee device to be digital input/output
 (DIO), analog to digital converter (ADC), or pulse-width modulation output
@@ -208,8 +208,8 @@ ADC
 ```
 
 When you configure an IO line as analog to digital converter (ADC), you can
-only read its value (counts) with ``get_adc_value()``. In this case, the method 
-used to read ADCs is different than the digital I/O method, but the parameter 
+only read its value (counts) with ``get_adc_value()``. In this case, the method
+used to read ADCs is different than the digital I/O method, but the parameter
 provided is the same: the IO line to read the value from.
 
 **Read ADC values**

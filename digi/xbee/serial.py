@@ -13,13 +13,20 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from serial import Serial, EIGHTBITS, STOPBITS_ONE, PARITY_NONE
-import enum
+from enum import Enum
 import digi.xbee.exception
 
 
-class FlowControl(enum.Enum):
+class FlowControl(Enum):
     """
     This class represents all available flow controls.
+
+    | Values:
+    |   **NONE** = None
+    |   **SOFTWARE** = 0
+    |   **HARDWARE_RTS_CTS** = 1
+    |   **HARDWARE_DSR_DTR** = 2
+    |   **UNKNOWN** = 99
     """
 
     NONE = None

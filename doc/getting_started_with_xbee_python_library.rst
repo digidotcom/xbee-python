@@ -179,7 +179,7 @@ ZigBee devices
 
    * One of the devices must be a coordinator - Function: ZigBee Coordinator
      API
-   * Digi recommends the other one is a router - Function: ZigBee Router AP.
+   * Digi recommends the other one is a router - Function: ZigBee Router API.
 
    .. note::
       If any of the two previous conditions is not satisfied, you must change
@@ -194,7 +194,7 @@ ZigBee devices
    * If the device has the **CE** parameter, set it to **Enabled** in the
      coordinator.
 
-#. Configure **ID** (PAN ID) setting to **C001BEE**.
+#. Configure **ID** (PAN ID) setting to **CAFE**.
 #. Configure **SC** (Scan Channels) setting to **FFF**.
 #. Click **Write radio settings** in the **Radio Configuration** toolbar to
    apply the new values to the module.

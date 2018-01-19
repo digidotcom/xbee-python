@@ -20,10 +20,10 @@ from digi.xbee.exception import OperationNotSupportedException
 @unique
 class IOLine(Enum):
     """
-    Enumerates the different IO lines that can be found in the XBee devices. 
+    Enumerates the different IO lines that can be found in the XBee devices.
 
-    Depending on the hardware and firmware of the device, the number of lines 
-    that can be used as well as their functionality may vary. Refer to the 
+    Depending on the hardware and firmware of the device, the number of lines
+    that can be used as well as their functionality may vary. Refer to the
     product manual to learn more about the IO lines of your XBee device.
     """
 
@@ -180,13 +180,13 @@ IOValue.lookupTable = {x.code: x for x in IOValue}
 class IOSample(object):
     """
     This class represents an IO Data Sample. The sample is built using the
-    the constructor. The sample contains an analog and digital mask indicating 
+    the constructor. The sample contains an analog and digital mask indicating
     which IO lines are configured with that functionality.
 
-    Depending on the protocol the XBee device is executing, the digital and 
-    analog masks are retrieved in separated bytes (2 bytes for the digital mask 
-    and 1 for the analog mask) or merged contained (digital and analog masks 
-    are contained in 2 bytes). 
+    Depending on the protocol the XBee device is executing, the digital and
+    analog masks are retrieved in separated bytes (2 bytes for the digital mask
+    and 1 for the analog mask) or merged contained (digital and analog masks
+    are contained in 2 bytes).
 
     Digital and analog channels masks
     Indicates which digital and ADC IO lines are configured in the module. Each
@@ -214,12 +214,12 @@ class IOSample(object):
             0 0 0 0 1 1 0 0 0 0 1 0 1 0 0 1
 
     Digital Channel Mask
-    Indicates which digital IO lines are configured in the module. Each bit 
+    Indicates which digital IO lines are configured in the module. Each bit
     corresponds to one digital IO line on the module:
     ::
 
             bit 0 =  DIO0AD0
-            bit 1 =  DIO1AD1 
+            bit 1 =  DIO1AD1
             bit 2 =  DIO2AD2
             bit 3 =  DIO3AD3
             bit 4 =  DIO4AD4
@@ -239,7 +239,7 @@ class IOSample(object):
             0 0 0 0 0 1 0 0 0 0 0 0 1 0 1 1
 
     Analog Channel Mask
-    Indicates which lines are configured as ADC. Each bit in the analog 
+    Indicates which lines are configured as ADC. Each bit in the analog
     channel mask corresponds to one ADC line on the module.
     ::
 
@@ -252,7 +252,7 @@ class IOSample(object):
             bit 6 = NA
             bit 7 = Supply Voltage Value
 
-            Example: mask of 0x83 means AD0, and AD1 enabled.
+            Example: mask of 0x3 means AD0, and AD1 enabled.
             0 0 0 0 0 0 1 1
     """
 
@@ -327,8 +327,8 @@ class IOSample(object):
 
     def __parse_raw_io_sample(self):
         """
-        Parses the information contained in the IO sample bytes reading the 
-        value of each configured DIO and ADC.
+        Parses the information contained in the IO sample bytes reading the
+        value of each configured DIO and ADC. (802.15.4 only)
         """
         data_index = 3
 
@@ -380,7 +380,7 @@ class IOSample(object):
 
     def __parse_io_sample(self):
         """
-        Parses the information contained in the IO sample bytes reading the 
+        Parses the information contained in the IO sample bytes reading the
         value of each configured DIO and ADC.
         """
         data_index = 4
@@ -465,7 +465,7 @@ class IOSample(object):
         """
         Returns the digital values map.
 
-        To verify if this sample contains a valid digital values, use the 
+        To verify if this sample contains a valid digital values, use the
         method :meth:`.IOSample.has_digital_values`.
 
         Returns:
@@ -486,7 +486,7 @@ class IOSample(object):
         """
         Returns the analog values map.
 
-        To verify if this sample contains a valid analog values, use the 
+        To verify if this sample contains a valid analog values, use the
         method :meth:`.IOSample.has_analog_values`.
 
         Returns:
@@ -498,7 +498,7 @@ class IOSample(object):
         """
         Returns the value of the power supply voltage.
 
-        To verify if this sample contains the power supply voltage, use the 
+        To verify if this sample contains the power supply voltage, use the
         method :meth:`.IOSample.has_power_supply_value`.
 
         Returns:
@@ -621,7 +621,7 @@ class IOSample(object):
 
 class IOMode(Enum):
     """
-    Enumerates the different Input/Output modes that an IO line can be 
+    Enumerates the different Input/Output modes that an IO line can be
     configured with.
     """
 

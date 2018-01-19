@@ -188,10 +188,10 @@ You can locate the example in the following path:
 Send explicit data
 ``````````````````
 
-This sample application shows how to send data in application layer (explicit)
-format to a remote ZigBee device on the same network as the local one using the
-XBee Python Library. In this example, the XBee module sends explicit data using
-a reliable transmission method. The application blocks during the transmission
+This sample application shows how to send data in the application layer
+(explicit) format to a remote ZigBee using the XBee Python Library.
+In this example, the XBee module sends explicit data using a reliable
+transmission method. The application blocks during the transmission
 request, but you are notified if there is any error during the process.
 
 You can locate the example in the following path:

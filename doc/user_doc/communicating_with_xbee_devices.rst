@@ -258,7 +258,7 @@ Send explicit data
 ------------------
 
 Some ZigBee applications may require communication with third-party (non-Digi)
-RF modules. These applications often send data of different public profiles
+RF modules. These applications often send data on different public profiles
 such as Home Automation or Smart Energy to other modules.
 
 XBee ZigBee modules offer a special type of frame for this purpose. Explicit

@@ -2023,6 +2023,8 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
     The coordinator can be addressed by either setting the 64-bit address to all
     ``0x00`` and the 16-bit address to ``0xFFFE``, OR by setting the 64-bit
     address to the coordinator's 64-bit address and the 16-bit address to ``0x0000``.
+    Note: Not all networks have a coordinator. IP networks and Zigbee networks using
+    the distributed trust center topology will not have coordinators.
 
     For all other transmissions, setting the 16-bit address to the correct
     16-bit address can help improve performance when transmitting to
