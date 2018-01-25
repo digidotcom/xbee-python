@@ -1278,8 +1278,6 @@ class XBeeDevice(AbstractXBeeDevice):
 
         if self._packet_listener is not None:
             self._packet_listener.stop()
-            # Wait 100 ms before closing the port.
-            time.sleep(0.1)
 
         if self._serial_port is not None and self._serial_port.isOpen():
             self._serial_port.close()

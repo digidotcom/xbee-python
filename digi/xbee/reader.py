@@ -324,10 +324,13 @@ class PacketListener(threading.Thread):
                     # Execute all user callbacks.
                     self.__execute_user_callbacks(read_packet, remote)
         except Exception as e:
-            self.__xbee_device.serial_port.close()
-            self._log.exception(e)
+            if not self.__stop:
+                self._log.exception(e)
         finally:
-            self.__stop = True
+            if not self.__stop:
+                self.__stop = True
+                if self.__serial_port.isOpen():
+                    self.__serial_port.close()
 
     def stop(self):
         """
