@@ -108,9 +108,6 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     Args:
         packet_bytearray (Bytearray): the raw data of the packet to build.
         operating_mode (:class:`.OperatingMode`): the operating mode in which the raw data has been captured.
-    
-    Raises:
-        NotImplementedError: if the packet defined by the bytearray is not supported.
 
     .. seealso::
        | :class:`.OperatingMode`
@@ -208,4 +205,4 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
         return FrameErrorPacket.create_packet(packet_bytearray, operating_mode)
 
     else:
-        raise NotImplementedError("Frame type " + str(frame_type) + " is not supported.")
+        return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode)

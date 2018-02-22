@@ -284,14 +284,20 @@ class XBeeAPIPacket(XBeePacket):
         Class constructor. Instantiates a new :class:`.XBeeAPIPacket` object with the provided parameters.
         
         Args:
-            api_frame_type (:class:`.ApiFrameType`): The API frame type.
+            api_frame_type (:class:`.ApiFrameType` or Integer): The API frame type.
 
         .. seealso::
            | :class:`.ApiFrameType`
            | :class:`.XBeePacket`
         """
         super().__init__()
-        self._frame_type = api_frame_type
+        # Check the type of the API frame type.
+        if isinstance(api_frame_type, ApiFrameType):
+            self._frame_type = api_frame_type
+            self._frame_type_value = api_frame_type.code
+        else:
+            self._frame_type = ApiFrameType.get(api_frame_type)
+            self._frame_type_value = api_frame_type
         self._frame_id = 0
 
     def get_frame_spec_data(self):
@@ -304,7 +310,7 @@ class XBeeAPIPacket(XBeePacket):
         data = self._get_api_packet_spec_data()
         if self.needs_id():
             data.insert(0, self._frame_id)
-        data.insert(0, self._frame_type.code)
+        data.insert(0, self._frame_type_value)
         return data
 
     def get_frame_type(self):
@@ -318,6 +324,18 @@ class XBeeAPIPacket(XBeePacket):
            | :class:`.ApiFrameType`
         """
         return self._frame_type
+
+    def get_frame_type_value(self):
+        """
+        Returns the frame type integer value of this packet.
+
+        Returns:
+            Integer: the frame type integer value of this packet.
+
+        .. seealso::
+           | :class:`.ApiFrameType`
+        """
+        return self._frame_type_value
 
     def _get_frame_spec_data_dict(self):
         """
@@ -512,6 +530,87 @@ class GenericXBeePacket(XBeeAPIPacket):
         """
         Override method.
         
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
+        """
+        return {DictKeys.RF_DATA: self.__rf_data}
+
+
+class UnknownXBeePacket(XBeeAPIPacket):
+    """
+    This class represents an unknown XBee packet.
+
+    .. seealso::
+       | :class:`.XBeeAPIPacket`
+    """
+
+    __MIN_PACKET_LENGTH = 5
+
+    def __init__(self, api_frame, rf_data):
+        """
+        Class constructor. Instantiates a :class:`.UnknownXBeePacket` object with the provided parameters.
+
+        Args:
+            api_frame (Integer): the API frame integer value of this packet.
+            rf_data (bytearray): the frame specific data without frame type and frame ID.
+
+        .. seealso::
+           | :mod:`.factory`
+           | :class:`.XBeeAPIPacket`
+        """
+        super().__init__(api_frame_type=api_frame)
+        self.__rf_data = rf_data
+
+    @staticmethod
+    def create_packet(raw, operating_mode=OperatingMode.API_MODE):
+        """
+        Override method.
+
+        Returns:
+            :class:`.UnknownXBeePacket`: the UnknownXBeePacket generated.
+
+        Raises:
+            InvalidPacketException: if the bytearray length is less than 5. (start delim. + length (2 bytes) +
+                frame type + checksum = 5 bytes).
+            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
+                2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
+            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+
+        .. seealso::
+           | :meth:`.XBeePacket.create_packet`
+           | :meth:`.XBeeAPIPacket._check_api_packet`
+        """
+        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+            raise InvalidOperatingModeException(operating_mode + " is not supported.")
+
+        XBeeAPIPacket._check_api_packet(raw, min_length=UnknownXBeePacket.__MIN_PACKET_LENGTH)
+
+        return UnknownXBeePacket(raw[3], raw[4:-1])
+
+    def _get_api_packet_spec_data(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
+        """
+        return bytearray(self.__rf_data)
+
+    def needs_id(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.needs_id`
+        """
+        return False
+
+    def _get_api_packet_spec_data_dict(self):
+        """
+        Override method.
+
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """

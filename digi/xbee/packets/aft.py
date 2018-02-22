@@ -58,6 +58,7 @@ class ApiFrameType(Enum):
     DEVICE_RESPONSE_STATUS = (0xBA, "Device Response Status")
     FRAME_ERROR = (0xFE, "Frame Error")
     GENERIC = (0xFF, "Generic")
+    UNKNOWN = (-1, "Unknown Packet")
 
     def __init__(self, code, description):
         self.__code = code
@@ -90,13 +91,13 @@ class ApiFrameType(Enum):
             code (Integer): the code of the API frame type to get.
 
         Returns:
-            :class:`.ApiFrameType`: the API frame type associated to the given code or ``None`` if
+            :class:`.ApiFrameType`: the API frame type associated to the given code or ``UNKNOWN`` if
                 the given code is not a valid ApiFrameType code.
         """
         try:
             return cls.lookupTable[code]
         except KeyError:
-            return None
+            return ApiFrameType.UNKNOWN
 
     code = property(__get_code)
     """Integer. The API frame type code."""
