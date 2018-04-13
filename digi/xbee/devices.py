@@ -2332,9 +2332,9 @@ class XBeeDevice(AbstractXBeeDevice):
         # Wait some time to let the module generate a response.
         time.sleep(self.__TIMEOUT_ENTER_COMMAND_MODE)
         # Read data from the device (it should answer with 'OK\r').
-        data = self._serial_port.read_existing()
+        data = self._serial_port.read_existing().decode()
 
-        return data.decode() in self.__COMMAND_MODE_OK
+        return data and data in self.__COMMAND_MODE_OK
 
     def _determine_operating_mode(self):
         """
