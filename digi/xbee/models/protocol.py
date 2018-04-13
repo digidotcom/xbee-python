@@ -244,7 +244,12 @@ class XBeeProtocol(Enum):
         elif hardware_version in [HardwareVersion.XBEE3.code,
                                   HardwareVersion.XBEE3_SMT.code,
                                   HardwareVersion.XBEE3_TH.code]:
-            return XBeeProtocol.ZIGBEE
+            if firmware_version.startswith("2"):
+                return XBeeProtocol.RAW_802_15_4
+            elif firmware_version.startswith("3"):
+                return XBeeProtocol.DIGI_MESH
+            else:
+                return XBeeProtocol.ZIGBEE
 
         elif hardware_version == HardwareVersion.XB8X.code:
             return XBeeProtocol.DIGI_MESH
