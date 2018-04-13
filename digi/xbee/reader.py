@@ -284,7 +284,7 @@ class PacketListener(threading.Thread):
         self.__explicit_xbee_queue = XBeeQueue(self.__queue_max_size)
         self.__ip_xbee_queue = XBeeQueue(self.__queue_max_size)
 
-        self._log.addHandler(logging.NullHandler())
+        self._log.addHandler(logging.StreamHandler())
 
     def run(self):
         """
