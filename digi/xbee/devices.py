@@ -316,7 +316,7 @@ class AbstractXBeeDevice(object):
         
         if orig_protocol is not None and orig_protocol != XBeeProtocol.UNKNOWN and orig_protocol != self._protocol:
             raise XBeeException("Error reading device information: "
-                                "Your module seems to be %s and NOT %s. " % (self.get_protocol(), orig_protocol) +
+                                "Your module seems to be %s and NOT %s. " % (self._protocol, orig_protocol) +
                                 "Check if you are using the appropriate device class.")
         
         # 64-bit address:
