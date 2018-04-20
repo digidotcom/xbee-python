@@ -407,7 +407,7 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         """
         ret = bytearray(self.__dest_address.packed)
         ret += utils.int_to_bytes(self.__transmit_options, num_bytes=1)
-        ret += bytearray(self.__command, 'utf8')
+        ret += bytearray(self.__command, "utf8")
         if self.__parameter is not None:
             ret += self.__parameter
         return ret

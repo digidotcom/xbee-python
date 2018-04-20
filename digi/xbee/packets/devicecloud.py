@@ -96,7 +96,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
             raise InvalidPacketException("This packet is not a device request packet.")
 
         target_length = raw[7]
-        return DeviceRequestPacket(raw[4], str(raw[8:8 + target_length]), raw[8 + target_length:-1])
+        return DeviceRequestPacket(raw[4], raw[8:8 + target_length].decode("utf8"), raw[8 + target_length:-1])
 
     def needs_id(self):
         """
@@ -119,7 +119,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
         ret += utils.int_to_bytes(self.__flags, num_bytes=1)
         if self.__target is not None:
             ret += utils.int_to_bytes(len(self.__target), num_bytes=1)
-            ret += bytearray(self.__target, 'utf8')
+            ret += bytearray(self.__target, "utf8")
         else:
             ret += utils.int_to_bytes(0x00, num_bytes=1)
         if self.__request_data is not None:
@@ -723,8 +723,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
         path_length = raw[5]
         content_type_length = raw[6 + path_length]
         return SendDataRequestPacket(raw[4],
-                                     str(raw[6:6 + path_length]),
-                                     str(raw[6 + path_length + 1:6 + path_length + 1 + content_type_length]),
+                                     raw[6:6 + path_length].decode("utf8"),
+                                     raw[6 + path_length + 1:6 + path_length + 1 + content_type_length].decode("utf8"),
                                      SendDataRequestOptions.get(raw[6 + path_length + 2 + content_type_length]),
                                      raw[6 + path_length + 3 + content_type_length:-1])
 

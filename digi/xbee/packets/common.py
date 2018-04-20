@@ -96,7 +96,7 @@ class ATCommPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.AT_COMMAND.code:
             raise InvalidPacketException("This packet is not an AT command packet.")
 
-        return ATCommPacket(raw[4], str(raw[5:7]), raw[7:-1])
+        return ATCommPacket(raw[4], raw[5:7].decode("utf8"), raw[7:-1])
 
     def needs_id(self):
         """
@@ -115,8 +115,8 @@ class ATCommPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         if self.__parameter is not None:
-            return bytearray(self.__command, 'utf8') + self.__parameter
-        return bytearray(self.__command, 'utf8')
+            return bytearray(self.__command, "utf8") + self.__parameter
+        return bytearray(self.__command, "utf8")
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -259,7 +259,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         if ATCommandStatus.get(raw[7]) is None:
             raise InvalidPacketException("Invalid command status.")
 
-        return ATCommResponsePacket(raw[4], raw[5:7].decode(), ATCommandStatus.get(raw[7]), raw[8:-1])
+        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), ATCommandStatus.get(raw[7]), raw[8:-1])
 
     def needs_id(self):
         """
@@ -277,7 +277,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        ret = bytearray(self.__command)
+        ret = bytearray(self.__command, "utf8")
         ret.append(self.__response_status.code)
         if self.__comm_value is not None:
             ret += self.__comm_value
@@ -680,10 +680,10 @@ class RemoteATCommandPacket(XBeeAPIPacket):
 
         return RemoteATCommandPacket(
                 raw[4],
-                XBee64BitAddress(raw[5:12]),
+                XBee64BitAddress(raw[5:13]),
                 XBee16BitAddress(raw[13:15]),
                 raw[15],
-                str(raw[16:18]),
+                raw[16:18].decode("utf8"),
                 raw[18:-1]
         )
 
@@ -706,7 +706,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
         ret.append(self.__transmit_options)
-        ret += bytearray(self.__command, 'utf8')
+        ret += bytearray(self.__command, "utf8")
         return ret if self.__parameter is None else ret + self.__parameter
 
     def _get_api_packet_spec_data_dict(self):
@@ -936,7 +936,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
             raise InvalidPacketException("This packet is not a remote AT command response packet.")
 
         return RemoteATCommandResponsePacket(raw[4], XBee64BitAddress(raw[5:13]),
-                                             XBee16BitAddress(raw[13:15]), str(raw[15:17].decode()),
+                                             XBee16BitAddress(raw[13:15]), raw[15:17].decode("utf8"),
                                              ATCommandStatus.get(raw[17]), raw[18:-1])
 
     def needs_id(self):
@@ -957,7 +957,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         """
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
-        ret += bytearray(self.__command)
+        ret += bytearray(self.__command, "utf8")
         ret.append(self.__response_status.code)
         if self.__comm_value is not None:
             ret += self.__comm_value
@@ -1810,7 +1810,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         """
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
-        ret.append(self.__receive_options.code)
+        ret.append(self.__receive_options)
         if self.__rf_data is not None:
             ret += self.__rf_data
         return ret
