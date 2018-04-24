@@ -1,6 +1,21 @@
 Changelog
 =========
 
+v1.1.1 - 04/25/2018
+-------------------
+
+* Add support for DigiMesh and 802.15.4 protocols on XBee3 modules.
+* Return an unknown XBee packet when the received packet is not supported by
+  the library instead of raising an exception.
+* Change logging handler to log messages in the console.
+* Bug Fixing:
+  * Fix a problem when closing the device connection in the reader.
+  * Fix how is determined whether the module has entered in AT command mode
+    or not.
+  * Fix the string encoding and decoding in some API packets.
+  * Fix the message displayed when the XBee device protocol is not correct one.
+
+
 v1.1.0 - 01/19/2018
 -------------------
 
@@ -9,7 +24,7 @@ v1.1.0 - 01/19/2018
 * Add missing 'Modem Status' values for Remote Manager connect and disconnect
   events.
 * Bug Fixing:
-  * Fix timeouts on Unix plaforms.
+  * Fix timeouts on Unix platforms.
   * Fix the return source endpoint method from the 'ExplicitRXIndicatorPacket'
     class.
   * Perform general bug fixing when working in API escaped mode.
