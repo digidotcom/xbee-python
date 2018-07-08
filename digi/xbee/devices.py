@@ -109,9 +109,13 @@ class AbstractXBeeDevice(object):
 
         self._packet_listener = None
 
-        self._log.addHandler(logging.StreamHandler())
+        self._log_handler = logging.StreamHandler()
+        self._log.addHandler(self._log_handler)
 
         self.__generic_lock = threading.Lock()
+
+    def __del__(self):
+        self._log.removeHandler(self._log_handler)
 
     def __eq__(self, other):
         """
