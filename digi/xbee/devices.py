@@ -201,9 +201,9 @@ class AbstractXBeeDevice(object):
 
         You can set this flag via the method :meth:`.AbstractXBeeDevice.enable_apply_changes`.
 
-        This flags only works for volatile memory, if you want to save
+        This flag only works for volatile memory, if you want to save
         changed parameters in non-volatile memory, even for remote devices,
-        you must execute "WR" command by some of the 2 ways mentioned above.
+        you must execute "WR" command by one of the 2 ways mentioned above.
 
         Args:
             parameter (String): parameter to set.
