@@ -139,6 +139,8 @@ class AbstractXBeeDevice(object):
             return False
         if self.get_64bit_addr() is not None and other.get_64bit_addr() is not None:
             return self.get_64bit_addr() == other.get_64bit_addr()
+        if self.get_16bit_addr() is not None and other.get_16bit_addr() is not None:
+            return self.get_16bit_addr() == other.get_16bit_addr()
         return False
 
     def update_device_data_from(self, device):
