@@ -142,14 +142,14 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
             # Digital values
             for i in range(16):
                 if self.__io_sample.has_digital_value(IOLine.get(i)):
-                    base[IOLine.get(i).description + "digital value"] = \
-                        utils.hex_to_string(self.__io_sample.get_digital_value(IOLine.get(i)))
+                    base[IOLine.get(i).description + " digital value"] = \
+                        self.__io_sample.get_digital_value(IOLine.get(i)).name
 
             # Analog values
             for i in range(6):
                 if self.__io_sample.has_analog_value(IOLine.get(i)):
-                    base[IOLine.get(i).description + "analog value"] = \
-                        utils.hex_to_string(self.__io_sample.get_analog_value(IOLine.get(i)))
+                    base[IOLine.get(i).description + " analog value"] = \
+                        self.__io_sample.get_analog_value(IOLine.get(i))
 
             # Power supply
             if self.__io_sample.has_power_supply_value():

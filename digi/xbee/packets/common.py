@@ -964,8 +964,8 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         return ret
 
     def _get_api_packet_spec_data_dict(self):
-        return {DictKeys.X4BIT_ADDR:    self.__x64bit_addr.address,
-                DictKeys.X6BIT_ADDR:    self.__x16bit_addr.address,
+        return {DictKeys.X64BIT_ADDR:   self.__x64bit_addr.address,
+                DictKeys.X16BIT_ADDR:   self.__x16bit_addr.address,
                 DictKeys.COMMAND:       self.__command,
                 DictKeys.AT_CMD_STATUS: self.__response_status,
                 DictKeys.RF_DATA:       list(self.__comm_value) if self.__comm_value is not None else None}
@@ -1242,8 +1242,8 @@ class TransmitPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.X4BIT_ADDR:       self.__x64bit_addr.address,
-                DictKeys.X6BIT_ADDR:       self.__x16bit_addr.address,
+        return {DictKeys.X64BIT_ADDR:      self.__x64bit_addr.address,
+                DictKeys.X16BIT_ADDR:      self.__x16bit_addr.address,
                 DictKeys.BROADCAST_RADIUS: self.__broadcast_radius,
                 DictKeys.TRANSMIT_OPTIONS: self.__transmit_options,
                 DictKeys.RF_DATA:          list(self.__rf_data) if self.__rf_data is not None else None}
@@ -1834,14 +1834,14 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
             # Digital values
             for i in range(16):
                 if self.__io_sample.has_digital_value(IOLine.get(i)):
-                    base[IOLine.get(i).description + "digital value"] = \
-                        utils.hex_to_string(self.__io_sample.get_digital_value(IOLine.get(i)))
+                    base[IOLine.get(i).description + " digital value"] = \
+                        self.__io_sample.get_digital_value(IOLine.get(i)).name
 
             # Analog values
             for i in range(6):
                 if self.__io_sample.has_analog_value(IOLine.get(i)):
-                    base[IOLine.get(i).description + "analog value"] = \
-                        utils.hex_to_string(self.__io_sample.get_analog_value(IOLine.get(i)))
+                    base[IOLine.get(i).description + " analog value"] = \
+                        self.__io_sample.get_analog_value(IOLine.get(i))
 
             # Power supply
             if self.__io_sample.has_power_supply_value():
