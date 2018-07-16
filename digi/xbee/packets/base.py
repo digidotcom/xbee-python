@@ -85,6 +85,8 @@ class XBeePacket:
     Generic actions like checksum compute or packet length calculation is performed here.
     """
 
+    __HASH_SEED = 23
+
     __metaclass__ = ABCMeta
     __ESCAPE_BYTES = [i.value for i in SpecialByte]
     __ESCAPE_FACTOR = 0x20
@@ -118,6 +120,32 @@ class XBeePacket:
             Dictionary: the packet information.
         """
         return str(self.to_dict())
+
+    def __eq__(self, other):
+        """
+        Returns whether the given object is equal to this one.
+
+        Args:
+            other: the object to compare.
+
+        Returns:
+            Boolean: ``True`` if the objects are equal, ``False`` otherwise.
+        """
+        if not isinstance(other, XBeePacket):
+            return False
+        return other.output() == self.output()
+
+    def __hash__(self):
+        """
+        Returns a hash code value for the object.
+
+        Returns:
+            Integer: hash code value for the object.
+        """
+        res = self.__HASH_SEED
+        for b in self.output():
+            res = 31 * (res + b)
+        return res
 
     def get_checksum(self):
         """
