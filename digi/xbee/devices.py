@@ -15,7 +15,6 @@
 from abc import ABCMeta, abstractmethod
 import logging
 from ipaddress import IPv4Address
-from threading import Event
 import threading
 import time
 
@@ -34,6 +33,7 @@ from digi.xbee.models.status import ATCommandStatus, TransmitStatus, PowerLevel,
     ModemStatus, CellularAssociationIndicationStatus, WiFiAssociationIndicationStatus, AssociationIndicationStatus,\
     NetworkDiscoveryStatus
 from digi.xbee.packets.aft import ApiFrameType
+from digi.xbee.packets.base import XBeeAPIPacket
 from digi.xbee.packets.common import ATCommPacket, TransmitPacket, RemoteATCommandPacket, ExplicitAddressingPacket
 from digi.xbee.packets.network import TXIPv4Packet
 from digi.xbee.packets.raw import TX64Packet, TX16Packet
@@ -97,9 +97,8 @@ class AbstractXBeeDevice(object):
         self._serial_port = serial_port
         self._timeout = sync_ops_timeout
 
-        self._io_sample_event = Event()  # event: used to wait to the next IO sample.
-        self._wait_for_next_io_sample = False  # flag: waiting for next IO sample or not.
-        self._last_io_sample_received = None  # reference io sample received in the current read.
+        self.__io_packet_received = False
+        self.__io_packet_payload = None
 
         self._hardware_version = None
         self._firmware_version = None
@@ -700,42 +699,56 @@ class AbstractXBeeDevice(object):
            | :class:`.IOSample`
         """
         # The response to the IS command in local 802.15.4 devices is empty,
-        # so we have to use callbacks to read the packet:
+        # so we have to use callbacks to read the packet.
         if not self.is_remote() and self.get_protocol() == XBeeProtocol.RAW_802_15_4:
+            lock = threading.Condition()
+            self.__io_packet_received = False
+            self.__io_packet_payload = None
+
+            def io_sample_callback(received_packet):
+                # Discard non API packets.
+                if not isinstance(received_packet, XBeeAPIPacket):
+                    return
+                # If we already have received an IO packet, ignore this packet.
+                if self.__io_packet_received:
+                    return
+                frame_type = received_packet.get_frame_type()
+                # Save the packet value (IO sample payload).
+                if (frame_type == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR
+                        or frame_type == ApiFrameType.RX_IO_16
+                        or frame_type == ApiFrameType.RX_IO_64):
+                    self.__io_packet_payload = received_packet.rf_data
+                else:
+                    return
+                # Set the IO packet received flag.
+                self.__io_packet_received = True
+                # Continue execution by notifying the lock object.
+                lock.acquire()
+                lock.notify()
+                lock.release()
+
+            self._add_packet_received_callback(io_sample_callback)
+
             try:
-                # clear the event
-                self._io_sample_event.clear()
-
-                # notify the thread that we are waiting for the next IO sample.
-                self._wait_for_next_io_sample = True
-
-                # execute command
+                # Execute command.
                 self.execute_command("IS")
 
-                # wait...
-                if not self._io_sample_event.wait(self.get_sync_ops_timeout()):
-                    raise TimeoutException("Error trying to read IO sample")
-                # if there is no timeout exception, all goes well
-                # notify the thread that we are no longer waiting for io samples.
-                self._wait_for_next_io_sample = False
+                lock.acquire()
+                lock.wait(self.get_sync_ops_timeout())
+                lock.release()
 
-                # get the packet.
-                io_packet = self._last_io_sample_received
-                # reset the packet reference.
-                self._last_io_sample_received = None
-
-                # return the IO Sample.
-                return io_packet.io_sample
-            except Exception as e:
-                # if there is an exception, reset all variables to
-                # a consistent state:
-                self._wait_for_next_io_sample = False
-                self._last_io_sample_received = None
-                self._io_sample_event.set()
-                # raise the exception:
-                raise e
+                if self.__io_packet_payload is None:
+                    raise TimeoutException("Timeout waiting for the IO response packet.")
+                sample_payload = self.__io_packet_payload
+            finally:
+                self._del_packet_received_callback(io_sample_callback)
         else:
-            return IOSample(self.get_parameter("IS"))
+            sample_payload = self.get_parameter("IS")
+
+        try:
+            return IOSample(sample_payload)
+        except Exception as e:
+            raise XBeeException("Could not create the IO sample.", e)
 
     def get_adc_value(self, io_line):
         """
@@ -1080,6 +1093,124 @@ class AbstractXBeeDevice(object):
             return False
         return True
 
+    def _add_packet_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.PacketReceived`.
+
+        Args:
+            callback (Function): the callback. Receives two arguments.
+
+                * The received packet as a :class:`.XBeeAPIPacket`
+                * The sender as a :class:`.RemoteXBeeDevice`
+        """
+        self._packet_listener.add_packet_received_callback(callback)
+
+    def _add_data_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.DataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The data received as an :class:`.XBeeMessage`
+        """
+        self._packet_listener.add_data_received_callback(callback)
+
+    def _add_modem_status_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.ModemStatusReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The modem status as a :class:`.ModemStatus`
+        """
+        self._packet_listener.add_modem_status_received_callback(callback)
+
+    def _add_io_sample_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.IOSampleReceived`.
+
+        Args:
+            callback (Function): the callback. Receives three arguments.
+
+                * The received IO sample as an :class:`.IOSample`
+                * The remote XBee device who has sent the packet as a :class:`.RemoteXBeeDevice`
+                * The time in which the packet was received as an Integer
+        """
+        self._packet_listener.add_io_sample_received_callback(callback)
+
+    def _add_expl_data_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.ExplicitDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The explicit data received as an :class:`.ExplicitXBeeMessage`
+        """
+        self._packet_listener.add_explicit_data_received_callback(callback)
+
+    def _del_packet_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.PacketReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.PacketReceived` event.
+        """
+        self._packet_listener.del_packet_received_callback(callback)
+
+    def _del_data_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.DataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.DataReceived` event.
+        """
+        self._packet_listener.del_data_received_callback(callback)
+
+    def _del_modem_status_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.ModemStatusReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.ModemStatusReceived` event.
+        """
+        self._packet_listener.del_modem_status_received_callback(callback)
+
+    def _del_io_sample_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.IOSampleReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.IOSampleReceived` event.
+        """
+        self._packet_listener.del_io_sample_received_callback(callback)
+
+    def _del_expl_data_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.ExplicitDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.ExplicitDataReceived` event.
+        """
+        self._packet_listener.del_explicit_data_received_callback(callback)
+
     def __get_log(self):
         """
         Returns the XBee device log.
@@ -1183,15 +1314,6 @@ class XBeeDevice(AbstractXBeeDevice):
         self.__data_queue = None
         self.__explicit_queue = None
 
-        self._wait_for_id_event = Event()  # event for common packets (synchronous ops.).
-        self._sync_packet_id = None
-        self._sync_packet = None
-
-        self._modem_status_event = Event()  # event for modem status packets.
-        self._capture_next_modem_status = False  # flag for modem status packets.
-        self._last_modem_status_captured = None  # the last modem status packet captured.
-
-        self.__cv = threading.Condition()
         self.__modem_status_received = False
 
     @classmethod
@@ -1860,20 +1982,22 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.AbstractXBeeDevice.reset`
         """
-        # send command:
+        # Send reset command.
         self.execute_command("FR")
-        self.__cv.acquire()
+        lock = threading.Condition()
+        self.__modem_status_received = False
 
         def ms_callback(modem_status):
             if modem_status == ModemStatus.HARDWARE_RESET or modem_status == ModemStatus.WATCHDOG_TIMER_RESET:
                 self.__modem_status_received = True
-                self.__cv.acquire()
-                self.__cv.notify()
-                self.__cv.release()
+                lock.acquire()
+                lock.notify()
+                lock.release()
 
         self.add_modem_status_received_callback(ms_callback)
-        self.__cv.wait(self.__TIMEOUT_RESET)
-        self.__cv.release()
+        lock.acquire()
+        lock.wait(self.__TIMEOUT_RESET)
+        lock.release()
         self.del_modem_status_received_callback(ms_callback)
 
         if self.__modem_status_received is False:
@@ -1881,121 +2005,63 @@ class XBeeDevice(AbstractXBeeDevice):
 
     def add_packet_received_callback(self, callback):
         """
-        Adds a callback for the event :class:`.PacketReceived`.
-
-        Args:
-            callback (Function): the callback. Receives two arguments.
-
-                * The received packet as a :class:`.XBeeAPIPacket`
-                * The sender as a :class:`.RemoteXBeeDevice`
+        Override.
         """
-        self._packet_listener.add_packet_received_callback(callback)
+        super()._add_packet_received_callback(callback)
 
     def add_data_received_callback(self, callback):
         """
-        Adds a callback for the event :class:`.DataReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The data received as an :class:`.XBeeMessage`
+        Override.
         """
-        self._packet_listener.add_data_received_callback(callback)
+        super()._add_data_received_callback(callback)
 
     def add_modem_status_received_callback(self, callback):
         """
-        Adds a callback for the event :class:`.ModemStatusReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The modem status as a :class:`.ModemStatus`
+        Override.
         """
-        self._packet_listener.add_modem_status_received_callback(callback)
+        super()._add_modem_status_received_callback(callback)
 
     def add_io_sample_received_callback(self, callback):
         """
-        Adds a callback for the event :class:`.IOSampleReceived`.
-
-        Args:
-            callback (Function): the callback. Receives three arguments.
-
-                * The received IO sample as an :class:`.IOSample`
-                * The remote XBee device who has sent the packet as a :class:`.RemoteXBeeDevice`
-                * The time in which the packet was received as an Integer
+        Override.
         """
-        self._packet_listener.add_io_sample_received_callback(callback)
+        super()._add_io_sample_received_callback(callback)
 
     def add_expl_data_received_callback(self, callback):
         """
-        Adds a callback for the event :class:`.ExplicitDataReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The explicit data received as an :class:`.ExplicitXBeeMessage`
+        Override.
         """
-        self._packet_listener.add_explicit_data_received_callback(callback)
+        super()._add_expl_data_received_callback(callback)
 
     def del_packet_received_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`.PacketReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.PacketReceived` event.
+        Override.
         """
-        self._packet_listener.del_packet_received_callback(callback)
+        super()._del_packet_received_callback(callback)
 
     def del_data_received_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`.DataReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.DataReceived` event.
+        Override.
         """
-        self._packet_listener.del_data_received_callback(callback)
+        super()._del_data_received_callback(callback)
 
     def del_modem_status_received_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`.ModemStatusReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.ModemStatusReceived` event.
+        Override.
         """
-        self._packet_listener.del_modem_status_received_callback(callback)
+        super()._del_modem_status_received_callback(callback)
 
     def del_io_sample_received_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`.IOSampleReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.IOSampleReceived` event.
+        Override.
         """
-        self._packet_listener.del_io_sample_received_callback(callback)
+        super()._del_io_sample_received_callback(callback)
 
     def del_expl_data_received_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`.ExplicitDataReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.ExplicitDataReceived` event.
+        Override.
         """
-        self._packet_listener.del_explicit_data_received_callback(callback)
+        super()._del_expl_data_received_callback(callback)
 
     def get_xbee_device_callbacks(self):
         """
@@ -2009,43 +2075,6 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         api_callbacks = PacketReceived()
 
-        def sync_send_callback(received_packet):
-            """
-            This callback is used for the synchronous call to send_data()
-            """
-            # if we are waiting for any packet...
-            if self._sync_packet_id is not None:
-                # if this packet has id and is the waited:
-                if received_packet.needs_id() and received_packet.frame_id == self._sync_packet_id:
-                    # put it in the proper variable
-                    self._sync_packet = received_packet
-                    # notify event waiters:
-                    self._wait_for_id_event.set()
-
-        def modem_status_callback(received_packet):
-            """
-            This callback is used for capturing modem status.
-            """
-            if (self._capture_next_modem_status and
-                    received_packet.get_frame_type() == ApiFrameType.MODEM_STATUS):
-                self._last_modem_status_captured = received_packet
-                self._modem_status_event.set()
-
-        def io_sample_callback(received_packet):
-            """
-            Used for 802.15.4 IO sample reception.
-            """
-            if self._wait_for_next_io_sample:
-                frame_type = received_packet.get_frame_type()
-                if (frame_type == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR or
-                        frame_type == ApiFrameType.RX_IO_16 or
-                        frame_type == ApiFrameType.RX_IO_64):
-                    self._last_io_sample_received = received_packet
-                    self._io_sample_event.set()
-
-        api_callbacks += sync_send_callback
-        api_callbacks += modem_status_callback
-        api_callbacks += io_sample_callback
         for i in self._network.get_discovery_callbacks():
             api_callbacks.append(i)
         return api_callbacks
@@ -2399,34 +2428,55 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :class:`.XBeePacket`
         """
-        # clear the event for wait:
-        self._wait_for_id_event.clear()
+        lock = threading.Condition()
+        response_list = list()
 
-        # sets the sync_packet_id which is used to notify that we are
-        # waiting for a packet to the callback in charge of synchronous reads.
-        # It's used to identify the found packet too.
-        self._sync_packet_id = packet_to_send.frame_id
+        # Create a packet received callback for the packet to be sent.
+        def packet_received_callback(received_packet):
+            # Check if it is the packet we are waiting for.
+            if received_packet.needs_id() and received_packet.frame_id == packet_to_send.frame_id:
+                if not isinstance(packet_to_send, XBeeAPIPacket) or not isinstance(received_packet, XBeeAPIPacket):
+                    return
+                # If the packet sent is an AT command, verify that the received one is an AT command response and
+                # the command matches in both packets.
+                if packet_to_send.get_frame_type() == ApiFrameType.AT_COMMAND:
+                    if received_packet.get_frame_type() != ApiFrameType.AT_COMMAND_RESPONSE:
+                        return
+                    if packet_to_send.command != received_packet.command:
+                        return
+                # If the packet sent is a remote AT command, verify that the received one is a remote AT command
+                # response and the command matches in both packets.
+                if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
+                    if received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
+                        return
+                    if packet_to_send.command != received_packet.command:
+                        return
+                # Verify that the sent packet is not the received one! This can happen when the echo mode is enabled
+                # in the serial port.
+                if not packet_to_send == received_packet:
+                    response_list.append(received_packet)
+                    lock.acquire()
+                    lock.notify()
+                    lock.release()
 
-        # Send the packet.
-        self.send_packet(packet_to_send)
+        # Add the packet received callback.
+        self.add_packet_received_callback(packet_received_callback)
 
-        # Wait until the callback notify us, or until
-        # the timeout expires.
-        if not self._wait_for_id_event.wait(self._timeout):
-            self._sync_packet = None
-
-        # Notify to our callback that we are no longer waiting.
-        self._sync_packet_id = None
-
-        if self._sync_packet is None:
-            # if packet is None, timeout has expired:
-            raise TimeoutException("Response not received in the configured timeout.")
-        else:
-            # Get a reference for the new packet, clear sync packet
-            # variable, and return the read packet.
-            received_packet = self._sync_packet
-            self._sync_packet = None
-            return received_packet
+        try:
+            # Send the packet.
+            self.send_packet(packet_to_send)
+            # Wait for response or timeout.
+            lock.acquire()
+            lock.wait(self._timeout)
+            lock.release()
+            # After the wait check if we received any response, if not throw timeout exception.
+            if not response_list:
+                raise TimeoutException("Response not received in the configured timeout.")
+            # Return the received packet.
+            return response_list[0]
+        finally:
+            # Always remove the packet listener from the list.
+            self.del_packet_received_callback(packet_received_callback)
 
     def send_packet(self, packet, sync=False):
         """
