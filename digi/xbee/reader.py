@@ -12,6 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+from concurrent.futures import ThreadPoolExecutor
 from queue import Queue, Empty
 import logging
 import threading
@@ -35,6 +36,12 @@ from digi.xbee.exception import TimeoutException
 from digi.xbee.io import IOSample
 
 
+# Maximum number of parallel callbacks.
+MAX_PARALLEL_CALLBACKS = 50
+
+executor = ThreadPoolExecutor(max_workers=MAX_PARALLEL_CALLBACKS)
+
+
 class XBeeEvent(list):
     """
     This class represents a generic XBee event.
@@ -53,7 +60,8 @@ class XBeeEvent(list):
     """
     def __call__(self, *args, **kwargs):
         for f in self:
-            f(*args, **kwargs)
+            future = executor.submit(f, *args, **kwargs)
+            future.add_done_callback(self.__execution_finished)
 
     def __repr__(self):
         return "Event(%s)" % list.__repr__(self)
@@ -65,6 +73,19 @@ class XBeeEvent(list):
     def __isub__(self, other):
         self.remove(other)
         return self
+
+    def __execution_finished(self, future):
+        """
+        Called when the execution of the callable has finished.
+
+        Args:
+            future (:class:`.Future`): Future associated to the execution of the callable.
+
+        Raises:
+            Exception: if the execution of the callable raised any exception.
+        """
+        if future.exception():
+            raise future.exception()
 
 
 class PacketReceived(XBeeEvent):
