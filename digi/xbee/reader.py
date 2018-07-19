@@ -32,7 +32,7 @@ from digi.xbee.packets.base import XBeePacket, XBeeAPIPacket
 from digi.xbee.packets.common import ReceivePacket
 from digi.xbee.packets.raw import RX64Packet, RX16Packet
 from digi.xbee.util import utils
-from digi.xbee.exception import TimeoutException
+from digi.xbee.exception import TimeoutException, InvalidPacketException
 from digi.xbee.io import IOSample
 
 
@@ -326,7 +326,12 @@ class PacketListener(threading.Thread):
                         continue
 
                     # Build the packet.
-                    read_packet = factory.build_frame(raw_packet, self.__xbee_device.operating_mode)
+                    try:
+                        read_packet = factory.build_frame(raw_packet, self.__xbee_device.operating_mode)
+                    except InvalidPacketException as e:
+                        self._log.error("Error processing packet '%s': %s" % (utils.hex_to_string(raw_packet), str(e)))
+                        continue
+
                     self._log.debug(self.__xbee_device.LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                                           event="RECEIVED",
                                                                           opmode=self.__xbee_device.operating_mode,
