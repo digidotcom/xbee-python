@@ -23,6 +23,7 @@ from serial.serialutil import SerialTimeoutException
 
 from digi.xbee.packets.cellular import TXSMSPacket
 from digi.xbee.models.accesspoint import AccessPoint, WiFiEncryptionType
+from digi.xbee.models.atcomm import ATCommandResponse, ATCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, XBeeIMEIAddress
@@ -34,7 +35,8 @@ from digi.xbee.models.status import ATCommandStatus, TransmitStatus, PowerLevel,
     NetworkDiscoveryStatus
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.base import XBeeAPIPacket
-from digi.xbee.packets.common import ATCommPacket, TransmitPacket, RemoteATCommandPacket, ExplicitAddressingPacket
+from digi.xbee.packets.common import ATCommPacket, TransmitPacket, RemoteATCommandPacket, ExplicitAddressingPacket, \
+    ATCommQueuePacket, ATCommResponsePacket, RemoteATCommandResponsePacket
 from digi.xbee.packets.network import TXIPv4Packet
 from digi.xbee.packets.raw import TX64Packet, TX16Packet
 from digi.xbee.util import utils
@@ -158,7 +160,6 @@ class AbstractXBeeDevice(object):
         if addr16 is not None and addr16 != self._16bit_addr:
             self._16bit_addr = addr16
 
-    @abstractmethod
     def get_parameter(self, parameter):
         """
         Returns the value of the provided parameter via an AT Command.
@@ -176,9 +177,14 @@ class AbstractXBeeDevice(object):
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
         """
-        pass
+        value = self.__send_parameter(parameter)
 
-    @abstractmethod
+        # Check if the response is null, if so throw an exception (maybe it was a write-only parameter).
+        if value is None:
+            raise OperationNotSupportedException("Could not get the %s value." % parameter)
+
+        return value
+
     def set_parameter(self, parameter, value):
         """
         Sets the value of a parameter via an AT Command.
@@ -209,8 +215,15 @@ class AbstractXBeeDevice(object):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
+            ValueError: if ``parameter`` is ``None`` or ``value`` is ``None``.
         """
-        pass
+        if value is None:
+            raise ValueError("Value of the parameter cannot be None.")
+
+        self.__send_parameter(parameter, value)
+
+        # Refresh cached parameters if this method modifies some of them.
+        self._refresh_if_cached(parameter, value)
 
     def execute_command(self, parameter):
         """
@@ -223,7 +236,107 @@ class AbstractXBeeDevice(object):
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
         """
-        self.set_parameter(parameter, None)
+        self.__send_parameter(parameter, None)
+
+    def __send_parameter(self, parameter, parameter_value=None):
+        """
+        Sends the given AT parameter to this XBee device with an optional
+        argument or value and returns the response (likely the value) of that
+        parameter in a byte array format.
+
+        Args:
+            parameter (String): The name of the AT command to be executed.
+            parameter_value (bytearray, optional): The value of the parameter to set (if any).
+
+        Returns:
+            Bytearray: A byte array containing the value of the parameter.
+
+        Raises:
+            ValueError: if ``parameter`` is ``None`` or if ``len(parameter) != 2``.
+        """
+        if parameter is None:
+            raise ValueError("Parameter cannot be None.")
+        if len(parameter) != 2:
+            raise ValueError("Parameter must contain exactly 2 characters.")
+
+        at_command = ATCommand(parameter, parameter_value)
+
+        # Send the AT command.
+        response = self._send_at_command(at_command)
+
+        self._check_at_cmd_response_is_valid(response)
+
+        return response.response
+
+    def _check_at_cmd_response_is_valid(self, response):
+        """
+        Checks if the provided ``ATCommandResponse`` is valid throwing an
+        :class:`.ATCommandException` in case it is not.
+
+        Args:
+            response: The AT command response to check.
+
+        Raises:
+            ATCommandException: if ``response`` is ``None`` or
+                                if ``response.response != OK``.
+        """
+        if response is None or not isinstance(response, ATCommandResponse) or response.status is None:
+            raise ATCommandException(None)
+        elif response.status != ATCommandStatus.OK:
+            raise ATCommandException(response.status)
+
+    def _send_at_command(self, command):
+        """
+        Sends the given AT command and waits for answer or until the configured
+        receive timeout expires.
+
+        Args:
+            command (:class:`.ATCommand`): AT command to be sent.
+
+        Returns:
+            :class:`.ATCommandResponse`: object containing the response of the command
+                                         or ``None`` if there is no response.
+
+        Raises:
+            ValueError: if ``command`` is ``None``.
+            InvalidOperatingModeException: if the operating mode is different than ``API`` or ``ESCAPED_API_MODE``.
+
+        """
+        if command is None:
+            raise ValueError("AT command cannot be None.")
+
+        operating_mode = self._get_operating_mode()
+        if operating_mode != OperatingMode.API_MODE and operating_mode != OperatingMode.ESCAPED_API_MODE:
+            raise InvalidOperatingModeException.from_operating_mode(operating_mode)
+
+        if self.is_remote():
+            remote_at_cmd_opts = RemoteATCmdOptions.NONE.value
+            if self.is_apply_changes_enabled():
+                remote_at_cmd_opts |= RemoteATCmdOptions.APPLY_CHANGES.value
+
+            remote_16bit_addr = self.get_16bit_addr()
+            if remote_16bit_addr is None:
+                remote_16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
+
+            packet = RemoteATCommandPacket(self._get_next_frame_id(), self.get_64bit_addr(), remote_16bit_addr,
+                                           remote_at_cmd_opts, command.command, command.parameter)
+        else:
+            if self.is_apply_changes_enabled():
+                packet = ATCommPacket(self._get_next_frame_id(), command.command, command.parameter)
+            else:
+                packet = ATCommQueuePacket(self._get_next_frame_id(), command.command, command.parameter)
+
+        if self.is_remote():
+            answer_packet = self._local_xbee_device.send_packet_sync_and_get_response(packet)
+        else:
+            answer_packet = self._send_packet_sync_and_get_response(packet)
+
+        response = None
+
+        if isinstance(answer_packet, ATCommResponsePacket) or isinstance(answer_packet, RemoteATCommandResponsePacket):
+            response = ATCommandResponse(command, answer_packet.command_value, answer_packet.status)
+
+        return response
 
     def apply_changes(self):
         """
@@ -1025,6 +1138,19 @@ class AbstractXBeeDevice(object):
             self.__current_frame_id += 1
         return self.__current_frame_id
 
+    def _get_operating_mode(self):
+        """
+        Returns the Operating mode (AT, API or API escaped) of this XBee device
+        for a local device, and the operating mode of the local device used as
+        communication interface for a remote device.
+
+        Returns:
+            :class:`.OperatingMode`: The operating mode of the local XBee device.
+        """
+        if self.is_remote():
+            return self._local_xbee_device.operating_mode
+        return self._operating_mode
+
     @staticmethod
     def _before_send_method(func):
         """
@@ -1210,6 +1336,135 @@ class AbstractXBeeDevice(object):
             ValueError: if ``callback`` is not in the callback list of :class:`.ExplicitDataReceived` event.
         """
         self._packet_listener.del_explicit_data_received_callback(callback)
+
+    def _send_packet_sync_and_get_response(self, packet_to_send):
+        """
+        Perform all operations needed for a synchronous operation when the packet
+        listener is online. This operations are:
+
+            1. Puts "_sync_packet" to ``None``, to discard the last sync. packet read.
+            2. Refresh "_sync_packet" to be used by the thread in charge of the synchronous read.
+            3. Tells the packet listener that this XBee device is waiting for a packet with a determined frame ID.
+            4. Sends the ``packet_to_send``.
+            5. Waits the configured timeout for synchronous operations.
+            6. Returns all attributes to a consistent state (except _sync_packet)
+                | 6.1. _sync_packet to ``None``.
+                | 6.2. notify the listener that we are no longer waiting for any packet.
+            7. Returns the received packet if it has arrived, ``None`` otherwise.
+
+        This method must be only used when the packet listener is online.
+
+        At the end of this method, the class attribute ``_sync_packet`` will be
+        the packet read by this method, or ``None`` if the previous was not possible.
+        Note that ``_sync_packet`` will remain being "the last packet read in a
+        synchronous operation" until you call this method again.
+        Then,  ``_sync_packet`` will be refreshed.
+
+        Args:
+            packet_to_send (:class:`.XBeePacket`): the packet to send.
+
+        Returns:
+            :class:`.XBeePacket`: the response packet obtained after sending the provided one.
+
+        Raises:
+            TimeoutException: if the response is not received in the configured timeout.
+
+        .. seealso::
+           | :class:`.XBeePacket`
+        """
+        lock = threading.Condition()
+        response_list = list()
+
+        # Create a packet received callback for the packet to be sent.
+        def packet_received_callback(received_packet):
+            # Check if it is the packet we are waiting for.
+            if received_packet.needs_id() and received_packet.frame_id == packet_to_send.frame_id:
+                if not isinstance(packet_to_send, XBeeAPIPacket) or not isinstance(received_packet, XBeeAPIPacket):
+                    return
+                # If the packet sent is an AT command, verify that the received one is an AT command response and
+                # the command matches in both packets.
+                if packet_to_send.get_frame_type() == ApiFrameType.AT_COMMAND:
+                    if received_packet.get_frame_type() != ApiFrameType.AT_COMMAND_RESPONSE:
+                        return
+                    if packet_to_send.command != received_packet.command:
+                        return
+                # If the packet sent is a remote AT command, verify that the received one is a remote AT command
+                # response and the command matches in both packets.
+                if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
+                    if received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
+                        return
+                    if packet_to_send.command != received_packet.command:
+                        return
+                # Verify that the sent packet is not the received one! This can happen when the echo mode is enabled
+                # in the serial port.
+                if not packet_to_send == received_packet:
+                    response_list.append(received_packet)
+                    lock.acquire()
+                    lock.notify()
+                    lock.release()
+
+        # Add the packet received callback.
+        self._add_packet_received_callback(packet_received_callback)
+
+        try:
+            # Send the packet.
+            self._send_packet(packet_to_send)
+            # Wait for response or timeout.
+            lock.acquire()
+            lock.wait(self._timeout)
+            lock.release()
+            # After the wait check if we received any response, if not throw timeout exception.
+            if not response_list:
+                raise TimeoutException("Response not received in the configured timeout.")
+            # Return the received packet.
+            return response_list[0]
+        finally:
+            # Always remove the packet listener from the list.
+            self._del_packet_received_callback(packet_received_callback)
+
+    def _send_packet(self, packet, sync=False):
+        """
+        Sends a packet to the XBee device and waits for the response.
+        The packet to send will be escaped or not depending on the current
+        operating mode.
+
+        This method can be synchronous or asynchronous.
+
+        If is synchronous, this method  will discard all response
+        packets until it finds the one that has the appropriate frame ID,
+        that is, the sent packet's frame ID.
+
+        If is asynchronous, this method does not wait for any packet. Returns ``None``.
+
+        Args:
+            packet (:class:`.XBeePacket`): The packet to send.
+            sync (Boolean): ``True`` to wait for the response of the sent packet and return it, ``False`` otherwise.
+
+        Returns:
+            :class:`.XBeePacket`: The response packet if ``sync`` is ``True``, ``None`` otherwise.
+
+        Raises:
+            TimeoutException: if ``sync`` is ``True`` and the response packet for the sent one cannot be read.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: if the packet listener is not running.
+            XBeeException: if the XBee device's serial port is closed.
+
+        .. seealso::
+           | :class:`.XBeePacket`
+        """
+        if not self._packet_listener.is_running():
+            raise XBeeException("Packet listener is not running.")
+
+        escape = self._operating_mode == OperatingMode.ESCAPED_API_MODE
+        out = packet.output(escape)
+        self._serial_port.write(out)
+        self._log.debug(self.LOG_PATTERN.format(port=self._serial_port.port,
+                                                event="SENT",
+                                                opmode=self._operating_mode,
+                                                content=utils.hex_to_string(out)))
+
+        return self._get_packet_by_id(packet.frame_id) if sync else None
 
     def __get_log(self):
         """
@@ -1423,31 +1678,21 @@ class XBeeDevice(AbstractXBeeDevice):
     def get_parameter(self, param):
         """
         Override.
-        
+
         .. seealso::
            | :meth:`.AbstractXBeeDevice.get_parameter`
         """
-        packet_to_send = ATCommPacket(self._get_next_frame_id(), param)
-        response = self.send_packet_sync_and_get_response(packet_to_send)  # raises TimeoutException
-
-        if response.status != ATCommandStatus.OK:
-            raise ATCommandException("Error sending parameter, command status: " + str(response.status))
-        return response.command_value
+        return super().get_parameter(param)
 
     @AbstractXBeeDevice._before_send_method
     def set_parameter(self, param, value):
         """
         Override.
-        
+
         See:
             :meth:`.AbstractXBeeDevice.set_parameter`
         """
-        response = self.send_packet_sync_and_get_response(ATCommPacket(self._get_next_frame_id(), param, value))
-
-        if response.status != ATCommandStatus.OK:
-            raise ATCommandException("Error sending parameter, command status: " + str(response.status))
-        # refresh cached parameters if this methods modifies some of them:
-        self._refresh_if_cached(param, value)
+        super().set_parameter(param, value)
 
     @AbstractXBeeDevice._before_send_method
     @AbstractXBeeDevice._after_send_method
@@ -1983,7 +2228,11 @@ class XBeeDevice(AbstractXBeeDevice):
            | :meth:`.AbstractXBeeDevice.reset`
         """
         # Send reset command.
-        self.execute_command("FR")
+        response = self._send_at_command(ATCommand("FR"))
+
+        # Check if AT Command response is valid.
+        self._check_at_cmd_response_is_valid(response)
+
         lock = threading.Condition()
         self.__modem_status_received = False
 
@@ -2082,11 +2331,11 @@ class XBeeDevice(AbstractXBeeDevice):
     def __get_operating_mode(self):
         """
         Returns this XBee device's operating mode.
-        
+
         Returns:
             :class:`.OperatingMode`. This XBee device's operating mode.
         """
-        return self._operating_mode
+        return super()._get_operating_mode()
 
     def is_open(self):
         """
@@ -2395,132 +2644,21 @@ class XBeeDevice(AbstractXBeeDevice):
 
     def send_packet_sync_and_get_response(self, packet_to_send):
         """
-        Perform all operations needed for a synchronous operation when the packet
-        listener is online. This operations are:
-        
-            1. Puts "_sync_packet" to ``None``, to discard the last sync. packet read.
-            2. Refresh "_sync_packet" to be used by the thread in charge of the synchronous read.
-            3. Tells the packet listener that this XBee device is waiting for a packet with a determined frame ID.
-            4. Sends the ``packet_to_send``.
-            5. Waits the configured timeout for synchronous operations.
-            6. Returns all attributes to a consistent state (except _sync_packet)
-                | 6.1. _sync_packet to ``None``.
-                | 6.2. notify the listener that we are no longer waiting for any packet.
-            7. Returns the received packet if it has arrived, ``None`` otherwise.
-
-        This method must be only used when the packet listener is online.
-        
-        At the end of this method, the class attribute ``_sync_packet`` will be
-        the packet read by this method, or ``None`` if the previous was not possible.
-        Note that ``_sync_packet`` will remain being "the last packet read in a
-        synchronous operation" until you call this method again.
-        Then,  ``_sync_packet`` will be refreshed.
-
-        Args:
-            packet_to_send (:class:`.XBeePacket`): the packet to send.
-
-        Returns:
-            :class:`.XBeePacket`: the response packet obtained after sending the provided one.
-
-        Raises:
-            TimeoutException: if the response is not received in the configured timeout.
+        Override method.
 
         .. seealso::
-           | :class:`.XBeePacket`
+           | :meth:`.AbstractXBeeDevice._send_packet_sync_and_get_response`
         """
-        lock = threading.Condition()
-        response_list = list()
-
-        # Create a packet received callback for the packet to be sent.
-        def packet_received_callback(received_packet):
-            # Check if it is the packet we are waiting for.
-            if received_packet.needs_id() and received_packet.frame_id == packet_to_send.frame_id:
-                if not isinstance(packet_to_send, XBeeAPIPacket) or not isinstance(received_packet, XBeeAPIPacket):
-                    return
-                # If the packet sent is an AT command, verify that the received one is an AT command response and
-                # the command matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.AT_COMMAND:
-                    if received_packet.get_frame_type() != ApiFrameType.AT_COMMAND_RESPONSE:
-                        return
-                    if packet_to_send.command != received_packet.command:
-                        return
-                # If the packet sent is a remote AT command, verify that the received one is a remote AT command
-                # response and the command matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
-                    if received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
-                        return
-                    if packet_to_send.command != received_packet.command:
-                        return
-                # Verify that the sent packet is not the received one! This can happen when the echo mode is enabled
-                # in the serial port.
-                if not packet_to_send == received_packet:
-                    response_list.append(received_packet)
-                    lock.acquire()
-                    lock.notify()
-                    lock.release()
-
-        # Add the packet received callback.
-        self.add_packet_received_callback(packet_received_callback)
-
-        try:
-            # Send the packet.
-            self.send_packet(packet_to_send)
-            # Wait for response or timeout.
-            lock.acquire()
-            lock.wait(self._timeout)
-            lock.release()
-            # After the wait check if we received any response, if not throw timeout exception.
-            if not response_list:
-                raise TimeoutException("Response not received in the configured timeout.")
-            # Return the received packet.
-            return response_list[0]
-        finally:
-            # Always remove the packet listener from the list.
-            self.del_packet_received_callback(packet_received_callback)
+        return super()._send_packet_sync_and_get_response(packet_to_send)
 
     def send_packet(self, packet, sync=False):
         """
-        Sends a packet to the XBee device and waits for the response.
-        The packet to send will be escaped or not depending on the current
-        operating mode.
-        
-        This method can be synchronous or asynchronous.
-        
-        If is synchronous, this method  will discard all response
-        packets until it finds the one that has the appropriate frame ID,
-        that is, the sent packet's frame ID.
-        
-        If is asynchronous, this method does not wait for any packet. Returns ``None``.
-        
-        Args:
-            packet (:class:`.XBeePacket`): The packet to send.
-            sync (Boolean): ``True`` to wait for the response of the sent packet and return it, ``False`` otherwise.
-            
-        Returns:
-            :class:`.XBeePacket`: The response packet if ``sync`` is ``True``, ``None`` otherwise.
-            
-        Raises:
-            TimeoutException: if ``sync`` is ``True`` and the response packet for the sent one cannot be read.
-            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
-                method only checks the cached value of the operating mode.
-            XBeeException: if the packet listener is not running.
-            XBeeException: if the XBee device's serial port is closed.
+        Override method.
 
         .. seealso::
-           | :class:`.XBeePacket`
+           | :meth:`.AbstractXBeeDevice._send_packet`
         """
-        if not self._packet_listener.is_running():
-            raise XBeeException("Packet listener is not running.")
-
-        escape = self._operating_mode == OperatingMode.ESCAPED_API_MODE
-        out = packet.output(escape)
-        self._serial_port.write(out)
-        self._log.debug(self.LOG_PATTERN.format(port=self.__port,
-                                                event="SENT",
-                                                opmode=self._operating_mode,
-                                                content=utils.hex_to_string(out)))
-
-        return self._get_packet_by_id(packet.frame_id) if sync else None
+        return super()._send_packet(packet, sync)
 
     def __build_xbee_message(self, packet, explicit=False):
         """
@@ -4811,23 +4949,7 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.AbstractXBeeDevice.get_parameter`
         """
-        if not self._local_xbee_device.serial_port.is_open:
-            raise XBeeException("Local XBee device's serial port is closed.")
-
-        x16bit_addr = self.get_16bit_addr()
-        if x16bit_addr is None:
-            x16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
-
-        packet_to_send = RemoteATCommandPacket(self._get_next_frame_id(),
-                                               self.get_64bit_addr(),
-                                               x16bit_addr,
-                                               RemoteATCmdOptions.NONE.value,
-                                               parameter)
-        response = self._local_xbee_device.send_packet_sync_and_get_response(packet_to_send)  # raises TimeoutException
-        
-        if response.status != ATCommandStatus.OK:
-            raise ATCommandException("Error getting parameter, command status: " + response.status.description)
-        return response.command_value
+        return super().get_parameter(parameter)
 
     def set_parameter(self, parameter, value):
         """
@@ -4836,28 +4958,7 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.AbstractXBeeDevice.set_parameter`
         """
-        if not self._local_xbee_device.serial_port.is_open:
-            raise XBeeException("Local XBee device's serial port is closed.")
-
-        if self.is_apply_changes_enabled():
-            options = RemoteATCmdOptions.APPLY_CHANGES
-        else:
-            options = RemoteATCmdOptions.NONE
-
-        x16bit_addr = self.get_16bit_addr()
-        if x16bit_addr is None:
-            x16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
-
-        packet_to_send = RemoteATCommandPacket(self._get_next_frame_id(),
-                                               self.get_64bit_addr(),
-                                               x16bit_addr,
-                                               options.value, parameter, value)
-        response = self._local_xbee_device.send_packet_sync_and_get_response(packet_to_send)
-
-        if response.status != ATCommandStatus.OK:
-            raise ATCommandException("Error setting parameter, command status: " + response.status.description)
-        # refresh cached parameters if this methods modifies some of them:
-        self._refresh_if_cached(parameter, value)
+        super().set_parameter(parameter, value)
 
     def is_remote(self):
         """
@@ -4875,11 +4976,18 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.AbstractXBeeDevice.reset`
         """
+        # Send reset command.
         try:
-            self.execute_command("FR")
+            response = self._send_at_command(ATCommand("FR"))
         except TimeoutException as te:
-            if self._local_xbee_device.get_protocol() != XBeeProtocol.RAW_802_15_4:
+            # Remote 802.15.4 devices do not respond to the AT command.
+            if self._local_xbee_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
+                return
+            else:
                 raise te
+
+        # Check if AT Command response is valid.
+        self._check_at_cmd_response_is_valid(response)
 
     def get_local_xbee_device(self):
         """

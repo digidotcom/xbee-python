@@ -120,6 +120,9 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     elif frame_type == ApiFrameType.AT_COMMAND:
         return ATCommPacket.create_packet(packet_bytearray, operating_mode)
 
+    elif frame_type == ApiFrameType.AT_COMMAND_QUEUE:
+        return ATCommQueuePacket.create_packet(packet_bytearray, operating_mode)
+
     elif frame_type == ApiFrameType.AT_COMMAND_RESPONSE:
         return ATCommResponsePacket.create_packet(packet_bytearray, operating_mode)
 

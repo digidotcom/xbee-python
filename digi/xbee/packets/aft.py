@@ -30,6 +30,7 @@ class ApiFrameType(Enum):
     TX_16 = (0x01, "TX (Transmit) Request 16-bit address")
     REMOTE_AT_COMMAND_REQUEST_WIFI = (0x07, "Remote AT Command Request (Wi-Fi)")
     AT_COMMAND = (0x08, "AT Command")
+    AT_COMMAND_QUEUE = (0x09, "AT Command Queue")
     TRANSMIT_REQUEST = (0x10, "Transmit Request")
     EXPLICIT_ADDRESSING = (0x11, "Explicit Addressing Command Frame")
     REMOTE_AT_COMMAND_REQUEST = (0x17, "Remote AT Command Request")
