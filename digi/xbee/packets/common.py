@@ -2679,8 +2679,8 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         raw += self.__x16bit_addr.address
         raw.append(self.__source_endpoint)
         raw.append(self.__dest_endpoint)
-        raw += utils.int_to_bytes(self.__cluster_id)
-        raw += utils.int_to_bytes(self.__profile_id)
+        raw += utils.int_to_bytes(self.__cluster_id, 2)
+        raw += utils.int_to_bytes(self.__profile_id, 2)
         raw.append(self.__receive_options)
         if self.__rf_data is not None:
             raw += self.__rf_data
