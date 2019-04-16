@@ -182,6 +182,22 @@ class TransmitStatus(Enum):
                                "that a new connection is not attempted.")
     UDP_SRC_PORT_NOT_MATCH_LISTENING_PORT = (0x78, "Source port on a UDP transmission doesn't match a listening port "
                                                    "on the transmitting module.")
+    TCP_SRC_PORT_NOT_MATCH_LISTENING_PORT = (0x79, "Source port on a TCP transmission doesn't match a listening port "
+                                                   "on the transmitting module.")
+    INVALID_IP_ADDRESS = (0x7A, "Destination IPv4 address is not valid.")
+    INVALID_IP_PROTOCOL = (0x7B, "Protocol on an IPv4 transmission is not valid.")
+    RELAY_INTERFACE_INVALID = (0x7C, "Destination interface on a User Data Relay Frame "
+                                     "doesn't exist.")
+    RELAY_INTERFACE_REJECTED = (0x7D, "Destination interface on a User Data Relay Frame "
+                                      "exists, but the interface is not accepting data.")
+    SOCKET_CONNECTION_REFUSED = (0x80, "Destination server refused the connection.")
+    SOCKET_CONNECTION_LOST = (0x81, "The existing connection was lost before the data was sent.")
+    SOCKET_ERROR_NO_SERVER = (0x82, "The attempted connection timed out.")
+    SOCKET_ERROR_CLOSED = (0x83, "The existing connection was closed.")
+    SOCKET_ERROR_UNKNOWN_SERVER = (0x84, "The server could not be found.")
+    SOCKET_ERROR_UNKNOWN_ERROR = (0x85, "An unknown error occurred.")
+    INVALID_TLS_CONFIGURATION = (0x86, "TLS Profile on a 0x23 API request doesn't exist, or "
+                                       "one or more certificates is not valid.")
     KEY_NOT_AUTHORIZED = (0xBB, "Key not authorized.")
     UNKNOWN = (0xFF, "Unknown.")
 
@@ -254,6 +270,9 @@ class ModemStatus(Enum):
     REMOTE_MANAGER_CONNECTED = (0x0E, "Remote Manager connected")
     REMOTE_MANAGER_DISCONNECTED = (0x0F, "Remote Manager disconnected")
     MODEM_CONFIG_CHANGED_WHILE_JOINING = (0x11, "Modem configuration changed while joining")
+    BLUETOOTH_CONNECTED = (0x32, "A Bluetooth connection has been made and API mode has been unlocked.")
+    BLUETOOTH_DISCONNECTED = (0x33, "An unlocked Bluetooth connection has been disconnected.")
+    BANDMASK_CONFIGURATION_ERROR = (0x34, "LTE-M/NB-IoT bandmask configuration has failed.")
     ERROR_STACK = (0x80, "Stack error")
     ERROR_AP_NOT_CONNECTED = (0x82, "Send/join command issued without connecting from AP")
     ERROR_AP_NOT_FOUND = (0x83, "Access point not found")
@@ -477,6 +496,11 @@ class CellularAssociationIndicationStatus(Enum):
     SUCCESSFULLY_CONNECTED = (0x00, "Connected to the Internet.")
     REGISTERING_CELLULAR_NETWORK = (0x22, "Registering to cellular network")
     CONNECTING_INTERNET = (0x23, "Connecting to the Internet")
+    MODEM_FIRMWARE_CORRUPT = (0x24, "The cellular component requires a new firmware image.")
+    REGISTRATION_DENIED = (0x25, "Cellular network registration was denied.")
+    AIRPLANE_MODE = (0x2A, "Airplane mode is active.")
+    USB_DIRECT = (0x2B, "USB Direct mode is active.")
+    PSM_LOW_POWER = (0x2C, "The cellular component is in the PSM low-power state.")
     BYPASS_MODE = (0x2F, "Bypass mode active")
     INITIALIZING = (0xFF, "Initializing")
 
