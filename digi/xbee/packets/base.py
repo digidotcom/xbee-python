@@ -74,6 +74,8 @@ class DictKeys(Enum):
     PATH = "path"
     CONTENT_TYPE_LENGTH = "content_type_length"
     CONTENT_TYPE = "content_type"
+    INTERFACE = "interface"
+    TLS_PROFILE = "tls_profile"
 
 
 class XBeePacket:
