@@ -1177,7 +1177,7 @@ class AbstractXBeeDevice(object):
     @staticmethod
     def _after_send_method(func):
         """
-        Decorator. Used to check the if response's transmit status is success after a sending operation.
+        Decorator. Used to check if the response's transmit status is success after a sending operation.
         """
         @wraps(func)
         def dec_function(*args, **kwargs):
