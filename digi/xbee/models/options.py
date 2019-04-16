@@ -403,3 +403,63 @@ class DiscoveryOptions(Enum):
 
 DiscoveryOptions.lookupTable = {x.code: x for x in DiscoveryOptions}
 DiscoveryOptions.__doc__ += utils.doc_enum(DiscoveryOptions)
+
+
+@unique
+class UserDataRelayInterface(Enum):
+    """
+    Enumerates the different interfaces for the :class:`.UserDataRelayRequest`
+    and :class:`.UserDataRelayOutput`.
+    """
+    SERIAL = (0, "Serial port (UART when in API mode, or SPI interface)")
+    BLUETOOTH = (1, "BLE API interface (on XBee devices which support BLE)")
+    MICROPYTHON = (2, "MicroPython")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    def __get_code(self):
+        """
+        Returns the code of the UserDataRelayInterface element.
+
+        Returns:
+            Integer: the code of the UserDataRelayInterface element.
+        """
+        return self.__code
+
+    def __get_description(self):
+        """
+        Returns the description of the UserDataRelayInterface element.
+
+        Returns:
+            String: the description of the UserDataRelayInterface element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the User Data Relay interface option for the given code.
+
+        Args:
+            code (Integer): the code of the User Data Relay interface to get.
+
+        Returns:
+            :class:`.FrameError`: the UserDataRelayInterface with the given code,
+                ``None`` if there is not any UserDataRelay interface with the provided code.
+        """
+        try:
+            return cls.lookupTable[code]
+        except KeyError:
+            return None
+
+    code = property(__get_code)
+    """Integer. The User Data Relay interface code."""
+
+    description = property(__get_description)
+    """String. The User Data Relay interface description."""
+
+
+UserDataRelayInterface.lookupTable = {x.code: x for x in UserDataRelayInterface}
+UserDataRelayInterface.__doc__ += utils.doc_enum(UserDataRelayInterface)
