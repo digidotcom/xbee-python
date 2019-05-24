@@ -89,6 +89,9 @@ class RXIPv4Packet(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
+        if operating_mode == OperatingMode.ESCAPED_API_MODE:
+            raw = XBeePacket._unescape_data(raw)
+
         XBeeAPIPacket._check_api_packet(raw, min_length=RXIPv4Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_IPV4.code:
@@ -339,6 +342,9 @@ class TXIPv4Packet(XBeeAPIPacket):
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+
+        if operating_mode == OperatingMode.ESCAPED_API_MODE:
+            raw = XBeePacket._unescape_data(raw)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TXIPv4Packet.__MIN_PACKET_LENGTH)
 

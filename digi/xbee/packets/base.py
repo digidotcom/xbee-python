@@ -528,6 +528,9 @@ class GenericXBeePacket(XBeeAPIPacket):
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode + " is not supported.")
 
+        if operating_mode == OperatingMode.ESCAPED_API_MODE:
+            raw = XBeeAPIPacket.unescape_data(raw)
+
         XBeeAPIPacket._check_api_packet(raw, min_length=GenericXBeePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.GENERIC.code:
@@ -612,6 +615,9 @@ class UnknownXBeePacket(XBeeAPIPacket):
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
             raise InvalidOperatingModeException(operating_mode + " is not supported.")
+
+        if operating_mode == OperatingMode.ESCAPED_API_MODE:
+            raw = XBeeAPIPacket.unescape_data(raw)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=UnknownXBeePacket.__MIN_PACKET_LENGTH)
 
