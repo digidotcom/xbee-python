@@ -16,7 +16,7 @@ from ipaddress import IPv4Address
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.protocol import IPProtocol
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.base import XBeeAPIPacket, DictKeys
+from digi.xbee.packets.base import XBeeAPIPacket, XBeePacket, DictKeys
 from digi.xbee.util import utils
 from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketException
 

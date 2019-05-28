@@ -12,7 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from digi.xbee.packets.base import XBeeAPIPacket, DictKeys
+from digi.xbee.packets.base import XBeeAPIPacket, XBeePacket, DictKeys
 from digi.xbee.util import utils
 from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketException
 from digi.xbee.packets.aft import ApiFrameType

@@ -16,7 +16,7 @@ from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.address import XBee16BitAddress, XBee64BitAddress
 from digi.xbee.models.status import ATCommandStatus, DiscoveryStatus, TransmitStatus, ModemStatus
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.base import XBeeAPIPacket, DictKeys
+from digi.xbee.packets.base import XBeeAPIPacket, XBeePacket, DictKeys
 from digi.xbee.util import utils
 from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketException
 from digi.xbee.io import IOSample, IOLine
