@@ -1,4 +1,4 @@
-# Copyright 2017, 2018, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -39,6 +39,7 @@ from digi.xbee.packets.common import ATCommPacket, TransmitPacket, RemoteATComma
     ATCommQueuePacket, ATCommResponsePacket, RemoteATCommandResponsePacket
 from digi.xbee.packets.network import TXIPv4Packet
 from digi.xbee.packets.raw import TX64Packet, TX16Packet
+from digi.xbee.packets.relay import UserDataRelayPacket
 from digi.xbee.util import utils
 from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatingModeException, \
     ATCommandException, OperationNotSupportedException
@@ -1283,6 +1284,17 @@ class AbstractXBeeDevice(object):
         """
         self._packet_listener.add_explicit_data_received_callback(callback)
 
+    def _add_user_data_relay_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.RelayDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The relay data as a :class:`.UserDataRelayMessage`
+        """
+        self._packet_listener.add_user_data_relay_received_callback(callback)
+
     def _del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.PacketReceived` event.
@@ -1342,6 +1354,18 @@ class AbstractXBeeDevice(object):
             ValueError: if ``callback`` is not in the callback list of :class:`.ExplicitDataReceived` event.
         """
         self._packet_listener.del_explicit_data_received_callback(callback)
+
+    def _del_user_data_relay_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.RelayDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.RelayDataReceived` event.
+        """
+        self._packet_listener.del_user_data_relay_received_callback(callback)
 
     def _send_packet_sync_and_get_response(self, packet_to_send):
         """
@@ -2137,6 +2161,26 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         return self._send_data_64(XBee64BitAddress.BROADCAST_ADDRESS, data, transmit_options)
 
+    def send_user_data_relay(self, relay_interface, data):
+        """
+        Sends the given data to the given relay interface.
+
+        Args:
+            relay_interface (:class:`.UserDataRelayInterface`): Destination relay interface.
+            data (Bytearray): Data to send.
+
+        Raises:
+            ValueError: if ``relay_interface`` is ``None``.
+
+        .. seealso::
+           | :class:`.UserDataRelayInterface`
+        """
+        if relay_interface is None:
+            raise ValueError("Relay interface cannot be None")
+
+        # Send the packet asynchronously since User Data Relay frames do not receive any transmit status.
+        self.send_packet(UserDataRelayPacket(self.get_next_frame_id(), relay_interface, data))
+
     def read_data(self, timeout=None):
         """
         Reads new data received by this XBee device.
@@ -2288,6 +2332,12 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         super()._add_expl_data_received_callback(callback)
 
+    def add_user_data_relay_received_callback(self, callback):
+        """
+        Override.
+        """
+        super()._add_user_data_relay_received_callback(callback)
+
     def del_packet_received_callback(self, callback):
         """
         Override.
@@ -2317,6 +2367,12 @@ class XBeeDevice(AbstractXBeeDevice):
         Override.
         """
         super()._del_expl_data_received_callback(callback)
+
+    def _del_user_data_relay_received_callback(self, callback):
+        """
+        Override.
+        """
+        super()._del_user_data_relay_received_callback(callback)
 
     def get_xbee_device_callbacks(self):
         """

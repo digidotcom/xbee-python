@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -393,3 +393,65 @@ class SMSMessage(object):
 
     data = property(__get_data)
     """String. The data of the message."""
+
+
+class UserDataRelayMessage(object):
+    """
+    This class represents a user data relay message containing the source
+    interface and the content (data) of the message.
+
+    .. seealso::
+       | :class:`.UserDataRelayInterface`
+    """
+
+    def __init__(self, relay_interface, data):
+        """
+        Class constructor. Instantiates a new :class:`.UserDataRelayMessage` object with
+        the provided parameters.
+
+        Args:
+            relay_interface (:class:`.UserDataRelayInterface`): The source relay interface.
+            data (Bytearray): Byte array containing the data of the message.
+
+        Raises:
+            ValueError: if ``relay_interface`` is ``None``.
+
+        .. seealso::
+            | :class:`.UserDataRelayInterface`
+        """
+        if relay_interface is None:
+            raise ValueError("Relay interface cannot be None")
+
+        self.__relay_interface = relay_interface
+        self.__data = data
+
+    def __get_relay_interface(self):
+        """
+        Returns the source interface that sent the message.
+
+        Returns:
+            :class:`.UserDataRelayInterface`: The source interface that sent the message.
+        """
+        return self.__relay_interface
+
+    def __get_data(self):
+        """
+        Returns the data of the message.
+
+        Returns:
+            Bytearray: The data of the message.
+        """
+        return self.__data
+
+    def to_dict(self):
+        """
+        Returns the message information as a dictionary.
+        """
+        return {"Relay interface: ": self.__relay_interface,
+                "Data: ":            self.__data}
+
+    relay_interface = property(__get_relay_interface)
+    """:class:`.UserDataRelayInterface`. Source interface that sent the message."""
+
+    data = property(__get_data)
+    """Bytearray. The data of the message."""

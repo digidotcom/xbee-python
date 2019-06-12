@@ -1,4 +1,4 @@
-# Copyright 2017, 2018, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -18,6 +18,7 @@ from digi.xbee.packets.common import *
 from digi.xbee.packets.devicecloud import *
 from digi.xbee.packets.network import *
 from digi.xbee.packets.raw import *
+from digi.xbee.packets.relay import *
 from digi.xbee.packets.wifi import *
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.models.mode import OperatingMode
@@ -177,6 +178,9 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     elif frame_type == ApiFrameType.RX_SMS:
         return RXSMSPacket.create_packet(packet_bytearray, operating_mode)
 
+    elif frame_type == ApiFrameType.USER_DATA_RELAY_OUTPUT:
+        return UserDataRelayOutputPacket.create_packet(packet_bytearray, operating_mode)
+
     elif frame_type == ApiFrameType.RX_IPV4:
         return RXIPv4Packet.create_packet(packet_bytearray, operating_mode)
 
@@ -188,6 +192,9 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
 
     elif frame_type == ApiFrameType.DEVICE_RESPONSE:
         return DeviceResponsePacket.create_packet(packet_bytearray, operating_mode)
+
+    elif frame_type == ApiFrameType.USER_DATA_RELAY_REQUEST:
+        return UserDataRelayPacket.create_packet(packet_bytearray, operating_mode)
 
     elif frame_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE_WIFI:
         return RemoteATCommandResponseWifiPacket.create_packet(packet_bytearray, operating_mode)

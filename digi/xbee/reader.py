@@ -1,4 +1,4 @@
-# Copyright 2017, 2018, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -22,7 +22,7 @@ import digi.xbee.devices
 from digi.xbee.models.atcomm import SpecialByte
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
-    SMSMessage
+    SMSMessage, UserDataRelayMessage
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.options import ReceiveOptions
 from digi.xbee.models.protocol import XBeeProtocol
@@ -229,6 +229,21 @@ class SMSReceived(XBeeEvent):
     pass
 
 
+class RelayDataReceived(XBeeEvent):
+    """
+    This event is fired when an XBee receives a user data relay output packet.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. message (:class:`.UserDataRelayMessage`): message containing the source interface
+            and the content (data) of the message.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+       | :class:`.UserDataRelayMessage`
+    """
+    pass
+
+
 class PacketListener(threading.Thread):
     """
     This class represents a packet listener, which is a thread that's always
@@ -291,6 +306,7 @@ class PacketListener(threading.Thread):
         self.__explicit_packet_received = ExplicitDataReceived()
         self.__ip_data_received = IPDataReceived()
         self.__sms_received = SMSReceived()
+        self.__relay_data_received = RelayDataReceived()
 
         # API internal callbacks:
         self.__packet_received_API = xbee_device.get_xbee_device_callbacks()
@@ -493,6 +509,17 @@ class PacketListener(threading.Thread):
         """
         self.__sms_received += callback
 
+    def add_user_data_relay_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.RelayDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The data received as a :class:`.UserDataRelayMessage`
+        """
+        self.__relay_data_received += callback
+
     def del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.PacketReceived` event.
@@ -577,6 +604,18 @@ class PacketListener(threading.Thread):
         """
         self.__sms_received -= callback
 
+    def del_user_data_relay_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.RelayDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.RelayDataReceived` event.
+        """
+        self.__relay_data_received += callback
+
     def __execute_user_callbacks(self, xbee_packet, remote=None):
         """
         Executes callbacks corresponding to the received packet.
@@ -657,6 +696,15 @@ class PacketListener(threading.Thread):
                                                     fr_type="SMS",
                                                     sender=str(xbee_packet.phone_number),
                                                     more_data=xbee_packet.data))
+
+        # Relay
+        elif xbee_packet.get_frame_type() == ApiFrameType.USER_DATA_RELAY_OUTPUT:
+            self.__relay_data_received(UserDataRelayMessage(xbee_packet.relay_interface, xbee_packet.data))
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+                                                    event="RECEIVED",
+                                                    fr_type="RELAY DATA",
+                                                    sender=xbee_packet.relay_interface.description,
+                                                    more_data=utils.hex_to_string(xbee_packet.data)))
 
     def __read_next_byte(self, operating_mode):
         """

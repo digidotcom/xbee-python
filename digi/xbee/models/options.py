@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -408,12 +408,17 @@ DiscoveryOptions.__doc__ += utils.doc_enum(DiscoveryOptions)
 @unique
 class UserDataRelayInterface(Enum):
     """
-    Enumerates the different interfaces for the :class:`.UserDataRelayRequest`
-    and :class:`.UserDataRelayOutput`.
+    Enumerates the different interfaces for the :class:`.UserDataRelayPacket`
+    and :class:`.UserDataRelayOutputPacket`.
+
+    | Inherited properties:
+    |     **name** (String): the name (id) of the relay interface.
+    |     **value** (String): the value of the relay interface.
     """
     SERIAL = (0, "Serial port (UART when in API mode, or SPI interface)")
     BLUETOOTH = (1, "BLE API interface (on XBee devices which support BLE)")
     MICROPYTHON = (2, "MicroPython")
+    UNKNOWN = (255, "Unknown interface")
 
     def __init__(self, code, description):
         self.__code = code
@@ -446,13 +451,13 @@ class UserDataRelayInterface(Enum):
             code (Integer): the code of the User Data Relay interface to get.
 
         Returns:
-            :class:`.FrameError`: the UserDataRelayInterface with the given code,
-                ``None`` if there is not any UserDataRelay interface with the provided code.
+            :class:`.UserDataRelayInterface`: the UserDataRelayInterface with the given code,
+                ``UNKNOWN`` if there is not any UserDataRelayInterface with the provided code.
         """
         try:
             return cls.lookupTable[code]
         except KeyError:
-            return None
+            return UserDataRelayInterface.UNKNOWN
 
     code = property(__get_code)
     """Integer. The User Data Relay interface code."""

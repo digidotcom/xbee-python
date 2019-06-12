@@ -1,4 +1,4 @@
-# Copyright 2017, 2018, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -74,8 +74,9 @@ class DictKeys(Enum):
     PATH = "path"
     CONTENT_TYPE_LENGTH = "content_type_length"
     CONTENT_TYPE = "content_type"
-    INTERFACE = "interface"
-    TLS_PROFILE = "tls_profile"
+    SOURCE_INTERFACE = "source_interface"
+    DEST_INTERFACE = "dest_interface"
+    DATA = "data"
 
 
 class XBeePacket:
