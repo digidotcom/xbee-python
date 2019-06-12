@@ -276,6 +276,19 @@ You can find the example at the following path:
    :ref:`communicateSendIPData`.
 
 
+Send User Data Relay
+````````````````````
+
+This sample application shows how to send data to other XBee interface.
+
+You can find the example at the following path:
+**examples/communication/relay/SendUserDataRelaySample**
+
+.. note::
+   For more information about sending User Data Relay messages, see
+   :ref:`communicateSendRelayData`.
+
+
 Receive data
 ````````````
 
@@ -368,6 +381,19 @@ You can find the example at the following path:
 .. note::
    For more information about how to receive SMS messages, see
    :ref:`communicateReceiveSMS`.
+
+
+Receive User Data Relay messages
+````````````````````````````````
+
+This sample application shows how to receive data from other XBee interface.
+
+You can find the example at the following path:
+**examples/communication/relay/ReceiveUserDataRelaySample**
+
+.. note::
+   For more information about receiving User Data Relay messages, see
+   :ref:`communicateReceiveRelayData`.
 
 
 Receive modem status

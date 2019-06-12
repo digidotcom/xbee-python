@@ -2,8 +2,9 @@ Communicate with XBee devices
 =============================
 
 The XBee Python Library provides the ability to communicate with remote nodes in
-the network. The communication between XBee devices in a network involves the
-transmission and reception of data.
+the network, IoT devices and other interfaces of the local device. The
+communication between XBee devices in a network involves the transmission and
+reception of data.
 
 .. warning::
   Communication features described in this topic and sub-topics are only
@@ -743,6 +744,66 @@ The ``send_sms_async`` method may fail for the following reasons:
       , the method throws an ``InvalidOperatingModeException``.
     * If there is an error writing to the XBee interface, the method throws a
       generic ``XBeeException``.
+
+
+.. _communicateSendRelayData:
+
+Send data to other interfaces
+-----------------------------
+
+XBee3 modules have the ability to send and receive data to/from other XBee
+interfaces through User Data Relay frames. The supported interfaces are: Serial
+port (SPI, or UART when in API mode), Bluetooth Low Energy and MicroPython.
+This can be useful if your application wants to transmit data to a MicroPython
+program running on the module or a cellphone connected to it over BLE.
+
+The ``XBeeDevice`` class and its subclasses provide the following method to
+send data to any XBee interface:
+
++-------------------------------------------------------------+-----------------------------------------------------------------+
+| Method                                                      | Description                                                     |
++=============================================================+=================================================================+
+| **send_user_data_relay(UserDataRelayInterface, Bytearray)** | Specifies the destination relay interface and the data to send. |
++-------------------------------------------------------------+-----------------------------------------------------------------+
+
+This method is asynchronous, which means that your application does not block during the transmit process.
+
+**Send user data relay message**
+
+.. code:: python
+
+  [...]
+
+  # Instantiate an XBee device object.
+  device = XBeeDevice("COM1", 9600)
+  device.open()
+
+  destInterface = UserDataRelayInterface.MICROPYTHON
+  message = "MicroPython, are you there?"
+
+  # Send the message to the MicroPython interface.
+  device.send_user_data_relay(destInterface, message.encode("utf8"))
+
+  [...]
+
+The ``send_user_data_relay`` method may fail for the following reasons:
+
+* If the relay interface or data is ``None``, the method throws a
+  ``ValueError``.
+* Errors register as ``XBeeException``:
+    * If the operating mode of the device is not ``API`` or
+      ``ESCAPED_API_MODE``, the method throws an
+      ``InvalidOperatingModeException``.
+    * If there is an error writing to the XBee interface, the method throws a
+      generic ``XBeeException``.
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Send User Data Relay                                                                                                                                    |
++==================================================================================================================================================================+
+| The XBee Python Library includes a sample application that demonstrates how to send a User Data Relay message. You can locate the example in the following path: |
+|                                                                                                                                                                  |
+| **examples/communication/relay/SendUserDataRelaySample**                                                                                                                |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
 Receive data
@@ -1502,6 +1563,73 @@ unsubscribe the already-registered listener.
 |                                                                                                                                                                                                            |
 | **examples/communication/cellular/ReceiveSMSSample**                                                                                                                                                       |
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+
+.. _communicateReceiveRelayData:
+
+Receive data from other interfaces
+----------------------------------
+
+You can be notified when a new User Data Relay message has been received if you
+are subscribed or registered to the User Data Relay reception service by using
+the ``add_user_data_relay_received_callback`` method.
+
+**User Data Relay reception registration**
+
+.. code:: python
+
+  [...]
+
+  # Instantiate an XBee device object.
+  device = XBeeDevice("COM1", 9600)
+  device.open()
+
+  # Define the callback.
+  def my_data_relay_callback(relay_message):
+      print("Relay data received from %s >> '%s'" %
+                  (relay_message.relay_interface.description,
+                   relay_message.data.decode("utf-8")))
+
+  # Add the callback.
+  device.add_user_data_relay_received_callback(my_data_relay_callback)
+
+  [...]
+
+When a new User Data Relay message is received, your callback is executed
+providing a ``UserDataRelayMessage`` object as parameter. This object contains
+the source interface that sent the data and the data itself.
+
+To stop listening to new User Data Relay messages, use the
+``del_user_data_relay_received_callback`` method to unsubscribe the
+already-registered listener.
+
+**Deregister User Data Relay reception**
+
+.. code:: python
+
+  [...]
+
+  device = [...]
+
+  def my_data_relay_callback(relay_message):
+      [...]
+
+  device.add_user_data_relay_received_callback(my_data_relay_callback)
+
+  [...]
+
+  # Delete the User Data Relay callback.
+  device.del_user_data_relay_received_callback(my_data_relay_callback)
+
+  [...]
+
++----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Receive User Data Relay messages                                                                                                                                                                                                    |
++==============================================================================================================================================================================================================================================+
+| The XBee Python Library includes a sample application that demonstrates how to subscribe to the User Data Relay reception service in order to receive messages from other XBee interfaces. You can locate the example in the following path: |
+|                                                                                                                                                                                                                                              |
+| **examples/communication/relay/ReceiveUserDataRelaySample**                                                                                                                                                                                         |
++----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
 .. _communicateReceiveModemStatus:

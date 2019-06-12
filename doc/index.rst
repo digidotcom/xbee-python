@@ -26,6 +26,8 @@ Python Library includes the following features:
 * Ability to transmit and receive data from any XBee device on the network.
 * Ability to manage the General Purpose Input and Output lines of all your XBee
   devices.
+* Ability to send and receive data from other XBee interfaces (Serial,
+  Bluetooth Low Energy and MicroPython).
 
 This portal provides the following documentation to help you with the different
 development stages of your Python applications using the XBee Python Library.
