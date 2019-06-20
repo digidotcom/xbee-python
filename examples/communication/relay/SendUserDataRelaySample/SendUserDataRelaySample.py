@@ -13,14 +13,14 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from digi.xbee.devices import XBeeDevice
-from digi.xbee.models.options import UserDataRelayInterface
+from digi.xbee.models.options import XBeeLocalInterface
 import time
 
 # TODO: Replace with the serial port where your local module is connected to.
 PORT = "COM1"
 # TODO: Replace with the baud rate of your local module.
 BAUD_RATE = 9600
-DEST_INTERFACE = UserDataRelayInterface.BLUETOOTH
+DEST_INTERFACE = XBeeLocalInterface.BLUETOOTH
 # TODO: Optionally, replace with the text of the message.
 DATA_TO_SEND = "Hello from the serial interface (#%s)"
 

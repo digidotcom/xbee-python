@@ -28,7 +28,7 @@ from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, XBeeIMEIAddress
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage
-from digi.xbee.models.options import TransmitOptions, RemoteATCmdOptions, DiscoveryOptions
+from digi.xbee.models.options import TransmitOptions, RemoteATCmdOptions, DiscoveryOptions, XBeeLocalInterface
 from digi.xbee.models.protocol import XBeeProtocol, IPProtocol
 from digi.xbee.models.status import ATCommandStatus, TransmitStatus, PowerLevel, \
     ModemStatus, CellularAssociationIndicationStatus, WiFiAssociationIndicationStatus, AssociationIndicationStatus,\
@@ -1295,6 +1295,28 @@ class AbstractXBeeDevice(object):
         """
         self._packet_listener.add_user_data_relay_received_callback(callback)
 
+    def _add_bluetooth_data_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.BluetoothDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The Bluetooth data as a Bytearray
+        """
+        self._packet_listener.add_bluetooth_data_received_callback(callback)
+
+    def _add_micropython_data_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.MicroPythonDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The MicroPython data as a Bytearray
+        """
+        self._packet_listener.add_micropython_data_received_callback(callback)
+
     def _del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.PacketReceived` event.
@@ -1366,6 +1388,30 @@ class AbstractXBeeDevice(object):
             ValueError: if ``callback`` is not in the callback list of :class:`.RelayDataReceived` event.
         """
         self._packet_listener.del_user_data_relay_received_callback(callback)
+
+    def _del_bluetooth_data_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.BluetoothDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.BluetoothDataReceived` event.
+        """
+        self._packet_listener.del_bluetooth_data_received_callback(callback)
+
+    def _del_micropython_data_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.MicroPythonDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.MicroPythonDataReceived` event.
+        """
+        self._packet_listener.del_micropython_data_received_callback(callback)
 
     def _send_packet_sync_and_get_response(self, packet_to_send):
         """
@@ -2161,25 +2207,65 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         return self._send_data_64(XBee64BitAddress.BROADCAST_ADDRESS, data, transmit_options)
 
-    def send_user_data_relay(self, relay_interface, data):
+    @AbstractXBeeDevice._before_send_method
+    def send_user_data_relay(self, local_interface, data):
         """
-        Sends the given data to the given relay interface.
+        Sends the given data to the given XBee local interface.
 
         Args:
-            relay_interface (:class:`.UserDataRelayInterface`): Destination relay interface.
+            local_interface (:class:`.XBeeLocalInterface`): Destination XBee local interface.
             data (Bytearray): Data to send.
 
         Raises:
-            ValueError: if ``relay_interface`` is ``None``.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            ValueError: if ``local_interface`` is ``None``.
+            XBeeException: if there is any problem sending the User Data Relay.
 
         .. seealso::
-           | :class:`.UserDataRelayInterface`
+           | :class:`.XBeeLocalInterface`
         """
-        if relay_interface is None:
-            raise ValueError("Relay interface cannot be None")
+        if local_interface is None:
+            raise ValueError("Destination interface cannot be None")
 
         # Send the packet asynchronously since User Data Relay frames do not receive any transmit status.
-        self.send_packet(UserDataRelayPacket(self.get_next_frame_id(), relay_interface, data))
+        self.send_packet(UserDataRelayPacket(self.get_next_frame_id(), local_interface, data))
+
+    def send_bluetooth_data(self, data):
+        """
+        Sends the given data to the Bluetooth interface using a User Data Relay frame.
+
+        Args:
+            data (Bytearray): Data to send.
+
+        Raises:
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: if there is any problem sending the data.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.send_micropython_data`
+           | :meth:`.XBeeDevice.send_user_data_relay`
+        """
+        self.send_user_data_relay(XBeeLocalInterface.BLUETOOTH, data)
+
+    def send_micropython_data(self, data):
+        """
+        Sends the given data to the MicroPython interface using a User Data Relay frame.
+
+        Args:
+            data (Bytearray): Data to send.
+
+        Raises:
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: if there is any problem sending the data.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.send_bluetooth_data`
+           | :meth:`.XBeeDevice.send_user_data_relay`
+        """
+        self.send_user_data_relay(XBeeLocalInterface.MICROPYTHON, data)
 
     def read_data(self, timeout=None):
         """
@@ -2338,6 +2424,18 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         super()._add_user_data_relay_received_callback(callback)
 
+    def add_bluetooth_data_received_callback(self, callback):
+        """
+        Override.
+        """
+        super()._add_bluetooth_data_received_callback(callback)
+
+    def add_micropython_data_received_callback(self, callback):
+        """
+        Override.
+        """
+        super()._add_micropython_data_received_callback(callback)
+
     def del_packet_received_callback(self, callback):
         """
         Override.
@@ -2373,6 +2471,18 @@ class XBeeDevice(AbstractXBeeDevice):
         Override.
         """
         super()._del_user_data_relay_received_callback(callback)
+
+    def _del_bluetooth_data_received_callback(self, callback):
+        """
+        Override.
+        """
+        super()._del_bluetooth_data_received_callback(callback)
+
+    def _del_micropython_data_received_callback(self, callback):
+        """
+        Override.
+        """
+        super()._del_micropython_data_received_callback(callback)
 
     def get_xbee_device_callbacks(self):
         """

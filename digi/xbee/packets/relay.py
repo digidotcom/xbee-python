@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from digi.xbee.models.mode import OperatingMode
-from digi.xbee.models.options import UserDataRelayInterface
+from digi.xbee.models.options import XBeeLocalInterface
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.base import XBeeAPIPacket, DictKeys
 from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketException
@@ -28,41 +28,41 @@ class UserDataRelayPacket(XBeeAPIPacket):
     a designation of the target interface for the data to be output on.
 
     The destination interface must be one of the interfaces found in the
-    corresponding enumerator (see :class:`.UserDataRelayInterface`).
+    corresponding enumerator (see :class:`.XBeeLocalInterface`).
 
     .. seealso::
-       | :class:`.UserDataRelayInterface`
        | :class:`.UserDataRelayOutputPacket`
        | :class:`.XBeeAPIPacket`
+       | :class:`.XBeeLocalInterface`
     """
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, relay_interface, data=None):
+    def __init__(self, frame_id, local_interface, data=None):
         """
         Class constructor. Instantiates a new :class:`.UserDataRelayPacket` object with the provided parameters.
 
         Args:
             frame_id (integer): the frame ID of the packet.
-            relay_interface (:class:`.UserDataRelayInterface`): the destination interface.
+            local_interface (:class:`.XBeeLocalInterface`): the destination interface.
             data (Bytearray, optional): Data to send to the destination interface.
 
         .. seealso::
-           | :class:`.UserDataRelayInterface`
            | :class:`.XBeeAPIPacket`
+           | :class:`.XBeeLocalInterface`
 
         Raises:
-            ValueError: if ``relay_interface`` is ``None``.
+            ValueError: if ``local_interface`` is ``None``.
             ValueError: if ``frame_id`` is less than 0 or greater than 255.
         """
-        if relay_interface is None:
-            raise ValueError("Relay interface cannot be None")
+        if local_interface is None:
+            raise ValueError("Destination interface cannot be None")
         if frame_id > 255 or frame_id < 0:
             raise ValueError("frame_id must be between 0 and 255.")
 
         super().__init__(ApiFrameType.USER_DATA_RELAY_REQUEST)
         self._frame_id = frame_id
-        self.__relay_interface = relay_interface
+        self.__local_interface = local_interface
         self.__data = data
 
     @staticmethod
@@ -95,7 +95,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.USER_DATA_RELAY_REQUEST.code:
             raise InvalidPacketException("This packet is not a user data relay packet.")
 
-        return UserDataRelayPacket(raw[4], UserDataRelayInterface.get([5]), raw[6:-1])
+        return UserDataRelayPacket(raw[4], XBeeLocalInterface.get([5]), raw[6:-1])
 
     def needs_id(self):
         """
@@ -114,7 +114,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         ret = bytearray()
-        ret.append(self.__relay_interface.code)
+        ret.append(self.__local_interface.code)
         if self.__data is not None:
             return ret + self.__data
         return ret
@@ -126,7 +126,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.DEST_INTERFACE: self.__relay_interface.description,
+        return {DictKeys.DEST_INTERFACE: self.__local_interface.description,
                 DictKeys.DATA:           list(self.__data) if self.__data is not None else None}
 
     def __get_data(self):
@@ -152,32 +152,32 @@ class UserDataRelayPacket(XBeeAPIPacket):
         else:
             self.__data = data.copy()
 
-    def __get_relay_interface(self):
+    def __get_dest_interface(self):
         """
         Returns the the destination interface.
 
         Returns:
-            :class:`.UserDataRelayInterface`: the destination interface.
+            :class:`.XBeeLocalInterface`: the destination interface.
 
         .. seealso::
-           | :class:`.UserDataRelayInterface`
+           | :class:`.XBeeLocalInterface`
         """
-        return self.__relay_interface
+        return self.__local_interface
 
-    def __set_relay_interface(self, relay_interface):
+    def __set_dest_interface(self, local_interface):
         """
         Sets the destination interface.
 
         Args:
-            relay_interface (:class:`.UserDataRelayInterface`): the new destination interface.
+            local_interface (:class:`.XBeeLocalInterface`): the new destination interface.
 
         .. seealso::
-           | :class:`.UserDataRelayInterface`
+           | :class:`.XBeeLocalInterface`
         """
-        self.__relay_interface = relay_interface
+        self.__local_interface = local_interface
 
-    relay_interface = property(__get_relay_interface, __set_relay_interface)
-    """:class:`.UserDataRelayInterface`. Destination relay interface."""
+    dest_interface = property(__get_dest_interface, __set_dest_interface)
+    """:class:`.XBeeLocalInterface`. Destination local interface."""
 
     data = property(__get_data, __set_data)
     """Bytearray. Data to send."""
@@ -191,38 +191,38 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
     The User Data Relay Output packet can be received from any relay interface.
 
     The source interface must be one of the interfaces found in the
-    corresponding enumerator (see :class:`.UserDataRelayInterface`).
+    corresponding enumerator (see :class:`.XBeeLocalInterface`).
 
     .. seealso::
-       | :class:`.UserDataRelayInterface`
        | :class:`.UserDataRelayPacket`
        | :class:`.XBeeAPIPacket`
+       | :class:`.XBeeLocalInterface`
     """
 
     __MIN_PACKET_LENGTH = 6
 
-    def __init__(self, relay_interface, data=None):
+    def __init__(self, local_interface, data=None):
         """
         Class constructor. Instantiates a new
         :class:`.UserDataRelayOutputPacket` object with the provided
         parameters.
 
         Args:
-            relay_interface (:class:`.UserDataRelayInterface`): the source interface.
+            local_interface (:class:`.XBeeLocalInterface`): the source interface.
             data (Bytearray, optional): Data received from the source interface.
 
         Raises:
-            ValueError: if ``relay_interface`` is ``None``.
+            ValueError: if ``local_interface`` is ``None``.
 
         .. seealso::
-           | :class:`.UserDataRelayInterface`
            | :class:`.XBeeAPIPacket`
+           | :class:`.XBeeLocalInterface`
         """
-        if relay_interface is None:
-            raise ValueError("Relay interface cannot be None")
+        if local_interface is None:
+            raise ValueError("Source interface cannot be None")
 
         super().__init__(ApiFrameType.USER_DATA_RELAY_OUTPUT)
-        self.__relay_interface = relay_interface
+        self.__local_interface = local_interface
         self.__data = data
 
     @staticmethod
@@ -255,7 +255,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.USER_DATA_RELAY_OUTPUT.code:
             raise InvalidPacketException("This packet is not a user data relay output packet.")
 
-        return UserDataRelayOutputPacket(UserDataRelayInterface.get(raw[4]), raw[5:-1])
+        return UserDataRelayOutputPacket(XBeeLocalInterface.get(raw[4]), raw[5:-1])
 
     def needs_id(self):
         """
@@ -274,7 +274,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         ret = bytearray()
-        ret.append(self.__relay_interface.code)
+        ret.append(self.__local_interface.code)
         if self.__data is not None:
             return ret + self.__data
         return ret
@@ -286,7 +286,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOURCE_INTERFACE: self.__relay_interface.description,
+        return {DictKeys.SOURCE_INTERFACE: self.__local_interface.description,
                 DictKeys.DATA:             list(self.__data) if self.__data is not None else None}
 
     def __get_data(self):
@@ -312,32 +312,32 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         else:
             self.__data = data.copy()
 
-    def __get_relay_interface(self):
+    def __get_src_interface(self):
         """
         Returns the the source interface.
 
         Returns:
-            :class:`.UserDataRelayInterface`: the source interface.
+            :class:`.XBeeLocalInterface`: the source interface.
 
         .. seealso::
-           | :class:`.UserDataRelayInterface`
+           | :class:`.XBeeLocalInterface`
         """
-        return self.__relay_interface
+        return self.__local_interface
 
-    def __set_relay_interface(self, relay_interface):
+    def __set_src_interface(self, local_interface):
         """
         Sets the source interface.
 
         Args:
-            relay_interface (:class:`.UserDataRelayInterface`): the new source interface.
+            local_interface (:class:`.XBeeLocalInterface`): the new source interface.
 
         .. seealso::
-           | :class:`.UserDataRelayInterface`
+           | :class:`.XBeeLocalInterface`
         """
-        self.__relay_interface = relay_interface
+        self.__local_interface = local_interface
 
-    relay_interface = property(__get_relay_interface, __set_relay_interface)
-    """:class:`.UserDataRelayInterface`. Source relay interface."""
+    src_interface = property(__get_src_interface, __set_src_interface)
+    """:class:`.XBeeLocalInterface`. Source local interface."""
 
     data = property(__get_data, __set_data)
     """Bytearray. Received data."""

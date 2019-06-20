@@ -406,14 +406,14 @@ DiscoveryOptions.__doc__ += utils.doc_enum(DiscoveryOptions)
 
 
 @unique
-class UserDataRelayInterface(Enum):
+class XBeeLocalInterface(Enum):
     """
     Enumerates the different interfaces for the :class:`.UserDataRelayPacket`
     and :class:`.UserDataRelayOutputPacket`.
 
     | Inherited properties:
-    |     **name** (String): the name (id) of the relay interface.
-    |     **value** (String): the value of the relay interface.
+    |     **name** (String): the name (id) of the XBee local interface.
+    |     **value** (String): the value of the XBee local interface.
     """
     SERIAL = (0, "Serial port (UART when in API mode, or SPI interface)")
     BLUETOOTH = (1, "BLE API interface (on XBee devices which support BLE)")
@@ -426,45 +426,45 @@ class UserDataRelayInterface(Enum):
 
     def __get_code(self):
         """
-        Returns the code of the UserDataRelayInterface element.
+        Returns the code of the ``XBeeLocalInterface`` element.
 
         Returns:
-            Integer: the code of the UserDataRelayInterface element.
+            Integer: the code of the ``XBeeLocalInterface`` element.
         """
         return self.__code
 
     def __get_description(self):
         """
-        Returns the description of the UserDataRelayInterface element.
+        Returns the description of the ``XBeeLocalInterface`` element.
 
         Returns:
-            String: the description of the UserDataRelayInterface element.
+            String: the description of the ``XBeeLocalInterface`` element.
         """
         return self.__description
 
     @classmethod
     def get(cls, code):
         """
-        Returns the User Data Relay interface option for the given code.
+        Returns the XBee local interface option for the given code.
 
         Args:
-            code (Integer): the code of the User Data Relay interface to get.
+            code (Integer): the code of the XBee local interface to get.
 
         Returns:
-            :class:`.UserDataRelayInterface`: the UserDataRelayInterface with the given code,
-                ``UNKNOWN`` if there is not any UserDataRelayInterface with the provided code.
+            :class:`.XBeeLocalInterface`: the ``XBeeLocalInterface`` with the given code,
+                ``UNKNOWN`` if there is not any ``XBeeLocalInterface`` with the provided code.
         """
         try:
             return cls.lookupTable[code]
         except KeyError:
-            return UserDataRelayInterface.UNKNOWN
+            return XBeeLocalInterface.UNKNOWN
 
     code = property(__get_code)
-    """Integer. The User Data Relay interface code."""
+    """Integer. The XBee local interface code."""
 
     description = property(__get_description)
-    """String. The User Data Relay interface description."""
+    """String. The XBee local interface description."""
 
 
-UserDataRelayInterface.lookupTable = {x.code: x for x in UserDataRelayInterface}
-UserDataRelayInterface.__doc__ += utils.doc_enum(UserDataRelayInterface)
+XBeeLocalInterface.lookupTable = {x.code: x for x in XBeeLocalInterface}
+XBeeLocalInterface.__doc__ += utils.doc_enum(XBeeLocalInterface)

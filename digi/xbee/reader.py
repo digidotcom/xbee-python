@@ -24,7 +24,7 @@ from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
     SMSMessage, UserDataRelayMessage
 from digi.xbee.models.mode import OperatingMode
-from digi.xbee.models.options import ReceiveOptions
+from digi.xbee.models.options import ReceiveOptions, XBeeLocalInterface
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
@@ -244,6 +244,32 @@ class RelayDataReceived(XBeeEvent):
     pass
 
 
+class BluetoothDataReceived(XBeeEvent):
+    """
+    This event is fired when an XBee receives data from the Bluetooth interface.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. data (Bytearray): received Bluetooth data.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
+class MicroPythonDataReceived(XBeeEvent):
+    """
+    This event is fired when an XBee receives data from the MicroPython interface.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. data (Bytearray): received MicroPython data.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class PacketListener(threading.Thread):
     """
     This class represents a packet listener, which is a thread that's always
@@ -307,6 +333,8 @@ class PacketListener(threading.Thread):
         self.__ip_data_received = IPDataReceived()
         self.__sms_received = SMSReceived()
         self.__relay_data_received = RelayDataReceived()
+        self.__bluetooth_data_received = BluetoothDataReceived()
+        self.__micropython_data_received = MicroPythonDataReceived()
 
         # API internal callbacks:
         self.__packet_received_API = xbee_device.get_xbee_device_callbacks()
@@ -520,6 +548,28 @@ class PacketListener(threading.Thread):
         """
         self.__relay_data_received += callback
 
+    def add_bluetooth_data_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.BluetoothDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The data received as a Bytearray
+        """
+        self.__bluetooth_data_received += callback
+
+    def add_micropython_data_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.MicroPythonDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The data received as a Bytearray
+        """
+        self.__micropython_data_received += callback
+
     def del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.PacketReceived` event.
@@ -614,7 +664,31 @@ class PacketListener(threading.Thread):
         Raises:
             ValueError: if ``callback`` is not in the callback list of :class:`.RelayDataReceived` event.
         """
-        self.__relay_data_received += callback
+        self.__relay_data_received -= callback
+
+    def del_bluetooth_data_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.BluetoothDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.BluetoothDataReceived` event.
+        """
+        self.__bluetooth_data_received -= callback
+
+    def del_micropython_data_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.MicroPythonDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of :class:`.MicroPythonDataReceived` event.
+        """
+        self.__micropython_data_received -= callback
 
     def __execute_user_callbacks(self, xbee_packet, remote=None):
         """
@@ -699,11 +773,17 @@ class PacketListener(threading.Thread):
 
         # Relay
         elif xbee_packet.get_frame_type() == ApiFrameType.USER_DATA_RELAY_OUTPUT:
-            self.__relay_data_received(UserDataRelayMessage(xbee_packet.relay_interface, xbee_packet.data))
+            # Notify generic callbacks.
+            self.__relay_data_received(UserDataRelayMessage(xbee_packet.src_interface, xbee_packet.data))
+            # Notify specific callbacks.
+            if xbee_packet.src_interface == XBeeLocalInterface.BLUETOOTH:
+                self.__bluetooth_data_received(xbee_packet.data)
+            elif xbee_packet.src_interface == XBeeLocalInterface.MICROPYTHON:
+                self.__micropython_data_received(xbee_packet.data)
             self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="RELAY DATA",
-                                                    sender=xbee_packet.relay_interface.description,
+                                                    sender=xbee_packet.src_interface.description,
                                                     more_data=utils.hex_to_string(xbee_packet.data)))
 
     def __read_next_byte(self, operating_mode):

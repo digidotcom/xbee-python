@@ -401,38 +401,38 @@ class UserDataRelayMessage(object):
     interface and the content (data) of the message.
 
     .. seealso::
-       | :class:`.UserDataRelayInterface`
+       | :class:`.XBeeLocalInterface`
     """
 
-    def __init__(self, relay_interface, data):
+    def __init__(self, local_interface, data):
         """
         Class constructor. Instantiates a new :class:`.UserDataRelayMessage` object with
         the provided parameters.
 
         Args:
-            relay_interface (:class:`.UserDataRelayInterface`): The source relay interface.
+            local_interface (:class:`.XBeeLocalInterface`): The source XBee local interface.
             data (Bytearray): Byte array containing the data of the message.
 
         Raises:
             ValueError: if ``relay_interface`` is ``None``.
 
         .. seealso::
-            | :class:`.UserDataRelayInterface`
+            | :class:`.XBeeLocalInterface`
         """
-        if relay_interface is None:
-            raise ValueError("Relay interface cannot be None")
+        if local_interface is None:
+            raise ValueError("XBee local interface cannot be None")
 
-        self.__relay_interface = relay_interface
+        self.__local_interface = local_interface
         self.__data = data
 
-    def __get_relay_interface(self):
+    def __get_src_interface(self):
         """
         Returns the source interface that sent the message.
 
         Returns:
-            :class:`.UserDataRelayInterface`: The source interface that sent the message.
+            :class:`.XBeeLocalInterface`: The source interface that sent the message.
         """
-        return self.__relay_interface
+        return self.__local_interface
 
     def __get_data(self):
         """
@@ -447,11 +447,11 @@ class UserDataRelayMessage(object):
         """
         Returns the message information as a dictionary.
         """
-        return {"Relay interface: ": self.__relay_interface,
-                "Data: ":            self.__data}
+        return {"XBee local interface: ": self.__local_interface,
+                "Data: ":                 self.__data}
 
-    relay_interface = property(__get_relay_interface)
-    """:class:`.UserDataRelayInterface`. Source interface that sent the message."""
+    local_interface = property(__get_src_interface)
+    """:class:`.XBeeLocalInterface`. Source interface that sent the message."""
 
     data = property(__get_data)
     """Bytearray. The data of the message."""

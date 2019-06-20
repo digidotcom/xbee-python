@@ -39,7 +39,12 @@
        For further information on how to perform this task, read the
        'Configuring Your XBee Modules' topic of the Getting Started guide.
 
-    3) Set the port and baud rate of the XBee radio in the sample file.
+    3) Enable the Bluetooth interface of the XBee device and configure the
+       Bluetooth authentication using XCTU.
+       For further information on how to perform this task, refer to the
+       XCTU user manual.
+
+    4) Set the port and baud rate of the XBee radio in the sample file.
        If you configured the module in the previous step with XCTU, you will
        see the port number and baud rate in the 'Port' label of the device
        on the left view.
