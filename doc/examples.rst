@@ -276,6 +276,34 @@ You can find the example at the following path:
    :ref:`communicateSendIPData`.
 
 
+Send Bluetooth Data
+```````````````````
+
+This sample application shows how to send data to the XBee Bluetooth Low Energy
+interface.
+
+You can find the example at the following path:
+**examples/communication/bluetooth/SendBluetoothDataSample**
+
+.. note::
+   For more information about sending Bluetooth data, see
+   :ref:`communicateSendBluetoothData`.
+
+
+Send MicroPython Data
+`````````````````````
+
+This sample application shows how to send data to the XBee MicroPython
+interface.
+
+You can find the example at the following path:
+**examples/communication/micropython/SendMicroPythonDataSample**
+
+.. note::
+   For more information about sending MicroPython data, see
+   :ref:`communicateSendMicroPythonData`.
+
+
 Send User Data Relay
 ````````````````````
 
@@ -286,7 +314,7 @@ You can find the example at the following path:
 
 .. note::
    For more information about sending User Data Relay messages, see
-   :ref:`communicateSendRelayData`.
+   :ref:`communicateSendBluetoothData` or :ref:`communicateSendMicroPythonData`.
 
 
 Receive data
@@ -383,8 +411,36 @@ You can find the example at the following path:
    :ref:`communicateReceiveSMS`.
 
 
-Receive User Data Relay messages
-````````````````````````````````
+Receive Bluetooth data
+``````````````````````
+
+This sample application shows how to receive data from the XBee Bluetooth Low
+Energy interface.
+
+You can find the example at the following path:
+**examples/communication/bluetooth/ReceiveBluetoothDataSample**
+
+.. note::
+   For more information about receiving Bluetooth data, see
+   :ref:`communicateReceiveBluetoothData`.
+
+
+Receive MicroPython data
+````````````````````````
+
+This sample application shows how to receive data from the XBee MicroPython
+interface.
+
+You can find the example at the following path:
+**examples/communication/micropython/ReceiveMicroPythonDataSample**
+
+.. note::
+   For more information about receiving MicroPython data, see
+   :ref:`communicateReceiveMicroPythonData`.
+
+
+Receive User Data Relay
+```````````````````````
 
 This sample application shows how to receive data from other XBee interface.
 
@@ -393,7 +449,8 @@ You can find the example at the following path:
 
 .. note::
    For more information about receiving User Data Relay messages, see
-   :ref:`communicateReceiveRelayData`.
+   :ref:`communicateReceiveBluetoothData` or
+   :ref:`communicateReceiveMicroPythonData`.
 
 
 Receive modem status
