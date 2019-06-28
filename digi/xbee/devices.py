@@ -21,6 +21,8 @@ import time
 import serial
 from serial.serialutil import SerialTimeoutException
 
+import srp
+
 from digi.xbee.packets.cellular import TXSMSPacket
 from digi.xbee.models.accesspoint import AccessPoint, WiFiEncryptionType
 from digi.xbee.models.atcomm import ATCommandResponse, ATCommand
@@ -59,6 +61,11 @@ class AbstractXBeeDevice(object):
     _DEFAULT_TIMEOUT_SYNC_OPERATIONS = 4
     """
     The default timeout for all synchronous operations, in seconds.
+    """
+
+    _BLE_API_USERNAME = "apiservice"
+    """
+    The Bluetooth Low Energy API username.
     """
 
     LOG_PATTERN = "{port:<6s}{event:<12s}{opmode:<20s}{content:<50s}"
@@ -1078,6 +1085,112 @@ class AbstractXBeeDevice(object):
            | :class:`.APIOutputMode`
         """
         self.set_parameter("AO", bytearray([api_output_mode.code]))
+
+    def enable_bluetooth(self):
+        """
+        Enables the Bluetooth interface of this XBee device.
+
+        To work with this interface, you must also configure the Bluetooth password if not done previously.
+        You can use the :meth:`.AbstractXBeeDevice.update_bluetooth_password` method for that purpose.
+
+        Note that your device must have Bluetooth Low Energy support to use this method.
+
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+        """
+        self._enable_bluetooth(True)
+
+    def disable_bluetooth(self):
+        """
+        Disables the Bluetooth interface of this XBee device.
+
+        Note that your device must have Bluetooth Low Energy support to use this method.
+
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+        """
+        self._enable_bluetooth(False)
+
+    def _enable_bluetooth(self, enable):
+        """
+        Enables or disables the Bluetooth interface of this XBee device.
+
+        Args:
+            enable (Boolean): ``True`` to enable the Bluetooth interface, ``False`` to disable it.
+
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+        """
+        self.set_parameter("BT", b'\x01' if enable else b'\x00')
+        self.write_changes()
+        self.apply_changes()
+
+    def get_bluetooth_mac_addr(self):
+        """
+        Reads and returns the EUI-48 Bluetooth MAC address of this XBee device in a format such as ``00112233AABB``.
+
+        Note that your device must have Bluetooth Low Energy support to use this method.
+
+        Returns:
+            String: The Bluetooth MAC address.
+
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+        """
+        return utils.hex_to_string(self.get_parameter("BL"), False)
+
+    def update_bluetooth_password(self, new_password):
+        """
+        Changes the password of this Bluetooth device with the new one provided.
+
+        Note that your device must have Bluetooth Low Energy support to use this method.
+
+        Args:
+            new_password (String): New Bluetooth password.
+
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+        """
+        # Generate the salt and verifier using the SRP library.
+        salt, verifier = srp.create_salted_verification_key(self._BLE_API_USERNAME, new_password,
+                                                            hash_alg=srp.SHA256, ng_type=srp.NG_1024, salt_len=4)
+
+        # Ensure the verifier is 128 bytes.
+        verifier = (128 - len(verifier)) * b'\x00' + verifier
+
+        # Set the salt.
+        self.set_parameter("$S", salt)
+
+        # Set the verifier (split in 4 settings)
+        index = 0
+        at_length = int(len(verifier) / 4)
+
+        self.set_parameter("$V", verifier[index:(index + at_length)])
+        index += at_length
+        self.set_parameter("$W", verifier[index:(index + at_length)])
+        index += at_length
+        self.set_parameter("$X", verifier[index:(index + at_length)])
+        index += at_length
+        self.set_parameter("$Y", verifier[index:(index + at_length)])
+
+        # Write and apply changes.
+        self.write_changes()
+        self.apply_changes()
 
     def _get_ai_status(self):
         """

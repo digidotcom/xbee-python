@@ -630,3 +630,152 @@ with the following methods:
 +-------------+---------------------------+
 | DNS address | **set_dns_address()**     |
 +-------------+---------------------------+
+
+
+.. _configBluetooth:
+
+Configure Bluetooth settings
+----------------------------
+
+Newer XBee3 devices have a Bluetooth® Low Energy (BLE) interface that enables
+you to connect your XBee device to another device such as a cellphone. The XBee
+device classes (local and remote) offer some methods that allow you to:
+
+* :ref:`_configBluetoothEnableDisable`
+* :ref:`_configBluetoothConfigurePassword`
+* :ref:`_configBluetoothReadMacAddress`
+
+
+.. _configBluetoothEnableDisable:
+
+Enable and disable Bluetooth
+````````````````````````````
+
+Before connecting to your XBee device over Bluetooth Low Energy, you first have
+to enable this interface. The XBee Python Library provides a couple of methods
+to enable or disable this interface:
+
++-------------------------+------------------------------------------------------------------+
+| Method                  | Description                                                      |
++=========================+==================================================================+
+| **enable_bluetooth()**  | Enables the Bluetooth Low Energy interface of your XBee device.  |
++-------------------------+------------------------------------------------------------------+
+| **disable_bluetooth()** | Disables the Bluetooth Low Energy interface of your XBee device. |
++-------------------------+------------------------------------------------------------------+
+
+**Enabling and disabling the Bluetooth interface**
+
+.. code:: python
+
+  [...]
+
+  # Instantiate an XBee device object.
+  local_xbee = XBeeDevice("COM1", 9600)
+  local_xbee.open()
+
+  # Enable the Bluetooth interface.
+  local_xbee.enable_bluetooth()
+
+  [...]
+
+  # Disable the Bluetooth interface.
+  local_xbee.disable_bluetooth()
+
+  [...]
+
+These methods may fail for the following reasons:
+
+* ACK of the command sent is not received in the configured timeout, throwing
+  a ``TimeoutException``.
+* Other errors caught as ``XBeeException``:
+    * The operating mode of the device is not ``API_MODE`` or
+      ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
+    * The response of the command is not valid, throwing an
+      ``ATCommandException``.
+    * There is an error writing to the XBee interface, throwing a generic
+      ``XBeeException``.
+
+
+.. _configBluetoothConfigurePassword:
+
+Configure the Bluetooth password
+````````````````````````````````
+
+Once you have enabled the Bluetooth Low Energy, you must configure the password
+you will use to connect to the device over that interface (if not previously
+done). For this purpose, the API offers the following method:
+
++----------------------------------------+-----------------------------------------------------------+
+| Method                                 | Description                                               |
++========================================+===========================================================+
+| **update_bluetooth_password(String)**  | Specifies the new Bluetooth password of the XBee device.  |
++----------------------------------------+-----------------------------------------------------------+
+
+**Configuring or changing the Bluetooth password**
+
+.. code:: python
+
+  [...]
+
+  # Instantiate an XBee device object.
+  local_xbee = XBeeDevice("COM1", 9600)
+  local_xbee.open()
+
+  new_password = "myBluetoothPassword" # Do not hard-code it in the app!
+
+  # Configure the Bluetooth password.
+  local_xbee.update_bluetooth_password(new_password)
+
+  [...]
+
+The ``update_bluetooth_password`` method may fail for the following reasons:
+
+* ACK of the command sent is not received in the configured timeout, throwing
+  a ``TimeoutException``.
+* Other errors caught as ``XBeeException``:
+    * The operating mode of the device is not ``API_MODE`` or
+      ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
+    * The response of the command is not valid, throwing an
+      ``ATCommandException``.
+    * There is an error writing to the XBee interface, throwing a generic
+      ``XBeeException``.
+
+.. warning::
+  Never hard-code the Bluetooth password in the code, a malicious person could
+  decompile the application and find it out.
+
+
+.. _configBluetoothReadMacAddress:
+
+Read the Bluetooth MAC address
+``````````````````````````````
+
+Another method that the XBee Java Library provides is
+``get_bluetooth_mac_addr()``, which returns the EUI-48 Bluetooth MAC address of
+your XBee device in a format such as "00112233AABB".
+
+**Reading the Bluetooth MAC address**
+
+.. code:: python
+
+  [...]
+
+  # Instantiate an XBee device object.
+  local_xbee = XBeeDevice("COM1", 9600)
+  local_xbee.open()
+
+  print("The Bluetooth MAC address is: %s" % local_xbee.get_bluetooth_mac_addr())
+
+  [...]
+
+The ``get_bluetooth_mac_addr`` method may fail for the following reasons:
+
+* ACK of the command sent is not received in the configured timeout, throwing
+  a ``TimeoutException``.
+* Other errors caught as ``XBeeException``:
+    * The operating mode of the device is not ``API_MODE`` or
+      ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
+    * The response of the command is not valid, throwing an
+      ``ATCommandException``.
+    * There is an error writing to the XBee interface, throwing a generic
+      ``XBeeException``.

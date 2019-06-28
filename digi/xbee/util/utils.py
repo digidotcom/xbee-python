@@ -238,18 +238,21 @@ def int_to_length(number):
     return length
 
 
-def hex_to_string(byte_array):
+def hex_to_string(byte_array, pretty=True):
     """
     Returns the provided bytearray in a pretty string format. All bytes are separated by blank spaces and
     printed in hex format.
 
     Args:
         byte_array (Bytearray): the bytearray to print in pretty string.
+        pretty (Boolean, optional): ``True`` for pretty string format, ``False`` for plain string format.
+            Default to ``True``.
 
     Returns:
-        String: the bytearray formatted in a pretty string.
+        String: the bytearray formatted in a string format.
     """
-    return " ".join(["%02X" % i for i in byte_array])
+    separator = " " if pretty else ""
+    return separator.join(["%02X" % i for i in byte_array])
 
 
 def doc_enum(enum_class, descriptions=None):
