@@ -2579,19 +2579,19 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         super()._del_expl_data_received_callback(callback)
 
-    def _del_user_data_relay_received_callback(self, callback):
+    def del_user_data_relay_received_callback(self, callback):
         """
         Override.
         """
         super()._del_user_data_relay_received_callback(callback)
 
-    def _del_bluetooth_data_received_callback(self, callback):
+    def del_bluetooth_data_received_callback(self, callback):
         """
         Override.
         """
         super()._del_bluetooth_data_received_callback(callback)
 
-    def _del_micropython_data_received_callback(self, callback):
+    def del_micropython_data_received_callback(self, callback):
         """
         Override.
         """
