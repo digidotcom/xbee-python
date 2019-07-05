@@ -13,7 +13,7 @@ Reporting a bug
 ---------------
 
 The way to report bugs is to use the
-`GitHub issue tracker <http://github.com/digidotcom/python-xbee/issues>`_.
+`GitHub issue tracker <http://github.com/digidotcom/xbee-python/issues>`_.
 Before reporting a bug, please read the following points:
 
 #. Make sure that what you are seeing is really a bug by checking the
@@ -21,7 +21,7 @@ Before reporting a bug, please read the following points:
    the `FAQs <https://xbplib.readthedocs.io/en/latest/faq.html>`_ section.
 #. If you still think you have found a bug, make sure someone has not already
    reported it. See the list of
-   `known issues <http://github.com/digidotcom/python-xbee/issues>`_.
+   `known issues <http://github.com/digidotcom/xbee-python/issues>`_.
 #. If it has not been reported yet, create a new issue. Make sure to add enough
    detail so that the bug can be reproduced.
 
@@ -38,14 +38,14 @@ Suggesting a new feature
    section to ensure that the behavior you would like the library to have is 
    not excluded.
 #. Make sure someone has not already requested it. See the list of
-   `known issues <http://github.com/digidotcom/python-xbee/issues>`_.
+   `known issues <http://github.com/digidotcom/xbee-python/issues>`_.
 #. Submit your request in the issue tracker.
 
 
 Contributing code
 -----------------
 
-#. Fork the `XBee Python library <http://github.com/digidotcom/python-xbee>`_
+#. Fork the `XBee Python library <http://github.com/digidotcom/xbee-python>`_
    repository (`how to fork a repo
    <https://help.github.com/articles/fork-a-repo/>`_).
 #. Create a branch for your contribution. Use a name that defines the purpose

@@ -1,5 +1,5 @@
-Digi XBee Python library
-========================
+Digi XBee Python library |pypiversion| |pythonversion|
+======================================================
 
 This project contains the source code of the XBee Python library, an
 easy-to-use API developed in Python that allows you to interact with Digi
@@ -42,16 +42,21 @@ How to contribute
 -----------------
 
 The contributing guidelines are in the `CONTRIBUTING.rst document
-<https://github.com/digidotcom/python-xbee/blob/master/CONTRIBUTING.rst>`_.
+<https://github.com/digidotcom/xbee-python/blob/master/CONTRIBUTING.rst>`_.
 
 
 License
 -------
 
-Copyright 2017, Digi International Inc.
+Copyright 2017-2019, Digi International Inc.
 
-The `MPL 2.0 license <https://github.com/digidotcom/python-xbee/blob/master/LICENSE.txt>`_
+The `MPL 2.0 license <https://github.com/digidotcom/xbee-python/blob/master/LICENSE.txt>`_
 covers the majority of this project with the following exceptions:
 
-* The `ISC license <https://github.com/digidotcom/python-xbee/blob/master/examples/LICENSE.txt>`_
+* The `ISC license <https://github.com/digidotcom/xbee-python/blob/master/examples/LICENSE.txt>`_
   covers the contents of the examples directory.
+
+.. |pypiversion| image:: https://badge.fury.io/py/digi-xbee.svg
+    :target: https://pypi.org/project/digi-xbee/
+.. |pythonversion| image:: https://img.shields.io/pypi/pyversions/digi-xbee.svg
+    :alt: PyPI - Python Version
