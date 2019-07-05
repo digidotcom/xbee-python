@@ -23,7 +23,7 @@ setup(
     version='1.1.1',
     description='Digi XBee Python library',
     long_description=long_description,
-    url='https://github.com/digidotcom/python-xbee',
+    url='https://github.com/digidotcom/xbee-python',
     author='Digi International Inc.',
     author_email='tech.support@digi.com',
     packages=find_packages(exclude=('unit_test*', 'functional_tests*', 'demos*')),

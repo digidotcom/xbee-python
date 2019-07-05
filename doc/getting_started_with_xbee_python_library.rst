@@ -22,6 +22,7 @@ XBee Python application:
 
 * :ref:`gsgInstallPython3`
 * :ref:`gsgInstallPySerial3`
+* :ref:`gsgInstallSRP`
 * :ref:`gsgInstallXBeePythonLibrarySoftware`
 * :ref:`gsgInstallXCTU`
 
@@ -51,6 +52,18 @@ This module is automatically downloaded when you install the XBee Python
 library.
 
 
+.. _gsgInstallSRP:
+
+SRP
+```
+
+The XBee Python library uses the **SRP** module to authenticate with
+XBee devices over Bluetooth Low Energy.
+
+This module is automatically downloaded when you install the XBee Python
+library.
+
+
 .. _gsgInstallXBeePythonLibrarySoftware:
 
 XBee Python library software
@@ -74,12 +87,12 @@ Get the source code
 *******************
 
 The XBee Python library is actively developed on GitHub, where the code is
-`always available <https://github.com/digidotcom/python-xbee>`_. You can
+`always available <https://github.com/digidotcom/xbee-python>`_. You can
 clone the repository with:
 
 .. code::
 
-  $ git clone git@github.com:digidotcom/python-xbee.git
+  $ git clone git@github.com:digidotcom/xbee-python.git
 
 
 .. _gsgInstallXCTU:

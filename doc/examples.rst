@@ -425,6 +425,20 @@ You can find the example at the following path:
    :ref:`communicateReceiveBluetoothData`.
 
 
+Receive Bluetooth file
+``````````````````````
+
+This sample application shows how to receive a file from the XBee Bluetooth Low
+Energy interface.
+
+You can find the example at the following path:
+**examples/communication/bluetooth/ReceiveBluetoothFileSample**
+
+.. note::
+   For more information about receiving Bluetooth data, see
+   :ref:`communicateReceiveBluetoothData`.
+
+
 Receive MicroPython data
 ````````````````````````
 
