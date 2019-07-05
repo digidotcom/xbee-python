@@ -1,6 +1,27 @@
 Changelog
 =========
 
+v1.2.0 - 04/05/2019
+-------------------
+
+* Add new methods to send and receive data from other XBee interfaces through
+  User Data Relay frames.
+* Add new methods to manage the Bluetooth interface.
+* Add support to set AT parameters without applying them with the AT Command
+  Queue packet.
+* Improve the callbacks mechanism:
+  * Callbacks are now executed in parallel.
+  * Internal callbacks are now defined when needed to avoid issues when more
+    than one callback of the same type is defined.
+* Add missing 'Transmit Status', 'Modem Status' and 'Cellular Association
+  Indication Status' values to cover all XBee Cellular/XBee3 Cellular features.
+* Bug Fixing:
+  * Fix some bugs related to package spec data.
+  * Log an error when processing a wrong frame instead of stopping the reader.
+  * Fix an issue parsing Explicit RX Indicator packets.
+  * Fix a couple of leaks with StreamHandlers.
+
+
 v1.1.1 - 04/25/2018
 -------------------
 
