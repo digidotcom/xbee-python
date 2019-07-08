@@ -60,7 +60,7 @@
   process:
 
     >> START message received, saving data to file...
-    >> END message received, file 'received_file_20190627120254.txt'
+    >> END message received, file '<file_name>'
 
   Verify that the received file is created successfully and is the same as the
   one you sent with the mobile application.

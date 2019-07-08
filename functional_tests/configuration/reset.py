@@ -34,6 +34,8 @@ def main():
         device.open()
 
         def modem_status_callback(status):
+            if status == ModemStatus.COORDINATOR_STARTED:
+                return
             assert (status in [ModemStatus.HARDWARE_RESET, ModemStatus.WATCHDOG_TIMER_RESET])
 
         device.add_modem_status_received_callback(modem_status_callback)

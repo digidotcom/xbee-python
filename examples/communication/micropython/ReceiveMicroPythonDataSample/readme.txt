@@ -17,8 +17,7 @@
     * One XBee3 module in API mode and its corresponding carrier board (XBIB
       or equivalent).
     * The XCTU application (available at www.digi.com/xctu).
-    * An Android or iOS device with the Digi XBee Mobile application installed
-      (available at Google Play and App Store).
+    * The PyCharm IDE with the Digi XBee MicroPython plugin installed.
 
 
   Compatible protocols

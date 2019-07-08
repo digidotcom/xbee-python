@@ -32,7 +32,7 @@ def main():
 
         def relay_data_callback(relay_message):
             print("Relay data received from %s >> '%s'" %
-                  (relay_message.relay_interface.name,
+                  (relay_message.local_interface.name,
                    relay_message.data.decode("utf-8")))
 
         device.add_user_data_relay_received_callback(relay_data_callback)
