@@ -11,6 +11,7 @@ from os import path
 
 DEPENDENCIES = (
     'pyserial>=3',
+    'srp',
 )
 
 here = path.abspath(path.dirname(__file__))
@@ -32,6 +33,7 @@ setup(
     python_requires='>=3',
     install_requires=[
         'pyserial>=3',
+        'srp',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
