@@ -179,3 +179,14 @@ class XBeeSocketException(XBeeException):
         super().__init__(self.__DEFAULT_STATUS_MESSAGE % (status.description, status.code) if status is not None else
                          message)
         self.status = status
+
+
+class FirmwareUpdateException(XBeeException):
+    """
+    This exception will be thrown when any problem related to the firmware update
+    process of the XBee device occurs.
+
+    All functionality of this class is the inherited of `Exception
+    <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
+    """
+    pass
