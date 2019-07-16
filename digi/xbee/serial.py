@@ -136,3 +136,25 @@ class XBeeSerialPort(Serial):
             read_timeout (Integer): the new serial port read timeout in seconds.
         """
         self.timeout = read_timeout
+
+    def set_baudrate(self, new_baudrate):
+        """
+        Changes the serial port baudrate.
+
+        Args:
+             new_baudrate (Integer): the new baudrate to set.
+        """
+        if new_baudrate is None:
+            return
+
+        port_settings = self.get_settings()
+        port_settings["baudrate"] = new_baudrate
+        self.apply_settings(port_settings)
+
+    def purge_port(self):
+        """
+        Purges the serial port by cleaning the input and output buffers.
+        """
+
+        self.reset_input_buffer()
+        self.reset_output_buffer()
