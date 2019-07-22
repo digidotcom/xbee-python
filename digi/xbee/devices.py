@@ -1206,6 +1206,42 @@ class AbstractXBeeDevice(object):
         self.write_changes()
         self.apply_changes()
 
+    def update_firmware(self, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
+                        progress_callback=None):
+        """
+        Performs a firmware update operation of the device.
+
+        Args:
+            xml_firmware_file (String): path of the XML file that describes the firmware to upload.
+            xbee_firmware_file (String, optional): location of the XBee binary firmware file.
+            bootloader_firmware_file (String, optional): location of the bootloader binary firmware file.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+        Raises:
+            XBeeException: if the device is not open.
+            InvalidOperatingModeException: if the device operating mode is invalid.
+            FirmwareUpdateException: if there is any error performing the firmware update.
+            OperationNotSupportedException: if the firmware update is not supported in the XBee device.
+        """
+        from digi.xbee import firmware
+
+        if not self._serial_port.is_open:
+            raise XBeeException("XBee device's serial port closed.")
+        if self._operating_mode != OperatingMode.API_MODE and self._operating_mode != OperatingMode.ESCAPED_API_MODE:
+            raise InvalidOperatingModeException(op_mode=self._operating_mode)
+        if self.is_remote():
+            raise OperationNotSupportedException("Firmware update is not supported in remote XBee devices")
+        if self.get_hardware_version() and self.get_hardware_version().code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
+            raise OperationNotSupportedException("Firmware update is only supported in XBee3 devices")
+        firmware.update_local_firmware(self, xml_firmware_file,
+                                       progress_callback=progress_callback,
+                                       xbee_firmware_file=xbee_firmware_file,
+                                       bootloader_firmware_file=bootloader_firmware_file)
+
     def _get_ai_status(self):
         """
         Returns the current association status of this XBee device.
