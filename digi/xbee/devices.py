@@ -3063,6 +3063,9 @@ class XBeeDevice(AbstractXBeeDevice):
                     return self.__get_actual_mode()
             except SerialTimeoutException as ste:
                 self._log.exception(ste)
+            except UnicodeDecodeError:
+                # This error is thrown when trying to decode bytes without utf-8 representation, just ignore.
+                pass
             finally:
                 # Exit AT command mode.
                 self._exit_at_command_mode()
