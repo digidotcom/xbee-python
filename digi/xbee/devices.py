@@ -3032,24 +3032,33 @@ class Raw802Device(XBeeDevice):
     This class represents a local 802.15.4 XBee device.
     """
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`Raw802Device` with the provided parameters.
+        Class constructor. Instantiates a new :class:`.Raw802Device` with the provided parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
-        
+
         .. seealso::
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
 
     def open(self):
         """
@@ -3137,15 +3146,23 @@ class DigiMeshDevice(XBeeDevice):
     This class represents a local DigiMesh XBee device.
     """
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`DigiMeshDevice` with the provided parameters.
+        Class constructor. Instantiates a new :class:`.DigiMeshDevice` with the provided parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -3154,7 +3171,8 @@ class DigiMeshDevice(XBeeDevice):
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
 
     def open(self):
         """
@@ -3266,24 +3284,34 @@ class DigiPointDevice(XBeeDevice):
     This class represents a local DigiPoint XBee device.
     """
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`DigiPointDevice` with the provided parameters.
+        Class constructor. Instantiates a new :class:`.DigiPointDevice` with the provided
+        parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
-            All exceptions raised by :meth:`XBeeDevice.__init__` constructor.
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
 
         .. seealso::
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
 
     def open(self):
         """
@@ -3395,24 +3423,33 @@ class ZigBeeDevice(XBeeDevice):
     This class represents a local ZigBee XBee device.
     """
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`ZigBeeDevice` with the provided parameters.
+        Class constructor. Instantiates a new :class:`.ZigBeeDevice` with the provided parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
-            All exceptions raised by :func:`.XBeeDevice.__init__` constructor.
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
 
         .. seealso::
            | :class:`.XBeeDevice`
-           | :meth:`XBeeDevice.__init__`
+           | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
 
     def open(self):
         """
@@ -3757,26 +3794,33 @@ class IPDevice(XBeeDevice):
 
     __OPERATION_EXCEPTION = "Operation not supported in this module."
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`.IPDevice` with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.IPDevice` with the provided parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
-            All exceptions raised by :func:`.XBeeDevice.__init__` constructor.
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
 
         .. seealso::
            | :class:`.XBeeDevice`
-           | :meth:`XBeeDevice.__init__`
+           | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate)
-
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
         self._ip_addr = None
         self._source_port = self.__DEFAULT_SOURCE_PORT
 
@@ -4283,26 +4327,33 @@ class CellularDevice(IPDevice):
     This class represents a local Cellular device.
     """
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`.CellularDevice` with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.CellularDevice` with the provided parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
-            All exceptions raised by :func:`.XBeeDevice.__init__` constructor.
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
 
         .. seealso::
            | :class:`.XBeeDevice`
-           | :meth:`XBeeDevice.__init__`
+           | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate)
-
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
         self._imei_addr = None
 
     def open(self):
@@ -4570,25 +4621,33 @@ class LPWANDevice(CellularDevice):
     devices.
     """
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`.LPWANDevice` with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.LPWANDevice` with the provided parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
-            All exceptions raised by :func:`.XBeeDevice.__init__` constructor.
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
 
         .. seealso::
-           | :class:`.XBeeDevice`
-           | :meth:`XBeeDevice.__init__`
+           | :class:`.CellularDevice`
+           | :meth:`.CellularDevice.__init__`
         """
-        super().__init__(port, baud_rate)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
 
     def send_ip_data(self, ip_addr, dest_port, protocol, data, close_socket=False):
         """
@@ -4678,26 +4737,33 @@ class NBIoTDevice(LPWANDevice):
     This class represents a local NB-IoT device.
     """
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`.CellularDevice` with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.NBIoTDevice` with the provided parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
-            All exceptions raised by :func:`.XBeeDevice.__init__` constructor.
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
 
         .. seealso::
-           | :class:`.XBeeDevice`
-           | :meth:`XBeeDevice.__init__`
+           | :class:`.LPWANDevice`
+           | :meth:`.LPWANDevice.__init__`
         """
-        super().__init__(port, baud_rate)
-
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
         self._imei_addr = None
 
     def open(self):
@@ -4733,24 +4799,33 @@ class WiFiDevice(IPDevice):
     __DEFAULT_ACCESS_POINT_TIMEOUT = 15  # 15 seconds of timeout to connect, disconnect and scan access points.
     __DISCOVER_TIMEOUT = 30  # 30 seconds of access points discovery timeout.
 
-    def __init__(self, port, baud_rate):
+    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
         """
-        Class constructor. Instantiates a new :class:`WiFiDevice` with the provided parameters.
+        Class constructor. Instantiates a new :class:`.WiFiDevice` with the provided parameters.
 
         Args:
             port (Integer or String): serial port identifier.
                 Integer: number of XBee device, numbering starts at zero.
-                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on GNU/Linux or 'COM3' on Windows.
+                Device name: depending on operating system. e.g. '/dev/ttyUSB0' on 'GNU/Linux' or
+                'COM3' on Windows.
             baud_rate (Integer): the serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): comm port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
+            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
 
         Raises:
-            All exceptions raised by :func:`.XBeeDevice.__init__` constructor.
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
 
         .. seealso::
-           | :class:`.XBeeDevice`
-           | :meth:`XBeeDevice.__init__`
+           | :class:`.IPDevice`
+           | :meth:`.v.__init__`
         """
-        super().__init__(port, baud_rate)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
         self.__ap_timeout = self.__DEFAULT_ACCESS_POINT_TIMEOUT
         self.__scanning_aps = False
         self.__scanning_aps_error = False
