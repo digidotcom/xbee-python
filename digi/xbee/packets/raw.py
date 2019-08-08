@@ -604,6 +604,16 @@ class RX64Packet(XBeeAPIPacket):
         """
         return False
 
+    def is_broadcast(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`XBeeAPIPacket.is_broadcast`
+        """
+        return (utils.is_bit_enabled(self.__receive_options, 1)
+                or utils.is_bit_enabled(self.__receive_options, 2))
+
     def _get_api_packet_spec_data(self):
         """
         Override method.
@@ -814,6 +824,16 @@ class RX16Packet(XBeeAPIPacket):
         """
         return False
 
+    def is_broadcast(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`XBeeAPIPacket.is_broadcast`
+        """
+        return (utils.is_bit_enabled(self.__receive_options, 1)
+                or utils.is_bit_enabled(self.__receive_options, 2))
+
     def _get_api_packet_spec_data(self):
         """
         Override method.
@@ -1018,6 +1038,16 @@ class RX64IOPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
+
+    def is_broadcast(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`XBeeAPIPacket.is_broadcast`
+        """
+        return (utils.is_bit_enabled(self.__receive_options, 1)
+                or utils.is_bit_enabled(self.__receive_options, 2))
 
     def _get_api_packet_spec_data(self):
         """
@@ -1281,6 +1311,16 @@ class RX16IOPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
+
+    def is_broadcast(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`XBeeAPIPacket.is_broadcast`
+        """
+        return (utils.is_bit_enabled(self.__receive_options, 1)
+                or utils.is_bit_enabled(self.__receive_options, 2))
 
     def _get_api_packet_spec_data(self):
         """

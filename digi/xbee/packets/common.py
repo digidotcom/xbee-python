@@ -613,6 +613,15 @@ class ReceivePacket(XBeeAPIPacket):
         """
         return False
 
+    def is_broadcast(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`XBeeAPIPacket.is_broadcast`
+        """
+        return utils.is_bit_enabled(self.__receive_options, 1)
+
     def _get_api_packet_spec_data(self):
         """
         Override method.
@@ -2667,6 +2676,15 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
+
+    def is_broadcast(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`XBeeAPIPacket.is_broadcast`
+        """
+        return utils.is_bit_enabled(self.__receive_options, 1)
 
     def _get_api_packet_spec_data(self):
         """
