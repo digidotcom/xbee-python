@@ -462,113 +462,143 @@ class PacketListener(threading.Thread):
         Adds a callback for the event :class:`.PacketReceived`.
 
         Args:
-            callback (Function): the callback. Receives two arguments.
+            callback (Function or List of functions): the callback. Receives two arguments.
 
                 * The received packet as a :class:`.XBeeAPIPacket`
                 * The sender as a :class:`.RemoteXBeeDevice`
         """
-        self.__packet_received += callback
+        if isinstance(callback, list):
+            self.__packet_received.extend(callback)
+        elif callback:
+            self.__packet_received += callback
 
     def add_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.DataReceived`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function or List of functions): the callback. Receives one argument.
 
                 * The data received as an :class:`.XBeeMessage`
         """
-        self.__data_received += callback
+        if isinstance(callback, list):
+            self.__data_received.extend(callback)
+        elif callback:
+            self.__data_received += callback
 
     def add_modem_status_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.ModemStatusReceived`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function or List of functions): the callback. Receives one argument.
 
                 * The modem status as a :class:`.ModemStatus`
         """
-        self.__modem_status_received += callback
+        if isinstance(callback, list):
+            self.__modem_status_received.extend(callback)
+        elif callback:
+            self.__modem_status_received += callback
 
     def add_io_sample_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.IOSampleReceived`.
 
         Args:
-            callback (Function): the callback. Receives three arguments.
+            callback (Function or List of functions): the callback. Receives three arguments.
 
                 * The received IO sample as an :class:`.IOSample`
                 * The remote XBee device who has sent the packet as a :class:`.RemoteXBeeDevice`
                 * The time in which the packet was received as an Integer
         """
-        self.__io_sample_received += callback
+        if isinstance(callback, list):
+            self.__io_sample_received.extend(callback)
+        elif callback:
+            self.__io_sample_received += callback
 
     def add_explicit_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.ExplicitDataReceived`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function or List of functions): the callback. Receives one argument.
 
                 * The explicit data received as an :class:`.ExplicitXBeeMessage`
         """
-        self.__explicit_packet_received += callback
+        if isinstance(callback, list):
+            self.__explicit_packet_received.extend(callback)
+        elif callback:
+            self.__explicit_packet_received += callback
 
     def add_ip_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.IPDataReceived`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function or List of functions): the callback. Receives one argument.
 
                 * The data received as an :class:`.IPMessage`
         """
-        self.__ip_data_received += callback
+        if isinstance(callback, list):
+            self.__ip_data_received.extend(callback)
+        elif callback:
+            self.__ip_data_received += callback
 
     def add_sms_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.SMSReceived`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function or List of functions): the callback. Receives one argument.
 
                 * The data received as an :class:`.SMSMessage`
         """
-        self.__sms_received += callback
+        if isinstance(callback, list):
+            self.__sms_received.extend(callback)
+        elif callback:
+            self.__sms_received += callback
 
     def add_user_data_relay_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.RelayDataReceived`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function or List of functions): the callback. Receives one argument.
 
                 * The data received as a :class:`.UserDataRelayMessage`
         """
-        self.__relay_data_received += callback
+        if isinstance(callback, list):
+            self.__relay_data_received.extend(callback)
+        elif callback:
+            self.__relay_data_received += callback
 
     def add_bluetooth_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.BluetoothDataReceived`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function or List of functions): the callback. Receives one argument.
 
                 * The data received as a Bytearray
         """
-        self.__bluetooth_data_received += callback
+        if isinstance(callback, list):
+            self.__bluetooth_data_received.extend(callback)
+        elif callback:
+            self.__bluetooth_data_received += callback
 
     def add_micropython_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.MicroPythonDataReceived`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function or List of functions): the callback. Receives one argument.
 
                 * The data received as a Bytearray
         """
-        self.__micropython_data_received += callback
+        if isinstance(callback, list):
+            self.__micropython_data_received.extend(callback)
+        elif callback:
+            self.__micropython_data_received += callback
 
     def del_packet_received_callback(self, callback):
         """
@@ -578,7 +608,8 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.PacketReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.PacketReceived` event.
         """
         self.__packet_received -= callback
 
@@ -602,7 +633,8 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.ModemStatusReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.ModemStatusReceived` event.
         """
         self.__modem_status_received -= callback
 
@@ -614,7 +646,8 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.IOSampleReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.IOSampleReceived` event.
         """
         self.__io_sample_received -= callback
 
@@ -626,7 +659,8 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.ExplicitDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.ExplicitDataReceived` event.
         """
         self.__explicit_packet_received -= callback
 
@@ -638,7 +672,8 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.IPDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.IPDataReceived`
+                event.
         """
         self.__ip_data_received -= callback
 
@@ -662,7 +697,8 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.RelayDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.RelayDataReceived` event.
         """
         self.__relay_data_received -= callback
 
@@ -674,7 +710,8 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.BluetoothDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.BluetoothDataReceived` event.
         """
         self.__bluetooth_data_received -= callback
 
@@ -686,9 +723,100 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.MicroPythonDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.MicroPythonDataReceived` event.
         """
         self.__micropython_data_received -= callback
+
+    def get_packet_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received packets.
+
+        Returns:
+            List: List of :class:`.PacketReceived` events.
+        """
+        return self.__packet_received
+
+    def get_data_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received data.
+
+        Returns:
+            List: List of :class:`.DataReceived` events.
+        """
+        return self.__data_received
+
+    def get_modem_status_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received modem status.
+
+        Returns:
+            List: List of :class:`.ModemStatusReceived` events.
+        """
+        return self.__modem_status_received
+
+    def get_io_sample_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received IO samples.
+
+        Returns:
+            List: List of :class:`.IOSampleReceived` events.
+        """
+        return self.__io_sample_received
+
+    def get_explicit_data_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received explicit data.
+
+        Returns:
+            List: List of :class:`.ExplicitDataReceived` events.
+        """
+        return self.__explicit_packet_received
+
+    def get_ip_data_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received IP data.
+
+        Returns:
+            List: List of :class:`.IPDataReceived` events.
+        """
+        return self.__ip_data_received
+
+    def get_sms_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received SMS.
+
+        Returns:
+            List: List of :class:`.SMSReceived` events.
+        """
+        return self.__sms_received
+
+    def get_user_data_relay_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received user data relay.
+
+        Returns:
+            List: List of :class:`.RelayDataReceived` events.
+        """
+        return self.__relay_data_received
+
+    def get_bluetooth_data_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received Bluetooth data.
+
+        Returns:
+            List: List of :class:`.BluetoothDataReceived` events.
+        """
+        return self.__bluetooth_data_received
+
+    def get_micropython_data_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received micropython data.
+
+        Returns:
+            List: List of :class:`.MicroPythonDataReceived` events.
+        """
+        return self.__micropython_data_received
 
     def __execute_user_callbacks(self, xbee_packet, remote=None):
         """

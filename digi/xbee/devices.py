@@ -1343,190 +1343,28 @@ class AbstractXBeeDevice(object):
 
     def _add_packet_received_callback(self, callback):
         """
-        Adds a callback for the event :class:`.PacketReceived`.
+        Adds a callback for the event :class:`digi.xbee.reader.PacketReceived`.
 
         Args:
             callback (Function): the callback. Receives two arguments.
 
-                * The received packet as a :class:`.XBeeAPIPacket`
+                * The received packet as a :class:`digi.xbee.packets.base.XBeeAPIPacket`
                 * The sender as a :class:`.RemoteXBeeDevice`
         """
         self._packet_listener.add_packet_received_callback(callback)
 
-    def _add_data_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.DataReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The data received as an :class:`.XBeeMessage`
-        """
-        self._packet_listener.add_data_received_callback(callback)
-
-    def _add_modem_status_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.ModemStatusReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The modem status as a :class:`.ModemStatus`
-        """
-        self._packet_listener.add_modem_status_received_callback(callback)
-
-    def _add_io_sample_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.IOSampleReceived`.
-
-        Args:
-            callback (Function): the callback. Receives three arguments.
-
-                * The received IO sample as an :class:`.IOSample`
-                * The remote XBee device who has sent the packet as a :class:`.RemoteXBeeDevice`
-                * The time in which the packet was received as an Integer
-        """
-        self._packet_listener.add_io_sample_received_callback(callback)
-
-    def _add_expl_data_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.ExplicitDataReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The explicit data received as an :class:`.ExplicitXBeeMessage`
-        """
-        self._packet_listener.add_explicit_data_received_callback(callback)
-
-    def _add_user_data_relay_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.RelayDataReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The relay data as a :class:`.UserDataRelayMessage`
-        """
-        self._packet_listener.add_user_data_relay_received_callback(callback)
-
-    def _add_bluetooth_data_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.BluetoothDataReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The Bluetooth data as a Bytearray
-        """
-        self._packet_listener.add_bluetooth_data_received_callback(callback)
-
-    def _add_micropython_data_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.MicroPythonDataReceived`.
-
-        Args:
-            callback (Function): the callback. Receives one argument.
-
-                * The MicroPython data as a Bytearray
-        """
-        self._packet_listener.add_micropython_data_received_callback(callback)
-
     def _del_packet_received_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`.PacketReceived` event.
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.PacketReceived` event.
 
         Args:
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.PacketReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.PacketReceived` event.
         """
         self._packet_listener.del_packet_received_callback(callback)
-
-    def _del_data_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.DataReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.DataReceived` event.
-        """
-        self._packet_listener.del_data_received_callback(callback)
-
-    def _del_modem_status_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.ModemStatusReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.ModemStatusReceived` event.
-        """
-        self._packet_listener.del_modem_status_received_callback(callback)
-
-    def _del_io_sample_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.IOSampleReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.IOSampleReceived` event.
-        """
-        self._packet_listener.del_io_sample_received_callback(callback)
-
-    def _del_expl_data_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.ExplicitDataReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.ExplicitDataReceived` event.
-        """
-        self._packet_listener.del_explicit_data_received_callback(callback)
-
-    def _del_user_data_relay_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.RelayDataReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.RelayDataReceived` event.
-        """
-        self._packet_listener.del_user_data_relay_received_callback(callback)
-
-    def _del_bluetooth_data_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.BluetoothDataReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.BluetoothDataReceived` event.
-        """
-        self._packet_listener.del_bluetooth_data_received_callback(callback)
-
-    def _del_micropython_data_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.MicroPythonDataReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.MicroPythonDataReceived` event.
-        """
-        self._packet_listener.del_micropython_data_received_callback(callback)
 
     def _send_packet_sync_and_get_response(self, packet_to_send):
         """
@@ -1809,15 +1647,51 @@ class XBeeDevice(AbstractXBeeDevice):
         if self._is_open:
             raise XBeeException("XBee device already open.")
 
+        # Store already registered callbacks
+        packet_cbs = self._packet_listener.get_packet_received_callbacks() \
+            if self._packet_listener else None
+        data_cbs = self._packet_listener.get_data_received_callbacks() \
+            if self._packet_listener else None
+        modem_status_cbs = self._packet_listener.get_modem_status_received_callbacks() \
+            if self._packet_listener else None
+        io_cbs = self._packet_listener.get_io_sample_received_callbacks() \
+            if self._packet_listener else None
+        expl_data_cbs = self._packet_listener.get_explicit_data_received_callbacks() \
+            if self._packet_listener else None
+        ip_data_cbs = self._packet_listener.get_ip_data_received_callbacks() \
+            if self._packet_listener else None
+        sms_cbs = self._packet_listener.get_sms_received_callbacks() \
+            if self._packet_listener else None
+        user_data_relay_cbs = self._packet_listener.get_user_data_relay_received_callbacks() \
+            if self._packet_listener else None
+        bt_data_cbs = self._packet_listener.get_bluetooth_data_received_callbacks() \
+            if self._packet_listener else None
+        mp_data_cbs = self._packet_listener.get_micropython_data_received_callbacks() \
+            if self._packet_listener else None
+
         self._serial_port.port = self.__port
         self._serial_port.open()
         self._log.info("%s port opened" % self.__port)
 
         # Initialize the packet listener.
+        self._packet_listener = None
         self._packet_listener = PacketListener(self._serial_port, self)
         self.__packet_queue = self._packet_listener.get_queue()
         self.__data_queue = self._packet_listener.get_data_queue()
         self.__explicit_queue = self._packet_listener.get_explicit_queue()
+
+        # Restore callbacks if any
+        self._packet_listener.add_packet_received_callback(packet_cbs)
+        self._packet_listener.add_data_received_callback(data_cbs)
+        self._packet_listener.add_modem_status_received_callback(modem_status_cbs)
+        self._packet_listener.add_io_sample_received_callback(io_cbs)
+        self._packet_listener.add_explicit_data_received_callback(expl_data_cbs)
+        self._packet_listener.add_ip_data_received_callback(ip_data_cbs)
+        self._packet_listener.add_sms_received_callback(sms_cbs)
+        self._packet_listener.add_user_data_relay_received_callback(user_data_relay_cbs)
+        self._packet_listener.add_bluetooth_data_received_callback(bt_data_cbs)
+        self._packet_listener.add_micropython_data_received_callback(mp_data_cbs)
+
         self._packet_listener.start()
 
         # Determine the operating mode of the XBee device.
@@ -2505,107 +2379,213 @@ class XBeeDevice(AbstractXBeeDevice):
 
     def add_packet_received_callback(self, callback):
         """
-        Override.
+        Adds a callback for the event :class:`digi.xbee.reader.PacketReceived`.
+
+        Args:
+            callback (Function): the callback. Receives two arguments.
+
+                * The received packet as a :class:`digi.xbee.packets.base.XBeeAPIPacket`
+                * The sender as a :class:`.RemoteXBeeDevice`
         """
         super()._add_packet_received_callback(callback)
 
     def add_data_received_callback(self, callback):
         """
-        Override.
+        Adds a callback for the event :class:`digi.xbee.reader.DataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The data received as an :class:`digi.xbee.models.message.XBeeMessage`
         """
-        super()._add_data_received_callback(callback)
+        self._packet_listener.add_data_received_callback(callback)
 
     def add_modem_status_received_callback(self, callback):
         """
-        Override.
+        Adds a callback for the event :class:`digi.xbee.reader.ModemStatusReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The modem status as a :class:`digi.xbee.models.status.ModemStatus`
         """
-        super()._add_modem_status_received_callback(callback)
+        self._packet_listener.add_modem_status_received_callback(callback)
 
     def add_io_sample_received_callback(self, callback):
         """
-        Override.
+        Adds a callback for the event :class:`digi.xbee.reader.IOSampleReceived`.
+
+        Args:
+            callback (Function): the callback. Receives three arguments.
+
+                * The received IO sample as an :class:`digi.xbee.io.IOSample`
+                * The remote XBee device who has sent the packet as a :class:`.RemoteXBeeDevice`
+                * The time in which the packet was received as an Integer
         """
-        super()._add_io_sample_received_callback(callback)
+        self._packet_listener.add_io_sample_received_callback(callback)
 
     def add_expl_data_received_callback(self, callback):
         """
-        Override.
+        Adds a callback for the event :class:`digi.xbee.reader.ExplicitDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The explicit data received as a
+                  :class:`digi.xbee.models.message.ExplicitXBeeMessage`.
         """
-        super()._add_expl_data_received_callback(callback)
+        self._packet_listener.add_explicit_data_received_callback(callback)
 
     def add_user_data_relay_received_callback(self, callback):
         """
-        Override.
+        Adds a callback for the event :class:`digi.xbee.reader.RelayDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The relay data as a :class:`digi.xbee.models.message.UserDataRelayMessage`
         """
-        super()._add_user_data_relay_received_callback(callback)
+        self._packet_listener.add_user_data_relay_received_callback(callback)
 
     def add_bluetooth_data_received_callback(self, callback):
         """
-        Override.
+        Adds a callback for the event :class:`digi.xbee.reader.BluetoothDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The Bluetooth data as a Bytearray
         """
-        super()._add_bluetooth_data_received_callback(callback)
+        self._packet_listener.add_bluetooth_data_received_callback(callback)
 
     def add_micropython_data_received_callback(self, callback):
         """
-        Override.
+        Adds a callback for the event :class:`digi.xbee.reader.MicroPythonDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The MicroPython data as a Bytearray
         """
-        super()._add_micropython_data_received_callback(callback)
+        self._packet_listener.add_micropython_data_received_callback(callback)
 
     def del_packet_received_callback(self, callback):
         """
-        Override.
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.PacketReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.PacketReceived` event.
         """
         super()._del_packet_received_callback(callback)
 
     def del_data_received_callback(self, callback):
         """
-        Override.
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.DataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.DataReceived` event.
         """
-        super()._del_data_received_callback(callback)
+        self._packet_listener.del_data_received_callback(callback)
 
     def del_modem_status_received_callback(self, callback):
         """
-        Override.
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.ModemStatusReceived`
+        event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.ModemStatusReceived` event.
         """
-        super()._del_modem_status_received_callback(callback)
+        self._packet_listener.del_modem_status_received_callback(callback)
 
     def del_io_sample_received_callback(self, callback):
         """
-        Override.
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.IOSampleReceived`
+        event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.IOSampleReceived` event.
         """
-        super()._del_io_sample_received_callback(callback)
+        self._packet_listener.del_io_sample_received_callback(callback)
 
     def del_expl_data_received_callback(self, callback):
         """
-        Override.
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.ExplicitDataReceived`
+        event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.ExplicitDataReceived` event.
         """
-        super()._del_expl_data_received_callback(callback)
+        self._packet_listener.del_explicit_data_received_callback(callback)
 
     def del_user_data_relay_received_callback(self, callback):
         """
-        Override.
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.RelayDataReceived`
+        event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.RelayDataReceived` event.
         """
-        super()._del_user_data_relay_received_callback(callback)
+        self._packet_listener.del_user_data_relay_received_callback(callback)
 
     def del_bluetooth_data_received_callback(self, callback):
         """
-        Override.
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.BluetoothDataReceived`
+        event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.BluetoothDataReceived` event.
         """
-        super()._del_bluetooth_data_received_callback(callback)
+        self._packet_listener.del_bluetooth_data_received_callback(callback)
 
     def del_micropython_data_received_callback(self, callback):
         """
-        Override.
+        Deletes a callback for the callback list of
+        :class:`digi.xbee.reader.MicroPythonDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.MicroPythonDataReceived` event.
         """
-        super()._del_micropython_data_received_callback(callback)
+        self._packet_listener.del_micropython_data_received_callback(callback)
 
     def get_xbee_device_callbacks(self):
         """
         Returns this XBee internal callbacks for process received packets.
-        
+
         This method is called by the PacketListener associated with this XBee to get its callbacks. These
         callbacks will be executed before user callbacks.
-        
+
         Returns:
             :class:`.PacketReceived`
         """
@@ -3874,25 +3854,26 @@ class IPDevice(XBeeDevice):
 
     def add_ip_data_received_callback(self, callback):
         """
-        Adds a callback for the event :class:`.IPDataReceived`.
+        Adds a callback for the event :class:`digi.xbee.reader.IPDataReceived`.
 
         Args:
             callback (Function): the callback. Receives one argument.
 
-                * The data received as an :class:`.IPMessage`
+                * The data received as an :class:`digi.xbee.models.message.IPMessage`
         """
         self._packet_listener.add_ip_data_received_callback(callback)
 
     def del_ip_data_received_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`.IPDataReceived`
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.IPDataReceived`
         event.
 
         Args:
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.IPDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.IPDataReceived` event.
         """
         self._packet_listener.del_ip_data_received_callback(callback)
 
@@ -4392,25 +4373,26 @@ class CellularDevice(IPDevice):
 
     def add_sms_callback(self, callback):
         """
-        Adds a callback for the event :class:`.SMSReceived`.
+        Adds a callback for the event :class:`digi.xbee.reader.SMSReceived`.
 
         Args:
             callback (Function): the callback. Receives one argument.
 
-                * The data received as an :class:`.SMSMessage`
+                * The data received as an :class:`digi.xbee.models.message.SMSMessage`
         """
         self._packet_listener.add_sms_received_callback(callback)
 
     def del_sms_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`.SMSReceived`
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.SMSReceived`
         event.
 
         Args:
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.SMSReceived` event.
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.SMSReceived` event.
         """
         self._packet_listener.del_sms_received_callback(callback)
 
