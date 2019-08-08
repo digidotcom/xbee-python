@@ -24,7 +24,7 @@ from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
     SMSMessage, UserDataRelayMessage
 from digi.xbee.models.mode import OperatingMode
-from digi.xbee.models.options import ReceiveOptions, XBeeLocalInterface
+from digi.xbee.models.options import XBeeLocalInterface
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
@@ -833,15 +833,15 @@ class PacketListener(threading.Thread):
         if (xbee_packet.get_frame_type() == ApiFrameType.RX_64 or
                 xbee_packet.get_frame_type() == ApiFrameType.RX_16 or
                 xbee_packet.get_frame_type() == ApiFrameType.RECEIVE_PACKET):
-            _data = xbee_packet.rf_data
-            is_broadcast = xbee_packet.receive_options == ReceiveOptions.BROADCAST_PACKET
-            self.__data_received(XBeeMessage(_data, remote, time.time(), is_broadcast))
+            data = xbee_packet.rf_data
+            is_broadcast = xbee_packet.is_broadcast()
+            self.__data_received(XBeeMessage(data, remote, time.time(), is_broadcast))
             self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="DATA",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
                                                     else "None",
-                                                    more_data=utils.hex_to_string(xbee_packet.rf_data)))
+                                                    more_data=utils.hex_to_string(data)))
 
         # Modem status callbacks
         elif xbee_packet.get_frame_type() == ApiFrameType.MODEM_STATUS:
@@ -867,17 +867,18 @@ class PacketListener(threading.Thread):
 
         # Explicit packet callbacks
         elif xbee_packet.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR:
-            is_broadcast = False
+            data = xbee_packet.rf_data
+            is_broadcast = xbee_packet.is_broadcast()
             # If it's 'special' packet, notify the data_received callbacks too:
             if self.__is_special_explicit_packet(xbee_packet):
-                self.__data_received(XBeeMessage(xbee_packet.rf_data, remote, time.time(), is_broadcast))
+                self.__data_received(XBeeMessage(data, remote, time.time(), is_broadcast))
             self.__explicit_packet_received(PacketListener.__expl_to_message(remote, is_broadcast, xbee_packet))
             self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="EXPLICIT DATA",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
                                                     else "None",
-                                                    more_data=utils.hex_to_string(xbee_packet.rf_data)))
+                                                    more_data=utils.hex_to_string(data)))
 
         # IP data
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_IPV4:
