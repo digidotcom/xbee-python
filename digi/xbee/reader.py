@@ -29,7 +29,7 @@ from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.base import XBeePacket, XBeeAPIPacket
-from digi.xbee.packets.common import ReceivePacket
+from digi.xbee.packets.common import ReceivePacket, IODataSampleRxIndicatorPacket
 from digi.xbee.packets.raw import RX64Packet, RX16Packet
 from digi.xbee.util import utils
 from digi.xbee.exception import TimeoutException, InvalidPacketException
@@ -870,8 +870,10 @@ class PacketListener(threading.Thread):
             data = xbee_packet.rf_data
             is_broadcast = xbee_packet.is_broadcast()
             # If it's 'special' packet, notify the data_received callbacks too:
-            if self.__is_special_explicit_packet(xbee_packet):
+            if self.__is_explicit_data_packet(xbee_packet):
                 self.__data_received(XBeeMessage(data, remote, time.time(), is_broadcast))
+            elif self.__is_explicit_io_packet(xbee_packet):
+                self.__io_sample_received(IOSample(data), remote, time.time())
             self.__explicit_packet_received(PacketListener.__expl_to_message(remote, is_broadcast, xbee_packet))
             self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
@@ -1054,12 +1056,13 @@ class PacketListener(threading.Thread):
         return remote
 
     @staticmethod
-    def __is_special_explicit_packet(xbee_packet):
+    def __is_explicit_data_packet(xbee_packet):
         """
-        Checks if an explicit data packet is 'special'.
+        Checks if the provided explicit data packet is directed to the data cluster.
 
-        'Special' means that this XBee has its API Output Mode distinct than Native (it's expecting
-        explicit data packets), but some device has sent it a non-explicit data packet (TransmitRequest f.e.).
+        This means that this XBee has its API Output Mode distinct than Native (it's expecting
+        explicit data packets), but some device has sent it a non-explicit data packet
+        (TransmitRequest f.e.).
         In this case, this XBee will receive a explicit data packet with the following values:
 
             1. Source endpoint = 0xE8
@@ -1067,10 +1070,26 @@ class PacketListener(threading.Thread):
             3. Cluster ID = 0x0011
             4. Profile ID = 0xC105
         """
-        if (xbee_packet.source_endpoint == 0xE8 and xbee_packet.dest_endpoint == 0xE8 and
-                xbee_packet.cluster_id == 0x0011 and xbee_packet.profile_id == 0xC105):
-            return True
-        return False
+        return (xbee_packet.source_endpoint == 0xE8 and xbee_packet.dest_endpoint == 0xE8
+                and xbee_packet.cluster_id == 0x0011 and xbee_packet.profile_id == 0xC105)
+
+    @staticmethod
+    def __is_explicit_io_packet(xbee_packet):
+        """
+        Checks if the provided explicit data packet is directed to the IO cluster.
+
+        This means that this XBee has its API Output Mode distinct than Native (it's expecting
+        explicit data packets), but some device has sent an IO sample packet
+        (IODataSampleRxIndicatorPacket f.e.).
+        In this case, this XBee will receive a explicit data packet with the following values:
+
+            1. Source endpoint = 0xE8
+            2. Destination endpoint = 0xE8
+            3. Cluster ID = 0x0092
+            4. Profile ID = 0xC105
+        """
+        return (xbee_packet.source_endpoint == 0xE8 and xbee_packet.dest_endpoint == 0xE8
+                and xbee_packet.cluster_id == 0x0092 and xbee_packet.profile_id == 0xC105)
 
     def __expl_to_no_expl(self, xbee_packet):
         """
@@ -1078,22 +1097,35 @@ class PacketListener(threading.Thread):
         this listener's XBee device protocol.
 
         Returns:
-            :class:`.XBeeAPIPacket`: the proper receive packet depending on the current protocol and the
-                available information (inside the packet).
+            :class:`.XBeeAPIPacket`: the proper receive packet depending on the current protocol and
+                the available information (inside the packet).
         """
         x64addr = xbee_packet.x64bit_source_addr
         x16addr = xbee_packet.x16bit_source_addr
         if self.__xbee_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
             if x64addr != XBee64BitAddress.UNKNOWN_ADDRESS:
-                new_packet = RX64Packet(x64addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
+                new_pkt = RX64Packet(x64addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
             elif x16addr != XBee16BitAddress.UNKNOWN_ADDRESS:
-                new_packet = RX16Packet(x16addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
+                new_pkt = RX16Packet(x16addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
             else:  # both address UNKNOWN
-                new_packet = RX64Packet(x64addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
+                new_pkt = RX64Packet(x64addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
         else:
-            new_packet = ReceivePacket(xbee_packet.x64bit_source_addr, xbee_packet.x16bit_source_addr,
-                                       xbee_packet.receive_options, xbee_packet.rf_data)
-        return new_packet
+            new_pkt = ReceivePacket(x64addr, x16addr, xbee_packet.receive_options,
+                                    xbee_packet.rf_data)
+        return new_pkt
+
+    def __expl_to_io(self, xbee_packet):
+        """
+        Creates a IO packet from the given explicit packet depending on this listener's XBee device
+        protocol.
+
+        Returns:
+            :class:`.XBeeAPIPacket`: the proper receive packet depending on the current protocol and
+                the available information (inside the packet).
+        """
+        return IODataSampleRxIndicatorPacket(xbee_packet.x64bit_source_addr,
+                                             xbee_packet.x16bit_source_addr,
+                                             xbee_packet.receive_options, xbee_packet.rf_data)
 
     def __add_packet_queue(self, xbee_packet):
         """
@@ -1115,9 +1147,12 @@ class PacketListener(threading.Thread):
                 self.__explicit_xbee_queue.get()
             self.__explicit_xbee_queue.put_nowait(xbee_packet)
             # Check if the explicit packet is 'special'.
-            if self.__is_special_explicit_packet(xbee_packet):
+            if self.__is_explicit_data_packet(xbee_packet):
                 # Create the non-explicit version of this packet and add it to the queue.
                 self.__add_packet_queue(self.__expl_to_no_expl(xbee_packet))
+            elif self.__is_explicit_io_packet(xbee_packet):
+                # Create the IO packet corresponding to this packet and add it to the queue.
+                self.__add_packet_queue(self.__expl_to_io(xbee_packet))
         # IP packets.
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_IPV4:
             if self.__ip_xbee_queue.full():
