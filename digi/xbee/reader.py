@@ -324,6 +324,8 @@ class PacketListener(threading.Thread):
         """
         threading.Thread.__init__(self)
 
+        self.daemon = True
+
         # User callbacks:
         self.__packet_received = PacketReceived()
         self.__data_received = DataReceived()
