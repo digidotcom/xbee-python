@@ -42,7 +42,11 @@ class ATCommandException(CommunicationException):
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
+    __DEFAULT_MESSAGE = "There was a problem sending the AT command packet."
+
+    def __init__(self, message=__DEFAULT_MESSAGE, cmd_status=None):
+        super().__init__(message)
+        self.status = cmd_status
 
 
 class ConnectionException(XBeeException):
@@ -69,7 +73,7 @@ class XBeeDeviceException(XBeeException):
 
 class InvalidConfigurationException(ConnectionException):
     """
-    This exception will be thrown when trying to open an interface with an 
+    This exception will be thrown when trying to open an interface with an
     invalid configuration.
 
     All functionality of this class is the inherited of `Exception
@@ -78,7 +82,7 @@ class InvalidConfigurationException(ConnectionException):
     __DEFAULT_MESSAGE = "The configuration used to open the interface is invalid."
 
     def __init__(self, message=__DEFAULT_MESSAGE):
-        ConnectionException.__init__(self, message)
+        super().__init__(message)
 
 
 class InvalidOperatingModeException(ConnectionException):
@@ -90,19 +94,17 @@ class InvalidOperatingModeException(ConnectionException):
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
     __DEFAULT_MESSAGE = "The operating mode of the XBee device is not supported by the library."
+    __DEFAULT_MSG_FORMAT = "Unsupported operating mode: %s (%d)"
 
-    def __init__(self, message=__DEFAULT_MESSAGE):
-        ConnectionException.__init__(self, message)
+    def __init__(self, message=__DEFAULT_MESSAGE, op_mode=None):
+        if op_mode and not message:
+            message = InvalidOperatingModeException.__DEFAULT_MSG_FORMAT \
+                      % (op_mode.description, op_mode.code)
+        elif not message:
+            message = InvalidOperatingModeException.__DEFAULT_MESSAGE
 
-    @classmethod
-    def from_operating_mode(cls, operating_mode):
-        """
-        Class constructor.
-
-        Args:
-            operating_mode (:class:`.OperatingMode`): the operating mode that generates the exceptions.
-        """
-        return cls("Unsupported operating mode: " + operating_mode.description)
+        super().__init__(message)
+        self.__op_mode = op_mode
 
 
 class InvalidPacketException(CommunicationException):
@@ -116,7 +118,7 @@ class InvalidPacketException(CommunicationException):
     __DEFAULT_MESSAGE = "The XBee API packet is not properly formed."
 
     def __init__(self, message=__DEFAULT_MESSAGE):
-        CommunicationException.__init__(self, message)
+        super().__init__(message)
 
 
 class OperationNotSupportedException(XBeeDeviceException):
@@ -127,11 +129,11 @@ class OperationNotSupportedException(XBeeDeviceException):
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    __DEFAULT_MESSAGE = "The requested operation is not supported by either the connection interface or " \
-                        "the XBee device."
+    __DEFAULT_MESSAGE = "The requested operation is not supported by either " \
+                        "the connection interface or the XBee device."
 
     def __init__(self, message=__DEFAULT_MESSAGE):
-        XBeeDeviceException.__init__(self, message)
+        super().__init__(message)
 
 
 class TimeoutException(CommunicationException):
@@ -144,8 +146,8 @@ class TimeoutException(CommunicationException):
     """
     __DEFAULT_MESSAGE = "There was a timeout while executing the requested operation."
 
-    def __init__(self, _message=__DEFAULT_MESSAGE):
-        CommunicationException.__init__(self)
+    def __init__(self, message=__DEFAULT_MESSAGE):
+        super().__init__(message)
 
 
 class TransmitException(CommunicationException):
@@ -158,5 +160,6 @@ class TransmitException(CommunicationException):
     """
     __DEFAULT_MESSAGE = "There was a problem with a transmitted packet response (status not ok)"
 
-    def __init__(self, _message=__DEFAULT_MESSAGE):
-        CommunicationException.__init__(self, _message)
+    def __init__(self, message=__DEFAULT_MESSAGE, transmit_status=None):
+        super().__init__(message)
+        self.status = transmit_status

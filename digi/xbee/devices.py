@@ -46,7 +46,7 @@ from digi.xbee.packets.relay import UserDataRelayPacket
 from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, RegisterDeviceStatusPacket
 from digi.xbee.util import utils
 from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatingModeException, \
-    ATCommandException, OperationNotSupportedException
+    ATCommandException, OperationNotSupportedException, TransmitException
 from digi.xbee.io import IOSample, IOMode
 from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, DiscoveryProcessFinished
 from digi.xbee.serial import FlowControl
@@ -197,7 +197,7 @@ class AbstractXBeeDevice(object):
 
         # Check if the response is null, if so throw an exception (maybe it was a write-only parameter).
         if value is None:
-            raise OperationNotSupportedException("Could not get the %s value." % parameter)
+            raise OperationNotSupportedException(message="Could not get the %s value." % parameter)
 
         return value
 
@@ -297,9 +297,9 @@ class AbstractXBeeDevice(object):
                                 if ``response.response != OK``.
         """
         if response is None or not isinstance(response, ATCommandResponse) or response.status is None:
-            raise ATCommandException(None)
+            raise ATCommandException()
         elif response.status != ATCommandStatus.OK:
-            raise ATCommandException(response.status)
+            raise ATCommandException(cmd_status=response.status)
 
     def _send_at_command(self, command):
         """
@@ -323,7 +323,7 @@ class AbstractXBeeDevice(object):
 
         operating_mode = self._get_operating_mode()
         if operating_mode != OperatingMode.API_MODE and operating_mode != OperatingMode.ESCAPED_API_MODE:
-            raise InvalidOperatingModeException.from_operating_mode(operating_mode)
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         if self.is_remote():
             remote_at_cmd_opts = RemoteATCmdOptions.NONE.value
@@ -428,7 +428,7 @@ class AbstractXBeeDevice(object):
         else:
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
-                raise InvalidOperatingModeException("Not supported operating mode: " + str(self._operating_mode))
+                raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
             if not self._serial_port.is_open:
                 raise XBeeException("XBee device's serial port closed")
@@ -551,7 +551,7 @@ class AbstractXBeeDevice(object):
             OperationNotSupportedException: if the current protocol is not 802.15.4.
         """
         if self.get_protocol() != XBeeProtocol.RAW_802_15_4:
-            raise OperationNotSupportedException("16-bit address can only be set in 802.15.4 protocol")
+            raise OperationNotSupportedException(message="16-bit address can only be set in 802.15.4 protocol")
 
         self.set_parameter("MY", value.address)
         self._16bit_addr = value
@@ -773,7 +773,8 @@ class AbstractXBeeDevice(object):
         try:
             mode = IOMode(value[0])
         except ValueError:
-            raise OperationNotSupportedException("The received value is not an IO mode.")
+            raise OperationNotSupportedException(
+                "Received configuration IO mode '%s' is invalid." % utils.hex_to_string(value))
         return mode
 
     def get_io_sampling_rate(self):
@@ -868,7 +869,7 @@ class AbstractXBeeDevice(object):
                 lock.release()
 
                 if self.__io_packet_payload is None:
-                    raise TimeoutException("Timeout waiting for the IO response packet.")
+                    raise TimeoutException(message="Timeout waiting for the IO response packet.")
                 sample_payload = self.__io_packet_payload
             finally:
                 self._del_packet_received_callback(io_sample_callback)
@@ -906,7 +907,9 @@ class AbstractXBeeDevice(object):
         """
         io_sample = self.read_io_sample()
         if not io_sample.has_analog_values() or io_line not in io_sample.analog_values.keys():
-            raise OperationNotSupportedException("Answer does not contain analog values for the given IO line.")
+            raise OperationNotSupportedException(
+                "Answer does not contain analog data for %s." % io_line.description)
+
         return io_sample.analog_values[io_line]
 
     def set_pwm_duty_cycle(self, io_line, cycle):
@@ -994,7 +997,8 @@ class AbstractXBeeDevice(object):
         """
         sample = self.read_io_sample()
         if not sample.has_digital_values() or io_line not in sample.digital_values.keys():
-            raise OperationNotSupportedException("Answer does not contain digital values for the given IO_LINE")
+            raise OperationNotSupportedException(
+                "Answer does not contain digital data for %s." % io_line.description)
         return sample.digital_values[io_line]
 
     def set_dio_value(self, io_line, io_value):
@@ -1285,8 +1289,7 @@ class AbstractXBeeDevice(object):
                 raise XBeeException("XBee device's serial port closed.")
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
-                raise InvalidOperatingModeException("Not supported operating mode: " + 
-                                                    str(args[0].operating_mode.description))
+                raise InvalidOperatingModeException(op_mode=args[0].operating_mode)
             return func(self, *args, **kwargs)
         return dec_function
 
@@ -1298,8 +1301,9 @@ class AbstractXBeeDevice(object):
         @wraps(func)
         def dec_function(*args, **kwargs):
             response = func(*args, **kwargs)
-            if response.transmit_status != TransmitStatus.SUCCESS:
-                raise XBeeException("Transmit status: %s" % response.transmit_status.description)
+            if (response.transmit_status != TransmitStatus.SUCCESS
+                    and response.transmit_status != TransmitStatus.SELF_ADDRESSED):
+                raise TransmitException(transmit_status=response.transmit_status)
             return response
         return dec_function
 
@@ -1445,7 +1449,7 @@ class AbstractXBeeDevice(object):
             lock.release()
             # After the wait check if we received any response, if not throw timeout exception.
             if not response_list:
-                raise TimeoutException("Response not received in the configured timeout.")
+                raise TimeoutException(message="Response not received in the configured timeout.")
             # Return the received packet.
             return response_list[0]
         finally:
@@ -1699,10 +1703,10 @@ class XBeeDevice(AbstractXBeeDevice):
         self._operating_mode = self._determine_operating_mode()
         if self._operating_mode == OperatingMode.UNKNOWN:
             self.close()
-            raise InvalidOperatingModeException("Could not determine operating mode")
+            raise InvalidOperatingModeException(message="Could not determine operating mode")
         if self._operating_mode == OperatingMode.AT_MODE:
             self.close()
-            raise InvalidOperatingModeException.from_operating_mode(self._operating_mode)
+            raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
         # Read the device info (obtain its parameters and protocol).
         self.read_device_info()
@@ -1790,8 +1794,8 @@ class XBeeDevice(AbstractXBeeDevice):
                 :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS` seconds.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
+            TransmitException: if the status of the response received is not OK.
             XBeeException: if the XBee device's serial port is closed.
-            XBeeException: if the status of the response received is not OK.
 
         .. seealso::
            | :class:`.XBee64BitAddress`
@@ -1806,7 +1810,7 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
@@ -1846,8 +1850,8 @@ class XBeeDevice(AbstractXBeeDevice):
                 :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS` seconds.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
+            TransmitException: if the status of the response received is not OK.
             XBeeException: if the XBee device's serial port is closed.
-            XBeeException: if the status of the response received is not OK.
 
         .. seealso::
            | :class:`.XBee64BitAddress`
@@ -1859,7 +1863,7 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
@@ -1905,8 +1909,8 @@ class XBeeDevice(AbstractXBeeDevice):
                 :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS` seconds.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
+            TransmitException: if the status of the response received is not OK.
             XBeeException: if the XBee device's serial port is closed.
-            XBeeException: if the status of the response received is not OK.
 
         .. seealso::
            | :class:`.XBee16BitAddress`
@@ -1918,7 +1922,7 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
@@ -1952,8 +1956,8 @@ class XBeeDevice(AbstractXBeeDevice):
                 :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS` seconds.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
+            TransmitException: if the status of the response received is not OK.
             XBeeException: if the XBee device's serial port is closed.
-            XBeeException: if the status of the response received is not OK.
 
         .. seealso::
            | :class:`.RemoteXBeeDevice`
@@ -2020,7 +2024,7 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
@@ -2067,7 +2071,7 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
@@ -2120,7 +2124,7 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
@@ -2192,8 +2196,8 @@ class XBeeDevice(AbstractXBeeDevice):
                 :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS` seconds.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
+            TransmitException: if the status of the response received is not OK.
             XBeeException: if the XBee device's serial port is closed.
-            XBeeException: if the status of the response received is not OK.
         """
         return self._send_data_64(XBee64BitAddress.BROADCAST_ADDRESS, data, transmit_options)
 
@@ -2376,7 +2380,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self.del_modem_status_received_callback(ms_callback)
 
         if self.__modem_status_received is False:
-            raise XBeeException("Invalid modem status.")
+            raise TimeoutException(message="Timeout waiting for the modem status packet.")
 
     def add_packet_received_callback(self, callback):
         """
@@ -2664,8 +2668,8 @@ class XBeeDevice(AbstractXBeeDevice):
                                 :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS` seconds.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
+            TransmitException: if the status of the response received is not OK.
             XBeeException: if the XBee device's serial port is closed.
-            XBeeException: if the status of the response received is not OK.
             ValueError: if ``cluster_id`` is less than 0x0 or greater than 0xFFFF.
             ValueError: if ``profile_id`` is less than 0x0 or greater than 0xFFFF.
 
@@ -2860,7 +2864,7 @@ class XBeeDevice(AbstractXBeeDevice):
             SerialTimeoutException: if there is any error trying to write within the serial port.
         """
         if self._operating_mode != OperatingMode.AT_MODE:
-            raise InvalidOperatingModeException("Invalid mode. Command mode can be only accessed while in AT mode")
+            raise InvalidOperatingModeException(message="Invalid mode. Command mode can be only accessed while in AT mode")
         listening = self._packet_listener is not None and self._packet_listener.is_running()
         if listening:
             self._packet_listener.stop()
@@ -3991,7 +3995,7 @@ class IPDevice(XBeeDevice):
 
         # Check if device is remote.
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send IP data from a remote device")
+            raise OperationNotSupportedException(message="Cannot send IP data from a remote device")
 
         # The source port value depends on the protocol used in the transmission.
         # For UDP, source port value must be the same as 'C0' one. For TCP it must be 0.
@@ -4048,7 +4052,7 @@ class IPDevice(XBeeDevice):
 
         # Check if device is remote.
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send IP data from a remote device")
+            raise OperationNotSupportedException(message="Cannot send IP data from a remote device")
 
         # The source port value depends on the protocol used in the transmission.
         # For UDP, source port value must be the same as 'C0' one. For TCP it must be 0.
@@ -4488,7 +4492,7 @@ class CellularDevice(IPDevice):
 
         # Check if device is remote.
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send SMS from a remote device")
+            raise OperationNotSupportedException(message="Cannot send SMS from a remote device")
 
         xbee_packet = TXSMSPacket(self.get_next_frame_id(), phone_number, data)
 
@@ -4519,7 +4523,7 @@ class CellularDevice(IPDevice):
 
         # Check if device is remote.
         if self.is_remote():
-            raise OperationNotSupportedException("Cannot send SMS from a remote device")
+            raise OperationNotSupportedException(message="Cannot send SMS from a remote device")
 
         xbee_packet = TXSMSPacket(self.get_next_frame_id(), phone_number, data)
 
@@ -4920,7 +4924,7 @@ class WiFiDevice(IPDevice):
         access_points_list = []
 
         if self.operating_mode == OperatingMode.AT_MODE or self.operating_mode == OperatingMode.UNKNOWN:
-            raise InvalidOperatingModeException("Cannot scan for access points in AT mode.")
+            raise InvalidOperatingModeException(message="Cannot scan for access points in AT mode.")
 
         def packet_receive_callback(xbee_packet):
             if not self.__scanning_aps:

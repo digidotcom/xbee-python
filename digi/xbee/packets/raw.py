@@ -86,12 +86,12 @@ class TX64Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TX64Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_64.code:
-            raise InvalidPacketException("This packet is not a TX 64 packet.")
+            raise InvalidPacketException(message="This packet is not a TX 64 packet.")
 
         return TX64Packet(raw[4], XBee64BitAddress(raw[5:13]), raw[13], raw[14:-1])
 
@@ -273,12 +273,12 @@ class TX16Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TX16Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_16.code:
-            raise InvalidPacketException("This packet is not a TX 16 packet.")
+            raise InvalidPacketException(message="This packet is not a TX 16 packet.")
 
         return TX16Packet(raw[4], XBee16BitAddress(raw[5:7]), raw[7], raw[8:-1])
 
@@ -458,12 +458,12 @@ class TXStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TXStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_STATUS.code:
-            raise InvalidPacketException("This packet is not a TX status packet.")
+            raise InvalidPacketException(message="This packet is not a TX status packet.")
 
         return TXStatusPacket(raw[4], TransmitStatus.get(raw[5]))
 
@@ -586,12 +586,12 @@ class RX64Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RX64Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_64.code:
-            raise InvalidPacketException("This packet is not an RX 64 packet.")
+            raise InvalidPacketException(message="This packet is not an RX 64 packet.")
 
         return RX64Packet(XBee64BitAddress(raw[4:12]), raw[12], raw[13], raw[14:-1])
 
@@ -806,12 +806,12 @@ class RX16Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RX16Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_16.code:
-            raise InvalidPacketException("This packet is not an RX 16 Packet")
+            raise InvalidPacketException(message="This packet is not an RX 16 Packet")
 
         return RX16Packet(XBee16BitAddress(raw[4:6]), raw[6], raw[7], raw[8:-1])
 
@@ -1021,12 +1021,12 @@ class RX64IOPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RX64IOPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_IO_64.code:
-            raise InvalidPacketException("This packet is not an RX 64 IO packet.")
+            raise InvalidPacketException(message="This packet is not an RX 64 IO packet.")
 
         return RX64IOPacket(XBee64BitAddress(raw[4:12]), raw[12], raw[13], raw[14:-1])
 
@@ -1294,12 +1294,12 @@ class RX16IOPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RX16IOPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_IO_16.code:
-            raise InvalidPacketException("This packet is not an RX 16 IO packet.")
+            raise InvalidPacketException(message="This packet is not an RX 16 IO packet.")
 
         return RX16IOPacket(XBee16BitAddress(raw[4:6]), raw[6], raw[7], raw[8:-1])
 

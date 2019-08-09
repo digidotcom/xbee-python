@@ -89,12 +89,12 @@ class ATCommPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.AT_COMMAND.code:
-            raise InvalidPacketException("This packet is not an AT command packet.")
+            raise InvalidPacketException(message="This packet is not an AT command packet.")
 
         return ATCommPacket(raw[4], raw[5:7].decode("utf8"), raw[7:-1])
 
@@ -246,12 +246,12 @@ class ATCommQueuePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommQueuePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.AT_COMMAND_QUEUE.code:
-            raise InvalidPacketException("This packet is not an AT command Queue packet.")
+            raise InvalidPacketException(message="This packet is not an AT command Queue packet.")
 
         return ATCommQueuePacket(raw[4], raw[5:7].decode("utf8"), raw[7:-1])
 
@@ -407,14 +407,14 @@ class ATCommResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.AT_COMMAND_RESPONSE.code:
-            raise InvalidPacketException("This packet is not an AT command response packet.")
+            raise InvalidPacketException(message="This packet is not an AT command response packet.")
         if ATCommandStatus.get(raw[7]) is None:
-            raise InvalidPacketException("Invalid command status.")
+            raise InvalidPacketException(message="Invalid command status.")
 
         return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), ATCommandStatus.get(raw[7]), raw[8:-1])
 
@@ -593,12 +593,12 @@ class ReceivePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ReceivePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RECEIVE_PACKET.code:
-            raise InvalidPacketException("This packet is not a receive packet.")
+            raise InvalidPacketException(message="This packet is not a receive packet.")
         return ReceivePacket(XBee64BitAddress(raw[4:12]),
                              XBee16BitAddress(raw[12:14]),
                              raw[14],
@@ -837,12 +837,12 @@ class RemoteATCommandPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_REQUEST.code:
-            raise InvalidPacketException("This packet is not a remote AT command request packet.")
+            raise InvalidPacketException(message="This packet is not a remote AT command request packet.")
 
         return RemoteATCommandPacket(
                 raw[4],
@@ -1094,12 +1094,12 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE.code:
-            raise InvalidPacketException("This packet is not a remote AT command response packet.")
+            raise InvalidPacketException(message="This packet is not a remote AT command response packet.")
 
         return RemoteATCommandResponsePacket(raw[4], XBee64BitAddress(raw[5:13]),
                                              XBee16BitAddress(raw[13:15]), raw[15:17].decode("utf8"),
@@ -1366,12 +1366,12 @@ class TransmitPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TransmitPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TRANSMIT_REQUEST.code:
-            raise InvalidPacketException("This packet is not a transmit request packet.")
+            raise InvalidPacketException(message="This packet is not a transmit request packet.")
 
         return TransmitPacket(raw[4], XBee64BitAddress(raw[5:13]),
                               XBee16BitAddress(raw[13:15]), raw[15],
@@ -1616,12 +1616,12 @@ class TransmitStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TransmitStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TRANSMIT_STATUS.code:
-            raise InvalidPacketException("This packet is not a transmit status packet.")
+            raise InvalidPacketException(message="This packet is not a transmit status packet.")
 
         return TransmitStatusPacket(raw[4], XBee16BitAddress(raw[5:7]), raw[7],
                                     TransmitStatus.get(raw[8]), DiscoveryStatus.get(raw[9]))
@@ -1814,12 +1814,12 @@ class ModemStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ModemStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.MODEM_STATUS.code:
-            raise InvalidPacketException("This packet is not a modem status packet.")
+            raise InvalidPacketException(message="This packet is not a modem status packet.")
 
         return ModemStatusPacket(ModemStatus.get(raw[4]))
 
@@ -1948,12 +1948,12 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=IODataSampleRxIndicatorPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR.code:
-            raise InvalidPacketException("This packet is not an IO data sample RX indicator packet.")
+            raise InvalidPacketException(message="This packet is not an IO data sample RX indicator packet.")
 
         return IODataSampleRxIndicatorPacket(XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]),
                                              raw[14], raw[15:-1])
@@ -2297,12 +2297,12 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ExplicitAddressingPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.EXPLICIT_ADDRESSING.code:
-            raise InvalidPacketException("This packet is not an explicit addressing packet")
+            raise InvalidPacketException(message="This packet is not an explicit addressing packet")
 
         return ExplicitAddressingPacket(raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
                                         raw[15], raw[16], utils.bytes_to_int(raw[17:19]),
@@ -2657,12 +2657,12 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+            raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ExplicitRXIndicatorPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.EXPLICIT_RX_INDICATOR.code:
-            raise InvalidPacketException("This packet is not an explicit RX indicator packet.")
+            raise InvalidPacketException(message="This packet is not an explicit RX indicator packet.")
 
         return ExplicitRXIndicatorPacket(XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]), raw[14], raw[15],
                                          utils.bytes_to_int(raw[16:18]), utils.bytes_to_int(raw[18:20]),
