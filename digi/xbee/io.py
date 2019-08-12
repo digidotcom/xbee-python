@@ -621,7 +621,7 @@ class IOSample(object):
 
 class IOMode(Enum):
     """
-    Enumerates the different Input/Output modes that an IO line can be 
+    Enumerates the different Input/Output modes that an IO line can be
     configured with.
     """
 
@@ -645,3 +645,6 @@ class IOMode(Enum):
 
     DIGITAL_OUT_HIGH = 5
     """Digital output, High"""
+
+    I2C_FUNCTIONALITY = 6
+    """I2C functionality"""
