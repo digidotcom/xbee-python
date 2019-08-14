@@ -468,3 +468,66 @@ class XBeeLocalInterface(Enum):
 
 XBeeLocalInterface.lookupTable = {x.code: x for x in XBeeLocalInterface}
 XBeeLocalInterface.__doc__ += utils.doc_enum(XBeeLocalInterface)
+
+
+class RegisterKeyOptions(Enum):
+    """
+    This class lists all the possible options that have been set while
+    receiving an XBee packet.
+
+    The receive options are usually set as a bitfield meaning that the
+    options can be combined using the '|' operand.
+    """
+
+    LINK_KEY = (0x00, "Key is a Link Key (KY on joining node)")
+    INSTALL_CODE = (0x01, "Key is an Install Code (I? on joining node, DC must be set to 1 on joiner)")
+    UNKNOWN = (0xFF, "Unknown key option")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    def __get_code(self):
+        """
+        Returns the code of the ``RegisterKeyOptions`` element.
+
+        Returns:
+            Integer: the code of the ``RegisterKeyOptions`` element.
+        """
+        return self.__code
+
+    def __get_description(self):
+        """
+        Returns the description of the ``RegisterKeyOptions`` element.
+
+        Returns:
+            String: the description of the ``RegisterKeyOptions`` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the register key option for the given code.
+
+        Args:
+            code (Integer): the code of the register key option to get.
+
+        Returns:
+            :class:`.RegisterKeyOptions`: the ``RegisterKeyOptions`` with the given code,
+                ``UNKNOWN`` if there is not any ``RegisterKeyOptions`` with the provided code.
+        """
+        try:
+            return cls.lookupTable[code]
+        except KeyError:
+            return RegisterKeyOptions.UNKNOWN
+
+    code = property(__get_code)
+    """Integer. The register key option code."""
+
+    description = property(__get_description)
+    """String. The register key option description."""
+
+
+RegisterKeyOptions.lookupTable = {x.code: x for x in RegisterKeyOptions}
+RegisterKeyOptions.__doc__ += utils.doc_enum(RegisterKeyOptions)

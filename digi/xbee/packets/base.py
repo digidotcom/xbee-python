@@ -77,6 +77,8 @@ class DictKeys(Enum):
     SOURCE_INTERFACE = "source_interface"
     DEST_INTERFACE = "dest_interface"
     DATA = "data"
+    OPTIONS = "options"
+    KEY = "key"
 
 
 class XBeePacket:

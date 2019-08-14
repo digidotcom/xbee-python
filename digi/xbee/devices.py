@@ -30,7 +30,8 @@ from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, XBeeIMEIAddress
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage
-from digi.xbee.models.options import TransmitOptions, RemoteATCmdOptions, DiscoveryOptions, XBeeLocalInterface
+from digi.xbee.models.options import TransmitOptions, RemoteATCmdOptions, DiscoveryOptions, XBeeLocalInterface, \
+    RegisterKeyOptions
 from digi.xbee.models.protocol import XBeeProtocol, IPProtocol
 from digi.xbee.models.status import ATCommandStatus, TransmitStatus, PowerLevel, \
     ModemStatus, CellularAssociationIndicationStatus, WiFiAssociationIndicationStatus, AssociationIndicationStatus,\
@@ -42,6 +43,7 @@ from digi.xbee.packets.common import ATCommPacket, TransmitPacket, RemoteATComma
 from digi.xbee.packets.network import TXIPv4Packet
 from digi.xbee.packets.raw import TX64Packet, TX16Packet
 from digi.xbee.packets.relay import UserDataRelayPacket
+from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, RegisterDeviceStatusPacket
 from digi.xbee.util import utils
 from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatingModeException, \
     ATCommandException, OperationNotSupportedException
@@ -3628,6 +3630,137 @@ class ZigBeeDevice(XBeeDevice):
                                                   TransmitOptions.ENABLE_MULTICAST.value, data)
         
         self.send_packet(packet_to_send)
+
+    @AbstractXBeeDevice._before_send_method
+    def register_joining_device(self, registrant_address, options, key):
+        """
+        Securely registers a joining device to a trust center. Registration is the process by which a node is
+        authorized to join the network using a preconfigured link key or installation code that is conveyed to
+        the trust center out-of-band (using a physical interface and not over-the-air).
+
+        This method is synchronous, it sends the register joining device packet and waits for the answer of the
+        operation. Then, returns the corresponding status.
+
+        Args:
+            registrant_address (:class:`XBee64BitAddress`): the 64-bit address of the device to register.
+            options (RegisterKeyOptions): the register options indicating the key source.
+            key (Bytearray): key of the device to register.
+
+        Returns:
+            :class:`.ZigbeeRegisterStatus`: the register device operation status or ``None`` if the answer
+                received is not a ``RegisterDeviceStatusPacket``.
+
+        Raises:
+            TimeoutException: if the answer is not received in the configured timeout.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: if the XBee device's serial port is closed.
+            ValueError: if ``registrant_address`` is ``None`` or if ``options`` is ``None``.
+
+        .. seealso::
+           | :class:`RegisterKeyOptions`
+           | :class:`XBee64BitAddress`
+           | :class:`ZigbeeRegisterStatus`
+        """
+        if registrant_address is None:
+            raise ValueError("Registrant address cannot be ``None``.")
+        if options is None:
+            raise ValueError("Options cannot be ``None``.")
+
+        packet_to_send = RegisterJoiningDevicePacket(self.get_next_frame_id(),
+                                                     registrant_address,
+                                                     options,
+                                                     key)
+        response_packet = self.send_packet_sync_and_get_response(packet_to_send)
+        if isinstance(response_packet, RegisterDeviceStatusPacket):
+            return response_packet.status
+        return None
+
+    @AbstractXBeeDevice._before_send_method
+    def register_joining_device_async(self, registrant_address, options, key):
+        """
+        Securely registers a joining device to a trust center. Registration is the process by which a node is
+        authorized to join the network using a preconfigured link key or installation code that is conveyed to
+        the trust center out-of-band (using a physical interface and not over-the-air).
+
+        This method is asynchronous, which means that it will not wait for an answer after sending the
+        register frame.
+
+        Args:
+            registrant_address (:class:`XBee64BitAddress`): the 64-bit address of the device to register.
+            options (RegisterKeyOptions): the register options indicating the key source.
+            key (Bytearray): key of the device to register.
+
+        Raises:
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: if the XBee device's serial port is closed.
+            ValueError: if ``registrant_address`` is ``None`` or if ``options`` is ``None``.
+
+        .. seealso::
+           | :class:`RegisterKeyOptions`
+           | :class:`XBee64BitAddress`
+        """
+        if registrant_address is None:
+            raise ValueError("Registrant address cannot be ``None``.")
+        if options is None:
+            raise ValueError("Options cannot be ``None``.")
+
+        packet_to_send = RegisterJoiningDevicePacket(self.get_next_frame_id(),
+                                                     registrant_address,
+                                                     options,
+                                                     key)
+        self.send_packet(packet_to_send, True)
+
+    @AbstractXBeeDevice._before_send_method
+    def unregister_joining_device(self, unregistrant_address):
+        """
+        Unregisters a joining device from a trust center.
+
+        This method is synchronous, it sends the unregister joining device packet and waits for the answer of the
+        operation. Then, returns the corresponding status.
+
+        Args:
+            unregistrant_address (:class:`XBee64BitAddress`): the 64-bit address of the device to unregister.
+
+        Returns:
+            :class:`.ZigbeeRegisterStatus`: the unregister device operation status or ``None`` if the answer
+                received is not a ``RegisterDeviceStatusPacket``.
+
+        Raises:
+            TimeoutException: if the answer is not received in the configured timeout.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: if the XBee device's serial port is closed.
+            ValueError: if ``registrant_address`` is ``None``.
+
+        .. seealso::
+           | :class:`XBee64BitAddress`
+           | :class:`ZigbeeRegisterStatus`
+        """
+        return self.register_joining_device(unregistrant_address, RegisterKeyOptions.LINK_KEY, None)
+
+    @AbstractXBeeDevice._before_send_method
+    def unregister_joining_device_async(self, unregistrant_address):
+        """
+        Unregisters a joining device from a trust center.
+
+        This method is asynchronous, which means that it will not wait for an answer after sending the
+        uregister frame.
+
+        Args:
+            unregistrant_address (:class:`XBee64BitAddress`): the 64-bit address of the device to unregister.
+
+        Raises:
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: if the XBee device's serial port is closed.
+            ValueError: if ``registrant_address`` is ``None``.
+
+        .. seealso::
+           | :class:`XBee64BitAddress`
+        """
+        self.register_joining_device_async(unregistrant_address, RegisterKeyOptions.LINK_KEY, None)
 
 
 class IPDevice(XBeeDevice):

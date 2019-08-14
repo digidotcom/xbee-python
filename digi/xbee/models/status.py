@@ -803,3 +803,67 @@ class NetworkDiscoveryStatus(Enum):
 
 NetworkDiscoveryStatus.lookupTable = {x.code: x for x in NetworkDiscoveryStatus}
 NetworkDiscoveryStatus.__doc__ += utils.doc_enum(NetworkDiscoveryStatus)
+
+
+@unique
+class ZigbeeRegisterStatus(Enum):
+    """
+    Enumerates the different statuses of the Zigbee Device Register process.
+    """
+    SUCCESS = (0x00, "Success")
+    KEY_TOO_LONG = (0x01, "Key too long")
+    ADDRESS_NOT_FOUND = (0xB1, "Address not found in the key table")
+    INVALID_KEY = (0xB2, "Key is invalid (00 and FF are reserved)")
+    INVALID_ADDRESS = (0xB3, "Invalid address")
+    KEY_TABLE_FULL = (0xB4, "Key table is full")
+    KEY_NOT_FOUND = (0xFF, "Key not found")
+    UNKNOWN = (0xEE, "Unknown")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    def __get_code(self):
+        """
+        Returns the code of the ``ZigbeeRegisterStatus`` element.
+
+        Returns:
+            Integer: the code of the ``ZigbeeRegisterStatus`` element.
+        """
+        return self.__code
+
+    def __get_description(self):
+        """
+        Returns the description of the ``ZigbeeRegisterStatus`` element.
+
+        Returns:
+            String: the description of the ``ZigbeeRegisterStatus`` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the Zigbee Device Register status for the given code.
+
+        Args:
+            code (Integer): the code of the Zigbee Device Register status to get.
+
+        Returns:
+            :class:`.ZigbeeRegisterStatus`: the ``ZigbeeRegisterStatus`` with the given code,
+                ``ZigbeeRegisterStatus.UNKNOWN`` if there is not any status with the provided code.
+        """
+        try:
+            return cls.lookupTable[code]
+        except KeyError:
+            return ZigbeeRegisterStatus.UNKNOWN
+
+    code = property(__get_code)
+    """Integer. The Zigbee Device Register status code."""
+
+    description = property(__get_description)
+    """String. The Zigbee Device Register status description."""
+
+
+ZigbeeRegisterStatus.lookupTable = {x.code: x for x in ZigbeeRegisterStatus}
+ZigbeeRegisterStatus.__doc__ += utils.doc_enum(ZigbeeRegisterStatus)
