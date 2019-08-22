@@ -413,6 +413,8 @@ class PacketListener(threading.Thread):
         Stops listening.
         """
         self.__stop = True
+        # Wait until thread fully stops.
+        self.join()
 
     def is_running(self):
         """
@@ -964,6 +966,8 @@ class PacketListener(threading.Thread):
             # Add packet delimiter.
             xbee_packet[0] = self.__serial_port.read_byte()
             while xbee_packet[0] != SpecialByte.HEADER_BYTE.value:
+                if self.__stop:
+                    return None
                 xbee_packet[0] = self.__serial_port.read_byte()
 
             # Add packet length.
