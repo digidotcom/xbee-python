@@ -1242,6 +1242,36 @@ class AbstractXBeeDevice(object):
                                        xbee_firmware_file=xbee_firmware_file,
                                        bootloader_firmware_file=bootloader_firmware_file)
 
+    def apply_profile(self, profile_path, progress_callback=None):
+        """
+        Applies the given XBee profile to the XBee device.
+
+        Args:
+            profile_path (String): path of the XBee profile file to apply.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current apply profile task as a String
+                * The current apply profile task percentage as an Integer
+
+        Raises:
+            XBeeException: if the device is not open.
+            InvalidOperatingModeException: if the device operating mode is invalid.
+            UpdateProfileException: if there is any error applying the XBee profile.
+            OperationNotSupportedException: if XBee profiles are not supported in the XBee device.
+        """
+        from digi.xbee import profile
+
+        if not self._serial_port.is_open:
+            raise XBeeException("XBee device's serial port closed.")
+        if self._operating_mode != OperatingMode.API_MODE and self._operating_mode != OperatingMode.ESCAPED_API_MODE:
+            raise InvalidOperatingModeException(op_mode=self._operating_mode)
+        if self.is_remote():
+            raise OperationNotSupportedException("XBee profiles are not supported in remote XBee devices")
+        if self.get_hardware_version() and self.get_hardware_version().code not in profile.SUPPORTED_HARDWARE_VERSIONS:
+            raise OperationNotSupportedException("XBee profiles are only supported in XBee3 devices")
+        profile.apply_xbee_profile(profile_path, self, progress_callback=progress_callback)
+
     def _get_ai_status(self):
         """
         Returns the current association status of this XBee device.
