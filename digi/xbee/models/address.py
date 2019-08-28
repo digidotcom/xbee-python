@@ -42,7 +42,9 @@ class XBee16BitAddress(object):
     """
 
     PATTERN = "(0[xX])?[0-9a-fA-F]{1,4}"
-    __REGEXP = re.compile(PATTERN)
+    """
+    16-bit address string pattern.
+    """
 
     COORDINATOR_ADDRESS = None
     """
@@ -59,6 +61,8 @@ class XBee16BitAddress(object):
     16-bit unknown address (value: FFFE).
     """
 
+    __REGEXP = re.compile(PATTERN)
+
     def __init__(self, address):
         """
         Class constructor. Instantiates a new :class:`.XBee16BitAddress` object with the provided parameters.
@@ -68,9 +72,9 @@ class XBee16BitAddress(object):
 
         Raises:
             TypeError: if ``address`` is ``None``.
-            ValueError: if ``address`` has less than 1 byte or more than 2.
+            ValueError: if ``address`` is ``None`` or  has less than 1 byte or more than 2.
         """
-        if len(address) < 1:
+        if not address:
             raise ValueError("Address must contain at least 1 byte")
         if len(address) > 2:
             raise ValueError("Address can't contain more than 2 bytes")
@@ -92,10 +96,11 @@ class XBee16BitAddress(object):
             ValueError: if ``address`` has less than 1 character.
             ValueError: if ``address`` contains non-hexadecimal characters.
         """
-        if len(address) < 1:
+        if not address:
             raise ValueError("Address must contain at least 1 digit")
-        if not XBee16BitAddress.__REGEXP.match(address):
-            raise ValueError("Address must match with PATTERN")
+        if not cls.__REGEXP.match(address):
+            raise ValueError("Address must follow this pattern: " + cls.PATTERN)
+
         return cls(utils.hex_string_to_bytes(address))
 
     @classmethod
@@ -116,7 +121,29 @@ class XBee16BitAddress(object):
             raise ValueError("HSB must be between 0 and 255.")
         if lsb > 255 or lsb < 0:
             raise ValueError("LSB must be between 0 and 255.")
+
         return cls(bytearray([hsb, lsb]))
+
+    @classmethod
+    def is_valid(cls, address):
+        """
+        Checks if the provided hex string is a valid 16-bit address.
+
+        Args:
+            address (String or Bytearray):
+                String: String containing the address. Must be made by hex. digits without blanks.
+                    Minimum 1 character, maximum 4 (16-bit).
+                Bytearray: Address as byte array. Must be 1-2 digits.
+
+        Returns:
+            Boolean: ``True`` for a valid 16-bit address, ``False`` otherwise.
+        """
+        if isinstance(address, bytearray) and 2 < len(address) < 1:
+            return False
+        elif isinstance(address, str) and not cls.__REGEXP.match(address):
+            return False
+
+        return True
 
     def __get_item__(self, index):
         """
@@ -151,10 +178,9 @@ class XBee16BitAddress(object):
         Returns:
             Boolean: ``True`` if self and other have the same value and type, ``False`` in other case.
         """
-        if other is None:
-            return False
         if not isinstance(other, XBee16BitAddress):
             return False
+
         return self.__address.__eq__(other.__address)
 
     def __iter__(self):
@@ -209,10 +235,11 @@ class XBee64BitAddress(object):
     The 64-bit address is a unique device address assigned during manufacturing.
     This address is unique to each physical device.
     """
-    __DEVICE_ID_SEPARATOR = "-"
-    __DEVICE_ID_MAC_SEPARATOR = "FF"
-    __XBEE_64_BIT_ADDRESS_PATTERN = "(0[xX])?[0-9a-fA-F]{1,16}"
-    __REGEXP = re.compile(__XBEE_64_BIT_ADDRESS_PATTERN)
+
+    PATTERN = "(0[xX])?[0-9a-fA-F]{1,16}"
+    """
+    64-bit address string pattern.
+    """
 
     COORDINATOR_ADDRESS = None
     """
@@ -229,6 +256,10 @@ class XBee64BitAddress(object):
     64-bit unknown address (value: FFFFFFFFFFFFFFFF).
     """
 
+    __REGEXP = re.compile(PATTERN)
+    __DEVICE_ID_SEPARATOR = "-"
+    __DEVICE_ID_MAC_SEPARATOR = "FF"
+
     def __init__(self, address):
         """
         Class constructor. Instantiates a new :class:`.XBee64BitAddress` object with the provided parameters.
@@ -237,9 +268,9 @@ class XBee64BitAddress(object):
             address (Bytearray): the XBee 64-bit address as byte array.
 
         Raise:
-            ValueError: if length of ``address`` is less than 1 or greater than 8.
+            ValueError: if ``address`` is ``None`` or its length less than 1 or greater than 8.
         """
-        if len(address) < 1:
+        if not address:
             raise ValueError("Address must contain at least 1 byte")
         if len(address) > 8:
             raise ValueError("Address cannot contain more than 8 bytes")
@@ -263,10 +294,10 @@ class XBee64BitAddress(object):
             ValueError: if the address' length is less than 1 or does not match
                 with the pattern: ``(0[xX])?[0-9a-fA-F]{1,16}``.
         """
-        if len(address) < 1:
+        if not address:
             raise ValueError("Address must contain at least 1 byte")
         if not (cls.__REGEXP.match(address)):
-            raise ValueError("Address must follow this pattern: " + cls.__XBEE_64_BIT_ADDRESS_PATTERN)
+            raise ValueError("Address must follow this pattern: " + cls.PATTERN)
 
         return cls(utils.hex_string_to_bytes(address))
 
@@ -286,7 +317,26 @@ class XBee64BitAddress(object):
         for i in range(len(args)):
             if args[i] > 255 or args[i] < 0:
                 raise ValueError("Byte " + str(i + 1) + " must be between 0 and 255")
+
         return cls(bytearray(args))
+
+    @classmethod
+    def is_valid(cls, address):
+        """
+        Checks if the provided hex string is a valid 64-bit address.
+
+        Args:
+            address (String or Bytearray): The XBee 64-bit address as a string or bytearray.
+
+        Returns:
+            Boolean: ``True`` for a valid 64-bit address, ``False`` otherwise.
+        """
+        if isinstance(address, bytearray) and 8 < len(address) < 1:
+            return False
+        elif isinstance(address, str) and not cls.__REGEXP.match(address):
+            return False
+
+        return True
 
     def __str__(self):
         """
@@ -313,6 +363,7 @@ class XBee64BitAddress(object):
             return False
         if not isinstance(other, XBee64BitAddress):
             return False
+
         return self.__address.__eq__(other.__address)
 
     def __iter__(self):
@@ -349,8 +400,12 @@ class XBeeIMEIAddress(object):
     This address is only applicable for Cellular protocol.
     """
 
-    __IMEI_PATTERN = "^\d{0,15}$"
-    __REGEXP = re.compile(__IMEI_PATTERN)
+    PATTERN = "^\d{0,15}$"
+    """
+    IMEI address string pattern.
+    """
+
+    __REGEXP = re.compile(PATTERN)
 
     def __init__(self, address):
         """
@@ -385,9 +440,27 @@ class XBeeIMEIAddress(object):
         if address is None:
             raise ValueError("IMEI address cannot be None")
         if not (cls.__REGEXP.match(address)):
-            raise ValueError("Address must follow this pattern: " + cls.__IMEI_PATTERN)
+            raise ValueError("Address must follow this pattern: " + cls.PATTERN)
 
         return cls(utils.hex_string_to_bytes(address))
+
+    @classmethod
+    def is_valid(cls, address):
+        """
+        Checks if the provided hex string is a valid IMEI.
+
+        Args:
+            address (String or Bytearray): The XBee IMEI address as a string or bytearray.
+
+        Returns:
+            Boolean: ``True`` for a valid IMEI, ``False`` otherwise.
+        """
+        if isinstance(address, bytearray) and len(address) < 8:
+            return False
+        elif isinstance(address, str) and not cls.__REGEXP.match(address):
+            return False
+
+        return True
 
     @staticmethod
     def __generate_byte_array(byte_address):
@@ -436,6 +509,7 @@ class XBeeIMEIAddress(object):
             return False
         if not isinstance(other, XBeeIMEIAddress):
             return False
+
         return self.__address.__eq__(other.__address)
 
     address = property(__get_value)
