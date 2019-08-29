@@ -430,14 +430,14 @@ class AbstractXBeeDevice(object):
             ATCommandException: if the response is not as expected.
         """
         if self.is_remote():
-            if not self._local_xbee_device.serial_port.is_open:
+            if not self._local_xbee_device.serial_port.isOpen():
                 raise XBeeException("Local XBee device's serial port closed")
         else:
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
                 raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
-            if not self._serial_port.is_open:
+            if not self._serial_port.isOpen():
                 raise XBeeException("XBee device's serial port closed")
 
         # Hardware version:
@@ -1373,7 +1373,7 @@ class AbstractXBeeDevice(object):
         """
         @wraps(func)
         def dec_function(self, *args, **kwargs):
-            if not self._serial_port.is_open:
+            if not self._serial_port.isOpen():
                 raise XBeeException("XBee device's serial port closed.")
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
