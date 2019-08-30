@@ -19,16 +19,13 @@ import threading
 import time
 
 import digi.xbee.devices
-from digi.xbee.models.atcomm import SpecialByte
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
     SMSMessage, UserDataRelayMessage
-from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.options import XBeeLocalInterface
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.base import XBeePacket, XBeeAPIPacket
 from digi.xbee.packets.common import ReceivePacket, IODataSampleRxIndicatorPacket
 from digi.xbee.packets.raw import RX64Packet, RX16Packet
 from digi.xbee.util import utils
@@ -347,7 +344,7 @@ class PacketListener(threading.Thread):
     Default max. size that the queue has.
     """
 
-    _LOG_PATTERN = "{port:<6s}{event:<12s}{fr_type:<10s}{sender:<18s}{more_data:<50s}"
+    _LOG_PATTERN = "{comm_iface:<6s}{event:<12s}{fr_type:<10s}{sender:<18s}{more_data:<50s}"
     """
     Generic pattern for display received messages (high-level) with logger.
     """
@@ -357,12 +354,12 @@ class PacketListener(threading.Thread):
     Logger.
     """
 
-    def __init__(self, serial_port, xbee_device, queue_max_size=None):
+    def __init__(self, comm_iface, xbee_device, queue_max_size=None):
         """
         Class constructor. Instantiates a new :class:`.PacketListener` object with the provided parameters.
 
         Args:
-            serial_port (:class:`.XbeeSerialPort`): the COM port to which this listener will be listening.
+            comm_iface (:class:`.XBeeCommunicationInterface`): the hardware interface to listen to.
             xbee_device (:class:`.XBeeDevice`): the XBee that is the listener owner.
             queue_max_size (Integer): the maximum size of the XBee queue.
         """
@@ -389,7 +386,7 @@ class PacketListener(threading.Thread):
         self.__packet_received_API = xbee_device.get_xbee_device_callbacks()
 
         self.__xbee_device = xbee_device
-        self.__serial_port = serial_port
+        self.__comm_iface = comm_iface
         self.__stop = True
 
         self.__queue_max_size = queue_max_size if queue_max_size is not None else self.__DEFAULT_QUEUE_MAX_SIZE
@@ -414,7 +411,7 @@ class PacketListener(threading.Thread):
             self.__stop = False
             while not self.__stop:
                 # Try to read a packet. Read packet is unescaped.
-                raw_packet = self.__try_read_packet(self.__xbee_device.operating_mode)
+                raw_packet = self.__comm_iface.wait_for_frame(self.__xbee_device.operating_mode)
 
                 if raw_packet is not None:
                     # If the current protocol is 802.15.4, the packet may have to be discarded.
@@ -429,7 +426,7 @@ class PacketListener(threading.Thread):
                         self._log.error("Error processing packet '%s': %s" % (utils.hex_to_string(raw_packet), str(e)))
                         continue
 
-                    self._log.debug(self.__xbee_device.LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+                    self._log.debug(self.__xbee_device.LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                                           event="RECEIVED",
                                                                           opmode=self.__xbee_device.operating_mode,
                                                                           content=utils.hex_to_string(raw_packet)))
@@ -452,13 +449,14 @@ class PacketListener(threading.Thread):
         finally:
             if not self.__stop:
                 self.__stop = True
-                if self.__serial_port.isOpen():
-                    self.__serial_port.close()
+                if self.__comm_iface.is_interface_open:
+                    self.__comm_iface.close()
 
     def stop(self):
         """
         Stops listening.
         """
+        self.__comm_iface.quit_reading()
         self.__stop = True
         # Wait until thread fully stops.
         self.join()
@@ -972,7 +970,7 @@ class PacketListener(threading.Thread):
             data = xbee_packet.rf_data
             is_broadcast = xbee_packet.is_broadcast()
             self.__data_received(XBeeMessage(data, remote, time.time(), broadcast=is_broadcast))
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="DATA",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
@@ -982,7 +980,7 @@ class PacketListener(threading.Thread):
         # Modem status callbacks
         elif xbee_packet.get_frame_type() == ApiFrameType.MODEM_STATUS:
             self.__modem_status_received(xbee_packet.modem_status)
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="MODEM STATUS",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
@@ -994,7 +992,7 @@ class PacketListener(threading.Thread):
               xbee_packet.get_frame_type() == ApiFrameType.RX_IO_64 or
               xbee_packet.get_frame_type() == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR):
             self.__io_sample_received(xbee_packet.io_sample, remote, time.time())
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="IOSAMPLE",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
@@ -1011,7 +1009,7 @@ class PacketListener(threading.Thread):
             elif self.__is_explicit_io_packet(xbee_packet):
                 self.__io_sample_received(IOSample(data), remote, time.time())
             self.__explicit_packet_received(PacketListener.__expl_to_message(remote, is_broadcast, xbee_packet))
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="EXPLICIT DATA",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
@@ -1023,7 +1021,7 @@ class PacketListener(threading.Thread):
             self.__ip_data_received(
                 IPMessage(xbee_packet.source_address, xbee_packet.source_port,
                           xbee_packet.dest_port, xbee_packet.ip_protocol, xbee_packet.data))
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="IP DATA",
                                                     sender=str(xbee_packet.source_address),
@@ -1032,7 +1030,7 @@ class PacketListener(threading.Thread):
         # SMS
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_SMS:
             self.__sms_received(SMSMessage(xbee_packet.phone_number, xbee_packet.data))
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="SMS",
                                                     sender=str(xbee_packet.phone_number),
@@ -1047,7 +1045,7 @@ class PacketListener(threading.Thread):
                 self.__bluetooth_data_received(xbee_packet.data)
             elif xbee_packet.src_interface == XBeeLocalInterface.MICROPYTHON:
                 self.__micropython_data_received(xbee_packet.data)
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="RELAY DATA",
                                                     sender=xbee_packet.src_interface.description,
@@ -1056,7 +1054,7 @@ class PacketListener(threading.Thread):
         # Socket state
         elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_STATE:
             self.__socket_state_received(xbee_packet.socket_id, xbee_packet.state)
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="SOCKET STATE",
                                                     sender=str(xbee_packet.socket_id),
@@ -1065,7 +1063,7 @@ class PacketListener(threading.Thread):
         # Socket receive data
         elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_RECEIVE:
             self.__socket_data_received(xbee_packet.socket_id, xbee_packet.payload)
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="SOCKET DATA",
                                                     sender=str(xbee_packet.socket_id),
@@ -1075,88 +1073,12 @@ class PacketListener(threading.Thread):
         elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_RECEIVE_FROM:
             address = (str(xbee_packet.source_address), xbee_packet.source_port)
             self.__socket_data_received_from(xbee_packet.socket_id, address, xbee_packet.payload)
-            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
                                                     event="RECEIVED",
                                                     fr_type="SOCKET DATA",
                                                     sender=str(xbee_packet.socket_id),
                                                     more_data="%s - %s" % (address,
                                                                            utils.hex_to_string(xbee_packet.payload))))
-
-    def __read_next_byte(self, operating_mode):
-        """
-        Returns the next byte in bytearray format. If the operating mode is
-        OperatingMode.ESCAPED_API_MODE, the bytearray could contain 2 bytes.
-
-        If in escaped API mode and the byte that was read was the escape byte,
-        it will also read the next byte.
-
-        Args:
-            operating_mode (:class:`.OperatingMode`): the operating mode in which the byte should be read.
-
-        Returns:
-            Bytearray: the read byte or bytes as bytearray, ``None`` otherwise.
-        """
-        read_data = bytearray()
-        read_byte = self.__serial_port.read_byte()
-        read_data.append(read_byte)
-        # Read escaped bytes in API escaped mode.
-        if operating_mode == OperatingMode.ESCAPED_API_MODE and read_byte == XBeePacket.ESCAPE_BYTE:
-            read_data.append(self.__serial_port.read_byte())
-
-        return read_data
-
-    def __try_read_packet(self, operating_mode=OperatingMode.API_MODE):
-        """
-        Reads the next packet. Starts to read when finds the start delimiter.
-        The last byte read is the checksum.
-
-        If there is something in the COM buffer after the
-        start delimiter, this method discards it.
-
-        If the method can't read a complete and correct packet,
-        it will return ``None``.
-
-        Args:
-            operating_mode (:class:`.OperatingMode`): the operating mode in which the packet should be read.
-
-        Returns:
-            Bytearray: the read packet as bytearray if a packet is read, ``None`` otherwise.
-        """
-        try:
-            xbee_packet = bytearray(1)
-            # Add packet delimiter.
-            xbee_packet[0] = self.__serial_port.read_byte()
-            while xbee_packet[0] != SpecialByte.HEADER_BYTE.value:
-                if self.__stop:
-                    return None
-                xbee_packet[0] = self.__serial_port.read_byte()
-
-            # Add packet length.
-            packet_length_byte = bytearray()
-            for _ in range(0, 2):
-                packet_length_byte += self.__read_next_byte(operating_mode)
-            xbee_packet += packet_length_byte
-            # Length needs to be un-escaped in API escaped mode to obtain its integer equivalent.
-            if operating_mode == OperatingMode.ESCAPED_API_MODE:
-                length = utils.length_to_int(XBeeAPIPacket.unescape_data(packet_length_byte))
-            else:
-                length = utils.length_to_int(packet_length_byte)
-
-            # Add packet payload.
-            for _ in range(0, length):
-                xbee_packet += self.__read_next_byte(operating_mode)
-
-            # Add packet checksum.
-            for _ in range(0, 1):
-                xbee_packet += self.__read_next_byte(operating_mode)
-
-            # Return the packet unescaped.
-            if operating_mode == OperatingMode.ESCAPED_API_MODE:
-                return XBeeAPIPacket.unescape_data(xbee_packet)
-            else:
-                return xbee_packet
-        except TimeoutException:
-            return None
 
     def __create_remote_device_from_packet(self, xbee_packet):
         """

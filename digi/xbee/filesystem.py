@@ -19,7 +19,7 @@ import re
 import string
 import time
 
-from digi.xbee.exception import XBeeException
+from digi.xbee.exception import XBeeException, OperationNotSupportedException
 from digi.xbee.util import xmodem
 from digi.xbee.util.xmodem import XModemException
 from enum import Enum, unique
@@ -279,6 +279,9 @@ class LocalXBeeFileSystemManager(object):
         Args:
             xbee_device (:class:`.XBeeDevice`): the local XBee device to manage its file system.
         """
+        if not xbee_device.serial_port:
+            raise OperationNotSupportedException("Only supported in local XBee connected by serial.")
+
         self._xbee_device = xbee_device
         self._serial_port = xbee_device.serial_port
         self._supported_functions = []

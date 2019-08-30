@@ -17,12 +17,9 @@ import logging
 from ipaddress import IPv4Address
 import threading
 import time
-
-import serial
-from serial.serialutil import SerialTimeoutException
-
 import srp
 
+from digi.xbee import serial
 from digi.xbee.packets.cellular import TXSMSPacket
 from digi.xbee.models.accesspoint import AccessPoint, WiFiEncryptionType
 from digi.xbee.models.atcomm import ATCommandResponse, ATCommand
@@ -71,7 +68,7 @@ class AbstractXBeeDevice(object):
     The Bluetooth Low Energy API username.
     """
 
-    LOG_PATTERN = "{port:<6s}{event:<12s}{opmode:<20s}{content:<50s}"
+    LOG_PATTERN = "{comm_iface:<6s}{event:<12s}{opmode:<20s}{content:<50s}"
     """
     Pattern used to log packet events.
     """
@@ -81,7 +78,8 @@ class AbstractXBeeDevice(object):
     Logger.
     """
 
-    def __init__(self, local_xbee_device=None, serial_port=None, sync_ops_timeout=_DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+    def __init__(self, local_xbee_device=None, serial_port=None, sync_ops_timeout=_DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.AbstractXBeeDevice` object with the provided parameters.
 
@@ -92,11 +90,16 @@ class AbstractXBeeDevice(object):
                 port that will be used to communicate with this XBee.
             sync_ops_timeout (Integer, default: :attr:`AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS`): the
                 timeout (in seconds) that will be applied for all synchronous operations.
+            comm_iface (:class:`.XBeeCommunicationInterface`, optional): only necessary if the XBee device is local. The
+                hardware interface that will be used to communicate with this XBee.
 
         .. seealso::
            | :class:`.XBeeDevice`
            | :class:`.XBeeSerialPort`
         """
+        if (serial_port, comm_iface).count(None) != 1:
+            raise XBeeException("Either ``serial_port`` or ``comm_iface`` must be ``None`` (and only one of them)")
+
         self.__current_frame_id = 0x00
 
         self._16bit_addr = None
@@ -107,7 +110,9 @@ class AbstractXBeeDevice(object):
         self._operating_mode = None
 
         self._local_xbee_device = local_xbee_device
-        self._serial_port = serial_port
+        self._comm_iface = serial_port if serial_port is not None else comm_iface
+        self._serial_port = self._comm_iface if isinstance(self._comm_iface, XBeeSerialPort) else None
+
         self._timeout = sync_ops_timeout
 
         self.__io_packet_received = False
@@ -430,14 +435,14 @@ class AbstractXBeeDevice(object):
             ATCommandException: if the response is not as expected.
         """
         if self.is_remote():
-            if not self._local_xbee_device.serial_port.isOpen():
+            if not self._local_xbee_device.comm_iface.is_interface_open:
                 raise XBeeException("Local XBee device's serial port closed")
         else:
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
                 raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
-            if not self._serial_port.isOpen():
+            if not self._comm_iface.is_interface_open:
                 raise XBeeException("XBee device's serial port closed")
 
         # Hardware version:
@@ -621,9 +626,9 @@ class AbstractXBeeDevice(object):
         """
         self._timeout = sync_ops_timeout
         if self.is_remote():
-            self._local_xbee_device.serial_port.timeout = self._timeout
+            self._local_xbee_device.comm_iface.timeout = self._timeout
         else:
-            self._serial_port.timeout = self._timeout
+            self._comm_iface.timeout = self._timeout
 
     def get_sync_ops_timeout(self):
         """
@@ -1229,12 +1234,13 @@ class AbstractXBeeDevice(object):
         """
         from digi.xbee import firmware
 
+        if not self._serial_port:
+            raise OperationNotSupportedException("Firmware update is only supported in local XBee connected by serial.")
         if not self._serial_port.is_open:
             raise XBeeException("XBee device's serial port closed.")
         if self._operating_mode != OperatingMode.API_MODE and self._operating_mode != OperatingMode.ESCAPED_API_MODE:
             raise InvalidOperatingModeException(op_mode=self._operating_mode)
-        if self.is_remote():
-            raise OperationNotSupportedException("Firmware update is not supported in remote XBee devices")
+
         if self.get_hardware_version() and self.get_hardware_version().code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
             raise OperationNotSupportedException("Firmware update is only supported in XBee3 devices")
         firmware.update_local_firmware(self, xml_firmware_file,
@@ -1373,7 +1379,7 @@ class AbstractXBeeDevice(object):
         """
         @wraps(func)
         def dec_function(self, *args, **kwargs):
-            if not self._serial_port.isOpen():
+            if not self._comm_iface.is_interface_open:
                 raise XBeeException("XBee device's serial port closed.")
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
@@ -1613,8 +1619,8 @@ class AbstractXBeeDevice(object):
 
         escape = self._operating_mode == OperatingMode.ESCAPED_API_MODE
         out = packet.output(escaped=escape)
-        self._serial_port.write(out)
-        self._log.debug(self.LOG_PATTERN.format(port=self._serial_port.port,
+        self._comm_iface.write_frame(out)
+        self._log.debug(self.LOG_PATTERN.format(comm_iface=str(self._comm_iface),
                                                 event="SENT",
                                                 opmode=self._operating_mode,
                                                 content=utils.hex_to_string(out)))
@@ -1798,12 +1804,12 @@ class XBeeDevice(AbstractXBeeDevice):
         mp_data_cbs = self._packet_listener.get_micropython_data_received_callbacks() \
             if self._packet_listener else None
 
-        self._serial_port.open()
-        self._log.info("%s port opened" % self._serial_port)
+        self._comm_iface.open()
+        self._log.info("%s port opened" % self._comm_iface)
 
         # Initialize the packet listener.
         self._packet_listener = None
-        self._packet_listener = PacketListener(self._serial_port, self)
+        self._packet_listener = PacketListener(self._comm_iface, self)
         self.__packet_queue = self._packet_listener.get_queue()
         self.__data_queue = self._packet_listener.get_data_queue()
         self.__explicit_queue = self._packet_listener.get_explicit_queue()
@@ -1873,23 +1879,36 @@ class XBeeDevice(AbstractXBeeDevice):
         if self._packet_listener is not None:
             self._packet_listener.stop()
 
-        if self._serial_port is not None and self._serial_port.isOpen():
-            self._serial_port.close()
-            self._log.info("%s port closed" % self._serial_port)
+        if self._comm_iface is not None and self._comm_iface.is_interface_open:
+            self._comm_iface.close()
+            self._log.info("%s closed" % self._comm_iface)
 
         self._is_open = False
 
     def __get_serial_port(self):
         """
-        Returns the serial port associated to the XBee device.
+        Returns the serial port associated to the XBee device, if any.
 
         Returns:
-            :class:`.XBeeSerialPort`: the serial port associated to the XBee device.
+            :class:`.XBeeSerialPort`: the serial port associated to the XBee device. Returns ``None`` if the local XBee
+                does not use serial communication.
 
         .. seealso::
            | :class:`.XBeeSerialPort`
         """
         return self._serial_port
+
+    def __get_comm_iface(self):
+        """
+        Returns the hardware interface associated to the XBee device.
+
+        Returns:
+            :class:`.XBeeCommunicationInterface`: the hardware interface associated to the XBee device.
+
+        .. seealso::
+           | :class:`.XBeeSerialPort`
+        """
+        return self._comm_iface
 
     @AbstractXBeeDevice._before_send_method
     def get_parameter(self, param, parameter_value=None):
@@ -3104,6 +3123,8 @@ class XBeeDevice(AbstractXBeeDevice):
             SerialTimeoutException: if there is any error trying to write within the serial port.
             InvalidOperatingModeException: if the XBee device is in API mode.
         """
+        if not self._serial_port:
+            raise XBeeException("Command mode is only supported for local XBee devices using a serial connection")
         if self._operating_mode in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
             raise InvalidOperatingModeException(
                 message="Invalid mode. Command mode can be only accessed while in AT mode")
@@ -3132,6 +3153,9 @@ class XBeeDevice(AbstractXBeeDevice):
             SerialTimeoutException: if there is any error trying to write within the serial port.
             InvalidOperatingModeException: if the XBee device is in API mode.
         """
+        if not self._serial_port:
+            raise XBeeException("Command mode is only supported for local XBee devices using a serial connection")
+
         if self._operating_mode in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
             raise InvalidOperatingModeException(
                 message="Invalid mode. Command mode can be only be exited while in AT mode")
@@ -3178,7 +3202,7 @@ class XBeeDevice(AbstractXBeeDevice):
                 self._exit_at_command_mode()
                 # Restore the packets listening.
                 if listening:
-                    self._packet_listener = PacketListener(self._serial_port, self)
+                    self._packet_listener = PacketListener(self._comm_iface, self)
                     self._packet_listener.start()
         return OperatingMode.UNKNOWN
 
@@ -3294,6 +3318,9 @@ class XBeeDevice(AbstractXBeeDevice):
         Raises:
             SerialTimeoutException: if there is any error trying to write within the serial port.
         """
+        if not self._serial_port:
+            raise XBeeException("Command mode is only supported for local XBee devices using a serial connection")
+
         # Clear the serial input stream.
         self._serial_port.flushInput()
         # Send the 'AP' command.
@@ -3314,6 +3341,9 @@ class XBeeDevice(AbstractXBeeDevice):
             Integer: The next frame ID of the XBee device.
         """
         return self._get_next_frame_id()
+
+    comm_iface = property(__get_comm_iface)
+    """:class:`.XBeeCommunicationInterface`. The hardware interface associated to the XBee device."""
 
     serial_port = property(__get_serial_port)
     """:class:`.XBeeSerialPort`. The serial port associated to the XBee device."""
@@ -5751,7 +5781,7 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
            | :class:`XBeeDevice`
         """
         super().__init__(local_xbee_device=local_xbee_device,
-                         serial_port=local_xbee_device.serial_port)
+                         comm_iface=local_xbee_device.comm_iface)
 
         self._local_xbee_device = local_xbee_device
         self._64bit_addr = x64bit_addr
@@ -5838,6 +5868,20 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
            | :class:`XBeeSerialPort`
         """
         return self._local_xbee_device.serial_port
+
+
+    def get_comm_iface(self):
+        """
+        Returns the communication interface of the local XBee device associated to the remote one.
+
+        Returns:
+            :class:`XBeeCommunicationInterface`: the communication interface of the local XBee device associated to
+                the remote one.
+
+        .. seealso::
+           | :class:`XBeeCommunicationInterface`
+        """
+        return self._local_xbee_device.comm_iface
 
     def __str__(self):
         node_id = "" if self.get_node_id() is None else self.get_node_id()
