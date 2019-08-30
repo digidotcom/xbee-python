@@ -41,7 +41,7 @@ class XBee16BitAddress(object):
 
     """
 
-    PATTERN = "(0[xX])?[0-9a-fA-F]{1,4}"
+    PATTERN = "^(0[xX])?[0-9a-fA-F]{1,4}$"
     """
     16-bit address string pattern.
     """
@@ -236,7 +236,7 @@ class XBee64BitAddress(object):
     This address is unique to each physical device.
     """
 
-    PATTERN = "(0[xX])?[0-9a-fA-F]{1,16}"
+    PATTERN = "^(0[xX])?[0-9a-fA-F]{1,16}$"
     """
     64-bit address string pattern.
     """
@@ -400,7 +400,7 @@ class XBeeIMEIAddress(object):
     This address is only applicable for Cellular protocol.
     """
 
-    PATTERN = "^\d{0,15}$"
+    PATTERN = r"^\d{0,15}$"
     """
     IMEI address string pattern.
     """
