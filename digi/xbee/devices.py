@@ -1717,12 +1717,6 @@ class XBeeDevice(AbstractXBeeDevice):
                                                     timeout=_sync_ops_timeout),
                          sync_ops_timeout=_sync_ops_timeout
                          )
-        self.__baud_rate = baud_rate
-        self.__data_bits = data_bits
-        self.__stop_bits = stop_bits
-        self.__parity = parity
-        self.__flow_control = flow_control
-
         self._network = XBeeNetwork(self)
 
         self.__packet_queue = None
