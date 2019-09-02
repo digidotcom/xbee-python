@@ -1685,9 +1685,9 @@ class XBeeDevice(AbstractXBeeDevice):
     Response that will be receive if the attempt to enter in at command mode goes well.
     """
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.XBeeDevice` with the provided parameters.
         
@@ -1700,7 +1700,8 @@ class XBeeDevice(AbstractXBeeDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+            _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
         
         Raises:
             All exceptions raised by PySerial's Serial class constructor.
@@ -1714,8 +1715,9 @@ class XBeeDevice(AbstractXBeeDevice):
                                                     stop_bits=stop_bits,
                                                     parity=parity,
                                                     flow_control=flow_control,
-                                                    timeout=_sync_ops_timeout),
-                         sync_ops_timeout=_sync_ops_timeout
+                                                    timeout=_sync_ops_timeout) if comm_iface is None else None,
+                         sync_ops_timeout=_sync_ops_timeout,
+                         comm_iface=comm_iface
                          )
         self._network = XBeeNetwork(self)
 
@@ -3351,9 +3353,9 @@ class Raw802Device(XBeeDevice):
     This class represents a local 802.15.4 XBee device.
     """
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.Raw802Device` with the provided parameters.
 
@@ -3367,7 +3369,8 @@ class Raw802Device(XBeeDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+           _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -3377,7 +3380,7 @@ class Raw802Device(XBeeDevice):
            | :meth:`.XBeeDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def open(self):
         """
@@ -3465,9 +3468,9 @@ class DigiMeshDevice(XBeeDevice):
     This class represents a local DigiMesh XBee device.
     """
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.DigiMeshDevice` with the provided parameters.
 
@@ -3481,7 +3484,8 @@ class DigiMeshDevice(XBeeDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+           _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -3491,7 +3495,7 @@ class DigiMeshDevice(XBeeDevice):
            | :meth:`.XBeeDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def open(self):
         """
@@ -3604,9 +3608,9 @@ class DigiPointDevice(XBeeDevice):
     This class represents a local DigiPoint XBee device.
     """
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.DigiPointDevice` with the provided
         parameters.
@@ -3621,7 +3625,8 @@ class DigiPointDevice(XBeeDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+            _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -3631,7 +3636,7 @@ class DigiPointDevice(XBeeDevice):
            | :meth:`.XBeeDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=None)
 
     def open(self):
         """
@@ -3744,9 +3749,9 @@ class ZigBeeDevice(XBeeDevice):
     This class represents a local ZigBee XBee device.
     """
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.ZigBeeDevice` with the provided parameters.
 
@@ -3760,7 +3765,8 @@ class ZigBeeDevice(XBeeDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+           _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -3770,7 +3776,7 @@ class ZigBeeDevice(XBeeDevice):
            | :meth:`.XBeeDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def open(self):
         """
@@ -4116,9 +4122,9 @@ class IPDevice(XBeeDevice):
 
     __OPERATION_EXCEPTION = "Operation not supported in this module."
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.IPDevice` with the provided parameters.
 
@@ -4132,7 +4138,8 @@ class IPDevice(XBeeDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+            _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -4142,7 +4149,7 @@ class IPDevice(XBeeDevice):
            | :meth:`.XBeeDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self._ip_addr = None
         self._source_port = self.__DEFAULT_SOURCE_PORT
 
@@ -4649,9 +4656,9 @@ class CellularDevice(IPDevice):
     This class represents a local Cellular device.
     """
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.CellularDevice` with the provided parameters.
 
@@ -4665,7 +4672,8 @@ class CellularDevice(IPDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+            _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -4675,7 +4683,7 @@ class CellularDevice(IPDevice):
            | :meth:`.XBeeDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self._imei_addr = None
 
     def open(self):
@@ -4984,9 +4992,9 @@ class LPWANDevice(CellularDevice):
     devices.
     """
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.LPWANDevice` with the provided parameters.
 
@@ -5000,7 +5008,8 @@ class LPWANDevice(CellularDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+            _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -5010,7 +5019,7 @@ class LPWANDevice(CellularDevice):
            | :meth:`.CellularDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def send_ip_data(self, ip_addr, dest_port, protocol, data, close_socket=False):
         """
@@ -5100,9 +5109,9 @@ class NBIoTDevice(LPWANDevice):
     This class represents a local NB-IoT device.
     """
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.NBIoTDevice` with the provided parameters.
 
@@ -5116,7 +5125,8 @@ class NBIoTDevice(LPWANDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+            _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -5126,7 +5136,7 @@ class NBIoTDevice(LPWANDevice):
            | :meth:`.LPWANDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self._imei_addr = None
 
     def open(self):
@@ -5162,9 +5172,9 @@ class WiFiDevice(IPDevice):
     __DEFAULT_ACCESS_POINT_TIMEOUT = 15  # 15 seconds of timeout to connect, disconnect and scan access points.
     __DISCOVER_TIMEOUT = 30  # 30 seconds of access points discovery timeout.
 
-    def __init__(self, port, baud_rate, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS):
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.WiFiDevice` with the provided parameters.
 
@@ -5178,7 +5188,8 @@ class WiFiDevice(IPDevice):
             stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): comm port stop bits.
             parity (Character, default: :attr:`.serial.PARITY_NONE`): comm port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): comm port flow control.
-            _sync_ops_timeout (Integer, default: 3): comm port read timeout.
+            _sync_ops_timeout (Integer, default: 3): the read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): the communication interface.
 
         Raises:
             All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
@@ -5188,7 +5199,7 @@ class WiFiDevice(IPDevice):
            | :meth:`.v.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self.__ap_timeout = self.__DEFAULT_ACCESS_POINT_TIMEOUT
         self.__scanning_aps = False
         self.__scanning_aps_error = False
