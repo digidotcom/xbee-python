@@ -33,6 +33,9 @@ class XBeeSerialPort(Serial):
     """
     This class extends the functionality of Serial class (PySerial).
 
+    It also introduces a minor change in its behaviour: the serial port is not automatically open when an object is
+    instantiated, only when calling open().
+
     .. seealso::
        | _PySerial: https://github.com/pyserial/pyserial
     """
@@ -63,18 +66,26 @@ class XBeeSerialPort(Serial):
            | _PySerial: https://github.com/pyserial/pyserial
         """
         if flow_control == FlowControl.SOFTWARE:
-            Serial.__init__(self, port=port, baudrate=baud_rate,
+            Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits, parity=parity, timeout=timeout, xonxoff=True)
         elif flow_control == FlowControl.HARDWARE_DSR_DTR:
-            Serial.__init__(self, port=port, baudrate=baud_rate,
+            Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits, parity=parity, timeout=timeout, dsrdtr=True)
         elif flow_control == FlowControl.HARDWARE_RTS_CTS:
-            Serial.__init__(self, port=port, baudrate=baud_rate,
+            Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits, parity=parity, timeout=timeout, rtscts=True)
         else:
-            Serial.__init__(self, port=port, baudrate=baud_rate,
+            Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits, parity=parity, timeout=timeout)
-        self._isOpen = True if port is not None else False
+        self.__port_to_open = port
+
+    def open(self):
+        """
+        Opens port with current settings. This may throw a SerialException
+        if the port cannot be opened.
+        """
+        self.port = self.__port_to_open
+        super().open()
 
     def read_byte(self):
         """

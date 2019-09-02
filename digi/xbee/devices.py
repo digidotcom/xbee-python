@@ -1703,7 +1703,7 @@ class XBeeDevice(AbstractXBeeDevice):
            | PySerial documentation: http://pyserial.sourceforge.net
         """
         super().__init__(serial_port=XBeeSerialPort(baud_rate=baud_rate,
-                                                    port=None,  # to keep port closed until init().
+                                                    port=port,
                                                     data_bits=data_bits,
                                                     stop_bits=stop_bits,
                                                     parity=parity,
@@ -1711,7 +1711,6 @@ class XBeeDevice(AbstractXBeeDevice):
                                                     timeout=_sync_ops_timeout),
                          sync_ops_timeout=_sync_ops_timeout
                          )
-        self.__port = port
         self.__baud_rate = baud_rate
         self.__data_bits = data_bits
         self.__stop_bits = stop_bits
@@ -1799,9 +1798,8 @@ class XBeeDevice(AbstractXBeeDevice):
         mp_data_cbs = self._packet_listener.get_micropython_data_received_callbacks() \
             if self._packet_listener else None
 
-        self._serial_port.port = self.__port
         self._serial_port.open()
-        self._log.info("%s port opened" % self.__port)
+        self._log.info("%s port opened" % self._serial_port)
 
         # Initialize the packet listener.
         self._packet_listener = None
@@ -1877,7 +1875,7 @@ class XBeeDevice(AbstractXBeeDevice):
 
         if self._serial_port is not None and self._serial_port.isOpen():
             self._serial_port.close()
-            self._log.info("%s port closed" % self.__port)
+            self._log.info("%s port closed" % self._serial_port)
 
         self._is_open = False
 
