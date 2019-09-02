@@ -1271,7 +1271,8 @@ class AbstractXBeeDevice(object):
             raise OperationNotSupportedException("XBee profiles are not supported in remote XBee devices")
         if self.get_hardware_version() and self.get_hardware_version().code not in profile.SUPPORTED_HARDWARE_VERSIONS:
             raise OperationNotSupportedException("XBee profiles are only supported in XBee3 devices")
-        profile.apply_xbee_profile(profile_path, self, progress_callback=progress_callback)
+
+        profile.apply_xbee_profile(self, profile_path, progress_callback=progress_callback)
 
     def _get_ai_status(self):
         """

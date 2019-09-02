@@ -50,6 +50,7 @@ _ERROR_HARDWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with the de
 _ERROR_HARDWARE_NOT_COMPATIBLE_XBEE3 = "Only XBee 3 devices support firmware update in the XBee profile"
 _ERROR_OPEN_DEVICE = "Error opening XBee device: %s"
 _ERROR_PROFILE_NOT_VALID = "The XBee profile is not valid"
+_ERROR_PROFILE_INVALID = "Invalid XBee profile: %s"
 _ERROR_PROFILE_PATH_INVALID = "Profile path '%s' is not valid"
 _ERROR_PROFILE_UNCOMPRESS = "Error un-compressing profile file: %s"
 _ERROR_PROFILE_TEMP_DIR = "Error creating temporary directory: %s"
@@ -957,13 +958,13 @@ class _ProfileUpdater(object):
     Helper class used to handle the update XBee profile process.
     """
 
-    def __init__(self, xbee_profile, xbee_device, progress_callback=None):
+    def __init__(self, xbee_device, xbee_profile, progress_callback=None):
         """
         Class constructor. Instantiates a new :class:`._ProfileUpdater` with the given parameters.
 
         Args:
-            xbee_profile (:class:`.XBeeProfile`): The XBee profile to apply.
             xbee_device (:class:`.XBeeDevice` or :class:`.RemoteXBeeDevice`): The XBee device to apply profile to.
+            xbee_profile (:class:`.XBeeProfile`): The XBee profile to apply.
             progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                     arguments:
 
@@ -1277,13 +1278,13 @@ class _ProfileUpdater(object):
             self._update_file_system()
 
 
-def apply_xbee_profile(xbee_profile, xbee_device, progress_callback=None):
+def apply_xbee_profile(xbee_device, profile_path, progress_callback=None):
     """
     Applies the given XBee profile into the given XBee device.
 
     Args:
-        xbee_profile (:class:`.XBeeProfile`): the XBee profile to apply.
         xbee_device (:class:`.XBeeDevice` or :class:`.RemoteXBeeDevice`): the XBee device to apply profile to.
+        profile_path (String): path of the XBee profile file to apply.
         progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                 arguments:
 
@@ -1295,11 +1296,20 @@ def apply_xbee_profile(xbee_profile, xbee_device, progress_callback=None):
         UpdateProfileException: if there is any error during the update XBee profile operation.
     """
     # Sanity checks.
-    if xbee_profile is None or not isinstance(xbee_profile, XBeeProfile):
+    if profile_path is None or not isinstance(profile_path, str):
+        _log.error("ERROR: %s" % _ERROR_PROFILE_NOT_VALID)
         raise ValueError(_ERROR_PROFILE_NOT_VALID)
     if xbee_device is None or (not isinstance(xbee_device, XBeeDevice) and
                                not isinstance(xbee_device, RemoteXBeeDevice)):
+        _log.error("ERROR: %s" % _ERROR_DEVICE_NOT_VALID)
         raise ValueError(_ERROR_DEVICE_NOT_VALID)
 
-    profile_updater = _ProfileUpdater(xbee_profile, xbee_device, progress_callback=progress_callback)
+    try:
+        xbee_profile = XBeeProfile(profile_path)
+    except (ValueError, ReadProfileException) as e:
+        error = _ERROR_PROFILE_INVALID % str(e)
+        _log.error("ERROR: %s" % error)
+        raise UpdateProfileException(error)
+
+    profile_updater = _ProfileUpdater(xbee_device, xbee_profile, progress_callback=progress_callback)
     profile_updater.update_profile()

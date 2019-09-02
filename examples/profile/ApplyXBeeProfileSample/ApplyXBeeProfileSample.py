@@ -28,18 +28,11 @@ def main():
     print(" | XBee Python Library Read XBee Profile Sample |")
     print(" +----------------------------------------------+\n")
 
-    xbee_profile = None
-    try:
-        xbee_profile = XBeeProfile(PROFILE_PATH)
-    except (ValueError, ReadProfileException) as e:
-        print(str(e))
-        exit(1)
-
     device = XBeeDevice(PORT, BAUD_RATE)
     try:
         device.open()
         print("Updating profile '%s'...\n" % PROFILE_PATH)
-        device.apply_profile(xbee_profile, progress_callback=progress_callback)
+        device.apply_profile(PROFILE_PATH, progress_callback=progress_callback)
         print("\nProfile updated successfully!")
     except Exception as e:
         print(str(e))
