@@ -1224,7 +1224,6 @@ class AbstractXBeeDevice(object):
         Raises:
             XBeeException: if the device is not open.
             InvalidOperatingModeException: if the device operating mode is invalid.
-            FirmwareUpdateException: if there is any error performing the firmware update.
             OperationNotSupportedException: if the firmware update is not supported in the XBee device.
             FirmwareUpdateException: if there is any error performing the firmware update.
         """
@@ -1242,6 +1241,20 @@ class AbstractXBeeDevice(object):
                                        progress_callback=progress_callback,
                                        xbee_firmware_file=xbee_firmware_file,
                                        bootloader_firmware_file=bootloader_firmware_file)
+
+    def _autodetect_device(self):
+        """
+        Performs an autodetection of the device.
+
+        Raises:
+            RecoveryException: if there is any error performing the recovery.
+            OperationNotSupportedException: if the firmware autodetection is not supported in the XBee device.
+        """
+        from digi.xbee import recovery
+
+        if self.get_hardware_version() and self.get_hardware_version().code not in recovery.SUPPORTED_HARDWARE_VERSIONS:
+            raise OperationNotSupportedException("Autodetection is only supported in XBee3 devices")
+        recovery.recover_device(self)
 
     def apply_profile(self, profile_path, progress_callback=None):
         """
@@ -1746,17 +1759,21 @@ class XBeeDevice(AbstractXBeeDevice):
                           flow_control=comm_port_data["flowControl"],
                           _sync_ops_timeout=comm_port_data["timeout"])
 
-    def open(self):
+    def open(self, force_settings=False):
         """
         Opens the communication with the XBee device and loads some information about it.
         
+        Args:
+            force_settings(Boolean, optional): ``True`` to open the device ensuring/forcing that the specified
+                serial settings are applied even if the current configuration is different,
+                 ``False`` to open the device with the current configuration. Default to False.
+
         Raises:
             TimeoutException: if there is any problem with the communication.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             XBeeException: if the XBee device is already open.
         """
-
         if self._is_open:
             raise XBeeException("XBee device already open.")
 
@@ -1807,6 +1824,30 @@ class XBeeDevice(AbstractXBeeDevice):
 
         self._packet_listener.start()
 
+        if force_settings:
+            try:
+                self._do_open()
+            except (XBeeException, serial.SerialException) as e:
+                self.log.debug("Could not open the port with default setting, "
+                               "forcing settings using recovery: %s" % str(e))
+                if self._serial_port is None:
+                    raise XBeeException("Can not open the port by forcing the settings, "
+                                        "it is only supported for Serial")
+                self._autodetect_device()
+                self.open(force_settings=False)
+        else:
+            self._do_open()
+
+    def _do_open(self):
+        """
+        Opens the communication with the XBee device and loads some information about it.
+
+        Raises:
+            TimeoutException: if there is any problem with the communication.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: if the XBee device is already open.
+        """
         # Determine the operating mode of the XBee device.
         self._operating_mode = self._determine_operating_mode()
         if self._operating_mode == OperatingMode.UNKNOWN:

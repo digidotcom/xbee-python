@@ -190,3 +190,14 @@ class FirmwareUpdateException(XBeeException):
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
     pass
+
+
+class RecoveryException(XBeeException):
+    """
+    This exception will be thrown when any problem related to the auto-recovery
+    process of the XBee device occurs.
+
+    All functionality of this class is the inherited of `Exception
+    <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
+    """
+    pass
