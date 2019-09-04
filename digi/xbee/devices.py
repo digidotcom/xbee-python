@@ -14,6 +14,7 @@
 
 from abc import ABCMeta, abstractmethod
 import logging
+from enum import Enum, unique
 from ipaddress import IPv4Address
 import threading
 import time
@@ -46,7 +47,8 @@ from digi.xbee.util import utils
 from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatingModeException, \
     ATCommandException, OperationNotSupportedException, TransmitException
 from digi.xbee.io import IOSample, IOMode
-from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, DiscoveryProcessFinished
+from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, \
+    DiscoveryProcessFinished, NetworkModified
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
 from functools import wraps
@@ -5884,7 +5886,6 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         """
         return self._local_xbee_device.serial_port
 
-
     def get_comm_iface(self):
         """
         Returns the communication interface of the local XBee device associated to the remote one.
@@ -6149,6 +6150,7 @@ class XBeeNetwork(object):
         self.__last_search_dev_list = []
         self.__lock = threading.Lock()
         self.__discovering = False
+        self.__network_modified = NetworkModified()
         self.__device_discovered = DeviceDiscovered()
         self.__device_discovery_finished = DiscoveryProcessFinished()
         self.__discovery_thread = None
@@ -6216,7 +6218,7 @@ class XBeeNetwork(object):
                 remote = self.__discovered_device
                 self.__discovered_device = None
             if remote is not None:
-                self.add_remote(remote)
+                self.__add_remote(remote, NetworkEventReason.DISCOVERED)
             return remote
 
     def discover_devices(self, device_id_list):
@@ -6282,6 +6284,23 @@ class XBeeNetwork(object):
         """
         return len(self.__devices_list)
 
+    def add_network_modified_callback(self, callback):
+        """
+        Adds a callback for the event :class:`digi.xbee.reader.NetworkModified`.
+
+        Args:
+            callback (Function): the callback. Receives one argument.
+
+                * The event type as a :class:`.NetworkEventType`
+                * The reason of the event as a :class:`.NetworkEventReason`
+                * The node added, updated or removed from the network as a :class:`.XBeeDevice` or
+                  :class:`.RemoteXBeeDevice`.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.del_network_modified_callback`
+        """
+        self.__network_modified += callback
+
     def add_device_discovered_callback(self, callback):
         """
         Adds a callback for the event :class:`.DeviceDiscovered`.
@@ -6313,6 +6332,18 @@ class XBeeNetwork(object):
            | :meth:`.XBeeNetwork.del_device_discovered_callback`
         """
         self.__device_discovery_finished += callback
+
+    def del_network_modified_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`digi.xbee.reader.NetworkModified`.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.add_network_modified_callback`
+        """
+        self.__network_modified -= callback
 
     def del_device_discovered_callback(self, callback):
         """
@@ -6354,6 +6385,7 @@ class XBeeNetwork(object):
         """
         with self.__lock:
             self.__devices_list = []
+        self.__network_modified(NetworkEventType.CLEAR, NetworkEventReason.MANUAL, None)
 
     def get_discovery_options(self):
         """
@@ -6547,13 +6579,32 @@ class XBeeNetwork(object):
             :class:`.RemoteXBeeDevice`: the provided XBee device with the updated parameters. If the XBee device
                 was not in the list yet, this method returns it without changes.
         """
+        return self.__add_remote(remote_xbee_device, NetworkEventReason.MANUAL)
+
+    def __add_remote(self, remote_xbee, reason):
+        """
+        Adds the provided remote XBee device to the network if it is not contained yet.
+
+        If the XBee device is already contained in the network, its data will be updated with the
+        parameters of the XBee device that are not ``None``.
+
+        Args:
+            remote_xbee (:class:`.RemoteXBeeDevice`): the remote XBee device to add to the network.
+
+        Returns:
+            :class:`.RemoteXBeeDevice`: the provided XBee device with the updated parameters. If the XBee device
+                was not in the list yet, this method returns it without changes.
+        """
         with self.__lock:
-            for local_xbee in self.__devices_list:
-                if local_xbee == remote_xbee_device:
-                    local_xbee.update_device_data_from(remote_xbee_device)
-                    return local_xbee
-            self.__devices_list.append(remote_xbee_device)
-            return remote_xbee_device
+            for xbee in self.__devices_list:
+                if xbee == remote_xbee:
+                    xbee.update_device_data_from(remote_xbee)
+                    self.__network_modified(NetworkEventType.UPDATE, reason, node=xbee)
+                    return xbee
+            self.__devices_list.append(remote_xbee)
+            self.__network_modified(NetworkEventType.ADD, reason, node=remote_xbee)
+
+            return remote_xbee
 
     def add_remotes(self, remote_xbee_devices):
         """
@@ -6579,6 +6630,8 @@ class XBeeNetwork(object):
             ValueError: if the provided :class:`.RemoteXBeeDevice` is not in the network.
         """
         self.__devices_list.remove(remote_xbee_device)
+        self.__network_modified(NetworkEventType.DEL, NetworkEventReason.MANUAL,
+                                node=remote_xbee_device)
 
     def get_discovery_callbacks(self):
         """
@@ -6608,11 +6661,9 @@ class XBeeNetwork(object):
                 # if remote was created successfully and it is not int the
                 # XBee device list, add it and notify callbacks.
                 if remote is not None:
-                    # if remote was created successfully and it is not int the
+                    # if remote was created successfully and it is not in the
                     # XBee device list, add it and notify callbacks.
-                    if remote not in self.__devices_list:
-                        with self.__lock:
-                            self.__devices_list.append(remote)
+                    self.__add_remote(remote, NetworkEventReason.DISCOVERED)
                     # always add the XBee device to the last discovered devices list:
                     self.__last_search_dev_list.append(remote)
                     self.__device_discovered(remote)
@@ -6945,3 +6996,110 @@ class DigiPointNetwork(XBeeNetwork):
             ValueError: if ``device`` is ``None``.
         """
         super().__init__(device)
+
+
+@unique
+class NetworkEventType(Enum):
+    """
+    Enumerates the different network event types.
+    """
+
+    ADD = (0x00, "XBee added to the network")
+    DEL = (0x01, "XBee removed from the network")
+    UPDATE = (0x02, "XBee in the network updated")
+    CLEAR = (0x03, "Network cleared")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    @property
+    def code(self):
+        """
+        Returns the code of the ``NetworkEventType`` element.
+
+        Returns:
+            Integer: the code of the ``NetworkEventType`` element.
+        """
+        return self.__code
+
+    @property
+    def description(self):
+        """
+        Returns the description of the ``NetworkEventType`` element.
+
+        Returns:
+            String: the description of the ``NetworkEventType`` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the network event for the given code.
+
+        Args:
+            code (Integer): the code of the network event to get.
+
+        Returns:
+            :class:`.NetworkEventType`: the ``NetworkEventType`` with the given code, ``None`` if
+                there is not any event with the provided code.
+        """
+        for ev_type in cls:
+            if ev_type.code == code:
+                return ev_type
+
+        return None
+
+
+@unique
+class NetworkEventReason(Enum):
+    """
+    Enumerates the different network event reasons.
+    """
+
+    DISCOVERED = (0x00, "Discovered XBee")
+    RECEIVED_MSG = (0x01, "Received message from XBee")
+    MANUAL = (0x02, "Manual modification")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    @property
+    def code(self):
+        """
+        Returns the code of the ``NetworkEventReason`` element.
+
+        Returns:
+            Integer: the code of the ``NetworkEventReason`` element.
+        """
+        return self.__code
+
+    @property
+    def description(self):
+        """
+        Returns the description of the ``NetworkEventReason`` element.
+
+        Returns:
+            String: the description of the ``NetworkEventReason`` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the network event reason for the given code.
+
+        Args:
+            code (Integer): the code of the network event reason to get.
+
+        Returns:
+            :class:`.NetworkEventReason`: the ``NetworkEventReason`` with the given code, ``None``
+                if there is not any reason with the provided code.
+        """
+        for reason in cls:
+            if reason.code == code:
+                return reason
+
+        return None

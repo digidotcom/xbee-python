@@ -151,6 +151,28 @@ class IOSampleReceived(XBeeEvent):
     pass
 
 
+class NetworkModified(XBeeEvent):
+    """
+    This event is fired when the network is being modified by the addition of a new node, an
+    existing node information is updated, a node removal, or when the network items are cleared.
+
+    The callbacks that handle this event will receive the following arguments:
+        1. event_type (:class:`digi.xbee.devices.NetworkEventType`): the network event type.
+        2. reason (:class:`digi.xbee.devices.NetworkEventReason`): The reason of the event.
+        3. node (:class:`digi.xbee.devices.XBeeDevice` or
+           :class:`digi.xbee.devices.RemoteXBeeDevice`): The node added, updated or removed from
+           the network.
+
+    .. seealso::
+       | :class:`digi.xbee.devices.NetworkEventReason`
+       | :class:`digi.xbee.devices.NetworkEventType`
+       | :class:`digi.xbee.devices.RemoteXBeeDevice`
+       | :class:`digi.xbee.devices.XBeeDevice`
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class DeviceDiscovered(XBeeEvent):
     """
     This event is fired when an XBee discovers another remote XBee
@@ -1142,7 +1164,9 @@ class PacketListener(threading.Thread):
         remote = None
         x64, x16 = self.__get_remote_device_data_from_packet(xbee_packet)
         if x64 is not None or x16 is not None:
-            remote = self.__xbee_device.get_network().add_if_not_exist(x64, x16)
+            remote = self.__xbee_device.get_network()._XBeeNetwork__add_remote(
+                digi.xbee.devices.RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64, x16bit_addr=x16),
+                digi.xbee.devices.NetworkEventReason.RECEIVED_MSG)
         return remote
 
     @staticmethod
