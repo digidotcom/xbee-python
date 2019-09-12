@@ -531,3 +531,61 @@ class RegisterKeyOptions(Enum):
 
 RegisterKeyOptions.lookupTable = {x.code: x for x in RegisterKeyOptions}
 RegisterKeyOptions.__doc__ += utils.doc_enum(RegisterKeyOptions)
+
+
+@unique
+class SocketOption(Enum):
+    """
+    Enumerates the different Socket Options.
+    """
+    TLS_PROFILE = (0x00, "TLS Profile")
+    UNKNOWN = (0xFF, "Unknown")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    def __get_code(self):
+        """
+        Returns the code of the ``SocketOption`` element.
+
+        Returns:
+            Integer: the code of the ``SocketOption`` element.
+        """
+        return self.__code
+
+    def __get_description(self):
+        """
+        Returns the description of the ``SocketOption`` element.
+
+        Returns:
+            String: the description of the ``SocketOption`` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the Socket Option for the given code.
+
+        Args:
+            code (Integer): the code of the Socket Option to get.
+
+        Returns:
+            :class:`.SocketOption`: the ``SocketOption`` with the given code,
+                ``SocketOption.UNKNOWN`` if there is not any option with the provided code.
+        """
+        try:
+            return cls.lookupTable[code]
+        except KeyError:
+            return SocketOption.UNKNOWN
+
+    code = property(__get_code)
+    """Integer. The Socket Option code."""
+
+    description = property(__get_description)
+    """String. The Socket Option description."""
+
+
+SocketOption.lookupTable = {x.code: x for x in SocketOption}
+SocketOption.__doc__ += utils.doc_enum(SocketOption)

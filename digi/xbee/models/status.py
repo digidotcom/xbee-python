@@ -867,3 +867,140 @@ class ZigbeeRegisterStatus(Enum):
 
 ZigbeeRegisterStatus.lookupTable = {x.code: x for x in ZigbeeRegisterStatus}
 ZigbeeRegisterStatus.__doc__ += utils.doc_enum(ZigbeeRegisterStatus)
+
+
+@unique
+class SocketStatus(Enum):
+    """
+    Enumerates the different Socket statuses.
+    """
+    SUCCESS = (0x00, "Operation successful")
+    INVALID_PARAM = (0x01, "Invalid parameters")
+    FAILED_TO_READ = (0x02, "Failed to retrieve option value")
+    CONNECTION_IN_PROGRESS = (0x03, "Connection already in progress")
+    ALREADY_CONNECTED = (0x04, "Already connected/bound/listening")
+    UNKNOWN_ERROR = (0x05, "Unknown error")
+    BAD_SOCKET = (0x20, "Bad socket ID")
+    NOT_REGISTERED = (0x22, "Not registered to cell network")
+    INTERNAL_ERROR = (0x31, "Internal error")
+    RESOURCE_ERROR = (0x32, "Resource error: retry the operation later")
+    INVALID_PROTOCOL = (0x7B, "Invalid protocol")
+    UNKNOWN = (0xFF, "Unknown")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    def __get_code(self):
+        """
+        Returns the code of the ``SocketStatus`` element.
+
+        Returns:
+            Integer: the code of the ``SocketStatus`` element.
+        """
+        return self.__code
+
+    def __get_description(self):
+        """
+        Returns the description of the ``SocketStatus`` element.
+
+        Returns:
+            String: the description of the ``SocketStatus`` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the Socket status for the given code.
+
+        Args:
+            code (Integer): the code of the Socket status to get.
+
+        Returns:
+            :class:`.SocketStatus`: the ``SocketStatus`` with the given code,
+                ``SocketStatus.UNKNOWN`` if there is not any status with the provided code.
+        """
+        try:
+            return cls.lookupTable[code]
+        except KeyError:
+            return SocketStatus.UNKNOWN
+
+    code = property(__get_code)
+    """Integer. The Socket status code."""
+
+    description = property(__get_description)
+    """String. The Socket status description."""
+
+
+SocketStatus.lookupTable = {x.code: x for x in SocketStatus}
+SocketStatus.__doc__ += utils.doc_enum(SocketStatus)
+
+
+@unique
+class SocketState(Enum):
+    """
+    Enumerates the different Socket states.
+    """
+    CONNECTED = (0x00, "Connected")
+    FAILED_DNS = (0x01, "Failed DNS lookup")
+    CONNECTION_REFUSED = (0x02, "Connection refused")
+    TRANSPORT_CLOSED = (0x03, "Transport closed")
+    TIMED_OUT = (0x04, "Timed out")
+    INTERNAL_ERROR = (0x05, "Internal error")
+    HOST_UNREACHABLE = (0x06, "Host unreachable")
+    CONNECTION_LOST = (0x07, "Connection lost")
+    UNKNOWN_ERROR = (0x08, "Unknown error")
+    UNKNOWN_SERVER = (0x09, "Unknown server")
+    RESOURCE_ERROR = (0x0A, "Resource error")
+    LISTENER_CLOSED = (0x0B, "Listener closed")
+    UNKNOWN = (0xFF, "Unknown")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    def __get_code(self):
+        """
+        Returns the code of the ``SocketState`` element.
+
+        Returns:
+            Integer: the code of the ``SocketState`` element.
+        """
+        return self.__code
+
+    def __get_description(self):
+        """
+        Returns the description of the ``SocketState`` element.
+
+        Returns:
+            String: the description of the ``SocketState`` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the Socket state for the given code.
+
+        Args:
+            code (Integer): the code of the Socket state to get.
+
+        Returns:
+            :class:`.SocketState`: the ``SocketState`` with the given code,
+                ``SocketStatus.UNKNOWN`` if there is not any status with the provided code.
+        """
+        try:
+            return cls.lookupTable[code]
+        except KeyError:
+            return SocketState.UNKNOWN
+
+    code = property(__get_code)
+    """Integer. The Socket state code."""
+
+    description = property(__get_description)
+    """String. The Socket state description."""
+
+
+SocketState.lookupTable = {x.code: x for x in SocketState}
+SocketState.__doc__ += utils.doc_enum(SocketState)

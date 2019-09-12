@@ -19,6 +19,7 @@ Submodules
    digi.xbee.packets.network
    digi.xbee.packets.raw
    digi.xbee.packets.relay
+   digi.xbee.packets.socket
    digi.xbee.packets.wifi
    digi.xbee.packets.zigbee
    digi.xbee.packets.factory

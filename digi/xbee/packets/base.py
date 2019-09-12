@@ -79,6 +79,15 @@ class DictKeys(Enum):
     DATA = "data"
     OPTIONS = "options"
     KEY = "key"
+    SOCKET_ID = "socket_id"
+    OPTION_ID = "option_id"
+    OPTION_DATA = "option_data"
+    DEST_ADDR_TYPE = "dest_address_type"
+    DEST_ADDR = "dest_address"
+    PAYLOAD = "payload"
+    CLIENT_SOCKET_ID = "client_socket_id"
+    REMOTE_ADDR = "remote_address"
+    REMOTE_PORT = "remote_port"
 
 
 class XBeePacket:
