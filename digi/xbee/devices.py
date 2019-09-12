@@ -1354,7 +1354,6 @@ class AbstractXBeeDevice(object):
             callback (Function): the callback. Receives two arguments.
 
                 * The received packet as a :class:`digi.xbee.packets.base.XBeeAPIPacket`
-                * The sender as a :class:`.RemoteXBeeDevice`
         """
         self._packet_listener.add_packet_received_callback(callback)
 
@@ -2390,7 +2389,6 @@ class XBeeDevice(AbstractXBeeDevice):
             callback (Function): the callback. Receives two arguments.
 
                 * The received packet as a :class:`digi.xbee.packets.base.XBeeAPIPacket`
-                * The sender as a :class:`.RemoteXBeeDevice`
         """
         super()._add_packet_received_callback(callback)
 

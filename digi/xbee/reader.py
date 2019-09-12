@@ -291,7 +291,6 @@ class PacketListener(threading.Thread):
 
     1. PacketReceived:
         1.1 received_packet (:class:`.XBeeAPIPacket`): the received packet.
-        1.2 sender (:class:`.RemoteXBeeDevice`): the remote XBee device who has sent the packet.
     2. DataReceived
         2.1 message (:class:`.XBeeMessage`): message containing the data received, the sender and the time.
     3. ModemStatusReceived
@@ -469,7 +468,6 @@ class PacketListener(threading.Thread):
             callback (Function or List of functions): the callback. Receives two arguments.
 
                 * The received packet as a :class:`.XBeeAPIPacket`
-                * The sender as a :class:`.RemoteXBeeDevice`
         """
         if isinstance(callback, list):
             self.__packet_received.extend(callback)
