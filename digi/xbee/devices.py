@@ -1212,7 +1212,7 @@ class AbstractXBeeDevice(object):
         self.apply_changes()
 
     def update_firmware(self, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
-                        progress_callback=None):
+                        timeout=None, progress_callback=None):
         """
         Performs a firmware update operation of the device.
 
@@ -1220,6 +1220,7 @@ class AbstractXBeeDevice(object):
             xml_firmware_file (String): path of the XML file that describes the firmware to upload.
             xbee_firmware_file (String, optional): location of the XBee binary firmware file.
             bootloader_firmware_file (String, optional): location of the bootloader binary firmware file.
+            timeout (Integer, optional): the maximum time to wait for target read operations during the update process.
             progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                     arguments:
 
@@ -1234,19 +1235,28 @@ class AbstractXBeeDevice(object):
         """
         from digi.xbee import firmware
 
-        if not self._serial_port:
-            raise OperationNotSupportedException("Firmware update is only supported in local XBee connected by serial.")
-        if not self._serial_port.is_open:
-            raise XBeeException("XBee device's serial port closed.")
-        if self._operating_mode != OperatingMode.API_MODE and self._operating_mode != OperatingMode.ESCAPED_API_MODE:
-            raise InvalidOperatingModeException(op_mode=self._operating_mode)
-
         if self.get_hardware_version() and self.get_hardware_version().code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
             raise OperationNotSupportedException("Firmware update is only supported in XBee3 devices")
-        firmware.update_local_firmware(self, xml_firmware_file,
-                                       progress_callback=progress_callback,
-                                       xbee_firmware_file=xbee_firmware_file,
-                                       bootloader_firmware_file=bootloader_firmware_file)
+        if self.is_remote():
+            firmware.update_remote_firmware(self, xml_firmware_file,
+                                            ota_firmware_file=xbee_firmware_file,
+                                            otb_firmware_file=bootloader_firmware_file,
+                                            timeout=timeout,
+                                            progress_callback=progress_callback)
+        else:
+            if self._operating_mode != OperatingMode.API_MODE and \
+                    self._operating_mode != OperatingMode.ESCAPED_API_MODE:
+                raise InvalidOperatingModeException(op_mode=self._operating_mode)
+            if not self._serial_port:
+                raise OperationNotSupportedException("Firmware update is only supported in local XBee connected by "
+                                                     "serial.")
+            if not self._serial_port.is_open:
+                raise XBeeException("XBee device's serial port closed.")
+            firmware.update_local_firmware(self, xml_firmware_file,
+                                           xbee_firmware_file=xbee_firmware_file,
+                                           bootloader_firmware_file=bootloader_firmware_file,
+                                           timeout=timeout,
+                                           progress_callback=progress_callback)
 
     def _autodetect_device(self):
         """
