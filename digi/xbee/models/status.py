@@ -988,7 +988,7 @@ class SocketState(Enum):
 
         Returns:
             :class:`.SocketState`: the ``SocketState`` with the given code,
-                ``SocketStatus.UNKNOWN`` if there is not any status with the provided code.
+                ``SocketState.UNKNOWN`` if there is not any status with the provided code.
         """
         try:
             return cls.lookupTable[code]
@@ -1004,3 +1004,83 @@ class SocketState(Enum):
 
 SocketState.lookupTable = {x.code: x for x in SocketState}
 SocketState.__doc__ += utils.doc_enum(SocketState)
+
+
+@unique
+class SocketInfoState(Enum):
+    """
+    Enumerates the different Socket info states.
+    """
+    ALLOCATED = (0x00, "Allocated")
+    CONNECTING = (0x01, "Connecting")
+    CONNECTED = (0x02, "Connected")
+    LISTENING = (0x03, "Listening")
+    BOUND = (0x04, "Bound")
+    CLOSING = (0x05, "Closing")
+    UNKNOWN = (0xFF, "Unknown")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    def __get_code(self):
+        """
+        Returns the code of the ``SocketInfoState`` element.
+
+        Returns:
+            Integer: the code of the ``SocketInfoState`` element.
+        """
+        return self.__code
+
+    def __get_description(self):
+        """
+        Returns the description of the ``SocketInfoState`` element.
+
+        Returns:
+            String: the description of the ``SocketInfoState`` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the Socket info state for the given code.
+
+        Args:
+            code (Integer): the code of the Socket info state to get.
+
+        Returns:
+            :class:`.SocketInfoState`: the ``SocketInfoState`` with the given code,
+                ``SocketInfoState.UNKNOWN`` if there is not any state with the provided code.
+        """
+        try:
+            return cls.lookupTable[code]
+        except KeyError:
+            return SocketInfoState.UNKNOWN
+
+    @classmethod
+    def get_by_description(cls, description):
+        """
+        Returns the Socket info state for the given description.
+
+        Args:
+            description (String): the description of the Socket info state to get.
+
+        Returns:
+            :class:`.SocketInfoState`: the ``SocketInfoState`` with the given description,
+                ``SocketInfoState.UNKNOWN`` if there is not any state with the provided description.
+        """
+        for x in SocketInfoState:
+            if x.description.lower() == description.lower():
+                return x
+        return SocketInfoState.UNKNOWN
+
+    code = property(__get_code)
+    """Integer. The Socket info state code."""
+
+    description = property(__get_description)
+    """String. The Socket info state description."""
+
+
+SocketInfoState.lookupTable = {x.code: x for x in SocketInfoState}
+SocketInfoState.__doc__ += utils.doc_enum(SocketInfoState)

@@ -23,9 +23,9 @@ class per protocol, as follows:
 * XBee DigiMesh device (``DigiMeshDevice``)
 * XBee Point-to-multipoint device (``DigiPointDevice``)
 * XBee IP devices (This is a non-instantiable class)
-    * XBee Cellular device (``CellularDevice``)
-        * XBee Cellular NB-IoT device (``NBIoTDevice``)
-    * XBee Wi-Fi device (``WiFiDevice``)
+
+  * XBee Cellular device (``CellularDevice``)
+  * XBee Wi-Fi device (``WiFiDevice``)
 
 All these XBee device classes allow you to configure the physical XBee device,
 communicate with the device, send data to other nodes on the network, receive
@@ -75,8 +75,6 @@ table:
 | CellularDevice  | Cellular protocol                    |
 +-----------------+--------------------------------------+
 | WiFiDevice      | Wi-Fi protocol                       |
-+-----------------+--------------------------------------+
-| NBIoTDevice     | Cellular NB-IoT protocol             |
 +-----------------+--------------------------------------+
 
 To instantiate a generic or protocol-specific XBee device, you need to provide

@@ -29,6 +29,7 @@ from digi.xbee.models.atcomm import ATCommandResponse, ATCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, XBeeIMEIAddress
+from digi.xbee.models.info import SocketInfo
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage
 from digi.xbee.models.options import TransmitOptions, RemoteATCmdOptions, DiscoveryOptions, XBeeLocalInterface, \
     RegisterKeyOptions
@@ -176,12 +177,13 @@ class AbstractXBeeDevice(object):
         if addr16 is not None and addr16 != self._16bit_addr:
             self._16bit_addr = addr16
 
-    def get_parameter(self, parameter):
+    def get_parameter(self, parameter, parameter_value=None):
         """
         Returns the value of the provided parameter via an AT Command.
 
         Args:
             parameter (String): parameter to get.
+            parameter_value (Bytearray, optional): The value of the parameter to execute (if any).
 
         Returns:
             Bytearray: the parameter value.
@@ -193,9 +195,9 @@ class AbstractXBeeDevice(object):
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
         """
-        value = self.__send_parameter(parameter)
+        value = self.__send_parameter(parameter, parameter_value=parameter_value)
 
-        # Check if the response is null, if so throw an exception (maybe it was a write-only parameter).
+        # Check if the response is None, if so throw an exception (maybe it was a write-only parameter).
         if value is None:
             raise OperationNotSupportedException(message="Could not get the %s value." % parameter)
 
@@ -244,6 +246,9 @@ class AbstractXBeeDevice(object):
     def execute_command(self, parameter):
         """
         Executes the provided command.
+
+        Args:
+            parameter (String): The name of the AT command to be executed.
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
@@ -1372,7 +1377,7 @@ class AbstractXBeeDevice(object):
         """
         self._packet_listener.del_packet_received_callback(callback)
 
-    def _send_packet_sync_and_get_response(self, packet_to_send):
+    def _send_packet_sync_and_get_response(self, packet_to_send, timeout=None):
         """
         Perform all operations needed for a synchronous operation when the packet
         listener is online. This operations are:
@@ -1397,6 +1402,8 @@ class AbstractXBeeDevice(object):
 
         Args:
             packet_to_send (:class:`.XBeePacket`): the packet to send.
+            timeout (Integer, optional): timeout to wait. If no timeout is provided, the default one is used. To wait
+                indefinitely, set to ``-1``.
 
         Returns:
             :class:`.XBeePacket`: the response packet obtained after sending the provided one.
@@ -1418,25 +1425,54 @@ class AbstractXBeeDevice(object):
                     return
                 # If the packet sent is an AT command, verify that the received one is an AT command response and
                 # the command matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.AT_COMMAND:
-                    if received_packet.get_frame_type() != ApiFrameType.AT_COMMAND_RESPONSE:
-                        return
-                    if packet_to_send.command != received_packet.command:
-                        return
+                if packet_to_send.get_frame_type() == ApiFrameType.AT_COMMAND \
+                        and (received_packet.get_frame_type() != ApiFrameType.AT_COMMAND_RESPONSE
+                             or packet_to_send.command != received_packet.command):
+                    return
                 # If the packet sent is a remote AT command, verify that the received one is a remote AT command
                 # response and the command matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
-                    if received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
-                        return
-                    if packet_to_send.command != received_packet.command:
-                        return
+                if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST \
+                        and (received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
+                             or packet_to_send.command != received_packet.command):
+                    return
+                # If the packet sent is a Socket Create, verify that the received one is a Socket Create Response.
+                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_CREATE \
+                        and received_packet.get_frame_type() != ApiFrameType.SOCKET_CREATE_RESPONSE:
+                    return
+                # If the packet sent is a Socket Option Request, verify that the received one is a Socket Option
+                # Response and the socket ID matches in both packets.
+                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_OPTION_REQUEST \
+                        and (received_packet.get_frame_type() != ApiFrameType.SOCKET_OPTION_RESPONSE
+                             or packet_to_send.socket_id != received_packet.socket_id):
+                    return
+                # If the packet sent is a Socket Connect, verify that the received one is a Socket Connect Response
+                # and the socket ID matches in both packets.
+                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_CONNECT \
+                        and (received_packet.get_frame_type() != ApiFrameType.SOCKET_CONNECT_RESPONSE
+                             or packet_to_send.socket_id != received_packet.socket_id):
+                    return
+                # If the packet sent is a Socket Close, verify that the received one is a Socket Close Response
+                # and the socket ID matches in both packets.
+                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_CLOSE \
+                        and (received_packet.get_frame_type() != ApiFrameType.SOCKET_CLOSE_RESPONSE
+                             or packet_to_send.socket_id != received_packet.socket_id):
+                    return
+                # If the packet sent is a Socket Bind, verify that the received one is a Socket Listen Response
+                # and the socket ID matches in both packets.
+                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_BIND \
+                        and (received_packet.get_frame_type() != ApiFrameType.SOCKET_LISTEN_RESPONSE
+                             or packet_to_send.socket_id != received_packet.socket_id):
+                    return
                 # Verify that the sent packet is not the received one! This can happen when the echo mode is enabled
                 # in the serial port.
-                if not packet_to_send == received_packet:
-                    response_list.append(received_packet)
-                    lock.acquire()
-                    lock.notify()
-                    lock.release()
+                if packet_to_send == received_packet:
+                    return
+
+                # Add the received packet to the list and notify the lock.
+                response_list.append(received_packet)
+                lock.acquire()
+                lock.notify()
+                lock.release()
 
         # Add the packet received callback.
         self._add_packet_received_callback(packet_received_callback)
@@ -1446,7 +1482,10 @@ class AbstractXBeeDevice(object):
             self._send_packet(packet_to_send)
             # Wait for response or timeout.
             lock.acquire()
-            lock.wait(self._timeout)
+            if timeout == -1:
+                lock.wait()
+            else:
+                lock.wait(self._timeout if timeout is None else timeout)
             lock.release()
             # After the wait check if we received any response, if not throw timeout exception.
             if not response_list:
@@ -1746,14 +1785,14 @@ class XBeeDevice(AbstractXBeeDevice):
         return self._serial_port
 
     @AbstractXBeeDevice._before_send_method
-    def get_parameter(self, param):
+    def get_parameter(self, param, parameter_value=None):
         """
         Override.
 
         .. seealso::
            | :meth:`.AbstractXBeeDevice.get_parameter`
         """
-        return super().get_parameter(param)
+        return super().get_parameter(param, parameter_value=parameter_value)
 
     @AbstractXBeeDevice._before_send_method
     def set_parameter(self, param, value):
@@ -2483,6 +2522,45 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_micropython_data_received_callback(callback)
 
+    def add_socket_state_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`digi.xbee.reader.SocketStateReceived`.
+
+        Args:
+            callback (Function): the callback. Receives two arguments.
+
+                * The socket ID as an Integer.
+                * The state received as a :class:`.SocketState`
+        """
+        self._packet_listener.add_socket_state_received_callback(callback)
+
+    def add_socket_data_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`digi.xbee.reader.SocketDataReceived`.
+
+        Args:
+            callback (Function): the callback. Receives two arguments.
+
+                * The socket ID as an Integer.
+                * The data received as Bytearray
+        """
+        self._packet_listener.add_socket_data_received_callback(callback)
+
+    def add_socket_data_received_from_callback(self, callback):
+        """
+        Adds a callback for the event :class:`digi.xbee.reader.SocketDataReceivedFrom`.
+
+        Args:
+            callback (Function): the callback. Receives three arguments.
+
+                * The socket ID as an Integer.
+                * A pair (host, port) of the source address where host is a string
+                    representing an IPv4 address like '100.50.200.5', and port is an
+                    integer.
+                * The data received as Bytearray
+        """
+        self._packet_listener.add_socket_data_received_from_callback(callback)
+
     def del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.PacketReceived` event.
@@ -2592,6 +2670,48 @@ class XBeeDevice(AbstractXBeeDevice):
                 :class:`digi.xbee.reader.MicroPythonDataReceived` event.
         """
         self._packet_listener.del_micropython_data_received_callback(callback)
+
+    def del_socket_state_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`digi.xbee.reader.SocketStateReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.SocketStateReceived` event.
+        """
+        self._packet_listener.del_socket_state_received_callback(callback)
+
+    def del_socket_data_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`digi.xbee.reader.SocketDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.SocketDataReceived` event.
+        """
+        self._packet_listener.del_socket_data_received_callback(callback)
+
+    def del_socket_data_received_from_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`digi.xbee.reader.SocketDataReceivedFrom` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`digi.xbee.reader.SocketDataReceivedFrom` event.
+        """
+        self._packet_listener.del_socket_data_received_from_callback(callback)
 
     def get_xbee_device_callbacks(self):
         """
@@ -2927,14 +3047,14 @@ class XBeeDevice(AbstractXBeeDevice):
                 self._log.exception(ste)
         return OperatingMode.UNKNOWN
 
-    def send_packet_sync_and_get_response(self, packet_to_send):
+    def send_packet_sync_and_get_response(self, packet_to_send, timeout=None):
         """
         Override method.
 
         .. seealso::
            | :meth:`.AbstractXBeeDevice._send_packet_sync_and_get_response`
         """
-        return super()._send_packet_sync_and_get_response(packet_to_send)
+        return super()._send_packet_sync_and_get_response(packet_to_send, timeout=timeout)
 
     def send_packet(self, packet, sync=False):
         """
@@ -4544,6 +4664,47 @@ class CellularDevice(IPDevice):
         xbee_packet = TXSMSPacket(self.get_next_frame_id(), phone_number, data)
 
         self.send_packet(xbee_packet)
+
+    def get_sockets_list(self):
+        """
+        Returns a list with the IDs of all active (open) sockets.
+
+        Returns:
+            List: list with the IDs of all active (open) sockets, or empty list if there is not any active socket.
+
+        Raises:
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+        """
+        response = self.get_parameter("SI")
+        return SocketInfo.parse_socket_list(response)
+
+    def get_socket_info(self, socket_id):
+        """
+        Returns the information of the socket with the given socket ID.
+
+        Args:
+            socket_id (Integer): ID of the socket.
+
+        Returns:
+            :class:`.SocketInfo`: The socket information, or ``None`` if the socket with that ID does not exist.
+
+        Raises:
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+
+        .. seealso::
+           | :class:`.SocketInfo`
+        """
+        try:
+            response = self.get_parameter("SI", parameter_value=utils.int_to_bytes(socket_id, 1))
+            return SocketInfo.create_socket_info(response)
+        except ATCommandException:
+            return None
 
     def get_64bit_addr(self):
         """

@@ -270,6 +270,51 @@ class MicroPythonDataReceived(XBeeEvent):
     pass
 
 
+class SocketStateReceived(XBeeEvent):
+    """
+    This event is fired when an XBee receives a socket state packet.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. socket_id (Integer): socket ID for state reported.
+        2. state (:class:`.SocketState`): received state.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
+class SocketDataReceived(XBeeEvent):
+    """
+    This event is fired when an XBee receives a socket receive data packet.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. socket_id (Integer): ID of the socket that received the data.
+        2. payload (Bytearray): received data.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
+class SocketDataReceivedFrom(XBeeEvent):
+    """
+    This event is fired when an XBee receives a socket receive from data packet.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. socket_id (Integer): ID of the socket that received the data.
+        2. address (Tuple): a pair (host, port) of the source address where
+            host is a string representing an IPv4 address like '100.50.200.5',
+            and port is an integer.
+        3. payload (Bytearray): received data.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class PacketListener(threading.Thread):
     """
     This class represents a packet listener, which is a thread that's always
@@ -336,6 +381,9 @@ class PacketListener(threading.Thread):
         self.__relay_data_received = RelayDataReceived()
         self.__bluetooth_data_received = BluetoothDataReceived()
         self.__micropython_data_received = MicroPythonDataReceived()
+        self.__socket_state_received = SocketStateReceived()
+        self.__socket_data_received = SocketDataReceived()
+        self.__socket_data_received_from = SocketDataReceivedFrom()
 
         # API internal callbacks:
         self.__packet_received_API = xbee_device.get_xbee_device_callbacks()
@@ -602,6 +650,53 @@ class PacketListener(threading.Thread):
         elif callback:
             self.__micropython_data_received += callback
 
+    def add_socket_state_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.SocketStateReceived`.
+
+        Args:
+            callback (Function or List of functions): the callback. Receives two arguments.
+
+                * The socket ID as an Integer.
+                * The state received as a :class:`.SocketState`
+        """
+        if isinstance(callback, list):
+            self.__socket_state_received.extend(callback)
+        elif callback:
+            self.__socket_state_received += callback
+
+    def add_socket_data_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.SocketDataReceived`.
+
+        Args:
+            callback (Function or List of functions): the callback. Receives two arguments.
+
+                * The socket ID as an Integer.
+                * The status received as a :class:`.SocketStatus`
+        """
+        if isinstance(callback, list):
+            self.__socket_data_received.extend(callback)
+        elif callback:
+            self.__socket_data_received += callback
+
+    def add_socket_data_received_from_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.SocketDataReceivedFrom`.
+
+        Args:
+            callback (Function or List of functions): the callback. Receives three arguments.
+
+                * The socket ID as an Integer.
+                * A pair (host, port) of the source address where host is a string representing an IPv4 address
+                    like '100.50.200.5', and port is an integer.
+                * The status received as a :class:`.SocketStatus`
+        """
+        if isinstance(callback, list):
+            self.__socket_data_received_from.extend(callback)
+        elif callback:
+            self.__socket_data_received_from += callback
+
     def del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.PacketReceived` event.
@@ -729,6 +824,45 @@ class PacketListener(threading.Thread):
                 :class:`.MicroPythonDataReceived` event.
         """
         self.__micropython_data_received -= callback
+
+    def del_socket_state_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.SocketStateReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.SocketStateReceived` event.
+        """
+        self.__socket_state_received -= callback
+
+    def del_socket_data_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.SocketDataReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.SocketDataReceived` event.
+        """
+        self.__socket_data_received -= callback
+
+    def del_socket_data_received_from_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.SocketDataReceivedFrom` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.SocketDataReceivedFrom` event.
+        """
+        self.__socket_data_received_from -= callback
 
     def get_packet_received_callbacks(self):
         """
@@ -918,6 +1052,35 @@ class PacketListener(threading.Thread):
                                                     fr_type="RELAY DATA",
                                                     sender=xbee_packet.src_interface.description,
                                                     more_data=utils.hex_to_string(xbee_packet.data)))
+
+        # Socket state
+        elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_STATE:
+            self.__socket_state_received(xbee_packet.socket_id, xbee_packet.state)
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+                                                    event="RECEIVED",
+                                                    fr_type="SOCKET STATE",
+                                                    sender=str(xbee_packet.socket_id),
+                                                    more_data=xbee_packet.state))
+
+        # Socket receive data
+        elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_RECEIVE:
+            self.__socket_data_received(xbee_packet.socket_id, xbee_packet.payload)
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+                                                    event="RECEIVED",
+                                                    fr_type="SOCKET DATA",
+                                                    sender=str(xbee_packet.socket_id),
+                                                    more_data=utils.hex_to_string(xbee_packet.payload)))
+
+        # Socket receive data from
+        elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_RECEIVE_FROM:
+            address = (str(xbee_packet.source_address), xbee_packet.source_port)
+            self.__socket_data_received_from(xbee_packet.socket_id, address, xbee_packet.payload)
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
+                                                    event="RECEIVED",
+                                                    fr_type="SOCKET DATA",
+                                                    sender=str(xbee_packet.socket_id),
+                                                    more_data="%s - %s" % (address,
+                                                                           utils.hex_to_string(xbee_packet.payload))))
 
     def __read_next_byte(self, operating_mode):
         """

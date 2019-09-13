@@ -921,6 +921,8 @@ callback.
   mechanism, you also receive the message through both methods.
 
 
+.. _communicateSendReceiveIPData:
+
 Send and receive IP data
 ------------------------
 
@@ -933,10 +935,10 @@ with other Internet-connected devices. It allows sending and receiving data
 specifying the destination IP address, port, and protocol (TCP, TCP SSL or UDP).
 
 .. warning::
-  Only Cellular, NB-IoT, and Wi-Fi protocols support the transmission and
-  reception of IP data. This means you cannot transmit or receive IP data using
-  a generic ``XBeeDevice`` object; you must use the protocol-specific XBee
-  device objects ``CellularDevice`` or ``WiFiDevice``.
+  Only Cellular and Wi-Fi protocols support the transmission and reception of IP
+  data. This means you cannot transmit or receive IP data using a generic
+  ``XBeeDevice`` object; you must use the protocol-specific XBee device objects
+  ``CellularDevice`` or ``WiFiDevice``.
 
 * :ref:`communicateSendIPData`
 * :ref:`communicateReceiveIPData`
@@ -957,18 +959,14 @@ The synchronous data transmission is a blocking operation; that is, the method
 waits until it either receives the transmit status response or it reaches the
 default timeout.
 
-The ``CellularDevice``, ``NBIoTDevice``, and ``WiFiDevice`` classes include
-several methods to transmit IP data synchronously:
+The ``CellularDevice`` and ``WiFiDevice`` classes include several methods to
+transmit IP data synchronously:
 
 +----------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                                                           | Description                                                                                                                                                                                                 |
 +==================================================================================+=============================================================================================================================================================================================================+
 | **send_ip_data(IPv4Address, Integer, IPProtocol, String or Bytearray, Boolean)** | Specifies the destination IP address, destination port, IP protocol (UDP, TCP or TCP SSL), data to send for transmissions and whether the socket should be closed after the transmission or not (optional). |
 +----------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-.. note::
-  NB-IoT modules only support UDP transmissions, so make sure you use that
-  protocol when calling the previous methods.
 
 **Send network data synchronously**
 
@@ -1032,18 +1030,14 @@ Transmitting IP data asynchronously means that your application does not block
 during the transmit process. However, you cannot ensure that the data was
 successfully sent.
 
-The ``CellularDevice``, ``NBIoTDevice``, and ``WiFiDevice`` classes include
-several methods to transmit IP data asynchronously:
+The ``CellularDevice`` and ``WiFiDevice`` classes include several methods to
+transmit IP data asynchronously:
 
 +----------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                                                                 | Description                                                                                                                                                                                                 |
 +========================================================================================+=============================================================================================================================================================================================================+
 | **send_ip_data_async(IPv4Address, Integer, IPProtocol, String or Bytearray, Boolean)** | Specifies the destination IP address, destination port, IP protocol (UDP, TCP or TCP SSL), data to send for transmissions and whether the socket should be closed after the transmission or not (optional). |
 +----------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-.. note::
-  NB-IoT modules only support UDP transmissions, so make sure you use that
-  protocol when calling the previous methods.
 
 **Send network data asynchronously**
 
@@ -1866,3 +1860,198 @@ already-registered listener.
 |                                                                                                                                                                                                           |
 | **examples/communication/ReceiveModemStatusSample**                                                                                                                                                       |
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+
+.. _communicateXBeeSockets:
+
+Communicate using XBee sockets
+------------------------------
+
+Starting from firmware versions \*13, the XBee Cellular product line includes a
+new set of frames to communicate with other Internet-connected devices using
+sockets.
+
+The XBee Python Library provides several methods that allow you to create,
+connect, bind and close a socket, as well as send and receive data with it. You
+can use this API where the existing methods listed in the
+:ref:`communicateSendReceiveIPData` section limit the possibilities for an
+application.
+
+.. warning::
+  Only the Cellular protocol supports the use of XBee sockets. This means you
+  cannot use this API with a generic ``XBeeDevice`` object; you must use the
+  protocol-specific XBee device object ``CellularDevice``.
+
+The XBee socket API is available through the ``socket`` class of the
+``digi.xbee.xsocket`` module.
+
+
+Create an XBee socket
+`````````````````````
+
+Before working with an XBee socket to communicate with other devices, you have
+to instantiate a ``socket`` object in order to create it. To do so, you need to
+provide the following parameters:
+
+* XBee Cellular device object used to work with the socket.
+* IP protocol of the socket (optional). It can be ``IPProtocol.TCP`` (default),
+  ``IPProtocol.UDP`` or ``IPProtocol.TCP_SSL``.
+
+**Create an XBee socket**
+
+.. code:: python
+
+  from digi.xbee import xsocket
+  from digi.xbee.devices import CellularDevice
+  from digi.xbee.models.protocol import IPProtocol
+
+  # Create and open an XBee Cellular device.
+  device = CellularDevice("COM1", 9600)
+  device.open()
+
+  # Create a new XBee socket.
+  sock = xsocket.socket(device, IPProtocol.TCP)
+
+
+Work with an XBee socket
+````````````````````````
+
+Once the XBee socket is created, you can work with it to behave as a client
+or a server. The API offers the following methods:
+
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Method                                  | Description                                                                                                                                                                                                                                                                                                                                         |
++=========================================+=====================================================================================================================================================================================================================================================================================================================================================+
+| **connect(Tuple)**                      | Connects to a remote socket at the provided address. The address must be a pair ``(host, port)``, where *host* is the domain name or string representation of an IPv4 and *port* is the numeric port value.                                                                                                                                         |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **close()**                             | Closes the socket.                                                                                                                                                                                                                                                                                                                                  |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **bind(Tuple)**                         | Binds the socket to the provided address. The address must be a pair ``(host, port)``, where *host* is the local interface (not used) and *port* is the numeric port value. The socket must not already be bound.                                                                                                                                   |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **listen(Integer)**                     | Enables a server to accept connections.                                                                                                                                                                                                                                                                                                             |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **accept()**                            | Accepts a connection. The socket must be bound to an address and listening for connections. The return value is a pair ``(conn, address)`` where *conn* is a new socket object usable to send and receive data on the connection, and *address* is a pair ``(host, port)`` with the address bound to the socket on the other end of the connection. |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **send(Bytearray)**                     | Sends the provided data to the socket. The socket must be connected to a remote socket.                                                                                                                                                                                                                                                             |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **sendto(Bytearray, Tuple)**            | Sends the provided data to the socket. The socket should not be connected to a remote socket, since the destination socket is specified by *address* (a pair ``(host, port)``).                                                                                                                                                                     |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **recv(Integer)**                       | Receives data from the socket, specifying the maximum amount of data to be received at once. The return value is a bytearray object representing the data received.                                                                                                                                                                                 |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **recvfrom(Integer)**                   | Receives data from the socket, specifying the maximum amount of data to be received at once. The return value is a pair ``(bytes, address)`` where *bytes* is a bytearray object representing the data received and *address* is the address of the socket sending the data(a pair ``(host, port)``).                                               |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **getsockopt(SocketOption)**            | Returns the value of the provided socket option.                                                                                                                                                                                                                                                                                                    |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **setsockopt(SocketOption, Bytearray)** | Sets the value of the provided socket option.                                                                                                                                                                                                                                                                                                       |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **gettimeout()**                        | Returns the configured socket timeout in seconds.                                                                                                                                                                                                                                                                                                   |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **settimeout(Integer)**                 | Sets the socket timeout in seconds.                                                                                                                                                                                                                                                                                                                 |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **getblocking()**                       | Returns whether the socket is in blocking mode or not.                                                                                                                                                                                                                                                                                              |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **setblocking(Boolean)**                | Sets the socket in blocking or non-blocking mode. In blocking mode, operations block until complete or the system returns an error. In non-blocking mode, operations fail if they cannot be completed within the configured timeout.                                                                                                                |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **get_sock_info()**                     | Returns the information of the socket, including the socket ID, state, protocol, local port, remote port and remote address.                                                                                                                                                                                                                        |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **add_socket_state_callback(Function)** | Adds the provided callback to be notified when a new socket state is received.                                                                                                                                                                                                                                                                      |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **del_socket_state_callback(Function)** | Deletes the provided socket state callback.                                                                                                                                                                                                                                                                                                         |
++-----------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+
+Client sockets
+''''''''''''''
+
+When the socket acts as a client, you just have to create and connect the
+socket before sending or receiving data with a remote host.
+
+**Work with an XBee socket as client**
+
+.. code:: python
+
+  [...]
+
+  HOST = "numbersapi.com"
+  PORT = "80"
+  REQUEST = "GET /random/trivia HTTP/1.1\r\nHost: numbersapi.com\r\n\r\n"
+
+  # Create and open an XBee Cellular device.
+  device = CellularDevice("COM1", 9600)
+  device.open()
+
+  # Create a new XBee socket.
+  with xsocket.socket(device, IPProtocol.TCP) as sock:
+      # Connect the socket.
+      sock.connect((HOST, PORT))
+
+      # Send an HTTP request.
+      sock.send(REQUEST.encode("utf8"))
+
+      # Receive and print the response.
+      data = sock.recv(1024)
+      print(data.decode("utf8"))
+
+
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Create a TCP client socket                                                                                                                                         |
++=============================================================================================================================================================================+
+| The XBee Python Library includes a sample application that shows you how to create a TCP client socket to send HTTP requests. The example is located in the following path: |
+|                                                                                                                                                                             |
+| **examples/communication/socket/SocketTCPClientSample**                                                                                                                     |
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+
+Server sockets
+''''''''''''''
+
+When the socket acts as a server, you must create the socket and then perform
+the sequence ``bind()``, ``listen()``, ``accept()``.
+
+**Work with an XBee socket as server**
+
+.. code:: python
+
+  [...]
+
+  PORT = "1234"
+
+  # Create and open an XBee Cellular device.
+  device = CellularDevice("COM1", 9600)
+  device.open()
+
+  # Create a new XBee socket.
+  with xsocket.socket(device, IPProtocol.TCP) as sock:
+      # Bind the socket to the local port.
+      sock.bind((None, PORT))
+
+      # Listen for new connections.
+      sock.listen()
+
+      # Accept new connections.
+      conn, addr = sock.accept()
+
+      with conn:
+          print("Connected by %s", str(addr))
+          while True:
+              # Print the received data (if any).
+              data = conn.recv(1024)
+              if data:
+                  print(data.decode("utf8"))
+
+
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Create a TCP server socket                                                                                                                                                  |
++=============================================================================================================================================================================================+
+| The XBee Python Library includes a sample application that shows you how to create a TCP server socket to receive data from incoming sockets. The example is located in the following path: |
+|                                                                                                                                                                                             |
+| **examples/communication/socket/SocketTCPServerSample**                                                                                                                                     |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Create a UDP server/client socket                                                                                                                                                                                |
++===========================================================================================================================================================================================================================+
+| The XBee Python Library includes a sample application that shows how to create a UDP socket to deliver messages to a server and listen for data coming from multiple peers. The example is located in the following path: |
+|                                                                                                                                                                                                                           |
+| **examples/communication/socket/SocketUDPServerClientSample**                                                                                                                                                             |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+

@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -163,3 +163,19 @@ class TransmitException(CommunicationException):
     def __init__(self, message=__DEFAULT_MESSAGE, transmit_status=None):
         super().__init__(message)
         self.status = transmit_status
+
+
+class XBeeSocketException(XBeeException):
+    """
+    This exception will be thrown when there is an error performing any socket operation.
+
+    All functionality of this class is the inherited of `Exception
+    <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
+    """
+    __DEFAULT_MESSAGE = "There was a socket error"
+    __DEFAULT_STATUS_MESSAGE = "There was a socket error: %s (%d)"
+
+    def __init__(self, message=__DEFAULT_MESSAGE, status=None):
+        super().__init__(self.__DEFAULT_STATUS_MESSAGE % (status.description, status.code) if status is not None else
+                         message)
+        self.status = status

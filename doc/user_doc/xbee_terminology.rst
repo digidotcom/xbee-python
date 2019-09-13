@@ -63,7 +63,6 @@ Following is the complete list of protocols supported by the XBee radio modules:
 * Point-to-multipoint (Digi proprietary)
 * XSC (XStream compatibility)
 * Cellular
-* Cellular NB-IoT
 * Thread
 
 .. image:: ../images/concepts_protocol.png

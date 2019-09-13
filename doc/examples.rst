@@ -498,6 +498,48 @@ You can find the example at the following path:
    :ref:`communicateSendIPData` and :ref:`communicateReceiveIPData`.
 
 
+Create a TCP client socket (cellular devices)
+`````````````````````````````````````````````
+
+This sample application shows how to create a TCP client socket to send HTTP
+requests.
+
+You can find the example at the following path:
+**examples/communication/socket/SocketTCPClientSample**
+
+.. note::
+   For more information about how to use the XBee socket API, see
+   :ref:`communicateXBeeSockets`.
+
+
+Create a TCP server socket (cellular devices)
+`````````````````````````````````````````````
+
+This sample application shows how to create a TCP server socket to receive data
+from incoming sockets.
+
+You can find the example at the following path:
+**examples/communication/socket/SocketTCPServerSample**
+
+.. note::
+   For more information about how to use the XBee socket API, see
+   :ref:`communicateXBeeSockets`.
+
+
+Create a UDP server/client socket (cellular devices)
+````````````````````````````````````````````````````
+
+This sample application shows how to create a UDP socket to deliver messages to
+a server and listen for data coming from multiple peers.
+
+You can find the example at the following path:
+**examples/communication/socket/SocketUDPServerClientSample**
+
+.. note::
+   For more information about how to use the XBee socket API, see
+   :ref:`communicateXBeeSockets`.
+
+
 .. _samplesIO:
 
 IO samples

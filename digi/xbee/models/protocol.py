@@ -279,7 +279,7 @@ class IPProtocol(Enum):
 
     UDP = (0, "UDP")
     TCP = (1, "TCP")
-    TCP_SSL = (4, "TCP SSL")
+    TCP_SSL = (4, "TLS")
 
     def __init__(self, code, description):
         self.__code = code
@@ -319,6 +319,23 @@ class IPProtocol(Enum):
             return cls.lookupTable[code]
         except KeyError:
             return None
+
+    @classmethod
+    def get_by_description(cls, description):
+        """
+        Returns the IP Protocol for the given description.
+
+        Args:
+            description (String): the description of the IP Protocol to get.
+
+        Returns:
+            :class:`.IPProtocol`: IP protocol for the given description or ``None`` if there
+                is not any ``IPProtocol`` with the given description.
+        """
+        for x in IPProtocol:
+            if x.description.lower() == description.lower():
+                return x
+        return None
 
     code = property(__get_code)
     """Integer: IP protocol code."""
