@@ -3382,7 +3382,7 @@ class Raw802Device(XBeeDevice):
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
                          flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
-    def open(self):
+    def open(self, force_settings=False):
         """
         Override.
         
@@ -3393,7 +3393,7 @@ class Raw802Device(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.open`
         """
-        super().open()
+        super().open(force_settings=force_settings)
         if not self.is_remote() and self.get_protocol() != XBeeProtocol.RAW_802_15_4:
             raise XBeeException("Invalid protocol.")
 
@@ -3497,7 +3497,7 @@ class DigiMeshDevice(XBeeDevice):
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
                          flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
-    def open(self):
+    def open(self, force_settings=False):
         """
         Override.
 
@@ -3508,7 +3508,7 @@ class DigiMeshDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.open`
         """
-        super().open()
+        super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.DIGI_MESH:
             raise XBeeException("Invalid protocol.")
 
@@ -3638,7 +3638,7 @@ class DigiPointDevice(XBeeDevice):
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
                          flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=None)
 
-    def open(self):
+    def open(self, force_settings=False):
         """
         Override.
 
@@ -3649,7 +3649,7 @@ class DigiPointDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.open`
         """
-        super().open()
+        super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.DIGI_POINT:
             raise XBeeException("Invalid protocol.")
 
@@ -3778,7 +3778,7 @@ class ZigBeeDevice(XBeeDevice):
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
                          flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
-    def open(self):
+    def open(self, force_settings=False):
         """
         Override.
 
@@ -3789,7 +3789,7 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.open`
         """
-        super().open()
+        super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.ZIGBEE:
             raise XBeeException("Invalid protocol.")
 
@@ -4686,7 +4686,7 @@ class CellularDevice(IPDevice):
                          flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self._imei_addr = None
 
-    def open(self):
+    def open(self, force_settings=False):
         """
         Override.
 
@@ -4697,7 +4697,7 @@ class CellularDevice(IPDevice):
         .. seealso::
            | :meth:`.XBeeDevice.open`
         """
-        super().open()
+        super().open(force_settings=force_settings)
         if self.get_protocol() not in [XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT]:
             raise XBeeException("Invalid protocol.")
 
@@ -5139,7 +5139,7 @@ class NBIoTDevice(LPWANDevice):
                          flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self._imei_addr = None
 
-    def open(self):
+    def open(self, force_settings=False):
         """
         Override.
 
@@ -5150,7 +5150,7 @@ class NBIoTDevice(LPWANDevice):
         .. seealso::
            | :meth:`.XBeeDevice.open`
         """
-        super().open()
+        super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.CELLULAR_NBIOT:
             raise XBeeException("Invalid protocol.")
 
@@ -5204,7 +5204,7 @@ class WiFiDevice(IPDevice):
         self.__scanning_aps = False
         self.__scanning_aps_error = False
 
-    def open(self):
+    def open(self, force_settings=False):
         """
         Override.
 
@@ -5215,7 +5215,7 @@ class WiFiDevice(IPDevice):
         .. seealso::
            | :meth:`.XBeeDevice.open`
         """
-        super().open()
+        super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.XBEE_WIFI:
             raise XBeeException("Invalid protocol.")
 
