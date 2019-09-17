@@ -127,13 +127,13 @@ _log = logging.getLogger(__name__)
 
 
 @unique
-class _FirmwareBaudrate(Enum):
+class FirmwareBaudrate(Enum):
     """
     This class lists the available firmware baudrate options for XBee Profiles.
 
     | Inherited properties:
-    |     **name** (String): The name of this _FirmwareBaudrate.
-    |     **value** (Integer): The ID of this _FirmwareBaudrate.
+    |     **name** (String): The name of this FirmwareBaudrate.
+    |     **value** (Integer): The ID of this FirmwareBaudrate.
     """
     BD_1200 = (0x0, 1200)
     BD_2400 = (0x1, 2400)
@@ -154,18 +154,18 @@ class _FirmwareBaudrate(Enum):
     @classmethod
     def get(cls, index):
         """
-        Returns the _FirmwareBaudrate for the given index.
+        Returns the FirmwareBaudrate for the given index.
 
         Args:
             index (Integer): the index of the FirmwareBaudrate to get.
 
         Returns:
-            :class:`._FirmwareBaudrate`: the _FirmwareBaudrate with the given index, ``None`` if
-                                         there is not a _FirmwareBaudrate with that index.
+            :class:`.FirmwareBaudrate`: the FirmwareBaudrate with the given index, ``None`` if
+                                         there is not a FirmwareBaudrate with that index.
         """
         if index is None:
-            return _FirmwareBaudrate.BD_9600
-        for value in _FirmwareBaudrate:
+            return FirmwareBaudrate.BD_9600
+        for value in FirmwareBaudrate:
             if value.index == index:
                 return value
 
@@ -174,32 +174,32 @@ class _FirmwareBaudrate(Enum):
     @property
     def index(self):
         """
-        Returns the index of the _FirmwareBaudrate element.
+        Returns the index of the FirmwareBaudrate element.
 
         Returns:
-            Integer: the index of the _FirmwareBaudrate element.
+            Integer: the index of the FirmwareBaudrate element.
         """
         return self.__index
 
     @property
     def baudrate(self):
         """
-        Returns the baudrate of the _FirmwareBaudrate element.
+        Returns the baudrate of the FirmwareBaudrate element.
 
         Returns:
-            Integer: the baudrate of the _FirmwareBaudrate element.
+            Integer: the baudrate of the FirmwareBaudrate element.
         """
         return self.__baudrate
 
 
 @unique
-class _FirmwareParity(Enum):
+class FirmwareParity(Enum):
     """
     This class lists the available firmware parity options for XBee Profiles.
 
     | Inherited properties:
-    |     **name** (String): The name of this _FirmwareParity.
-    |     **value** (Integer): The ID of this _FirmwareParity.
+    |     **name** (String): The name of this FirmwareParity.
+    |     **value** (Integer): The ID of this FirmwareParity.
     """
     NONE = (0, serial.PARITY_NONE)
     EVEN = (1, serial.PARITY_EVEN)
@@ -214,18 +214,18 @@ class _FirmwareParity(Enum):
     @classmethod
     def get(cls, index):
         """
-        Returns the _FirmwareParity for the given index.
+        Returns the FirmwareParity for the given index.
 
         Args:
-            index (Integer): the index of the _FirmwareParity to get.
+            index (Integer): the index of the FirmwareParity to get.
 
         Returns:
-            :class:`._FirmwareParity`: the _FirmwareParity with the given index, ``None`` if
-                                       there is not a _FirmwareParity with that index.
+            :class:`.FirmwareParity`: the FirmwareParity with the given index, ``None`` if
+                                       there is not a FirmwareParity with that index.
         """
         if index is None:
-            return _FirmwareParity.NONE
-        for value in _FirmwareParity:
+            return FirmwareParity.NONE
+        for value in FirmwareParity:
             if value.index == index:
                 return value
 
@@ -234,32 +234,32 @@ class _FirmwareParity(Enum):
     @property
     def index(self):
         """
-        Returns the index of the _FirmwareParity element.
+        Returns the index of the FirmwareParity element.
 
         Returns:
-            Integer: the index of the _FirmwareParity element.
+            Integer: the index of the FirmwareParity element.
         """
         return self.__index
 
     @property
     def parity(self):
         """
-        Returns the parity of the _FirmwareParity element.
+        Returns the parity of the FirmwareParity element.
 
         Returns:
-            String: the parity of the _FirmwareParity element.
+            String: the parity of the FirmwareParity element.
         """
         return self.__parity
 
 
 @unique
-class _FirmwareStopbits(Enum):
+class FirmwareStopbits(Enum):
     """
     This class lists the available firmware stop bits options for XBee Profiles.
 
     | Inherited properties:
-    |     **name** (String): The name of this _FirmwareStopbits.
-    |     **value** (Integer): The ID of this _FirmwareStopbits.
+    |     **name** (String): The name of this FirmwareStopbits.
+    |     **value** (Integer): The ID of this FirmwareStopbits.
     """
     SB_1 = (0, serial.STOPBITS_ONE)
     SB_2 = (1, serial.STOPBITS_TWO)
@@ -272,18 +272,18 @@ class _FirmwareStopbits(Enum):
     @classmethod
     def get(cls, index):
         """
-        Returns the _FirmwareStopbits for the given index.
+        Returns the FirmwareStopbits for the given index.
 
         Args:
-            index (Integer): the index of the _FirmwareStopbits to get.
+            index (Integer): the index of the FirmwareStopbits to get.
 
         Returns:
-            :class:`._FirmwareStopbits`: the _FirmwareStopbits with the given index, ``None`` if
-                                         there is not a _FirmwareStopbits with that index.
+            :class:`.FirmwareStopbits`: the FirmwareStopbits with the given index, ``None`` if
+                                         there is not a FirmwareStopbits with that index.
         """
         if index is None:
-            return _FirmwareStopbits.SB_1
-        for value in _FirmwareStopbits:
+            return FirmwareStopbits.SB_1
+        for value in FirmwareStopbits:
             if value.index == index:
                 return value
 
@@ -292,20 +292,20 @@ class _FirmwareStopbits(Enum):
     @property
     def index(self):
         """
-        Returns the index of the _FirmwareStopbits element.
+        Returns the index of the FirmwareStopbits element.
 
         Returns:
-            Integer: the index of the _FirmwareStopbits element.
+            Integer: the index of the FirmwareStopbits element.
         """
         return self.__index
 
     @property
     def stop_bits(self):
         """
-        Returns the stop bits of the _FirmwareStopbits element.
+        Returns the stop bits of the FirmwareStopbits element.
 
         Returns:
-            Float: the stop bits of the _FirmwareStopbits element.
+            Float: the stop bits of the FirmwareStopbits element.
         """
         return self.__stop_bits
 
@@ -1111,13 +1111,13 @@ class _ProfileUpdater(object):
             if setting.name in _PARAMETERS_SERIAL_PORT:
                 if setting.name == _PARAMETER_BAUDRATE:
                     baudrate_changed = True
-                    port_parameters["baudrate"] = _FirmwareBaudrate.get(int(setting.value, 16)).baudrate
+                    port_parameters["baudrate"] = FirmwareBaudrate.get(int(setting.value, 16)).baudrate
                 elif setting.name == _PARAMETER_PARITY:
                     parity_changed = True
-                    port_parameters["parity"] = _FirmwareParity.get(int(setting.value, 16)).parity
+                    port_parameters["parity"] = FirmwareParity.get(int(setting.value, 16)).parity
                 elif setting.name == _PARAMETER_STOP_BITS:
                     stop_bits_changed = True
-                    port_parameters["stopbits"] = _FirmwareStopbits.get(int(setting.value, 16)).stop_bits
+                    port_parameters["stopbits"] = FirmwareStopbits.get(int(setting.value, 16)).stop_bits
                 elif setting.name == _PARAMETER_CTS_FLOW_CONTROL:
                     cts_flow_control_changed = True
                     if setting.value == _VALUE_CTS_ON:
@@ -1128,15 +1128,15 @@ class _ProfileUpdater(object):
             if not baudrate_changed:
                 baudrate_changed = True
                 default_baudrate = self._xbee_profile.get_setting_default_value(_PARAMETER_BAUDRATE)
-                port_parameters["baudrate"] = _FirmwareBaudrate.get(int(default_baudrate, 16)).baudrate
+                port_parameters["baudrate"] = FirmwareBaudrate.get(int(default_baudrate, 16)).baudrate
             if not parity_changed:
                 parity_changed = True
                 default_parity = self._xbee_profile.get_setting_default_value(_PARAMETER_PARITY)
-                port_parameters["parity"] = _FirmwareParity.get(int(default_parity, 16)).parity
+                port_parameters["parity"] = FirmwareParity.get(int(default_parity, 16)).parity
             if not stop_bits_changed:
                 stop_bits_changed = True
                 default_stop_bits = self._xbee_profile.get_setting_default_value(_PARAMETER_STOP_BITS)
-                port_parameters["stopbits"] = _FirmwareStopbits.get(int(default_stop_bits, 16)).stop_bits
+                port_parameters["stopbits"] = FirmwareStopbits.get(int(default_stop_bits, 16)).stop_bits
             if not cts_flow_control_changed:
                 cts_flow_control_changed = True
                 port_parameters["rtscts"] = True  # Default CTS value is always on.
