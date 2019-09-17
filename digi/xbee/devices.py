@@ -1827,7 +1827,7 @@ class XBeeDevice(AbstractXBeeDevice):
         if force_settings:
             try:
                 self._do_open()
-            except (XBeeException, serial.SerialException) as e:
+            except XBeeException as e:
                 self.log.debug("Could not open the port with default setting, "
                                "forcing settings using recovery: %s" % str(e))
                 if self._serial_port is None:
