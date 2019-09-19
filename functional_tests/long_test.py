@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -100,7 +100,7 @@ def main(argv):
                     # Send explicit data to the loopback cluster.
                     device.send_expl_data(remote, data, SOURCE_ENDPOINT, DEST_ENDPOINT, CLUSTER_ID, PROFILE_ID)
                     # Read new data from the remote device.
-                    msg = device.read_data_from(remote, 10)
+                    msg = device.read_data_from(remote, timeout=10)
                     print("%s - [P] - %s" % (datetime.datetime.now(), msg.data.decode()))
                     data_received = True
                     # Ensure that the sent and received messages are equal.

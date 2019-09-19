@@ -1,4 +1,4 @@
-# Copyright 2017, 2018, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -96,7 +96,9 @@ class DeviceRequestPacket(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not a device request packet.")
 
         target_length = raw[7]
-        return DeviceRequestPacket(raw[4], raw[8:8 + target_length].decode("utf8"), raw[8 + target_length:-1])
+
+        return DeviceRequestPacket(raw[4], target=raw[8:8 + target_length].decode("utf8"),
+                                   request_data=raw[8 + target_length:-1])
 
     def needs_id(self):
         """
@@ -316,7 +318,7 @@ class DeviceResponsePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.DEVICE_RESPONSE.code:
             raise InvalidPacketException(message="This packet is not a device response packet.")
 
-        return DeviceResponsePacket(raw[4], raw[5], raw[7:-1])
+        return DeviceResponsePacket(raw[4], raw[5], response_data=raw[7:-1])
 
     def needs_id(self):
         """
@@ -726,7 +728,7 @@ class SendDataRequestPacket(XBeeAPIPacket):
                                      raw[6:6 + path_length].decode("utf8"),
                                      raw[6 + path_length + 1:6 + path_length + 1 + content_type_length].decode("utf8"),
                                      SendDataRequestOptions.get(raw[6 + path_length + 2 + content_type_length]),
-                                     raw[6 + path_length + 3 + content_type_length:-1])
+                                     file_data=raw[6 + path_length + 3 + content_type_length:-1])
 
     def needs_id(self):
         """

@@ -1,4 +1,4 @@
-# Copyright 2017, 2018, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -96,7 +96,7 @@ class ATCommPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.AT_COMMAND.code:
             raise InvalidPacketException(message="This packet is not an AT command packet.")
 
-        return ATCommPacket(raw[4], raw[5:7].decode("utf8"), raw[7:-1])
+        return ATCommPacket(raw[4], raw[5:7].decode("utf8"), parameter=raw[7:-1])
 
     def needs_id(self):
         """
@@ -253,7 +253,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.AT_COMMAND_QUEUE.code:
             raise InvalidPacketException(message="This packet is not an AT command Queue packet.")
 
-        return ATCommQueuePacket(raw[4], raw[5:7].decode("utf8"), raw[7:-1])
+        return ATCommQueuePacket(raw[4], raw[5:7].decode("utf8"), parameter=raw[7:-1])
 
     def needs_id(self):
         """
@@ -416,7 +416,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         if ATCommandStatus.get(raw[7]) is None:
             raise InvalidPacketException(message="Invalid command status.")
 
-        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), ATCommandStatus.get(raw[7]), raw[8:-1])
+        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), ATCommandStatus.get(raw[7]), comm_value=raw[8:-1])
 
     def needs_id(self):
         """
@@ -602,7 +602,7 @@ class ReceivePacket(XBeeAPIPacket):
         return ReceivePacket(XBee64BitAddress(raw[4:12]),
                              XBee16BitAddress(raw[12:14]),
                              raw[14],
-                             raw[15:-1])
+                             rf_data=raw[15:-1])
 
     def needs_id(self):
         """
@@ -1103,7 +1103,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
 
         return RemoteATCommandResponsePacket(raw[4], XBee64BitAddress(raw[5:13]),
                                              XBee16BitAddress(raw[13:15]), raw[15:17].decode("utf8"),
-                                             ATCommandStatus.get(raw[17]), raw[18:-1])
+                                             ATCommandStatus.get(raw[17]), comm_value=raw[18:-1])
 
     def needs_id(self):
         """
@@ -1375,7 +1375,7 @@ class TransmitPacket(XBeeAPIPacket):
 
         return TransmitPacket(raw[4], XBee64BitAddress(raw[5:13]),
                               XBee16BitAddress(raw[13:15]), raw[15],
-                              raw[16], raw[17:-1])
+                              raw[16], rf_data=raw[17:-1])
 
     def needs_id(self):
         """
@@ -1624,7 +1624,8 @@ class TransmitStatusPacket(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not a transmit status packet.")
 
         return TransmitStatusPacket(raw[4], XBee16BitAddress(raw[5:7]), raw[7],
-                                    TransmitStatus.get(raw[8]), DiscoveryStatus.get(raw[9]))
+                                    transmit_status=TransmitStatus.get(raw[8]),
+                                    discovery_status=DiscoveryStatus.get(raw[9]))
 
     def needs_id(self):
         """
@@ -1956,7 +1957,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not an IO data sample RX indicator packet.")
 
         return IODataSampleRxIndicatorPacket(XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]),
-                                             raw[14], raw[15:-1])
+                                             raw[14], rf_data=raw[15:-1])
 
     def needs_id(self):
         """
@@ -2306,7 +2307,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
 
         return ExplicitAddressingPacket(raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
                                         raw[15], raw[16], utils.bytes_to_int(raw[17:19]),
-                                        utils.bytes_to_int(raw[19:21]), raw[21], raw[22], raw[23:-1])
+                                        utils.bytes_to_int(raw[19:21]), raw[21], raw[22], rf_data=raw[23:-1])
 
     def needs_id(self):
         """
@@ -2328,8 +2329,8 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         raw += self.__x16_addr.address
         raw.append(self.__source_endpoint)
         raw.append(self.__dest_endpoint)
-        raw += utils.int_to_bytes(self.__cluster_id, 2)
-        raw += utils.int_to_bytes(self.__profile_id, 2)
+        raw += utils.int_to_bytes(self.__cluster_id, num_bytes=2)
+        raw += utils.int_to_bytes(self.__profile_id, num_bytes=2)
         raw.append(self.__broadcast_radius)
         raw.append(self.__transmit_options)
         if self.__rf_data is not None:
@@ -2666,7 +2667,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
 
         return ExplicitRXIndicatorPacket(XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]), raw[14], raw[15],
                                          utils.bytes_to_int(raw[16:18]), utils.bytes_to_int(raw[18:20]),
-                                         raw[20], raw[21:-1])
+                                         raw[20], rf_data=raw[21:-1])
 
     def needs_id(self):
         """
@@ -2697,8 +2698,8 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         raw += self.__x16bit_addr.address
         raw.append(self.__source_endpoint)
         raw.append(self.__dest_endpoint)
-        raw += utils.int_to_bytes(self.__cluster_id, 2)
-        raw += utils.int_to_bytes(self.__profile_id, 2)
+        raw += utils.int_to_bytes(self.__cluster_id, num_bytes=2)
+        raw += utils.int_to_bytes(self.__profile_id, num_bytes=2)
         raw.append(self.__receive_options)
         if self.__rf_data is not None:
             raw += self.__rf_data

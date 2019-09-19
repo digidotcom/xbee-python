@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -40,7 +40,7 @@ def main():
         sample = device.read_io_sample()
         assert (sample.has_digital_value(IOLine.DIO1_AD1))
 
-        remote = RemoteXBeeDevice(device, REMOTE_DEVICE_ADDRESS)
+        remote = RemoteXBeeDevice(device, x64bit_addr=REMOTE_DEVICE_ADDRESS)
 
         remote.set_io_configuration(IOLine.DIO1_AD1, IOMode.DIGITAL_IN)
         sample = remote.read_io_sample()

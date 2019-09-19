@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -41,7 +41,7 @@ def main():
 
         network = device_a.get_network()
 
-        remote = RemoteXBeeDevice(device_b, device_a.get_64bit_addr())
+        remote = RemoteXBeeDevice(device_b, x64bit_addr=device_a.get_64bit_addr())
 
         # Send a message from B to A.
         device_b.send_data(remote, "Test")

@@ -837,7 +837,7 @@ class PacketListener(threading.Thread):
                 xbee_packet.get_frame_type() == ApiFrameType.RECEIVE_PACKET):
             data = xbee_packet.rf_data
             is_broadcast = xbee_packet.is_broadcast()
-            self.__data_received(XBeeMessage(data, remote, time.time(), is_broadcast))
+            self.__data_received(XBeeMessage(data, remote, time.time(), broadcast=is_broadcast))
             self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="DATA",
@@ -873,7 +873,7 @@ class PacketListener(threading.Thread):
             is_broadcast = xbee_packet.is_broadcast()
             # If it's 'special' packet, notify the data_received callbacks too:
             if self.__is_explicit_data_packet(xbee_packet):
-                self.__data_received(XBeeMessage(data, remote, time.time(), is_broadcast))
+                self.__data_received(XBeeMessage(data, remote, time.time(), broadcast=is_broadcast))
             elif self.__is_explicit_io_packet(xbee_packet):
                 self.__io_sample_received(IOSample(data), remote, time.time())
             self.__explicit_packet_received(PacketListener.__expl_to_message(remote, is_broadcast, xbee_packet))
@@ -1004,7 +1004,8 @@ class PacketListener(threading.Thread):
             :class:`.RemoteXBeeDevice`
         """
         x64bit_addr, x16bit_addr = self.__get_remote_device_data_from_packet(xbee_packet)
-        return digi.xbee.devices.RemoteXBeeDevice(self.__xbee_device, x64bit_addr, x16bit_addr)
+        return digi.xbee.devices.RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                                  x16bit_addr=x16bit_addr)
 
     @staticmethod
     def __get_remote_device_data_from_packet(xbee_packet):
@@ -1108,14 +1109,14 @@ class PacketListener(threading.Thread):
         x16addr = xbee_packet.x16bit_source_addr
         if self.__xbee_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
             if x64addr != XBee64BitAddress.UNKNOWN_ADDRESS:
-                new_pkt = RX64Packet(x64addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
+                new_pkt = RX64Packet(x64addr, 0, xbee_packet.receive_options, rf_data=xbee_packet.rf_data)
             elif x16addr != XBee16BitAddress.UNKNOWN_ADDRESS:
-                new_pkt = RX16Packet(x16addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
+                new_pkt = RX16Packet(x16addr, 0, xbee_packet.receive_options, rf_data=xbee_packet.rf_data)
             else:  # both address UNKNOWN
-                new_pkt = RX64Packet(x64addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
+                new_pkt = RX64Packet(x64addr, 0, xbee_packet.receive_options, rf_data=xbee_packet.rf_data)
         else:
             new_pkt = ReceivePacket(x64addr, x16addr, xbee_packet.receive_options,
-                                    xbee_packet.rf_data)
+                                    rf_data=xbee_packet.rf_data)
         return new_pkt
 
     def __expl_to_io(self, xbee_packet):
@@ -1129,7 +1130,7 @@ class PacketListener(threading.Thread):
         """
         return IODataSampleRxIndicatorPacket(xbee_packet.x64bit_source_addr,
                                              xbee_packet.x16bit_source_addr,
-                                             xbee_packet.receive_options, xbee_packet.rf_data)
+                                             xbee_packet.receive_options, rf_data=xbee_packet.rf_data)
 
     def __add_packet_queue(self, xbee_packet):
         """
@@ -1184,7 +1185,7 @@ class PacketListener(threading.Thread):
         """
         return ExplicitXBeeMessage(xbee_packet.rf_data, remote, time.time(), xbee_packet.source_endpoint,
                                    xbee_packet.dest_endpoint, xbee_packet.cluster_id,
-                                   xbee_packet.profile_id, broadcast)
+                                   xbee_packet.profile_id, broadcast=broadcast)
 
 
 class XBeeQueue(Queue):
@@ -1264,11 +1265,11 @@ class XBeeQueue(Queue):
                         return xbee_packet
             return None
         else:
-            xbee_packet = self.get_by_remote(remote_xbee_device, None)
+            xbee_packet = self.get_by_remote(remote_xbee_device)
             dead_line = time.time() + timeout
             while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
-                xbee_packet = self.get_by_remote(remote_xbee_device, None)
+                xbee_packet = self.get_by_remote(remote_xbee_device)
             if xbee_packet is None:
                 raise TimeoutException()
             return xbee_packet
@@ -1302,11 +1303,11 @@ class XBeeQueue(Queue):
                         return xbee_packet
             return None
         else:
-            xbee_packet = self.get_by_ip(ip_addr, None)
+            xbee_packet = self.get_by_ip(ip_addr)
             dead_line = time.time() + timeout
             while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
-                xbee_packet = self.get_by_ip(ip_addr, None)
+                xbee_packet = self.get_by_ip(ip_addr)
             if xbee_packet is None:
                 raise TimeoutException()
             return xbee_packet
@@ -1340,11 +1341,11 @@ class XBeeQueue(Queue):
                         return xbee_packet
             return None
         else:
-            xbee_packet = self.get_by_id(frame_id, None)
+            xbee_packet = self.get_by_id(frame_id)
             dead_line = time.time() + timeout
             while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
-                xbee_packet = self.get_by_id(frame_id, None)
+                xbee_packet = self.get_by_id(frame_id)
             if xbee_packet is None:
                 raise TimeoutException()
             return xbee_packet

@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -45,26 +45,28 @@ def main():
         network = device.get_network()
 
         # Add "Remote A" device with 64-bit address.
-        remote_a = RemoteXBeeDevice(device, ADDR_64_REMOTE_A)
+        remote_a = RemoteXBeeDevice(device, x64bit_addr=ADDR_64_REMOTE_A)
         network.add_remote(remote_a)
         assert (len(network.get_devices()) == 1)
         assert (network.get_device_by_64(ADDR_64_REMOTE_A) == remote_a)
 
         # Add "Remote B" device with 64-bit address.
-        remote_b = RemoteXBeeDevice(device, ADDR_64_REMOTE_B)
+        remote_b = RemoteXBeeDevice(device, x64bit_addr=ADDR_64_REMOTE_B)
         network.add_remote(remote_b)
         assert (len(network.get_devices()) == 2)
         assert (network.get_device_by_64(ADDR_64_REMOTE_B) == remote_b)
 
         # Construct again "Remote A" with 16-bit address and add it to the network.
-        remote_a = RemoteXBeeDevice(device, ADDR_64_REMOTE_A, ADDR_16_REMOTE_A)
+        remote_a = RemoteXBeeDevice(device, x64bit_addr=ADDR_64_REMOTE_A,
+                                    x16bit_addr=ADDR_16_REMOTE_A)
         network.add_remote(remote_a)
         assert (len(network.get_devices()) == 2)
         assert (network.get_device_by_64(ADDR_64_REMOTE_A) == remote_a)
         assert (network.get_device_by_16(ADDR_16_REMOTE_A) == remote_a)
 
         # Construct again "Remote A" with a different 16-bit address and add it to the network.
-        remote_a = RemoteXBeeDevice(device, ADDR_64_REMOTE_A, ADDR_16_REMOTE_A_2)
+        remote_a = RemoteXBeeDevice(device, x64bit_addr=ADDR_64_REMOTE_A,
+                                    x16bit_addr=ADDR_16_REMOTE_A_2)
         network.add_remote(remote_a)
         assert (len(network.get_devices()) == 2)
         assert (network.get_device_by_64(ADDR_64_REMOTE_A) == remote_a)
@@ -72,7 +74,8 @@ def main():
         assert (network.get_device_by_16(ADDR_16_REMOTE_A_2) == remote_a)
 
         # Set the node ID to "Remote A" and add it again to the network.
-        remote_a = RemoteXBeeDevice(device, ADDR_64_REMOTE_A, ADDR_16_REMOTE_A_2, NODE_ID_REMOTE_A)
+        remote_a = RemoteXBeeDevice(device, x64bit_addr=ADDR_64_REMOTE_A,
+                                    x16bit_addr=ADDR_16_REMOTE_A_2, node_id=NODE_ID_REMOTE_A)
         network.add_remote(remote_a)
         assert (len(network.get_devices()) == 2)
         assert (network.get_device_by_node_id(NODE_ID_REMOTE_A) == remote_a)

@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -50,7 +50,7 @@ def main():
 
         device.add_modem_status_received_callback(modem_status_receive_callback)
 
-        if not device.connect_by_ssid(SSID, PASSWORD):
+        if not device.connect_by_ssid(SSID, password=PASSWORD):
             print(">> Error: could not connect to '%s'\n" % SSID)
 
         print("")

@@ -1,4 +1,4 @@
-# Copyright 2017, 2018, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -36,7 +36,7 @@ class TX64Packet(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 15
 
-    def __init__(self, frame_id, x64bit_addr, transmit_options, rf_data):
+    def __init__(self, frame_id, x64bit_addr, transmit_options, rf_data=None):
         """
         Class constructor. Instantiates a new :class:`.TX64Packet` object with the provided parameters.
 
@@ -93,7 +93,7 @@ class TX64Packet(XBeeAPIPacket):
         if raw[3] != ApiFrameType.TX_64.code:
             raise InvalidPacketException(message="This packet is not a TX 64 packet.")
 
-        return TX64Packet(raw[4], XBee64BitAddress(raw[5:13]), raw[13], raw[14:-1])
+        return TX64Packet(raw[4], XBee64BitAddress(raw[5:13]), raw[13], rf_data=raw[14:-1])
 
     def needs_id(self):
         """
@@ -280,7 +280,7 @@ class TX16Packet(XBeeAPIPacket):
         if raw[3] != ApiFrameType.TX_16.code:
             raise InvalidPacketException(message="This packet is not a TX 16 packet.")
 
-        return TX16Packet(raw[4], XBee16BitAddress(raw[5:7]), raw[7], raw[8:-1])
+        return TX16Packet(raw[4], XBee16BitAddress(raw[5:7]), raw[7], rf_data=raw[8:-1])
 
     def needs_id(self):
         """
@@ -483,7 +483,7 @@ class TXStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        return utils.int_to_bytes(self.__transmit_status.code, 1)
+        return utils.int_to_bytes(self.__transmit_status.code, num_bytes=1)
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -593,7 +593,7 @@ class RX64Packet(XBeeAPIPacket):
         if raw[3] != ApiFrameType.RX_64.code:
             raise InvalidPacketException(message="This packet is not an RX 64 packet.")
 
-        return RX64Packet(XBee64BitAddress(raw[4:12]), raw[12], raw[13], raw[14:-1])
+        return RX64Packet(XBee64BitAddress(raw[4:12]), raw[12], raw[13], rf_data=raw[14:-1])
 
     def needs_id(self):
         """
@@ -813,7 +813,7 @@ class RX16Packet(XBeeAPIPacket):
         if raw[3] != ApiFrameType.RX_16.code:
             raise InvalidPacketException(message="This packet is not an RX 16 Packet")
 
-        return RX16Packet(XBee16BitAddress(raw[4:6]), raw[6], raw[7], raw[8:-1])
+        return RX16Packet(XBee16BitAddress(raw[4:6]), raw[6], raw[7], rf_data=raw[8:-1])
 
     def needs_id(self):
         """

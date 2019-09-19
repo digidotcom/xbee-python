@@ -116,7 +116,7 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     frame_type = ApiFrameType.get(packet_bytearray[3])
 
     if frame_type == ApiFrameType.GENERIC:
-        return GenericXBeePacket.create_packet(packet_bytearray, operating_mode)
+        return GenericXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)
 
     elif frame_type == ApiFrameType.AT_COMMAND:
         return ATCommPacket.create_packet(packet_bytearray, operating_mode)
@@ -221,4 +221,4 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
         return RegisterDeviceStatusPacket.create_packet(packet_bytearray, operating_mode)
 
     else:
-        return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode)
+        return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)

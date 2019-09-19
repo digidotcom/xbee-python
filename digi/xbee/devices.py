@@ -236,7 +236,7 @@ class AbstractXBeeDevice(object):
         if value is None:
             raise ValueError("Value of the parameter cannot be None.")
 
-        self.__send_parameter(parameter, value)
+        self.__send_parameter(parameter, parameter_value=value)
 
         # Refresh cached parameters if this method modifies some of them.
         self._refresh_if_cached(parameter, value)
@@ -252,7 +252,7 @@ class AbstractXBeeDevice(object):
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
         """
-        self.__send_parameter(parameter, None)
+        self.__send_parameter(parameter, parameter_value=None)
 
     def __send_parameter(self, parameter, parameter_value=None):
         """
@@ -275,7 +275,7 @@ class AbstractXBeeDevice(object):
         if len(parameter) != 2:
             raise ValueError("Parameter must contain exactly 2 characters.")
 
-        at_command = ATCommand(parameter, parameter_value)
+        at_command = ATCommand(parameter, parameter=parameter_value)
 
         # Send the AT command.
         response = self._send_at_command(at_command)
@@ -335,12 +335,13 @@ class AbstractXBeeDevice(object):
                 remote_16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
 
             packet = RemoteATCommandPacket(self._get_next_frame_id(), self.get_64bit_addr(), remote_16bit_addr,
-                                           remote_at_cmd_opts, command.command, command.parameter)
+                                           remote_at_cmd_opts, command.command, parameter=command.parameter)
         else:
             if self.is_apply_changes_enabled():
-                packet = ATCommPacket(self._get_next_frame_id(), command.command, command.parameter)
+                packet = ATCommPacket(self._get_next_frame_id(), command.command,
+                                      parameter=command.parameter)
             else:
-                packet = ATCommQueuePacket(self._get_next_frame_id(), command.command, command.parameter)
+                packet = ATCommQueuePacket(self._get_next_frame_id(), command.command, parameter=command.parameter)
 
         if self.is_remote():
             answer_packet = self._local_xbee_device.send_packet_sync_and_get_response(packet)
@@ -350,7 +351,8 @@ class AbstractXBeeDevice(object):
         response = None
 
         if isinstance(answer_packet, ATCommResponsePacket) or isinstance(answer_packet, RemoteATCommandResponsePacket):
-            response = ATCommandResponse(command, answer_packet.command_value, answer_packet.status)
+            response = ATCommandResponse(command, response=answer_packet.command_value,
+                                         status=answer_packet.status)
 
         return response
 
@@ -1156,7 +1158,7 @@ class AbstractXBeeDevice(object):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
         """
-        return utils.hex_to_string(self.get_parameter("BL"), False)
+        return utils.hex_to_string(self.get_parameter("BL"), pretty=False)
 
     def update_bluetooth_password(self, new_password):
         """
@@ -1326,7 +1328,7 @@ class AbstractXBeeDevice(object):
 
         queue = self._packet_listener.get_queue()
 
-        packet = queue.get_by_id(frame_id, XBeeDevice.TIMEOUT_READ_PACKET)
+        packet = queue.get_by_id(frame_id, timeout=XBeeDevice.TIMEOUT_READ_PACKET)
 
         return packet
 
@@ -1490,7 +1492,7 @@ class AbstractXBeeDevice(object):
             raise XBeeException("Packet listener is not running.")
 
         escape = self._operating_mode == OperatingMode.ESCAPED_API_MODE
-        out = packet.output(escape)
+        out = packet.output(escaped=escape)
         self._serial_port.write(out)
         self._log.debug(self.LOG_PATTERN.format(port=self._serial_port.port,
                                                 event="SENT",
@@ -1631,11 +1633,11 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         return XBeeDevice(comm_port_data["port"],
                           comm_port_data["baudRate"],
-                          comm_port_data["bitSize"],
-                          comm_port_data["stopBits"],
-                          comm_port_data["parity"],
-                          comm_port_data["flowControl"],
-                          comm_port_data["timeout"])
+                          data_bits=comm_port_data["bitSize"],
+                          stop_bits=comm_port_data["stopBits"],
+                          parity=comm_port_data["parity"],
+                          flow_control=comm_port_data["flowControl"],
+                          _sync_ops_timeout=comm_port_data["timeout"])
 
     def open(self):
         """
@@ -1819,7 +1821,7 @@ class XBeeDevice(AbstractXBeeDevice):
                                 x16addr,
                                 0,
                                 transmit_options,
-                                data)
+                                rf_data=data)
         return self.send_packet_sync_and_get_response(packet)
 
     @AbstractXBeeDevice._before_send_method
@@ -1871,14 +1873,14 @@ class XBeeDevice(AbstractXBeeDevice):
             packet = TX64Packet(self.get_next_frame_id(),
                                 x64addr,
                                 transmit_options,
-                                data)
+                                rf_data=data)
         else:
             packet = TransmitPacket(self.get_next_frame_id(),
                                     x64addr,
                                     XBee16BitAddress.UNKNOWN_ADDRESS,
                                     0,
                                     transmit_options,
-                                    data)
+                                    rf_data=data)
         return self.send_packet_sync_and_get_response(packet)
 
     @AbstractXBeeDevice._before_send_method
@@ -1929,7 +1931,7 @@ class XBeeDevice(AbstractXBeeDevice):
         packet = TX16Packet(self.get_next_frame_id(),
                             x16addr,
                             transmit_options,
-                            data)
+                            rf_data=data)
         return self.send_packet_sync_and_get_response(packet)
 
     def send_data(self, remote_xbee_device, data, transmit_options=TransmitOptions.NONE.value):
@@ -1969,19 +1971,23 @@ class XBeeDevice(AbstractXBeeDevice):
         if protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_POINT]:
             if remote_xbee_device.get_64bit_addr() is not None and remote_xbee_device.get_16bit_addr() is not None:
                 return self._send_data_64_16(remote_xbee_device.get_64bit_addr(), remote_xbee_device.get_16bit_addr(),
-                                             data, transmit_options)
+                                             data, transmit_options=transmit_options)
             elif remote_xbee_device.get_64bit_addr() is not None:
-                return self._send_data_64(remote_xbee_device.get_64bit_addr(), data, transmit_options)
+                return self._send_data_64(remote_xbee_device.get_64bit_addr(), data,
+                                          transmit_options=transmit_options)
             else:
                 return self._send_data_64_16(XBee64BitAddress.UNKNOWN_ADDRESS, remote_xbee_device.get_16bit_addr(),
-                                             data, transmit_options)
+                                             data, transmit_options=transmit_options)
         elif protocol == XBeeProtocol.RAW_802_15_4:
             if remote_xbee_device.get_64bit_addr() is not None:
-                return self._send_data_64(remote_xbee_device.get_64bit_addr(), data, transmit_options)
+                return self._send_data_64(remote_xbee_device.get_64bit_addr(), data,
+                                          transmit_options=transmit_options)
             else:
-                return self._send_data_16(remote_xbee_device.get_16bit_addr(), data, transmit_options)
+                return self._send_data_16(remote_xbee_device.get_16bit_addr(), data,
+                                          transmit_options=transmit_options)
         else:
-            return self._send_data_64(remote_xbee_device.get_64bit_addr(), data, transmit_options)
+            return self._send_data_64(remote_xbee_device.get_64bit_addr(), data,
+                                      transmit_options=transmit_options)
 
     @AbstractXBeeDevice._before_send_method
     def _send_data_async_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
@@ -2033,7 +2039,7 @@ class XBeeDevice(AbstractXBeeDevice):
                                 x16addr,
                                 0,
                                 transmit_options,
-                                data)
+                                rf_data=data)
         self.send_packet(packet)
 
     @AbstractXBeeDevice._before_send_method
@@ -2079,14 +2085,14 @@ class XBeeDevice(AbstractXBeeDevice):
             packet = TX64Packet(self.get_next_frame_id(),
                                 x64addr,
                                 transmit_options,
-                                data)
+                                rf_data=data)
         else:
             packet = TransmitPacket(self.get_next_frame_id(),
                                     x64addr,
                                     XBee16BitAddress.UNKNOWN_ADDRESS,
                                     0,
                                     transmit_options,
-                                    data)
+                                    rf_data=data)
         self.send_packet(packet)
 
     @AbstractXBeeDevice._before_send_method
@@ -2131,7 +2137,7 @@ class XBeeDevice(AbstractXBeeDevice):
         packet = TX16Packet(self.get_next_frame_id(),
                             x16addr,
                             transmit_options,
-                            data)
+                            rf_data=data)
         self.send_packet(packet)
 
     def send_data_async(self, remote_xbee_device, data, transmit_options=TransmitOptions.NONE.value):
@@ -2161,19 +2167,23 @@ class XBeeDevice(AbstractXBeeDevice):
         if protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_POINT]:
             if remote_xbee_device.get_64bit_addr() is not None and remote_xbee_device.get_16bit_addr() is not None:
                 self._send_data_async_64_16(remote_xbee_device.get_64bit_addr(), remote_xbee_device.get_16bit_addr(),
-                                            data, transmit_options)
+                                            data, transmit_options=transmit_options)
             elif remote_xbee_device.get_64bit_addr() is not None:
-                self._send_data_async_64(remote_xbee_device.get_64bit_addr(), data, transmit_options)
+                self._send_data_async_64(remote_xbee_device.get_64bit_addr(), data,
+                                         transmit_options=transmit_options)
             else:
                 self._send_data_async_64_16(XBee64BitAddress.UNKNOWN_ADDRESS, remote_xbee_device.get_16bit_addr(),
-                                            data, transmit_options)
+                                            data, transmit_options=transmit_options)
         elif protocol == XBeeProtocol.RAW_802_15_4:
             if remote_xbee_device.get_64bit_addr() is not None:
-                self._send_data_async_64(remote_xbee_device.get_64bit_addr(), data, transmit_options)
+                self._send_data_async_64(remote_xbee_device.get_64bit_addr(), data,
+                                         transmit_options=transmit_options)
             else:
-                self._send_data_async_16(remote_xbee_device.get_16bit_addr(), data, transmit_options)
+                self._send_data_async_16(remote_xbee_device.get_16bit_addr(), data,
+                                         transmit_options=transmit_options)
         else:
-            self._send_data_async_64(remote_xbee_device.get_64bit_addr(), data, transmit_options)
+            self._send_data_async_64(remote_xbee_device.get_64bit_addr(), data,
+                                     transmit_options=transmit_options)
 
     def send_data_broadcast(self, data, transmit_options=TransmitOptions.NONE.value):
         """
@@ -2198,7 +2208,8 @@ class XBeeDevice(AbstractXBeeDevice):
             TransmitException: if the status of the response received is not OK.
             XBeeException: if the XBee device's serial port is closed.
         """
-        return self._send_data_64(XBee64BitAddress.BROADCAST_ADDRESS, data, transmit_options)
+        return self._send_data_64(XBee64BitAddress.BROADCAST_ADDRESS, data,
+                                  transmit_options=transmit_options)
 
     @AbstractXBeeDevice._before_send_method
     def send_user_data_relay(self, local_interface, data):
@@ -2222,7 +2233,7 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Destination interface cannot be None")
 
         # Send the packet asynchronously since User Data Relay frames do not receive any transmit status.
-        self.send_packet(UserDataRelayPacket(self.get_next_frame_id(), local_interface, data))
+        self.send_packet(UserDataRelayPacket(self.get_next_frame_id(), local_interface, data=data))
 
     def send_bluetooth_data(self, data):
         """
@@ -2678,7 +2689,8 @@ class XBeeDevice(AbstractXBeeDevice):
         return self.send_packet_sync_and_get_response(self.__build_expldata_packet(remote_xbee_device, data,
                                                                                    src_endpoint, dest_endpoint,
                                                                                    cluster_id, profile_id,
-                                                                                   False, transmit_options))
+                                                                                   broadcast=False,
+                                                                                   transmit_options=transmit_options))
 
     @AbstractXBeeDevice._before_send_method
     def _send_expl_data_async(self, remote_xbee_device, data, src_endpoint, dest_endpoint,
@@ -2710,7 +2722,8 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self.send_packet(self.__build_expldata_packet(remote_xbee_device, data, src_endpoint,
                                                       dest_endpoint, cluster_id,
-                                                      profile_id, False, transmit_options))
+                                                      profile_id, broadcast=False,
+                                                      transmit_options=transmit_options))
 
     def _send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
                                   transmit_options=TransmitOptions.NONE.value):
@@ -2739,7 +2752,9 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         return self.send_packet_sync_and_get_response(self.__build_expldata_packet(None, data, src_endpoint,
                                                                                    dest_endpoint, cluster_id,
-                                                                                   profile_id, True, transmit_options))
+                                                                                   profile_id,
+                                                                                   broadcast=True,
+                                                                                   transmit_options=transmit_options))
 
     def _read_expl_data(self, timeout=None):
         """
@@ -2832,21 +2847,21 @@ class XBeeDevice(AbstractXBeeDevice):
             if remote is None:
                 packet = self.__data_queue.get(timeout=timeout)
             else:
-                packet = self.__data_queue.get_by_remote(remote, timeout)
+                packet = self.__data_queue.get_by_remote(remote, timeout=timeout)
         else:
             if remote is None:
                 packet = self.__explicit_queue.get(timeout=timeout)
             else:
-                packet = self.__explicit_queue.get_by_remote(remote, timeout)
+                packet = self.__explicit_queue.get_by_remote(remote, timeout=timeout)
 
         if packet is None:
             return None
 
         frame_type = packet.get_frame_type()
         if frame_type in [ApiFrameType.RECEIVE_PACKET, ApiFrameType.RX_16, ApiFrameType.RX_64]:
-            return self.__build_xbee_message(packet, False)
+            return self.__build_xbee_message(packet, explicit=False)
         elif frame_type == ApiFrameType.EXPLICIT_RX_INDICATOR:
-            return self.__build_xbee_message(packet, True)
+            return self.__build_xbee_message(packet, explicit=True)
         else:
             return None
 
@@ -2928,7 +2943,7 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.AbstractXBeeDevice._send_packet`
         """
-        return super()._send_packet(packet, sync)
+        return super()._send_packet(packet, sync=sync)
 
     def __build_xbee_message(self, packet, explicit=False):
         """
@@ -2956,14 +2971,14 @@ class XBeeDevice(AbstractXBeeDevice):
         if hasattr(packet, "x64bit_source_addr"):
             x64addr = packet.x64bit_source_addr
         if x64addr is not None or x16addr is not None:
-            remote = RemoteXBeeDevice(self, x64addr, x16addr)
+            remote = RemoteXBeeDevice(self, x64bit_addr=x64addr, x16bit_addr=x16addr)
 
         if explicit:
             msg = ExplicitXBeeMessage(packet.rf_data, remote, time.time(), packet.source_endpoint,
                                       packet.dest_endpoint, packet.cluster_id,
-                                      packet.profile_id, packet.is_broadcast())
+                                      packet.profile_id, broadcast=packet.is_broadcast())
         else:
-            msg = XBeeMessage(packet.rf_data, remote, time.time(), packet.is_broadcast())
+            msg = XBeeMessage(packet.rf_data, remote, time.time(), broadcast=packet.is_broadcast())
 
         return msg
 
@@ -3011,7 +3026,7 @@ class XBeeDevice(AbstractXBeeDevice):
 
         return ExplicitAddressingPacket(self._get_next_frame_id(), x64addr,
                                         x16addr, src_endpoint, dest_endpoint,
-                                        cluster_id, profile_id, 0, transmit_options, data)
+                                        cluster_id, profile_id, 0, transmit_options, rf_data=data)
 
     def get_next_frame_id(self):
         """
@@ -3113,7 +3128,7 @@ class Raw802Device(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_64`
         """
-        return super()._send_data_64(x64addr, data, transmit_options)
+        return super()._send_data_64(x64addr, data, transmit_options=transmit_options)
 
     def send_data_async_64(self, x64addr, data, transmit_options=TransmitOptions.NONE.value):
         """
@@ -3122,7 +3137,7 @@ class Raw802Device(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_async_64`
         """
-        super()._send_data_async_64(x64addr, data, transmit_options)
+        super()._send_data_async_64(x64addr, data, transmit_options=transmit_options)
 
     def send_data_16(self, x16addr, data, transmit_options=TransmitOptions.NONE.value):
         """
@@ -3131,7 +3146,7 @@ class Raw802Device(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice._send_data_16`
         """
-        return super()._send_data_16(x16addr, data, transmit_options)
+        return super()._send_data_16(x16addr, data, transmit_options=transmit_options)
 
     def send_data_async_16(self, x16addr, data, transmit_options=TransmitOptions.NONE.value):
         """
@@ -3140,7 +3155,7 @@ class Raw802Device(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice._send_data_async_16`
         """
-        super()._send_data_async_16(x16addr, data, transmit_options)
+        super()._send_data_async_16(x16addr, data, transmit_options=transmit_options)
 
 
 class DigiMeshDevice(XBeeDevice):
@@ -3218,7 +3233,7 @@ class DigiMeshDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_64`
         """
-        return super()._send_data_64(x64addr, data, transmit_options)
+        return super()._send_data_64(x64addr, data, transmit_options=transmit_options)
 
     def send_data_async_64(self, x64addr, data, transmit_options=TransmitOptions.NONE.value):
         """
@@ -3227,7 +3242,7 @@ class DigiMeshDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_async_64`
         """
-        super()._send_data_async_64(x64addr, data, transmit_options)
+        super()._send_data_async_64(x64addr, data, transmit_options=transmit_options)
 
     def read_expl_data(self, timeout=None):
         """
@@ -3256,7 +3271,7 @@ class DigiMeshDevice(XBeeDevice):
            | :meth:`.XBeeDevice.send_expl_data`
         """
         return super()._send_expl_data(remote_xbee_device, data, src_endpoint, dest_endpoint, cluster_id,
-                                       profile_id, transmit_options)
+                                       profile_id, transmit_options=transmit_options)
 
     def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
                                  transmit_options=TransmitOptions.NONE.value):
@@ -3267,7 +3282,7 @@ class DigiMeshDevice(XBeeDevice):
            | :meth:`.XBeeDevice._send_expl_data_broadcast`
         """
         return super()._send_expl_data_broadcast(data, src_endpoint, dest_endpoint, cluster_id, profile_id,
-                                                 transmit_options)
+                                                 transmit_options=transmit_options)
 
     def send_expl_data_async(self, remote_xbee_device, data, src_endpoint, dest_endpoint,
                              cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
@@ -3278,7 +3293,8 @@ class DigiMeshDevice(XBeeDevice):
            | :meth:`.XBeeDevice.send_expl_data_async`
         """
         super()._send_expl_data_async(remote_xbee_device, data, src_endpoint,
-                                      dest_endpoint, cluster_id, profile_id, transmit_options)
+                                      dest_endpoint, cluster_id, profile_id,
+                                      transmit_options=transmit_options)
 
 
 class DigiPointDevice(XBeeDevice):
@@ -3357,7 +3373,7 @@ class DigiPointDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_64_16`
         """
-        return super()._send_data_64_16(x64addr, x16addr, data, transmit_options)
+        return super()._send_data_64_16(x64addr, x16addr, data, transmit_options=transmit_options)
 
     def send_data_async_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
         """
@@ -3366,7 +3382,7 @@ class DigiPointDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_async_64_16`
         """
-        super()._send_data_async_64_16(x64addr, x16addr, data, transmit_options)
+        super()._send_data_async_64_16(x64addr, x16addr, data, transmit_options=transmit_options)
 
     def read_expl_data(self, timeout=None):
         """
@@ -3395,7 +3411,7 @@ class DigiPointDevice(XBeeDevice):
            | :meth:`.XBeeDevice.send_expl_data`
         """
         return super()._send_expl_data(remote_xbee_device, data, src_endpoint, dest_endpoint, cluster_id,
-                                       profile_id, transmit_options)
+                                       profile_id, transmit_options=transmit_options)
 
     def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
                                  transmit_options=TransmitOptions.NONE.value):
@@ -3406,7 +3422,7 @@ class DigiPointDevice(XBeeDevice):
            | :meth:`.XBeeDevice._send_expl_data_broadcast`
         """
         return super()._send_expl_data_broadcast(data, src_endpoint, dest_endpoint, cluster_id, profile_id,
-                                                 transmit_options)
+                                                 transmit_options=transmit_options)
 
     def send_expl_data_async(self, remote_xbee_device, data, src_endpoint, dest_endpoint,
                              cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
@@ -3417,7 +3433,8 @@ class DigiPointDevice(XBeeDevice):
            | :meth:`.XBeeDevice.send_expl_data_async`
         """
         super()._send_expl_data_async(remote_xbee_device, data, src_endpoint,
-                                      dest_endpoint, cluster_id, profile_id, transmit_options)
+                                      dest_endpoint, cluster_id, profile_id,
+                                      transmit_options=transmit_options)
 
 
 class ZigBeeDevice(XBeeDevice):
@@ -3513,7 +3530,7 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_64_16`
         """
-        return super()._send_data_64_16(x64addr, x16addr, data, transmit_options)
+        return super()._send_data_64_16(x64addr, x16addr, data, transmit_options=transmit_options)
 
     def send_data_async_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
         """
@@ -3522,7 +3539,7 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_async_64_16`
         """
-        super()._send_data_async_64_16(x64addr, x16addr, data, transmit_options)
+        super()._send_data_async_64_16(x64addr, x16addr, data, transmit_options=transmit_options)
 
     def read_expl_data(self, timeout=None):
         """
@@ -3551,7 +3568,7 @@ class ZigBeeDevice(XBeeDevice):
            | :meth:`.XBeeDevice._send_expl_data`
         """
         return super()._send_expl_data(remote_xbee_device, data, src_endpoint, dest_endpoint, cluster_id,
-                                       profile_id, transmit_options)
+                                       profile_id, transmit_options=transmit_options)
 
     def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
                                  transmit_options=TransmitOptions.NONE.value):
@@ -3562,7 +3579,7 @@ class ZigBeeDevice(XBeeDevice):
            | :meth:`.XBeeDevice._send_expl_data_broadcast`
         """
         return super()._send_expl_data_broadcast(data, src_endpoint, dest_endpoint, cluster_id, profile_id,
-                                                 transmit_options)
+                                                 transmit_options=transmit_options)
 
     def send_expl_data_async(self, remote_xbee_device, data, src_endpoint, dest_endpoint,
                              cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
@@ -3573,7 +3590,8 @@ class ZigBeeDevice(XBeeDevice):
            | :meth:`.XBeeDevice.send_expl_data_async`
         """
         super()._send_expl_data_async(remote_xbee_device, data, src_endpoint,
-                                      dest_endpoint, cluster_id, profile_id, transmit_options)
+                                      dest_endpoint, cluster_id, profile_id,
+                                      transmit_options=transmit_options)
 
     @AbstractXBeeDevice._before_send_method
     @AbstractXBeeDevice._after_send_method
@@ -3614,8 +3632,8 @@ class ZigBeeDevice(XBeeDevice):
                                                   XBee64BitAddress.UNKNOWN_ADDRESS,
                                                   group_id, src_endpoint, dest_endpoint,
                                                   cluster_id, profile_id, 0,
-                                                  TransmitOptions.ENABLE_MULTICAST.value, data)
-        
+                                                  TransmitOptions.ENABLE_MULTICAST.value, rf_data=data)
+
         return self.send_packet_sync_and_get_response(packet_to_send)
 
     @AbstractXBeeDevice._before_send_method
@@ -3643,12 +3661,12 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :class:`XBee16BitAddress`
         """
-        packet_to_send = ExplicitAddressingPacket(self._get_next_frame_id(), 
+        packet_to_send = ExplicitAddressingPacket(self._get_next_frame_id(),
                                                   XBee64BitAddress.UNKNOWN_ADDRESS,
                                                   group_id, src_endpoint, dest_endpoint,
                                                   cluster_id, profile_id, 0,
-                                                  TransmitOptions.ENABLE_MULTICAST.value, data)
-        
+                                                  TransmitOptions.ENABLE_MULTICAST.value, rf_data=data)
+
         self.send_packet(packet_to_send)
 
     @AbstractXBeeDevice._before_send_method
@@ -3730,7 +3748,7 @@ class ZigBeeDevice(XBeeDevice):
                                                      registrant_address,
                                                      options,
                                                      key)
-        self.send_packet(packet_to_send, True)
+        self.send_packet(packet_to_send, sync=True)
 
     @AbstractXBeeDevice._before_send_method
     def unregister_joining_device(self, unregistrant_address):
@@ -4007,7 +4025,7 @@ class IPDevice(XBeeDevice):
         options = TXIPv4Packet.OPTIONS_CLOSE_SOCKET if close_socket else TXIPv4Packet.OPTIONS_LEAVE_SOCKET_OPEN
 
         packet = TXIPv4Packet(self.get_next_frame_id(), ip_addr, dest_port, source_port, protocol,
-                              options, data)
+                              options, data=data)
 
         return self.send_packet_sync_and_get_response(packet)
 
@@ -4064,7 +4082,7 @@ class IPDevice(XBeeDevice):
         options = TXIPv4Packet.OPTIONS_CLOSE_SOCKET if close_socket else TXIPv4Packet.OPTIONS_LEAVE_SOCKET_OPEN
 
         packet = TXIPv4Packet(self.get_next_frame_id(), ip_addr, dest_port, source_port, protocol,
-                              options, data)
+                              options, data=data)
 
         self.send_packet(packet)
 
@@ -4149,7 +4167,7 @@ class IPDevice(XBeeDevice):
         if timeout < 0:
             raise ValueError("Read timeout must be 0 or greater.")
 
-        return self.__read_ip_data_packet(timeout, ip_addr)
+        return self.__read_ip_data_packet(timeout, ip_addr=ip_addr)
 
     def __read_ip_data_packet(self, timeout, ip_addr=None):
         """
@@ -4178,7 +4196,7 @@ class IPDevice(XBeeDevice):
         if ip_addr is None:
             packet = queue.get(timeout=timeout)
         else:
-            packet = queue.get_by_ip(ip_addr, timeout)
+            packet = queue.get_by_ip(ip_addr, timeout=timeout)
 
         if packet is None:
             return None
@@ -4949,7 +4967,7 @@ class WiFiDevice(IPDevice):
         self.__scanning_aps = True
 
         try:
-            self.send_packet(ATCommPacket(self.get_next_frame_id(), "AS"), False)
+            self.send_packet(ATCommPacket(self.get_next_frame_id(), "AS"), sync=False)
 
             dead_line = time.time() + self.__DISCOVER_TIMEOUT
             while self.__scanning_aps and time.time() < dead_line:
@@ -5071,7 +5089,7 @@ class WiFiDevice(IPDevice):
         if access_point is None:
             raise XBeeException("Couldn't find any access point with SSID '%s'." % ssid)
 
-        return self.connect_by_ap(access_point, password)
+        return self.connect_by_ap(access_point, password=password)
 
     def disconnect(self):
         """
@@ -5170,7 +5188,8 @@ class WiFiDevice(IPDevice):
         signal_quality = self.__get_signal_quality(version, signal_strength)
         ssid = (ap_data[index:]).decode("utf8")
 
-        return AccessPoint(ssid, WiFiEncryptionType.get(encryption_type), channel, signal_quality)
+        return AccessPoint(ssid, WiFiEncryptionType.get(encryption_type), channel=channel,
+                           signal_quality=signal_quality)
 
     @staticmethod
     def __get_signal_quality(wifi_version, signal_strength):
@@ -5812,7 +5831,7 @@ class XBeeNetwork(object):
         try:
             with self.__lock:
                 self.__sought_device_id = node_id
-            self.__discover_devices(node_id)
+            self.__discover_devices(node_id=node_id)
         finally:
             with self.__lock:
                 self.__sought_device_id = None
@@ -6132,7 +6151,8 @@ class XBeeNetwork(object):
             :class:`.RemoteXBeeDevice`: the remote XBee device with the updated parameters. If the XBee device
                 was not in the list yet, this method returns the given XBee device without changes.
         """
-        remote = RemoteXBeeDevice(self.__xbee_device, x64bit_addr, x16bit_addr, node_id)
+        remote = RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                  x16bit_addr=x16bit_addr, node_id=node_id)
         return self.add_remote(remote)
 
     def add_remote(self, remote_xbee_device):
@@ -6307,8 +6327,8 @@ class XBeeNetwork(object):
             # send "ND" async
             self.__xbee_device.send_packet(ATCommPacket(self.__xbee_device.get_next_frame_id(),
                                                         "ND",
-                                                        None if node_id is None else bytearray(node_id, 'utf8')),
-                                           False)
+                                                        parameter=None if node_id is None else bytearray(node_id, 'utf8')),
+                                           sync=False)
 
             if not is_802_compatible:
                 # If XBee device is not 802.15.4, wait until timeout expires.
@@ -6420,15 +6440,20 @@ class XBeeNetwork(object):
         x16bit_addr, x64bit_addr, node_id = self.__get_data_for_remote(discovery_data)
 
         if p == XBeeProtocol.ZIGBEE:
-            return RemoteZigBeeDevice(self.__xbee_device, x64bit_addr, x16bit_addr, node_id)
+            return RemoteZigBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                      x16bit_addr=x16bit_addr, node_id=node_id)
         elif p == XBeeProtocol.DIGI_MESH:
-            return RemoteDigiMeshDevice(self.__xbee_device, x64bit_addr, node_id)
+            return RemoteDigiMeshDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                        node_id=node_id)
         elif p == XBeeProtocol.DIGI_POINT:
-            return RemoteDigiPointDevice(self.__xbee_device, x64bit_addr, node_id)
+            return RemoteDigiPointDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                         node_id=node_id)
         elif p == XBeeProtocol.RAW_802_15_4:
-            return RemoteRaw802Device(self.__xbee_device, x64bit_addr, x16bit_addr, node_id)
+            return RemoteRaw802Device(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                      x16bit_addr=x16bit_addr, node_id=node_id)
         else:
-            return RemoteXBeeDevice(self.__xbee_device, x64bit_addr, x16bit_addr, node_id)
+            return RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                    x16bit_addr=x16bit_addr, node_id=node_id)
 
     def __get_data_for_remote(self, data):
         """

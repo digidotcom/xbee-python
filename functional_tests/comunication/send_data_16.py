@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -40,7 +40,7 @@ def main():
         local.open()
         local_remote.open()
 
-        remote = RemoteXBeeDevice(local, None, local_remote.get_16bit_addr())
+        remote = RemoteXBeeDevice(local, x16bit_addr=local_remote.get_16bit_addr())
         local.send_data(remote, "Test message")
 
         time.sleep(1)
