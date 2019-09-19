@@ -4672,7 +4672,7 @@ class LPWANDevice(CellularDevice):
         if protocol != IPProtocol.UDP:
             raise ValueError("This protocol only supports UDP transmissions")
 
-        super().send_ip_data(ip_addr, dest_port, protocol, data)
+        super().send_ip_data(ip_addr, dest_port, protocol, data, close_socket=close_socket)
 
     def send_ip_data_async(self, ip_addr, dest_port, protocol, data, close_socket=False):
         """
@@ -4695,7 +4695,7 @@ class LPWANDevice(CellularDevice):
         if protocol != IPProtocol.UDP:
             raise ValueError("This protocol only supports UDP transmissions")
 
-        super().send_ip_data_async(ip_addr, dest_port, protocol, data)
+        super().send_ip_data_async(ip_addr, dest_port, protocol, data, close_socket=close_socket)
 
     def add_sms_callback(self, callback):
         """
