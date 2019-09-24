@@ -13,7 +13,6 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from digi.xbee.devices import XBeeDevice
-from digi.xbee.profile import XBeeProfile, ReadProfileException
 
 # TODO: Replace with the location of the XBee profile file to read.
 PROFILE_PATH = "<path_to_profile>"
