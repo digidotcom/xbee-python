@@ -125,8 +125,10 @@ class ATCommPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.COMMAND: self.__command,
-                DictKeys.PARAMETER: list(self.__parameter) if self.__parameter is not None else None}
+        return {DictKeys.COMMAND.value:   "%s (%s)" % (utils.hex_to_string(bytearray(self.__command, "utf8")),
+                                                       self.__command),
+                DictKeys.PARAMETER.value: utils.hex_to_string(self.__parameter,
+                                                              True) if self.__parameter is not None else None}
 
     def __get_command(self):
         """
@@ -282,8 +284,10 @@ class ATCommQueuePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.COMMAND: self.__command,
-                DictKeys.PARAMETER: list(self.__parameter) if self.__parameter is not None else None}
+        return {DictKeys.COMMAND.value:   "%s (%s)" % (utils.hex_to_string(bytearray(self.__command, "utf8")),
+                                                       self.__command),
+                DictKeys.PARAMETER.value: utils.hex_to_string(self.__parameter,
+                                                              True) if self.__parameter is not None else None}
 
     def __get_command(self):
         """
@@ -1353,7 +1357,8 @@ class TransmitPacket(XBeeAPIPacket):
             
         Raises:
             InvalidPacketException: if the bytearray length is less than 18. (start delim. + length (2 bytes) + frame
-                type + frame id + 64bit addr. + 16bit addr. + Receive options + checksum = 16 bytes).
+                type + frame id + 64bit addr. + 16bit addr. + broadcast radius + transmit options
+                + checksum = 18 bytes).
             InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
                 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
@@ -1408,11 +1413,12 @@ class TransmitPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.X64BIT_ADDR:      self.__x64bit_addr.address,
-                DictKeys.X16BIT_ADDR:      self.__x16bit_addr.address,
-                DictKeys.BROADCAST_RADIUS: self.__broadcast_radius,
-                DictKeys.TRANSMIT_OPTIONS: self.__transmit_options,
-                DictKeys.RF_DATA:          list(self.__rf_data) if self.__rf_data is not None else None}
+        return {DictKeys.X64BIT_ADDR:      utils.hex_to_string(self.__x64bit_addr.address),
+                DictKeys.X16BIT_ADDR:      utils.hex_to_string(self.__x16bit_addr.address),
+                DictKeys.BROADCAST_RADIUS: utils.hex_to_string(bytearray([self.__broadcast_radius])),
+                DictKeys.TRANSMIT_OPTIONS: utils.hex_to_string(bytearray([self.__transmit_options])),
+                DictKeys.RF_DATA:          utils.hex_to_string(self.__rf_data,
+                                                               True) if self.__rf_data is not None else None}
 
     def __get_rf_data(self):
         """

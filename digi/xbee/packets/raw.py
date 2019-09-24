@@ -124,9 +124,10 @@ class TX64Packet(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.X64BIT_ADDR:      self.__x64bit_addr.address,
-                DictKeys.TRANSMIT_OPTIONS: self.__transmit_options,
-                DictKeys.RF_DATA:          self.__rf_data}
+        return {DictKeys.X64BIT_ADDR.value:      utils.hex_to_string(self.__x64bit_addr.address),
+                DictKeys.TRANSMIT_OPTIONS.value: utils.hex_to_string(bytearray([self.__transmit_options])),
+                DictKeys.RF_DATA.value:          utils.hex_to_string(self.__rf_data,
+                                                                     True) if self.__rf_data is not None else None}
 
     def __get_64bit_addr(self):
         """
@@ -311,9 +312,10 @@ class TX16Packet(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.X16BIT_ADDR:      self.__x16bit_addr,
-                DictKeys.TRANSMIT_OPTIONS: self.__transmit_options,
-                DictKeys.RF_DATA:          self.__rf_data}
+        return {DictKeys.X16BIT_ADDR.value:      utils.hex_to_string(self.__x16bit_addr),
+                DictKeys.TRANSMIT_OPTIONS.value: utils.hex_to_string(bytearray([self.__transmit_options])),
+                DictKeys.RF_DATA.value:          utils.hex_to_string(self.__rf_data,
+                                                                     True) if self.__rf_data is not None else None}
 
     def __get_16bit_addr(self):
         """
@@ -492,7 +494,8 @@ class TXStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.TS_STATUS: self.__transmit_status}
+        return {DictKeys.TS_STATUS.value: "%s (%s)" % (utils.hex_to_string(bytearray([self.__transmit_status.code])),
+                                                                           self.__transmit_status.description)}
 
     def __get_transmit_status(self):
         """

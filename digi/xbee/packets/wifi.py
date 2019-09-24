@@ -405,7 +405,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        ret = bytearray(self.__dest_address.packed)
+        ret = bytearray([0x00, 0x00, 0x00, 0x00])
+        ret += bytearray(self.__dest_address.packed)
         ret += utils.int_to_bytes(self.__transmit_options, num_bytes=1)
         ret += bytearray(self.__command, "utf8")
         if self.__parameter is not None:
@@ -419,10 +420,15 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         See:
             :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.DEST_IPV4_ADDR:   "%s (%s)" % (self.__dest_address.packed, self.__dest_address.exploded),
-                DictKeys.TRANSMIT_OPTIONS: self.__transmit_options,
-                DictKeys.COMMAND:          self.__command,
-                DictKeys.PARAMETER:        list(self.__parameter) if self.__parameter is not None else None}
+        return {DictKeys.DEST_IPV4_ADDR.value:   "%s %s (%s)" % (utils.hex_to_string(bytearray([0x00, 0x00,
+                                                                                                0x00, 0x00])),
+                                                                 utils.hex_to_string(self.__dest_address.packed),
+                                                                 self.__dest_address.exploded),
+                DictKeys.TRANSMIT_OPTIONS.value: utils.hex_to_string(bytearray([self.__transmit_options])),
+                DictKeys.COMMAND.value:          "%s (%s)" % (utils.hex_to_string(bytearray(self.__command, "utf8")),
+                                                              self.__command),
+                DictKeys.PARAMETER.value:        utils.hex_to_string(self.__parameter,
+                                                                     True) if self.__parameter is not None else None}
 
     def __get_dest_address(self):
         """

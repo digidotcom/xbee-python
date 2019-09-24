@@ -198,10 +198,13 @@ class XBeePacket:
         Returns:
             Dictionary: dictionary with all information of the XBeePacket fields.
         """
-        return {DictKeys.HEADER_BYTE:     SpecialByte.HEADER_BYTE.code,
-                DictKeys.LENGTH:          len(self),
-                DictKeys.FRAME_SPEC_DATA: self._get_frame_spec_data_dict(),
-                DictKeys.CHECKSUM:        self.get_checksum()}
+        f_dict = {DictKeys.HEADER_BYTE.value:     utils.hex_to_string(bytearray([SpecialByte.HEADER_BYTE.code])),
+                  DictKeys.LENGTH.value:          "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(len(self),
+                                                                                                      num_bytes=2)),
+                                                               len(self))}
+        f_dict.update(self._get_frame_spec_data_dict())
+        f_dict[DictKeys.CHECKSUM.value] = utils.hex_to_string(bytearray([self.get_checksum()]))
+        return f_dict
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -386,9 +389,12 @@ class XBeeAPIPacket(XBeePacket):
         .. seealso::
            | :meth:`.XBeePacket.get_frame_spec_data_dict`
         """
-        return {DictKeys.FRAME_TYPE: self.get_frame_type(),
-                DictKeys.FRAME_ID:   self._frame_id if self.needs_id() else "NO ID",
-                DictKeys.API_DATA:   self._get_api_packet_spec_data_dict()}
+        f_dict = {DictKeys.FRAME_TYPE.value: "%s - %s" % (utils.hex_to_string(bytearray([self.get_frame_type().code])),
+                                                          self.get_frame_type().description)}
+        if self.needs_id():
+            f_dict[DictKeys.FRAME_ID.value] = utils.hex_to_string(bytearray([self._frame_id]))
+        f_dict.update(self._get_api_packet_spec_data_dict())
+        return f_dict
 
     def is_broadcast(self):
         """
