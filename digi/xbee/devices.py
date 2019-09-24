@@ -1237,6 +1237,8 @@ class AbstractXBeeDevice(object):
         """
         from digi.xbee import firmware
 
+        if not self._comm_iface.is_open:
+            raise XBeeException("XBee device's communication interface closed.")
         if self.get_hardware_version() and self.get_hardware_version().code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
             raise OperationNotSupportedException("Firmware update is only supported in XBee3 devices")
         if self.is_remote():
@@ -1252,8 +1254,6 @@ class AbstractXBeeDevice(object):
             if not self._serial_port:
                 raise OperationNotSupportedException("Firmware update is only supported in local XBee connected by "
                                                      "serial.")
-            if not self._serial_port.is_open:
-                raise XBeeException("XBee device's serial port closed.")
             firmware.update_local_firmware(self, xml_firmware_file,
                                            xbee_firmware_file=xbee_firmware_file,
                                            bootloader_firmware_file=bootloader_firmware_file,
@@ -1294,12 +1294,11 @@ class AbstractXBeeDevice(object):
         """
         from digi.xbee import profile
 
-        if not self._serial_port.is_open:
-            raise XBeeException("XBee device's serial port closed.")
-        if self._operating_mode != OperatingMode.API_MODE and self._operating_mode != OperatingMode.ESCAPED_API_MODE:
+        if not self._comm_iface.is_open:
+            raise XBeeException("XBee device's communication interface closed.")
+        if not self.is_remote() and self._operating_mode != OperatingMode.API_MODE and \
+                self._operating_mode != OperatingMode.ESCAPED_API_MODE:
             raise InvalidOperatingModeException(op_mode=self._operating_mode)
-        if self.is_remote():
-            raise OperationNotSupportedException("XBee profiles are not supported in remote XBee devices")
         if self.get_hardware_version() and self.get_hardware_version().code not in profile.SUPPORTED_HARDWARE_VERSIONS:
             raise OperationNotSupportedException("XBee profiles are only supported in XBee3 devices")
 

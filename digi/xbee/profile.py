@@ -57,7 +57,7 @@ _ERROR_PROFILE_TEMP_DIR = "Error creating temporary directory: %s"
 _ERROR_PROFILE_XML_NOT_EXIST = "Profile XML file does not exist"
 _ERROR_PROFILE_XML_INVALID = "Invalid profile XML file contents: %s"
 _ERROR_PROFILE_XML_PARSE = "Error parsing profile XML file: %s"
-_ERROR_PROFILES_NOT_SUPPORTED = "XBee profiles are only supported in XBee3 local devices"
+_ERROR_PROFILES_NOT_SUPPORTED = "XBee profiles are only supported in XBee 3 devices"
 _ERROR_READ_REMOTE_PARAMETER = "Error reading remote parameter: %s"
 _ERROR_UPDATE_FILESYSTEM = "Error updating XBee filesystem: %s"
 _ERROR_UPDATE_FIRMWARE = "Error updating XBee firmware: %s"
@@ -1085,15 +1085,11 @@ class _ProfileUpdater(object):
         Raises:
             UpdateProfileException: if there is any error updating the XBee firmware.
         """
-        if self._is_local:
-            try:
-                self._xbee_device.update_firmware(self._xbee_profile.firmware_description_file,
-                                                  progress_callback=self._firmware_progress_callback)
-            except FirmwareUpdateException as e:
-                raise UpdateProfileException(_ERROR_UPDATE_FIRMWARE % str(e))
-        else:
-            # TODO: Remote firmware update is not implemented yet.
-            pass
+        try:
+            self._xbee_device.update_firmware(self._xbee_profile.firmware_description_file,
+                                              progress_callback=self._firmware_progress_callback)
+        except FirmwareUpdateException as e:
+            raise UpdateProfileException(_ERROR_UPDATE_FIRMWARE % str(e))
 
     def _check_port_settings_changed(self):
         """
@@ -1239,6 +1235,7 @@ class _ProfileUpdater(object):
                 filesystem_manager.disconnect()
         else:
             # TODO: remote filesystem update is not implemented yet.
+            _log.info("Remote filesystem update is not yet supported, skipping.")
             pass
 
     def update_profile(self):
@@ -1251,8 +1248,8 @@ class _ProfileUpdater(object):
         # Retrieve device parameters.
         self._read_device_parameters()
         # Check if device supports profiles.
-        # TODO: reduce limitations when remote implementations are done.
-        if self._device_hardware_version.code not in SUPPORTED_HARDWARE_VERSIONS or self._xbee_device.is_remote():
+        # TODO: reduce limitations when more hardware is supported.
+        if self._device_hardware_version.code not in SUPPORTED_HARDWARE_VERSIONS:
             raise UpdateProfileException(_ERROR_PROFILES_NOT_SUPPORTED)
         # Verify hardware compatibility of the profile.
         if self._device_hardware_version.code != self._xbee_profile.hardware_version:
