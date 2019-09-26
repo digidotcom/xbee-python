@@ -169,20 +169,34 @@ class AbstractXBeeDevice(object):
 
         Args:
             device (:class:`.AbstractXBeeDevice`): the XBee device to get the data from.
+
+        Return:
+            Boolean: ``True`` if the device data has been updated, ``False`` otherwise.
         """
-        if device.get_node_id() is not None:
-            self._node_id = device.get_node_id()
+        updated = False
 
-        addr64 = device.get_64bit_addr()
-        if (addr64 is not None and
-            addr64 != XBee64BitAddress.UNKNOWN_ADDRESS and
-            addr64 != self._64bit_addr and
-                (self._64bit_addr is None or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS)):
-            self._64bit_addr = addr64
+        new_ni = device.get_node_id()
+        if new_ni is not None and new_ni != self._node_id:
+            self._node_id = new_ni
+            updated = True
 
-        addr16 = device.get_16bit_addr()
-        if addr16 is not None and addr16 != self._16bit_addr:
-            self._16bit_addr = addr16
+        new_addr64 = device.get_64bit_addr()
+        if (new_addr64 is not None
+                and new_addr64 != XBee64BitAddress.UNKNOWN_ADDRESS
+                and new_addr64 != self._64bit_addr
+                and (self._64bit_addr is None
+                     or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS)):
+            self._64bit_addr = new_addr64
+            updated = True
+
+        new_addr16 = device.get_16bit_addr()
+        if (new_addr16 is not None
+                and new_addr16 != XBee16BitAddress.UNKNOWN_ADDRESS
+                and new_addr16 != self._16bit_addr):
+            self._16bit_addr = new_addr16
+            updated = True
+
+        return updated
 
     def get_parameter(self, parameter, parameter_value=None):
         """
@@ -6597,8 +6611,8 @@ class XBeeNetwork(object):
         with self.__lock:
             for xbee in self.__devices_list:
                 if xbee == remote_xbee:
-                    xbee.update_device_data_from(remote_xbee)
-                    self.__network_modified(NetworkEventType.UPDATE, reason, node=xbee)
+                    if xbee.update_device_data_from(remote_xbee):
+                        self.__network_modified(NetworkEventType.UPDATE, reason, node=xbee)
                     return xbee
             self.__devices_list.append(remote_xbee)
             self.__network_modified(NetworkEventType.ADD, reason, node=remote_xbee)
