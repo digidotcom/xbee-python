@@ -31,7 +31,7 @@ from digi.xbee.models.info import SocketInfo
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage
 from digi.xbee.models.options import TransmitOptions, RemoteATCmdOptions, DiscoveryOptions, XBeeLocalInterface, \
     RegisterKeyOptions
-from digi.xbee.models.protocol import XBeeProtocol, IPProtocol
+from digi.xbee.models.protocol import XBeeProtocol, IPProtocol, Role
 from digi.xbee.models.status import ATCommandStatus, TransmitStatus, PowerLevel, \
     ModemStatus, CellularAssociationIndicationStatus, WiFiAssociationIndicationStatus, AssociationIndicationStatus,\
     NetworkDiscoveryStatus
@@ -124,6 +124,7 @@ class AbstractXBeeDevice(object):
         self._firmware_version = None
         self._protocol = None
         self._node_id = None
+        self._role = Role.UNKNOWN
 
         self._packet_listener = None
 
@@ -490,6 +491,75 @@ class AbstractXBeeDevice(object):
             r = self.get_parameter("MY")
             self._16bit_addr = XBee16BitAddress(r)
 
+        # Role:
+        if self._role is None or self._role == Role.UNKNOWN:
+            self._role = self._determine_role()
+
+    def _determine_role(self):
+        """
+        Determines the role of the device depending on the device protocol.
+
+        Returns:
+            :class:`digi.xbee.models.protocol.Role`: The XBee role.
+
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            ATCommandException: if the response is not as expected.
+        """
+        if self._protocol in [XBeeProtocol.DIGI_MESH, XBeeProtocol.SX, XBeeProtocol.XTEND_DM]:
+            ce = utils.bytes_to_int(self.get_parameter("CE"))
+            if ce == 0:
+                ss = self.get_parameter("SS")
+                if not ss:
+                    return Role.ROUTER
+
+                ss = utils.bytes_to_int(ss)
+                if utils.is_bit_enabled(ss, 1):
+                    return Role.COORDINATOR
+                else:
+                    return Role.ROUTER
+            elif ce == 1:
+                return Role.COORDINATOR
+            else:
+                return Role.END_DEVICE
+        elif self._protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.DIGI_POINT,
+                                XBeeProtocol.XLR, XBeeProtocol.XLR_DM]:
+            ce = utils.bytes_to_int(self.get_parameter("CE"))
+            if self._protocol in XBeeProtocol.RAW_802_15_4:
+                if ce == 0:
+                    return Role.END_DEVICE
+                elif ce == 1:
+                    return Role.COORDINATOR
+            else:
+                if ce == 0:
+                    return Role.ROUTER
+                elif ce in (1, 3):
+                    return Role.COORDINATOR
+                elif ce in (2, 4, 6):
+                    return Role.END_DEVICE
+        elif self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.SMART_ENERGY]:
+            try:
+                ce = utils.bytes_to_int(self.get_parameter("CE"))
+                if ce == 1:
+                    return Role.COORDINATOR
+
+                sm = utils.bytes_to_int(self.get_parameter("SM"))
+
+                return Role.ROUTER if sm == 0 else Role.END_DEVICE
+            except ATCommandException as e:
+                from digi.xbee.models.zdo import NodeDescriptorReader
+                nd = NodeDescriptorReader(
+                    self, configure_ao=True,
+                    timeout=3*self._timeout if self.is_remote() else 2*self._timeout) \
+                    .get_node_descriptor()
+                if nd:
+                    return nd.role
+
+        return Role.UNKNOWN
+
     def get_node_id(self):
         """
         Returns the Node Identifier (``NI``) value of the XBee device.
@@ -595,6 +665,18 @@ class AbstractXBeeDevice(object):
            | :class:`.XBee64BitAddress`
         """
         return self._64bit_addr
+
+    def get_role(self):
+        """
+        Gets the XBee role.
+
+        Returns:
+             :class:`digi.xbee.models.protocol.Role`: the role of the XBee.
+
+        .. seealso::
+           | :class:`digi.xbee.models.protocol.Role`
+        """
+        return self._role
 
     def get_current_frame_id(self):
         """
@@ -6882,23 +6964,24 @@ class XBeeNetwork(object):
         if discovery_data is None:
             return None
         p = self.__xbee_device.get_protocol()
-        x16bit_addr, x64bit_addr, node_id = self.__get_data_for_remote(discovery_data)
+        x16bit_addr, x64bit_addr, node_id, role = self.__get_data_for_remote(discovery_data)
 
         if p == XBeeProtocol.ZIGBEE:
-            return RemoteZigBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
-                                      x16bit_addr=x16bit_addr, node_id=node_id)
-        elif p == XBeeProtocol.DIGI_MESH:
-            return RemoteDigiMeshDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
-                                        node_id=node_id)
-        elif p == XBeeProtocol.DIGI_POINT:
-            return RemoteDigiPointDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
-                                         node_id=node_id)
-        elif p == XBeeProtocol.RAW_802_15_4:
-            return RemoteRaw802Device(self.__xbee_device, x64bit_addr=x64bit_addr,
-                                      x16bit_addr=x16bit_addr, node_id=node_id)
-        else:
-            return RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+            xb = RemoteZigBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
                                     x16bit_addr=x16bit_addr, node_id=node_id)
+        elif p == XBeeProtocol.DIGI_MESH:
+            xb = RemoteDigiMeshDevice(self.__xbee_device, x64bit_addr=x64bit_addr, node_id=node_id)
+        elif p == XBeeProtocol.DIGI_POINT:
+            xb = RemoteDigiPointDevice(self.__xbee_device, x64bit_addr=x64bit_addr, node_id=node_id)
+        elif p == XBeeProtocol.RAW_802_15_4:
+            xb = RemoteRaw802Device(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                    x16bit_addr=x16bit_addr, node_id=node_id)
+        else:
+            xb = RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+                                  x16bit_addr=x16bit_addr, node_id=node_id)
+
+        xb._role = role
+        return xb
 
     def __get_data_for_remote(self, data):
         """
@@ -6912,6 +6995,7 @@ class XBeeNetwork(object):
         Returns:
             Tuple (:class:`.XBee16BitAddress`, :class:`.XBee64BitAddress`, Bytearray): remote device information
         """
+        role = Role.UNKNOWN
         if self.__xbee_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # node ID starts at 11 if protocol is not 802.15.4:
             #    802.15.4 adds a byte of info between 64bit address and XBee device ID, avoid it:
@@ -6927,7 +7011,13 @@ class XBeeNetwork(object):
             while data[i] != 0x00:
                 i += 1
             node_id = data[10:i]
-        return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]), node_id.decode()
+            i += 1
+            # parent address: next 2 bytes from i
+            parent_addr = data[i:i+2]
+            i += 2
+            # role is the next byte
+            role = Role.get(utils.bytes_to_int(data[i:i+1]))
+        return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]), node_id.decode(), role
 
 
 class ZigBeeNetwork(XBeeNetwork):

@@ -346,3 +346,60 @@ class IPProtocol(Enum):
 
 IPProtocol.lookupTable = {x.code: x for x in IPProtocol}
 IPProtocol.__doc__ += utils.doc_enum(IPProtocol)
+
+
+@unique
+class Role(Enum):
+    """
+    Enumerates the available roles for an XBee.
+
+    | Inherited properties:
+    |     **name** (String): the name (id) of this Role.
+    |     **value** (String): the value of this Role.
+    """
+
+    COORDINATOR = (0, "Coordinator")
+    ROUTER = (1, "Router")
+    END_DEVICE = (2, "End device")
+    UNKNOWN = (3, "Unknown")
+
+    def __init__(self, identifier, description):
+        self.__id = identifier
+        self.__desc = description
+
+    @property
+    def id(self):
+        """
+        Gets the identifier of the role.
+
+        Returns:
+            Integer: the role identifier.
+        """
+        return self.__id
+
+    @property
+    def description(self):
+        """
+        Gets the description of the role.
+
+        Returns:
+            String: the role description.
+        """
+        return self.__desc
+
+    @classmethod
+    def get(cls, identifier):
+        """
+        Returns the Role for the given identifier.
+
+        Args:
+            identifier (Integer): the id value corresponding to the role to get.
+
+        Returns:
+            :class:`.Role`: the Role with the given identifier. ``None`` if it does not exist.
+        """
+        for item in cls:
+            if identifier == item.id:
+                return item
+
+        return None

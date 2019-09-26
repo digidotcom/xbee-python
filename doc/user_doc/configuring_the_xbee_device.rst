@@ -51,6 +51,8 @@ getters:
 +------------------------+----------------------------+
 | Hardware version       | **get_hardware_version()** |
 +------------------------+----------------------------+
+| Role                   | **get_role()**             |
++------------------------+----------------------------+
 
 Local XBee devices read and save previous parameters automatically when
 opening the connection of the device. In remote XBee devices, you must
