@@ -62,6 +62,13 @@ You can refresh the value of those parameters (that is, read their values and
 update them inside the XBee device object) at any time by calling the
 ``read_device_info()`` method.
 
++----------------------------------+-------------------------------------------------------------------------------------------------------------------------------------+
+| Method                           | Description                                                                                                                         |
++==================================+=====================================================================================================================================+
+| **read_device_info(init=False)** | Updates cache parameters reading them from the XBee: If ``init`` is ``True`` it reads all values, else only those not initialized.  |
++----------------------------------+-------------------------------------------------------------------------------------------------------------------------------------+
+
+
 **Refresh cached parameters**
 
 .. code:: python

@@ -440,10 +440,13 @@ class AbstractXBeeDevice(object):
         """
         pass
 
-    def read_device_info(self):
+    def read_device_info(self, init=True):
         """
         Updates all instance parameters reading them from the XBee device.
 
+        Args:
+            init (Boolean, optional, default=`True`): If ``False`` only not initialized parameters
+                are read, all if ``True``.
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
             XBeeException: if the XBee device's serial port is closed.
@@ -463,36 +466,39 @@ class AbstractXBeeDevice(object):
                 raise XBeeException("XBee device's serial port closed")
 
         # Hardware version:
-        self._hardware_version = HardwareVersion.get(self.get_parameter("HV")[0])
+        if init or self._hardware_version is None:
+            self._hardware_version = HardwareVersion.get(self.get_parameter("HV")[0])
         # Firmware version:
-        self._firmware_version = self.get_parameter("VR")
+        if init or self._firmware_version is None:
+            self._firmware_version = self.get_parameter("VR")
+
         # Original value of the protocol:
         orig_protocol = self.get_protocol()
         # Protocol:
         self._protocol = XBeeProtocol.determine_protocol(self._hardware_version.code, self._firmware_version)
-        
+
         if orig_protocol is not None and orig_protocol != XBeeProtocol.UNKNOWN and orig_protocol != self._protocol:
             raise XBeeException("Error reading device information: "
                                 "Your module seems to be %s and NOT %s. " % (self._protocol, orig_protocol) +
                                 "Check if you are using the appropriate device class.")
-        
+
         # 64-bit address:
-        sh = self.get_parameter("SH")
-        sl = self.get_parameter("SL")
-        self._64bit_addr = XBee64BitAddress(sh + sl)
+        if init or self._64bit_addr is None or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
+            sh = self.get_parameter("SH")
+            sl = self.get_parameter("SL")
+            self._64bit_addr = XBee64BitAddress(sh + sl)
         # Node ID:
         self._node_id = self.get_parameter("NI").decode()
         # 16-bit address:
-        if self._protocol in [XBeeProtocol.ZIGBEE,
-                              XBeeProtocol.RAW_802_15_4,
-                              XBeeProtocol.XTEND,
-                              XBeeProtocol.SMART_ENERGY,
-                              XBeeProtocol.ZNET]:
+        if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4, XBeeProtocol.XTEND,
+                               XBeeProtocol.SMART_ENERGY, XBeeProtocol.ZNET]
+                and (init or self._16bit_addr is None
+                     or self._16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS)):
             r = self.get_parameter("MY")
             self._16bit_addr = XBee16BitAddress(r)
 
         # Role:
-        if self._role is None or self._role == Role.UNKNOWN:
+        if init or self._role is None or self._role == Role.UNKNOWN:
             self._role = self._determine_role()
 
     def _determine_role(self):
