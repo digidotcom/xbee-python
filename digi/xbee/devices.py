@@ -6608,6 +6608,9 @@ class XBeeNetwork(object):
             :class:`.RemoteXBeeDevice`: the provided XBee device with the updated parameters. If the XBee device
                 was not in the list yet, this method returns it without changes.
         """
+        if remote_xbee == remote_xbee.get_local_xbee_device():
+            return remote_xbee
+
         with self.__lock:
             for xbee in self.__devices_list:
                 if xbee == remote_xbee:
