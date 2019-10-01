@@ -16,7 +16,7 @@ from abc import abstractmethod, ABCMeta
 import logging
 from enum import Enum
 
-from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
+from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, RemoteZigBeeDevice
 from digi.xbee.exception import XBeeException, OperationNotSupportedException
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.mode import APIOutputModeBit
@@ -1073,3 +1073,375 @@ class Route(object):
             Boolean: ``True`` if a route record message should be sent, ``False`` otherwise.
         """
         return self.__is_rr_required
+
+
+class NeighborTableReader(__ZDOCommand):
+    """
+    This class performs a neighbor table read of the given XBee using a ZDO command.
+
+    The node descriptor read works only with Zigbee devices in API mode.
+    """
+
+    DEFAULT_TIMEOUT = 20  # seconds
+
+    __CLUSTER_ID = 0x0031
+    __RECEIVE_CLUSTER_ID = 0x8031
+
+    __NEIGHBOR_BYTES_LEN = 22
+
+    __ROLE_FIELD_OFFSET = 0
+    __ROLE_FIELD_LEN = 2
+    __RELATIONSHIP_FIELD_OFFSET = 4
+    __RELATIONSHIP_FIELD_LEN = 3
+
+    def __init__(self, xbee, configure_ao=True, timeout=DEFAULT_TIMEOUT):
+        """
+        Class constructor. Instantiates a new :class:`.NeighborTableReader` object with the
+        provided parameters.
+
+        Args:
+            xbee (class:`digi.xbee.devices.XBeeDevice` or
+                class:`digi.xbee.devices.RemoteXBeeDevice`): the XBee to send the command.
+            configure_ao (Boolean, optional, default=``True``): ``True`` to configure AO value
+                before and after executing this command, ``False`` otherwise.
+            timeout (Float, optional, default=``.DEFAULT_TIMEOUT``): The ZDO command timeout
+                in seconds.
+
+        Raises:
+            ValueError: If ``xbee`` is ``None``.
+            ValueError: If ``cluster_id``, ``receive_cluster_id``, or ``timeout`` are less than 0.
+            TypeError: If the ``xbee`` is not a ``digi.xbee.devices.XBeeDevice`` or a
+                ``digi.xbee.devices.RemoteXBeeDevice``.
+        """
+        super().__init__(xbee, self.__class__.__CLUSTER_ID, self.__class__.__RECEIVE_CLUSTER_ID,
+                         configure_ao, timeout)
+
+        self.__neighbors = None
+        self.__total_neighbors = 0
+        self.__index = 0
+
+        self.__cb = None
+
+    def get_neighbor_table(self, neighbor_callback=None, process_finished_callback=None):
+        """
+        Returns the neighbors of the XBee. If ``neighbor_callback`` is not defined, the process
+        blocks until the complete neighbor table is read.
+
+        Args:
+            neighbor_callback (Function, optional, default=``None``): method called when a new
+                neighbor is received. Receives two arguments:
+
+                * The XBee that owns this new neighbor.
+                * The new neighbor.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the ZDO command.
+                * A list with the discovered neighbors.
+                * An error message if something went wrong.
+
+        Returns:
+            List: List of :class:`.Neighbor` when ``neighbor_callback`` is not defined, ``None``
+                otherwise (in this case neighbors are received in the callback).
+
+        .. seealso::
+           | :class:`.Neighbor`
+        """
+        self.__cb = neighbor_callback
+        self._start_process(sync=True if not self.__cb else False,
+                            zdo_callback=process_finished_callback)
+
+        return self.__neighbors
+
+    def _init_variables(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._init_variables`
+        """
+        self.__neighbors = []
+        self.__total_neighbors = 0
+        self.__index = 0
+
+    def _is_broadcast(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._is_broadcast`
+        """
+        return False
+
+    def _get_zdo_command_data(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._get_zdo_command_data`
+        """
+        return bytearray([self._current_transaction_id, self.__index])
+
+    def _parse_data(self, data):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._parse_data`
+        """
+        # Byte 0: Total number of neighbor table entries
+        # Byte 1: Starting point in the neighbor table
+        # Byte 2: Number of neighbor table entries in the response
+        # Byte 3 - end: List of neighbor table entries (as many as indicated in byte 2)
+
+        self.__total_neighbors = int(data[0])
+        # Ignore start index and get the number of entries in this response.
+        n_items = int(data[2])
+        if not n_items:
+            # No entries in this response, try again?
+            self.__get_next_neighbors()
+            return True
+
+        # Parse neighbors
+        neighbors_starting_index = 3
+        byte_index = neighbors_starting_index
+        n_neighbor_data_bytes = len(data) - 3  # Subtract the 3 first bytes: total number of
+        # entries, start index, and the number of entries in this response
+
+        while byte_index + 1 < n_neighbor_data_bytes:
+            if byte_index + self.__class__.__NEIGHBOR_BYTES_LEN \
+                    > n_neighbor_data_bytes + neighbors_starting_index:
+                break
+
+            n = self.__parse_neighbor(
+                data[byte_index:byte_index + self.__class__.__NEIGHBOR_BYTES_LEN])
+            # Do not add the node with Zigbee coordinator address "0000000000000000"
+            # The coordinator is already received with its real 64-bit address
+            if n and n.node.get_64bit_addr() != XBee64BitAddress.COORDINATOR_ADDRESS:
+                self.__neighbors.append(n)
+                if self.__cb:
+                    self.__cb(self._xbee, n)
+
+            byte_index += self.__class__.__NEIGHBOR_BYTES_LEN
+            self.__index += 1
+
+        # Check if we already have all the neighbors
+        if self.__index < self.__total_neighbors:
+            self.__get_next_neighbors()
+
+            return False
+
+        return True
+
+    def _perform_finish_actions(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._perform_finish_actions`
+        """
+        pass
+
+    def _notify_process_finished(self, zdo_callback):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._notify_process_finished`
+        """
+        if zdo_callback:
+            zdo_callback(self._xbee, self.__neighbors, self._error)
+
+    def __parse_neighbor(self, data):
+        """
+        Parses the given bytearray and returns a neighbor.
+
+        Args:
+            data (bytearray): Bytearray with data to parse.
+
+        Returns:
+             :class:`.Neighbor`: The neighbor or ``None`` if not found.
+        """
+        # Bytes 0 - 7: Extended PAN ID (little endian)
+        # Bytes 8 - 15: 64-bit neighbor address (little endian)
+        # Bytes 16 - 17: 16-bit neighbor address (little endian)
+        # Byte 18: First setting byte:
+        #          * Bit 0 - 1: Neighbor role
+        #          * Bit 2 - 3: Receiver on when idle (indicates if the neighbor's receiver is
+        #                       enabled during idle times)
+        #          * Bit 4 - 6: Relationship of this neighbor with the node
+        #          * Bit 7: Reserved
+        # Byte 19: Second setting byte:
+        #          * Bit 0 - 1: Permit joining (indicates if the neighbor accepts join requests)
+        #          * Bit 2 - 7: Reserved
+        # Byte 20: Depth (Tree depth of the neighbor. A value of 0 indicates the neighbor is the
+        #          coordinator)
+        # Byte 21: LQI (The estimated link quality of data transmissions from this neighbor)
+        x64 = XBee64BitAddress.from_bytes(*data[8:16][:: -1])
+        x16 = XBee16BitAddress.from_bytes(data[17], data[16])
+        role = Role.get(utils.get_int_from_byte(data[18], self.__class__.__ROLE_FIELD_OFFSET,
+                                                self.__class__.__ROLE_FIELD_LEN))
+        relationship = NeighborRelationship.get(
+            utils.get_int_from_byte(data[18], self.__class__.__RELATIONSHIP_FIELD_OFFSET,
+                                    self.__class__.__RELATIONSHIP_FIELD_LEN))
+        depth = int(data[20])
+        lqi = int(data[21])
+
+        if not self._xbee.is_remote():
+            xb = self._xbee
+        else:
+            xb = self._xbee.get_local_xbee_device()
+
+        # Create a new remote node
+        n_xb = RemoteZigBeeDevice(xb, x64bit_addr=x64, x16bit_addr=x16)
+        n_xb._role = role
+
+        return Neighbor(n_xb, relationship, depth, lqi)
+
+    def __get_next_neighbors(self):
+        """
+        Sends a new ZDO request to get more neighbor table entries.
+        """
+        if not self._xbee.is_remote():
+            xb = self._xbee
+        else:
+            xb = self._xbee.get_local_xbee_device()
+
+        try:
+            xb.send_packet(self._generate_zdo_packet())
+        except XBeeException as e:
+            self._error = "Error sending ZDO command: " + str(e)
+
+
+class NeighborRelationship(Enum):
+    """
+    Enumerates the available relationships between two nodes of the same network.
+    """
+
+    PARENT = (0, "Neighbor is the parent")
+    CHILD = (1, "Neighbor is a child")
+    SIBLING = (2, "Neighbor is a sibling")
+    UNDETERMINED = (3, "Neighbor has an unknown relationship")
+    PREVIOUS_CHILD = (4, "Previous child")
+    UNKNOWN = (-1, "Unknown")
+
+    def __init__(self, identifier, name):
+        self.__id = identifier
+        self.__name = name
+
+    @property
+    def id(self):
+        """
+        Returns the identifier of the NeighborRelationship.
+
+        Returns:
+            Integer: the NeighborRelationship identifier.
+        """
+        return self.__id
+
+    @property
+    def name(self):
+        """
+        Returns the name of the NeighborRelationship.
+
+        Returns:
+            String: the NeighborRelationship name.
+        """
+        return self.__name
+
+    @classmethod
+    def get(cls, identifier):
+        """
+        Returns the NeighborRelationship for the given identifier.
+
+        Args:
+            identifier (Integer): the id corresponding to the neighbor relationship to get.
+
+        Returns:
+            :class:`.NeighborRelationship`: the NeighborRelationship with the given id. ``None``
+                if it does not exist.
+        """
+        for item in cls:
+            if identifier == item.id:
+                return item
+
+        return None
+
+
+class Neighbor(object):
+    """
+    This class represents a Zigbee neighbor read from the neighbor table of an XBee.
+    """
+
+    def __init__(self, node, relationship, depth, lqi):
+        """
+        Class constructor. Instantiates a new :class:`.Neighbor` object with the provided
+        parameters.
+
+        Args:
+            node (:class:`digi.xbee.devices.RemoteZigBeeDevice`): The neighbor node.
+            relationship (:class:`.NeighborRelationship`): The relationship of this neighbor with
+                the node.
+            depth (Integer): The tree depth of the neighbor. A value of 0 indicates the device is a
+                Zigbee coordinator for the network.
+            lqi (Integer): The estimated link quality of data transmission from this neighbor.
+
+        .. seealso::
+           | :class:`.NeighborRelationship`
+           | :class:`digi.xbee.devices.RemoteZigBeeDevice`
+        """
+        self.__node = node
+        self.__relationship = relationship
+        self.__depth = depth
+        self.__lqi = lqi
+
+    def __str__(self):
+        return "Node: {!s} (relationship: {!s}, depth: {!r}, lqi: {!r})"\
+            .format(self.__node, self.__relationship.name, self.__depth, self.__lqi)
+
+    @property
+    def node(self):
+        """
+        Gets the neighbor node.
+
+        Returns:
+            :class:`digi.xbee.devices.RemoteZigBeeDevice`: The node itself.
+
+        .. seealso::
+           | :class:`digi.xbee.devices.RemoteZigBeeDevice`
+        """
+        return self.__node
+
+    @property
+    def relationship(self):
+        """
+        Gets the neighbor node.
+
+        Returns:
+            :class:`.NeighborRelationship`: The neighbor relationship.
+
+        .. seealso::
+           | :class:`.NeighborRelationship`
+        """
+        return self.__relationship
+
+    @property
+    def depth(self):
+        """
+        Gets the tree depth of the neighbor.
+
+        Returns:
+            Integer: The tree depth of the neighbor.
+        """
+        return self.__depth
+
+    @property
+    def lqi(self):
+        """
+        Gets the estimated link quality of data transmission from this neighbor.
+
+        Returns:
+            Integer: The estimated link quality of data transmission from this neighbor.
+        """
+        return self.__lqi

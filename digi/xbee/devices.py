@@ -1874,6 +1874,45 @@ class AbstractXBeeDevice(object):
         return reader.get_route_table(route_callback=route_callback,
                                       process_finished_callback=process_finished_callback)
 
+    def _get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+        """
+        Returns the neighbors of this XBee. If ``neighbor_callback`` is not defined, the process
+        blocks until the complete neighbor table is read.
+
+        Args:
+            neighbor_callback (Function, optional, default=``None``): method called when a new
+                neighbor is received. Receives two arguments:
+
+                * The XBee that owns this new neighbor.
+                * The new neighbor.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the ZDO command.
+                * A list with the discovered neighbors.
+                * An error message if something went wrong.
+
+            timeout (Float, optional, default=``NeighborTableReader.DEFAULT_TIMEOUT``): The ZDO
+                command timeout in seconds.
+        Returns:
+            List: List of :class:`com.digi.models.zdo.Neighbor` when ``neighbor_callback`` is
+                defined, ``None`` otherwise (in this case neighbors are received in the callback).
+
+        Raises:
+            OperationNotSupportedException: If XBee protocol is not Zigbee or Smart Energy.
+
+        .. seealso::
+           | :class:`com.digi.models.zdo.Neighbor`
+        """
+        from digi.xbee.models.zdo import NeighborTableReader
+        reader = NeighborTableReader(
+            self, configure_ao=True,
+            timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
+
+        return reader.get_neighbor_table(neighbor_callback=neighbor_callback,
+                                         process_finished_callback=process_finished_callback)
+
     def __get_log(self):
         """
         Returns the XBee device log.
@@ -4410,6 +4449,43 @@ class ZigBeeDevice(XBeeDevice):
                                    process_finished_callback=process_finished_callback,
                                    timeout=timeout if timeout else RouteTableReader.DEFAULT_TIMEOUT)
 
+    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+        """
+        Returns the neighbors of this XBee. If ``neighbor_callback`` is not defined, the process
+        blocks until the complete neighbor table is read.
+
+        Args:
+            neighbor_callback (Function, optional, default=``None``): method called when a new
+                neighbor is received. Receives two arguments:
+
+                * The XBee that owns this new neighbor.
+                * The new neighbor.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the ZDO command.
+                * A list with the discovered neighbors.
+                * An error message if something went wrong.
+
+            timeout (Float, optional, default=``NeighborTableReader.DEFAULT_TIMEOUT``): The ZDO
+                command timeout in seconds.
+        Returns:
+            List: List of :class:`com.digi.models.zdo.Neighbor` when ``neighbor_callback`` is
+                defined, ``None`` otherwise (in this case neighbors are received in the callback).
+
+        Raises:
+            OperationNotSupportedException: If XBee protocol is not Zigbee or Smart Energy.
+
+        .. seealso::
+           | :class:`com.digi.models.zdo.Neighbor`
+        """
+        from digi.xbee.models.zdo import NeighborTableReader
+        return super()._get_neighbors(
+            neighbor_callback=neighbor_callback,
+            process_finished_callback=process_finished_callback,
+            timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
+
 
 class IPDevice(XBeeDevice):
     """
@@ -6447,6 +6523,43 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
         return super()._get_routes(route_callback=route_callback,
                                    process_finished_callback=process_finished_callback,
                                    timeout=timeout if timeout else RouteTableReader.DEFAULT_TIMEOUT)
+
+    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+        """
+        Returns the neighbors of this XBee. If ``neighbor_callback`` is not defined, the process
+        blocks until the complete neighbor table is read.
+
+        Args:
+            neighbor_callback (Function, optional, default=``None``): method called when a new
+                neighbor is received. Receives two arguments:
+
+                * The XBee that owns this new neighbor.
+                * The new neighbor.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the ZDO command.
+                * A list with the discovered neighbors.
+                * An error message if something went wrong.
+
+            timeout (Float, optional, default=``NeighborTableReader.DEFAULT_TIMEOUT``): The ZDO
+                command timeout in seconds.
+        Returns:
+            List: List of :class:`com.digi.models.zdo.Neighbor` when ``neighbor_callback`` is
+                defined, ``None`` otherwise (in this case neighbors are received in the callback).
+
+        Raises:
+            OperationNotSupportedException: If XBee protocol is not Zigbee or Smart Energy.
+
+        .. seealso::
+           | :class:`com.digi.models.zdo.Neighbor`
+        """
+        from digi.xbee.models.zdo import NeighborTableReader
+        return super()._get_neighbors(
+            neighbor_callback=neighbor_callback,
+            process_finished_callback=process_finished_callback,
+            timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
 
 
 class XBeeNetwork(object):
