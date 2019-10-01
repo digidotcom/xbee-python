@@ -1836,6 +1836,44 @@ class AbstractXBeeDevice(object):
 
         return self._get_packet_by_id(packet.frame_id) if sync else None
 
+    def _get_routes(self, route_callback=None, process_finished_callback=None, timeout=None):
+        """
+        Returns the routes of this XBee. If ``route_callback`` is not defined, the process blocks
+        until the complete routing table is read.
+
+        Args:
+            route_callback (Function, optional, default=``None``): method called when a new route
+                is received. Receives two arguments:
+
+                * The XBee that owns this new route.
+                * The new route.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the ZDO command.
+                * A list with the discovered routes.
+                * An error message if something went wrong.
+
+            timeout (Float, optional, default=``RouteTableReader.DEFAULT_TIMEOUT``): The ZDO command
+                timeout in seconds.
+        Returns:
+            List: List of :class:`com.digi.models.zdo.Route` when ``route_callback`` is defined,
+                ``None`` otherwise (in this case routes are received in the callback).
+
+        Raises:
+            OperationNotSupportedException: If XBee protocol is not Zigbee or Smart Energy.
+
+        .. seealso::
+           | :class:`com.digi.models.zdo.Route`
+        """
+        from digi.xbee.models.zdo import RouteTableReader
+        reader = RouteTableReader(self, configure_ao=True,
+                                  timeout=timeout if timeout else RouteTableReader.DEFAULT_TIMEOUT)
+
+        return reader.get_route_table(route_callback=route_callback,
+                                      process_finished_callback=process_finished_callback)
+
     def __get_log(self):
         """
         Returns the XBee device log.
@@ -4333,6 +4371,45 @@ class ZigBeeDevice(XBeeDevice):
         """
         self.register_joining_device_async(unregistrant_address, RegisterKeyOptions.LINK_KEY, None)
 
+    def get_routes(self, route_callback=None, process_finished_callback=None, timeout=None):
+        """
+        Returns the routes of this XBee. If ``route_callback`` is not defined, the process blocks
+        until the complete routing table is read.
+
+        Args:
+            route_callback (Function, optional, default=``None``): method called when a new route
+                is received. Receives two arguments:
+
+                * The XBee that owns this new route.
+                * The new route.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the ZDO command.
+                * A list with the discovered routes.
+                * An error message if something went wrong.
+
+            timeout (Float, optional, default=``RouteTableReader.DEFAULT_TIMEOUT``): The ZDO command
+                timeout in seconds.
+        Returns:
+            List: List of :class:`com.digi.models.zdo.Route` when ``route_callback`` is defined,
+                ``None`` otherwise (in this case routes are received in the callback).
+
+        Raises:
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or
+                ESCAPED API. This method only checks the cached value of the operating mode.
+            OperationNotSupportedException: If XBee protocol is not Zigbee or Smart Energy.
+            XBeeException: If the XBee device's serial port is closed.
+
+        .. seealso::
+           | :class:`com.digi.models.zdo.Route`
+        """
+        from digi.xbee.models.zdo import RouteTableReader
+        return super()._get_routes(route_callback=route_callback,
+                                   process_finished_callback=process_finished_callback,
+                                   timeout=timeout if timeout else RouteTableReader.DEFAULT_TIMEOUT)
+
 
 class IPDevice(XBeeDevice):
     """
@@ -6334,6 +6411,42 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
            | :meth:`.AbstractXBeeDevice._force_disassociate`
         """
         super()._force_disassociate()
+
+    def get_routes(self, route_callback=None, process_finished_callback=None, timeout=None):
+        """
+        Returns the routes of this XBee. If ``route_callback`` is not defined, the process blocks
+        until the complete routing table is read.
+
+        Args:
+            route_callback (Function, optional, default=``None``): method called when a new route
+                is received. Receives two arguments:
+
+                * The XBee that owns this new route.
+                * The new route.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the ZDO command.
+                * A list with the discovered routes.
+                * An error message if something went wrong.
+
+            timeout (Float, optional, default=``RouteTableReader.DEFAULT_TIMEOUT``): The ZDO command
+                timeout in seconds.
+        Returns:
+            List: List of :class:`com.digi.models.zdo.Route` when ``route_callback`` is defined,
+                ``None`` otherwise (in this case routes are received in the callback).
+
+        Raises:
+            OperationNotSupportedException: If XBee protocol is not Zigbee or Smart Energy.
+
+        .. seealso::
+           | :class:`com.digi.models.zdo.Route`
+        """
+        from digi.xbee.models.zdo import RouteTableReader
+        return super()._get_routes(route_callback=route_callback,
+                                   process_finished_callback=process_finished_callback,
+                                   timeout=timeout if timeout else RouteTableReader.DEFAULT_TIMEOUT)
 
 
 class XBeeNetwork(object):

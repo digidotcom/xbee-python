@@ -14,6 +14,7 @@
 import threading
 from abc import abstractmethod, ABCMeta
 import logging
+from enum import Enum
 
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
 from digi.xbee.exception import XBeeException, OperationNotSupportedException
@@ -198,8 +199,7 @@ class __ZDOCommand(metaclass=ABCMeta):
         finally:
             xb.del_packet_received_callback(self._zdo_packet_callback)
             self.__restore_device()
-            if zdo_callback:
-                zdo_callback(self._xbee, self._error)
+            self._notify_process_finished(zdo_callback)
             self._running = False
 
     @abstractmethod
@@ -249,6 +249,19 @@ class __ZDOCommand(metaclass=ABCMeta):
         Performs final actions when the ZDO process has finished successfully.
         """
         pass
+
+    def _notify_process_finished(self, zdo_callback):
+        """
+        Notifies that the ZDO process has finished its execution.
+
+        Args:
+            zdo_callback (Function, optional): method to execute when ZDO process finishes. Receives
+                two arguments:
+                * The XBee device that executed the ZDO command.
+                * An error message if something went wrong.
+        """
+        if zdo_callback:
+            zdo_callback(self._xbee, self._error)
 
     def __prepare_device(self):
         """
@@ -675,3 +688,388 @@ class NodeDescriptor(object):
              List: List of integers with descriptor capabilities bits.
         """
         return self.__desc_capabilities
+
+
+class RouteTableReader(__ZDOCommand):
+    """
+    This class performs a route table read of the given XBee using a ZDO command.
+
+    The node descriptor read works only with Zigbee devices in API mode.
+    """
+
+    DEFAULT_TIMEOUT = 20  # seconds
+
+    __CLUSTER_ID = 0x0032
+    __RECEIVE_CLUSTER_ID = 0x8032
+
+    __ROUTE_BYTES_LEN = 5
+
+    __ST_FIELD_OFFSET = 0
+    __ST_FIELD_LEN = 3
+    __MEM_FIELD_OFFSET = 3
+    __M2O_FIELD_OFFSET = 4
+    __RR_FIELD_OFFSET = 5
+
+    def __init__(self, xbee, configure_ao=True, timeout=DEFAULT_TIMEOUT):
+        """
+        Class constructor. Instantiates a new :class:`.RouteTableReader` object with the
+        provided parameters.
+
+        Args:
+            xbee (class:`digi.xbee.devices.XBeeDevice` or
+                class:`digi.xbee.devices.RemoteXBeeDevice`): the XBee to send the command.
+            configure_ao (Boolean, optional, default=``True``): ``True`` to configure AO value
+                before and after executing this command, ``False`` otherwise.
+            timeout (Float, optional, default=``.DEFAULT_TIMEOUT``): The ZDO command timeout
+                in seconds.
+
+        Raises:
+            ValueError: If ``xbee`` is ``None``.
+            ValueError: If ``cluster_id``, ``receive_cluster_id``, or ``timeout`` are less than 0.
+            TypeError: If the ``xbee`` is not a ``digi.xbee.devices.XBeeDevice`` or a
+                ``digi.xbee.devices.RemoteXBeeDevice``.
+        """
+        super().__init__(xbee, self.__class__.__CLUSTER_ID, self.__class__.__RECEIVE_CLUSTER_ID,
+                         configure_ao, timeout)
+
+        self.__routes = None
+        self.__total_routes = 0
+        self.__index = 0
+
+        self.__cb = None
+
+    def get_route_table(self, route_callback=None, process_finished_callback=None):
+        """
+        Returns the routes of the XBee. If ``route_callback`` is not defined, the process blocks
+        until the complete routing table is read.
+
+        Args:
+            route_callback (Function, optional, default=``None``): method called when a new route
+                is received. Receives two arguments:
+
+                * The XBee that owns this new route.
+                * The new route.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the ZDO command.
+                * A list with the discovered routes.
+                * An error message if something went wrong.
+
+        Returns:
+            List: List of :class:`.Route` when ``route_callback`` is not defined, ``None``
+                otherwise (in this case routes are received in the callback).
+
+        .. seealso::
+           | :class:`.Route`
+        """
+        self.__cb = route_callback
+        self._start_process(sync=True if not self.__cb else False,
+                            zdo_callback=process_finished_callback)
+
+        return self.__routes
+
+    def _init_variables(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._init_variables`
+        """
+        self.__routes = []
+        self.__total_routes = 0
+        self.__index = 0
+
+    def _is_broadcast(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._is_broadcast`
+        """
+        return False
+
+    def _get_zdo_command_data(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._get_zdo_command_data`
+        """
+        return bytearray([self._current_transaction_id, self.__index])
+
+    def _parse_data(self, data):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._parse_data`
+        """
+        # Byte 0: Total number of routing table entries
+        # Byte 1: Starting point in the routing table
+        # Byte 2: Number of routing table entries in the response
+        # Byte 3 - end: List of routing table entries (as many as indicated in byte 2)
+
+        self.__total_routes = int(data[0])
+        # Ignore start index and get the number of entries in this response.
+        n_items = int(data[2])
+        if not n_items:
+            # No entries in this response, try again?
+            self.__get_next_routes()
+            return True
+
+        # Parse routes
+        routes_starting_index = 3
+        byte_index = routes_starting_index
+        n_route_data_bytes = len(data) - 3  # Subtract the 3 first bytes: total number of entries,
+        # start index, and the number of entries in this response
+
+        while byte_index + 1 < n_route_data_bytes:
+            if byte_index + self.__class__.__ROUTE_BYTES_LEN \
+                    > n_route_data_bytes + routes_starting_index:
+                break
+
+            r = self.__parse_route(data[byte_index:byte_index + self.__class__.__ROUTE_BYTES_LEN])
+            if r:
+                self.__routes.append(r)
+                if self.__cb:
+                    self.__cb(self._xbee, r)
+
+            byte_index += self.__class__.__ROUTE_BYTES_LEN
+            self.__index += 1
+
+        # Check if we already have all the routes
+        if self.__index < self.__total_routes:
+            self.__get_next_routes()
+
+            return False
+
+        return True
+
+    def _perform_finish_actions(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._perform_finish_actions`
+        """
+        pass
+
+    def _notify_process_finished(self, zdo_callback):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.__ZDOCommand._notify_process_finished`
+        """
+        if zdo_callback:
+            zdo_callback(self._xbee, self.__routes, self._error)
+
+    def __parse_route(self, data):
+        """
+        Parses the given bytearray and returns a route.
+
+        Args:
+            data (bytearray): Bytearray with data to parse.
+
+        Returns:
+             :class:`.Route`: The route or ``None`` if not found.
+        """
+        # Bytes 0 - 1: 16-bit destination address (little endian)
+        # Byte 2: Setting byte:
+        #          * Bits 0 - 2: Route status
+        #          * Bit 3: Low-memory concentrator flag
+        #          * Bit 4: Destination is a concentrator flag
+        #          * Bit 5: Route record message should be sent prior to next transmission flag
+        # Bytes 3 - 4: 16 bit next hop address (little endian)
+        return Route(XBee16BitAddress.from_bytes(data[1], data[0]),
+                     XBee16BitAddress.from_bytes(data[4], data[3]),
+                     RouteStatus.get(utils.get_int_from_byte(data[2],
+                                                             self.__class__.__ST_FIELD_OFFSET,
+                                                             self.__class__.__ST_FIELD_LEN)),
+                     utils.is_bit_enabled(data[2], self.__class__.__MEM_FIELD_OFFSET),
+                     utils.is_bit_enabled(data[2], self.__class__.__M2O_FIELD_OFFSET),
+                     utils.is_bit_enabled(data[2], self.__class__.__RR_FIELD_OFFSET))
+
+    def __get_next_routes(self):
+        """
+        Sends a new ZDO request to get more route table entries.
+        """
+        if not self._xbee.is_remote():
+            xb = self._xbee
+        else:
+            xb = self._xbee.get_local_xbee_device()
+
+        try:
+            xb.send_packet(self._generate_zdo_packet())
+        except XBeeException as e:
+            self._error = "Error sending ZDO command: " + str(e)
+
+
+class RouteStatus(Enum):
+    """
+    Enumerates the available route status.
+    """
+
+    ACTIVE = (0, "Active")
+    DISCOVERY_UNDERWAY = (1, "Discovery Underway")
+    DISCOVERY_FAILED = (2, "Discovery Failed")
+    INACTIVE = (3, "Inactive")
+    VALIDATION_UNDERWAY = (4, "Validation Underway")
+    UNKNOWN = (-1, "Unknown")
+
+    def __init__(self, identifier, name):
+        self.__id = identifier
+        self.__name = name
+
+    def __str__(self):
+        return self.__name
+
+    @property
+    def id(self):
+        """
+        Returns the identifier of the RouteStatus.
+
+        Returns:
+            Integer: the RouteStatus identifier.
+        """
+        return self.__id
+
+    @property
+    def name(self):
+        """
+        Returns the name of the RouteStatus.
+
+        Returns:
+            String: the RouteStatus name.
+        """
+        return self.__name
+
+    @classmethod
+    def get(cls, identifier):
+        """
+        Returns the RouteStatus for the given identifier.
+
+        Args:
+            identifier (Integer): the id corresponding to the route status to get.
+
+        Returns:
+            :class:`.RouteStatus`: the RouteStatus with the given id. ``None`` if it does not exist.
+        """
+        for item in cls:
+            if identifier == item.id:
+                return item
+
+        return None
+
+
+class Route(object):
+    """
+    This class represents a Zigbee route read from the route table of an XBee.
+    """
+
+    def __init__(self, destination, next_hop, status, is_low_memory, is_many_to_one,
+                 is_route_record_required):
+        """
+        Class constructor. Instantiates a new :class:`.Route` object with the provided parameters.
+
+        Args:
+            destination (:class:`digi.xbee.models.address.XBee16BitAddress`): 16-bit destination
+                address of the route.
+            next_hop (:class:`digi.xbee.models.address.XBee16BitAddress`): 16-bit address of the
+                next hop.
+            status (:class:`.RouteStatus`): Status of the route.
+            is_low_memory (Boolean): ``True`` to indicate if the device is a low-memory
+                concentrator.
+            is_many_to_one (Boolean): ``True`` to indicate the destination is a concentrator.
+            is_route_record_required (Boolean): ``True`` to indicate a route record message should
+                be sent prior to the next data transmission.
+
+        .. seealso::
+           | :class:`.RouteStatus`
+           | :class:`digi.xbee.models.address.XBee16BitAddress`
+        """
+        self.__dest = destination
+        self.__next = next_hop
+        self.__status = status
+        self.__is_low_memory = is_low_memory
+        self.__is_mto = is_many_to_one
+        self.__is_rr_required = is_route_record_required
+
+    def __str__(self):
+        return "Destination: {!s} - Next: {!s} (status: {!s}, low-memory: {!r}, " \
+               "many-to-one: {!r}, route record required: {!r})".format(self.__dest, self.__next,
+                                                                        self.__status.name,
+                                                                        self.__is_low_memory,
+                                                                        self.__is_mto,
+                                                                        self.__is_rr_required)
+
+    @property
+    def destination(self):
+        """
+        Gets the 16-bit address of this route destination.
+
+        Returns:
+            :class:`digi.xbee.models.address.XBee16BitAddress`: 16-bit address of the destination.
+
+        .. seealso::
+           | :class:`digi.xbee.models.address.XBee16BitAddress`
+        """
+        return self.__dest
+
+    @property
+    def next_hop(self):
+        """
+        Gets the 16-bit address of this route next hop.
+
+        Returns:
+            :class:`digi.xbee.models.address.XBee16BitAddress`: 16-bit address of the next hop.
+
+        .. seealso::
+           | :class:`digi.xbee.models.address.XBee16BitAddress`
+        """
+        return self.__next
+
+    @property
+    def status(self):
+        """
+        Gets this route status.
+
+        Returns:
+            :class:`.RouteStatus`: The route status.
+
+        .. seealso::
+           | :class:`.RouteStatus`
+        """
+        return self.__status
+
+    @property
+    def is_low_memory(self):
+        """
+        Gets whether the device is a low-memory concentrator.
+
+        Returns:
+            Boolean: ``True`` if the device is a low-memory concentrator, ``False`` otherwise.
+        """
+        return self.__is_low_memory
+
+    @property
+    def is_many_to_one(self):
+        """
+        Gets whether the destination is a concentrator.
+
+        Returns:
+            Boolean: ``True`` if destination is a concentrator, ``False`` otherwise.
+        """
+        return self.__is_mto
+
+    @property
+    def is_route_record_required(self):
+        """
+        Gets whether a route record message should be sent prior the next data transmission.
+
+        Returns:
+            Boolean: ``True`` if a route record message should be sent, ``False`` otherwise.
+        """
+        return self.__is_rr_required
