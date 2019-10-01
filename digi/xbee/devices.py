@@ -157,6 +157,10 @@ class AbstractXBeeDevice(object):
             return self.get_16bit_addr() == other.get_16bit_addr()
         return False
 
+    def __str__(self):
+        node_id = "" if self.get_node_id() is None else self.get_node_id()
+        return "%s - %s" % (self.get_64bit_addr(), node_id)
+
     def update_device_data_from(self, device):
         """
         Updates the current device reference with the data provided for the given device.
@@ -6006,10 +6010,6 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
            | :class:`XBeeCommunicationInterface`
         """
         return self._local_xbee_device.comm_iface
-
-    def __str__(self):
-        node_id = "" if self.get_node_id() is None else self.get_node_id()
-        return "%s - %s" % (self.get_64bit_addr(), node_id)
 
 
 class RemoteRaw802Device(RemoteXBeeDevice):
