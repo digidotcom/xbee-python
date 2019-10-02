@@ -6603,7 +6603,7 @@ class XBeeNetwork(object):
         if xbee_device is None:
             raise ValueError("Local XBee device cannot be None")
 
-        self.__xbee_device = xbee_device
+        self._local_xbee = xbee_device
         self.__devices_list = []
         self.__last_search_dev_list = []
         self.__lock = threading.Lock()
@@ -6864,7 +6864,7 @@ class XBeeNetwork(object):
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
         """
-        return self.__xbee_device.get_parameter(ATStringCommand.NO.command)
+        return self._local_xbee.get_parameter(ATStringCommand.NO.command)
 
     def set_discovery_options(self, options):
         """
@@ -6887,8 +6887,8 @@ class XBeeNetwork(object):
         if options is None:
             raise ValueError("Options cannot be None")
 
-        value = DiscoveryOptions.calculate_discovery_value(self.__xbee_device.get_protocol(), options)
-        self.__xbee_device.set_parameter(ATStringCommand.NO.command, utils.int_to_bytes(value))
+        value = DiscoveryOptions.calculate_discovery_value(self._local_xbee.get_protocol(), options)
+        self._local_xbee.set_parameter(ATStringCommand.NO.command, utils.int_to_bytes(value))
 
     def get_discovery_timeout(self):
         """
@@ -6904,7 +6904,7 @@ class XBeeNetwork(object):
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
         """
-        tout = self.__xbee_device.get_parameter(ATStringCommand.NT.command)
+        tout = self._local_xbee.get_parameter(ATStringCommand.NT.command)
 
         return utils.bytes_to_int(tout) / 10.0
 
@@ -6927,7 +6927,7 @@ class XBeeNetwork(object):
         if discovery_timeout < 0x20 or discovery_timeout > 0xFF:
             raise ValueError("Value must be between 3.2 and 25.5")
         timeout = bytearray([int(discovery_timeout)])
-        self.__xbee_device.set_parameter(ATStringCommand.NT.command, timeout)
+        self._local_xbee.set_parameter(ATStringCommand.NT.command, timeout)
 
     def get_device_by_64(self, x64bit_addr):
         """
@@ -6947,8 +6947,8 @@ class XBeeNetwork(object):
         if x64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
             raise ValueError("64-bit address cannot be unknown")
 
-        if self.__xbee_device.get_64bit_addr() == x64bit_addr:
-            return self.__xbee_device
+        if self._local_xbee.get_64bit_addr() == x64bit_addr:
+            return self._local_xbee
 
         with self.__lock:
             for device in self.__devices_list:
@@ -6970,17 +6970,17 @@ class XBeeNetwork(object):
         Raises:
             ValueError: if ``x16bit_addr`` is ``None`` or unknown.
         """
-        if self.__xbee_device.get_protocol() == XBeeProtocol.DIGI_MESH:
+        if self._local_xbee.get_protocol() == XBeeProtocol.DIGI_MESH:
             raise ValueError("DigiMesh protocol does not support 16-bit addressing")
-        if self.__xbee_device.get_protocol() == XBeeProtocol.DIGI_POINT:
+        if self._local_xbee.get_protocol() == XBeeProtocol.DIGI_POINT:
             raise ValueError("Point-to-Multipoint protocol does not support 16-bit addressing")
         if x16bit_addr is None:
             raise ValueError("16-bit address cannot be None")
         if x16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS:
             raise ValueError("16-bit address cannot be unknown")
 
-        if self.__xbee_device.get_16bit_addr() == x16bit_addr:
-            return self.__xbee_device
+        if self._local_xbee.get_16bit_addr() == x16bit_addr:
+            return self._local_xbee
 
         with self.__lock:
             for device in self.__devices_list:
@@ -7005,8 +7005,8 @@ class XBeeNetwork(object):
         if node_id is None:
             raise ValueError("Node ID cannot be None")
 
-        if self.__xbee_device.get_node_id() == node_id:
-            return self.__xbee_device
+        if self._local_xbee.get_node_id() == node_id:
+            return self._local_xbee
 
         with self.__lock:
             for device in self.__devices_list:
@@ -7030,8 +7030,8 @@ class XBeeNetwork(object):
             :class:`.AbstractXBeeDevice`: the remote XBee device with the updated parameters. If the XBee device
                 was not in the list yet, this method returns the given XBee device without changes.
         """
-        if x64bit_addr == self.__xbee_device.get_64bit_addr():
-            return self.__xbee_device
+        if x64bit_addr == self._local_xbee.get_64bit_addr():
+            return self._local_xbee
 
         return self.__add_remote_from_attr(NetworkEventReason.MANUAL, x64bit_addr=x64bit_addr,
                                            x16bit_addr=x16bit_addr, node_id=node_id)
@@ -7271,13 +7271,13 @@ class XBeeNetwork(object):
 
             timeout = self.__calculate_timeout()
             # send "ND" async
-            self.__xbee_device.send_packet(ATCommPacket(self.__xbee_device.get_next_frame_id(),
-                                                        ATStringCommand.ND.command,
-                                                        parameter=None if node_id is None else bytearray(node_id, 'utf8')),
-                                           sync=False)
+            self._local_xbee.send_packet(ATCommPacket(self._local_xbee.get_next_frame_id(),
+                                                      ATStringCommand.ND.command,
+                                                      parameter=None if node_id is None else bytearray(node_id, 'utf8')),
+                                         sync=False)
             self.__event.wait(timeout)
         except Exception as e:
-            self.__xbee_device.log.exception(e)
+            self._local_xbee.log.exception(e)
         finally:
             with self.__lock:
                 self.__discovering = False
@@ -7292,11 +7292,11 @@ class XBeeNetwork(object):
                 802.15.4 device or S1B in compatibility mode, ``False`` otherwise.
         
         """
-        if self.__xbee_device.get_protocol() != XBeeProtocol.RAW_802_15_4:
+        if self._local_xbee.get_protocol() != XBeeProtocol.RAW_802_15_4:
             return False
         param = None
         try:
-            param = self.__xbee_device.get_parameter(ATStringCommand.C8.command)
+            param = self._local_xbee.get_parameter(ATStringCommand.C8.command)
         except ATCommandException:
             pass
         if param is None or param[0] & 0x2 == 2:
@@ -7318,7 +7318,7 @@ class XBeeNetwork(object):
         """
         # Read the maximum discovery timeout (N?)
         try:
-            discovery_timeout = utils.bytes_to_int(self.__xbee_device.get_parameter(ATStringCommand.N_QUESTION.command)) / 1000
+            discovery_timeout = utils.bytes_to_int(self._local_xbee.get_parameter(ATStringCommand.N_QUESTION.command)) / 1000
         except XBeeException:
             discovery_timeout = None
 
@@ -7326,29 +7326,29 @@ class XBeeNetwork(object):
         if discovery_timeout is None:
             # Read the XBee device timeout (NT).
             try:
-                discovery_timeout = utils.bytes_to_int(self.__xbee_device.get_parameter(ATStringCommand.NT.command)) / 10
+                discovery_timeout = utils.bytes_to_int(self._local_xbee.get_parameter(ATStringCommand.NT.command)) / 10
             except XBeeException as xe:
                 discovery_timeout = XBeeNetwork.__DEFAULT_DISCOVERY_TIMEOUT
-                self.__xbee_device.log.exception(xe)
+                self._local_xbee.log.exception(xe)
                 self.__device_discovery_finished(NetworkDiscoveryStatus.ERROR_READ_TIMEOUT)
 
             # In DigiMesh/DigiPoint the network discovery timeout is NT + the
             # network propagation time. It means that if the user sends an AT
             # command just after NT ms, s/he will receive a timeout exception.
-            if self.__xbee_device.get_protocol() == XBeeProtocol.DIGI_MESH:
+            if self._local_xbee.get_protocol() == XBeeProtocol.DIGI_MESH:
                 discovery_timeout += XBeeNetwork.__DIGI_MESH_TIMEOUT_CORRECTION
-            elif self.__xbee_device.get_protocol() == XBeeProtocol.DIGI_POINT:
+            elif self._local_xbee.get_protocol() == XBeeProtocol.DIGI_POINT:
                 discovery_timeout += XBeeNetwork.__DIGI_POINT_TIMEOUT_CORRECTION
 
-        if self.__xbee_device.get_protocol() == XBeeProtocol.DIGI_MESH:
+        if self._local_xbee.get_protocol() == XBeeProtocol.DIGI_MESH:
             # If the module is 'Sleep support', wait another discovery cycle.
             try:
-                if utils.bytes_to_int(self.__xbee_device.get_parameter(
+                if utils.bytes_to_int(self._local_xbee.get_parameter(
                         ATStringCommand.SM.command)) == 7:
                     discovery_timeout += discovery_timeout + \
                                         (discovery_timeout * XBeeNetwork.__DIGI_MESH_SLEEP_TIMEOUT_CORRECTION)
             except XBeeException as xe:
-                self.__xbee_device.log.exception(xe)
+                self._local_xbee.log.exception(xe)
         elif self.__is_802_compatible():
             discovery_timeout += 2  # Give some time to receive the ND finish packet
 
@@ -7383,20 +7383,20 @@ class XBeeNetwork(object):
         if not x64bit_addr and not x16bit_addr:
             return None
 
-        p = self.__xbee_device.get_protocol()
+        p = self._local_xbee.get_protocol()
 
         if p == XBeeProtocol.ZIGBEE:
-            xb = RemoteZigBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+            xb = RemoteZigBeeDevice(self._local_xbee, x64bit_addr=x64bit_addr,
                                     x16bit_addr=x16bit_addr, node_id=node_id)
         elif p == XBeeProtocol.DIGI_MESH:
-            xb = RemoteDigiMeshDevice(self.__xbee_device, x64bit_addr=x64bit_addr, node_id=node_id)
+            xb = RemoteDigiMeshDevice(self._local_xbee, x64bit_addr=x64bit_addr, node_id=node_id)
         elif p == XBeeProtocol.DIGI_POINT:
-            xb = RemoteDigiPointDevice(self.__xbee_device, x64bit_addr=x64bit_addr, node_id=node_id)
+            xb = RemoteDigiPointDevice(self._local_xbee, x64bit_addr=x64bit_addr, node_id=node_id)
         elif p == XBeeProtocol.RAW_802_15_4:
-            xb = RemoteRaw802Device(self.__xbee_device, x64bit_addr=x64bit_addr,
+            xb = RemoteRaw802Device(self._local_xbee, x64bit_addr=x64bit_addr,
                                     x16bit_addr=x16bit_addr, node_id=node_id)
         else:
-            xb = RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
+            xb = RemoteXBeeDevice(self._local_xbee, x64bit_addr=x64bit_addr,
                                   x16bit_addr=x16bit_addr, node_id=node_id)
 
         xb._role = role
@@ -7415,7 +7415,7 @@ class XBeeNetwork(object):
             Tuple (:class:`.XBee16BitAddress`, :class:`.XBee64BitAddress`, Bytearray): remote device information
         """
         role = Role.UNKNOWN
-        if self.__xbee_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
+        if self._local_xbee.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # node ID starts at 11 if protocol is not 802.15.4:
             #    802.15.4 adds a byte of info between 64bit address and XBee device ID, avoid it:
             i = 11
