@@ -1841,7 +1841,7 @@ class XBeeDevice(AbstractXBeeDevice):
                          sync_ops_timeout=_sync_ops_timeout,
                          comm_iface=comm_iface
                          )
-        self._network = XBeeNetwork(self)
+        self._network = self._init_network()
 
         self.__packet_queue = None
         self.__data_queue = None
@@ -3007,7 +3007,19 @@ class XBeeDevice(AbstractXBeeDevice):
         Returns:
             :class:`.XBeeDevice.XBeeNetwork`
         """
+        if self._network is None:
+            self._network = self._init_network()
+
         return self._network
+
+    def _init_network(self):
+        """
+        Initializes a new network.
+
+        Returns:
+            :class:`.XBeeDevice.XBeeNetwork`
+        """
+        return XBeeNetwork(self)
 
     @AbstractXBeeDevice._before_send_method
     @AbstractXBeeDevice._after_send_method
@@ -3519,16 +3531,14 @@ class Raw802Device(XBeeDevice):
         if not self.is_remote() and self.get_protocol() != XBeeProtocol.RAW_802_15_4:
             raise XBeeException("Invalid protocol.")
 
-    def get_network(self):
+    def _init_network(self):
         """
         Override.
 
         .. seealso::
            | :meth:`.XBeeDevice.get_network`
         """
-        if self._network is None:
-            self._network = Raw802Network(self)
-        return self._network
+        return Raw802Network(self)
 
     def get_protocol(self):
         """
@@ -3634,16 +3644,14 @@ class DigiMeshDevice(XBeeDevice):
         if self.get_protocol() != XBeeProtocol.DIGI_MESH:
             raise XBeeException("Invalid protocol.")
 
-    def get_network(self):
+    def _init_network(self):
         """
         Override.
 
         .. seealso::
            | :meth:`.XBeeDevice.get_network`
         """
-        if self._network is None:
-            self._network = DigiMeshNetwork(self)
-        return self._network
+        return DigiMeshNetwork(self)
 
     def get_protocol(self):
         """
@@ -3775,16 +3783,14 @@ class DigiPointDevice(XBeeDevice):
         if self.get_protocol() != XBeeProtocol.DIGI_POINT:
             raise XBeeException("Invalid protocol.")
 
-    def get_network(self):
+    def _init_network(self):
         """
         Override.
 
         .. seealso::
            | :meth:`.XBeeDevice.get_network`
         """
-        if self._network is None:
-            self._network = DigiPointNetwork(self)
-        return self._network
+        return DigiPointNetwork(self)
 
     def get_protocol(self):
         """
@@ -3915,16 +3921,14 @@ class ZigBeeDevice(XBeeDevice):
         if self.get_protocol() != XBeeProtocol.ZIGBEE:
             raise XBeeException("Invalid protocol.")
 
-    def get_network(self):
+    def _init_network(self):
         """
         Override.
 
         .. seealso::
            | :meth:`.XBeeDevice.get_network`
         """
-        if self._network is None:
-            self._network = ZigBeeNetwork(self)
-        return self._network
+        return ZigBeeNetwork(self)
 
     def get_protocol(self):
         """
@@ -4646,6 +4650,15 @@ class IPDevice(XBeeDevice):
         Deprecated.
 
         This protocol does not support the network functionality.
+        """
+        return None
+
+    def _init_network(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_network`
         """
         return None
 
