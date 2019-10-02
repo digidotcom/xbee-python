@@ -92,6 +92,7 @@ class __ZDOCommand(metaclass=ABCMeta):
         self._lock = threading.Event()
         self._received_status = False
         self._received_answer = False
+        self._data_parsed = False
 
         self._current_transaction_id = self.__class__.__global_transaction_id
         self.__class__.__global_transaction_id = self.__class__.__global_transaction_id + 1
@@ -162,6 +163,7 @@ class __ZDOCommand(metaclass=ABCMeta):
         self._error = None
         self._received_status = False
         self._received_answer = False
+        self._data_parsed = False
         self._lock.clear()
 
         if not self._xbee.is_remote():
@@ -338,7 +340,10 @@ class __ZDOCommand(metaclass=ABCMeta):
                 self._error = "Error executing ZDO command (status: %d)" % int(frame.rf_data[1])
                 self.stop()
                 return
-            if self._parse_data(frame.rf_data[2:]):
+
+            self._data_parsed = self._parse_data(frame.rf_data[2:])
+
+            if self._data_parsed and self._received_status:
                 self.stop()
         elif frame.get_frame_type() == ApiFrameType.TRANSMIT_STATUS:
             self._logger.debug("Received 'ZDO' status frame: %s"
@@ -351,6 +356,9 @@ class __ZDOCommand(metaclass=ABCMeta):
             if frame.transmit_status != TransmitStatus.SUCCESS \
                     and frame.transmit_status != TransmitStatus.SELF_ADDRESSED:
                 self._error = "Error sending ZDO command: %s" % frame.transmit_status.description
+                self.stop()
+
+            if self._data_parsed:
                 self.stop()
 
 
