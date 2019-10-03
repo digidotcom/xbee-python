@@ -1433,6 +1433,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                                                         parity=_BOOTLOADER_PORT_PARAMETERS["parity"],
                                                         flow_control=FlowControl.NONE,
                                                         timeout=_BOOTLOADER_PORT_PARAMETERS["timeout"])
+                self._xbee_serial_port.open()
             except SerialException as e:
                 _log.error(_ERROR_CONNECT_SERIAL_PORT % str(e))
                 raise FirmwareUpdateException(_ERROR_CONNECT_SERIAL_PORT % str(e))
