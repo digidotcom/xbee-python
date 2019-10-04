@@ -487,7 +487,8 @@ class AbstractXBeeDevice(object):
             sl = self.get_parameter("SL")
             self._64bit_addr = XBee64BitAddress(sh + sl)
         # Node ID:
-        self._node_id = self.get_parameter("NI").decode()
+        if init or self._node_id is None:
+            self._node_id = self.get_parameter("NI").decode()
         # 16-bit address:
         if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4, XBeeProtocol.XTEND,
                                XBeeProtocol.SMART_ENERGY, XBeeProtocol.ZNET]
