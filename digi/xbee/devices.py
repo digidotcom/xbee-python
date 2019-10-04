@@ -1464,11 +1464,17 @@ class AbstractXBeeDevice(object):
         Returns:
             Integer: The next frame ID of the XBee device.
         """
-        if self.__current_frame_id == 0xFF:
-            self.__current_frame_id = 1
+        if self.is_remote():
+            fid = self._local_xbee_device._get_next_frame_id()
+
         else:
-            self.__current_frame_id += 1
-        return self.__current_frame_id
+            if self.__current_frame_id == 0xFF:
+                self.__current_frame_id = 1
+            else:
+                self.__current_frame_id += 1
+            fid = self.__current_frame_id
+
+        return fid
 
     def _get_operating_mode(self):
         """
