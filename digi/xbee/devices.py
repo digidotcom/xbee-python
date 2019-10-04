@@ -6252,6 +6252,7 @@ class XBeeNetwork(object):
         self.__last_search_dev_list = []
         self.__lock = threading.Lock()
         self.__discovering = False
+        self.__discover_result = ATCommandStatus.OK
         self.__network_modified = NetworkModified()
         self.__device_discovered = DeviceDiscovered()
         self.__device_discovery_finished = DiscoveryProcessFinished()
@@ -6283,6 +6284,7 @@ class XBeeNetwork(object):
 
         self.__discovery_thread = threading.Thread(target=self.__discover_devices_and_notify_callbacks)
         self.__discovering = True
+        self.__discover_result = ATCommandStatus.OK
         self.__discovery_thread.start()
 
     def stop_discovery_process(self):
@@ -6761,6 +6763,7 @@ class XBeeNetwork(object):
                 # if it's a ND finish signal, stop wait for packets
                 with self.__lock:
                     self.__discovering = xbee_packet.status != ATCommandStatus.OK
+                    self.__discover_result = xbee_packet.status
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
                 remote = self.__create_remote(xbee_packet.command_value)
                 # if remote was created successfully and it is not int the
@@ -6838,7 +6841,12 @@ class XBeeNetwork(object):
         and notifies callbacks.
         """
         self.__discover_devices()
-        self.__device_discovery_finished(NetworkDiscoveryStatus.SUCCESS)
+
+        status = NetworkDiscoveryStatus.SUCCESS
+        if self.__discover_result != ATCommandStatus.OK:
+            status = NetworkDiscoveryStatus.ERROR_NET_DISCOVER
+
+        self.__device_discovery_finished(status)
 
     def __discover_devices(self, node_id=None):
         """

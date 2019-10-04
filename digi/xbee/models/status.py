@@ -754,6 +754,7 @@ class NetworkDiscoveryStatus(Enum):
     """
     SUCCESS = (0x00, "Success")
     ERROR_READ_TIMEOUT = (0x01, "Read timeout error")
+    ERROR_NET_DISCOVER = (0x02, "Error executing network discovery")
 
     def __init__(self, code, description):
         self.__code = code
