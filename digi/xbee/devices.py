@@ -530,7 +530,7 @@ class AbstractXBeeDevice(object):
         elif self._protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.DIGI_POINT,
                                 XBeeProtocol.XLR, XBeeProtocol.XLR_DM]:
             ce = utils.bytes_to_int(self.get_parameter("CE"))
-            if self._protocol in XBeeProtocol.RAW_802_15_4:
+            if self._protocol == XBeeProtocol.RAW_802_15_4:
                 if ce == 0:
                     return Role.END_DEVICE
                 elif ce == 1:
