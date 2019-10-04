@@ -6252,6 +6252,7 @@ class XBeeNetwork(object):
         self.__last_search_dev_list = []
         self.__lock = threading.Lock()
         self.__discovering = False
+        self.__event = threading.Event()
         self.__discover_result = ATCommandStatus.OK
         self.__network_modified = NetworkModified()
         self.__device_discovered = DeviceDiscovered()
@@ -6296,9 +6297,11 @@ class XBeeNetwork(object):
         any parameter during the discovery process you will receive a timeout
         exception.
         """
-        if self.__discovering:
-            with self.__lock:
-                self.__discovering = False
+        self.__event.set()
+
+        if self.__discovery_thread and self.__discovering:
+            self.__discovery_thread.join()
+            self.__discovery_thread = None
 
     def discover_device(self, node_id):
         """
@@ -6764,6 +6767,7 @@ class XBeeNetwork(object):
                 with self.__lock:
                     self.__discovering = xbee_packet.status != ATCommandStatus.OK
                     self.__discover_result = xbee_packet.status
+                self.stop_discovery_process()
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
                 remote = self.__create_remote(xbee_packet.command_value)
                 # if remote was created successfully and it is not int the
@@ -6790,6 +6794,7 @@ class XBeeNetwork(object):
                 if xbee_packet.status == ATCommandStatus.OK:
                     with self.__lock:
                         self.__sought_device_id = None
+                self.stop_discovery_process()
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
                 # if it is not a finish signal, it contains info about a remote XBee device.
                 remote = self.__create_remote(xbee_packet.command_value)
@@ -6798,6 +6803,7 @@ class XBeeNetwork(object):
                     with self.__lock:
                         self.__discovered_device = remote
                         self.__sought_device_id = None
+                    self.stop_discovery_process()
 
         return discovery_gen_callback, discovery_spec_callback
 
@@ -6857,37 +6863,15 @@ class XBeeNetwork(object):
             node_id (String, optional): node identifier of the remote XBee device to discover. Optional.
         """
         try:
-            init_time = time.time()
+            self.__event.clear()
 
-            # In 802.15.4 devices, the discovery finishes when the 'end' command 
-            # is received, so it's not necessary to calculate the timeout.
-            # This also applies to S1B devices working in compatibility mode.
-            is_802_compatible = self.__is_802_compatible()
-            timeout = 0
-            if not is_802_compatible:
-                timeout = self.__calculate_timeout()
+            timeout = self.__calculate_timeout()
             # send "ND" async
             self.__xbee_device.send_packet(ATCommPacket(self.__xbee_device.get_next_frame_id(),
                                                         "ND",
                                                         parameter=None if node_id is None else bytearray(node_id, 'utf8')),
                                            sync=False)
-
-            if not is_802_compatible:
-                # If XBee device is not 802.15.4, wait until timeout expires.
-                while self.__discovering or self.__sought_device_id is not None:
-                    if (time.time() - init_time) > timeout:
-                        with self.__lock:
-                            self.__discovering = False
-                        break
-                    time.sleep(0.1)
-
-            else:
-                # If XBee device is 802.15.4, wait until the 'end' xbee_message arrive.
-                # "__discovering" will be assigned as False by the callback
-                # when this receive that 'end' xbee_message. If this xbee_message never arrives,
-                # stop when timeout expires.
-                while self.__discovering or self.__sought_device_id is not None:
-                    time.sleep(0.1)
+            self.__event.wait(timeout)
         except Exception as e:
             self.__xbee_device.log.exception(e)
         finally:
@@ -6960,6 +6944,8 @@ class XBeeNetwork(object):
                                         (discovery_timeout * XBeeNetwork.__DIGI_MESH_SLEEP_TIMEOUT_CORRECTION)
             except XBeeException as xe:
                 self.__xbee_device.log.exception(xe)
+        elif self.__is_802_compatible():
+            discovery_timeout += 2  # Give some time to receive the ND finish packet
 
         return discovery_timeout
 
