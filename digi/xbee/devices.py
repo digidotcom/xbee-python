@@ -4268,27 +4268,29 @@ class IPDevice(XBeeDevice):
         self._ip_addr = None
         self._source_port = self.__DEFAULT_SOURCE_PORT
 
-    def read_device_info(self):
+    def read_device_info(self, init=True):
         """
         Override.
 
         .. seealso::
            | :meth:`.AbstractXBeeDevice.read_device_info`
         """
-        super().read_device_info()
+        super().read_device_info(init=init)
 
         # Read the module's IP address.
-        resp = self.get_parameter("MY")
-        self._ip_addr = IPv4Address(utils.bytes_to_int(resp))
+        if init or self._ip_addr is None:
+            resp = self.get_parameter("MY")
+            self._ip_addr = IPv4Address(utils.bytes_to_int(resp))
 
         # Read the source port.
-        try:
-            resp = self.get_parameter("C0")
-            self._source_port = utils.bytes_to_int(resp)
-        except XBeeException:
-            # Do not refresh the source port value if there is an error reading
-            # it from the module.
-            pass
+        if init or self._source_port is None:
+            try:
+                resp = self.get_parameter("C0")
+                self._source_port = utils.bytes_to_int(resp)
+            except XBeeException:
+                # Do not refresh the source port value if there is an error reading
+                # it from the module.
+                pass
 
     def get_ip_addr(self):
         """
@@ -4825,17 +4827,18 @@ class CellularDevice(IPDevice):
         """
         return XBeeProtocol.CELLULAR
 
-    def read_device_info(self):
+    def read_device_info(self, init=True):
         """
         Override.
 
         .. seealso::
            | :meth:`.XBeeDevice.read_device _info`
         """
-        super().read_device_info()
+        super().read_device_info(init=init)
 
         # Generate the IMEI address.
-        self._imei_addr = XBeeIMEIAddress(self._64bit_addr.address)
+        if init or self._imei_addr is None:
+            self._imei_addr = XBeeIMEIAddress(self._64bit_addr.address)
 
     def is_connected(self):
         """
