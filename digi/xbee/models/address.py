@@ -168,6 +168,18 @@ class XBee16BitAddress(object):
         """
         return utils.hex_to_string(self.__address)
 
+    def __hash__(self):
+        """
+        Returns a hash code value for the object.
+
+        Returns:
+            Integer: hash code value for the object.
+        """
+        res = 23
+        for b in self.__address:
+            res = 31 * (res + b)
+        return res
+
     def __eq__(self, other):
         """
         Operator ==
@@ -349,6 +361,18 @@ class XBee64BitAddress(object):
         """
         return "".join(["%02X" % i for i in self.__address])
 
+    def __hash__(self):
+        """
+        Returns a hash code value for the object.
+
+        Returns:
+            Integer: hash code value for the object.
+        """
+        res = 23
+        for b in self.__address:
+            res = 31 * (res + b)
+        return res
+
     def __eq__(self, other):
         """
         Operator ==
@@ -494,6 +518,18 @@ class XBeeIMEIAddress(object):
             String: "informal" representation of this XBeeIMEIAddress.
         """
         return self.__get_value()
+
+    def __hash__(self):
+        """
+        Returns a hash code value for the object.
+
+        Returns:
+            Integer: hash code value for the object.
+        """
+        res = 23
+        for b in self.__address:
+            res = 31 * (res + b)
+        return res
 
     def __eq__(self, other):
         """
