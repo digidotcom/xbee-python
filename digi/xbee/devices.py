@@ -69,7 +69,7 @@ class AbstractXBeeDevice(object):
     The Bluetooth Low Energy API username.
     """
 
-    LOG_PATTERN = "{comm_iface:<6s}{event:<12s}{opmode:<20s}{content:<50s}"
+    LOG_PATTERN = "{comm_iface:s} - {event:s} - {opmode:s}: {content:s}"
     """
     Pattern used to log packet events.
     """

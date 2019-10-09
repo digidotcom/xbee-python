@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -88,6 +88,9 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
                             bytesize=data_bits, stopbits=stop_bits, parity=parity, timeout=timeout)
         self.__port_to_open = port
         self._isReading = False
+
+    def __str__(self):
+        return '{name} {p.portstr!r}'.format(name=self.__class__.__name__, p=self)
 
     def open(self):
         """
