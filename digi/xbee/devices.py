@@ -555,7 +555,7 @@ class AbstractXBeeDevice(object):
                 sm = utils.bytes_to_int(self.get_parameter("SM"))
 
                 return Role.ROUTER if sm == 0 else Role.END_DEVICE
-            except ATCommandException as e:
+            except ATCommandException:
                 from digi.xbee.models.zdo import NodeDescriptorReader
                 nd = NodeDescriptorReader(
                     self, configure_ao=True,
@@ -3751,7 +3751,7 @@ class DigiPointDevice(XBeeDevice):
            | :meth:`.XBeeDevice.__init__`
         """
         super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=None)
+                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def open(self, force_settings=False):
         """
