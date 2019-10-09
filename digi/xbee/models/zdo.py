@@ -99,12 +99,6 @@ class __ZDOCommand(metaclass=ABCMeta):
         if self.__class__.__global_transaction_id == 0xFF:
             self.__class__.__global_transaction_id = 1
 
-        self._log_handler = logging.StreamHandler()
-        self._logger.addHandler(self._log_handler)
-
-    def __del__(self):
-        self._logger.removeHandler(self._log_handler)
-
     @property
     def running(self):
         """

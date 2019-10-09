@@ -417,12 +417,6 @@ class PacketListener(threading.Thread):
         self.__explicit_xbee_queue = XBeeQueue(self.__queue_max_size)
         self.__ip_xbee_queue = XBeeQueue(self.__queue_max_size)
 
-        self._log_handler = logging.StreamHandler()
-        self._log.addHandler(self._log_handler)
-
-    def __del__(self):
-        self._log.removeHandler(self._log_handler)
-
     def run(self):
         """
         This is the method that will be executing for listening packets.
