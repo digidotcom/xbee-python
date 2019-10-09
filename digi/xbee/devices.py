@@ -6610,14 +6610,13 @@ class XBeeNetwork(object):
 
     def get_device_by_64(self, x64bit_addr):
         """
-        Returns the remote device already contained in the network whose 64-bit
-        address matches the given one.
+        Returns the XBee in the network whose 64-bit address matches the given one.
 
         Args:
             x64bit_addr (:class:`XBee64BitAddress`): The 64-bit address of the device to be retrieved.
 
         Returns:
-            :class:`.RemoteXBeeDevice`: the remote XBee device in the network or ``None`` if it is not found.
+            :class:`.AbstractXBeeDevice`: the XBee device in the network or ``None`` if it is not found.
 
         Raises:
             ValueError: if ``x64bit_addr`` is ``None`` or unknown.
@@ -6626,6 +6625,9 @@ class XBeeNetwork(object):
             raise ValueError("64-bit address cannot be None")
         if x64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
             raise ValueError("64-bit address cannot be unknown")
+
+        if self.__xbee_device.get_64bit_addr() == x64bit_addr:
+            return self.__xbee_device
 
         with self.__lock:
             for device in self.__devices_list:
@@ -6636,14 +6638,13 @@ class XBeeNetwork(object):
 
     def get_device_by_16(self, x16bit_addr):
         """
-        Returns the remote device already contained in the network whose 16-bit
-        address matches the given one.
+        Returns the XBee in the network whose 16-bit address matches the given one.
 
         Args:
             x16bit_addr (:class:`XBee16BitAddress`): The 16-bit address of the device to be retrieved.
 
         Returns:
-            :class:`.RemoteXBeeDevice`: the remote XBee device in the network or ``None`` if it is not found.
+            :class:`.AbstractXBeeDevice`: the XBee device in the network or ``None`` if it is not found.
 
         Raises:
             ValueError: if ``x16bit_addr`` is ``None`` or unknown.
@@ -6657,6 +6658,9 @@ class XBeeNetwork(object):
         if x16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS:
             raise ValueError("16-bit address cannot be unknown")
 
+        if self.__xbee_device.get_16bit_addr() == x16bit_addr:
+            return self.__xbee_device
+
         with self.__lock:
             for device in self.__devices_list:
                 if device.get_16bit_addr() is not None and device.get_16bit_addr() == x16bit_addr:
@@ -6666,20 +6670,22 @@ class XBeeNetwork(object):
 
     def get_device_by_node_id(self, node_id):
         """
-        Returns the remote device already contained in the network whose node identifier
-        matches the given one.
+        Returns the XBee in the network whose node identifier matches the given one.
 
         Args:
             node_id (String): The node identifier of the device to be retrieved.
 
         Returns:
-            :class:`.RemoteXBeeDevice`: the remote XBee device in the network or ``None`` if it is not found.
+            :class:`.AbstractXBeeDevice`: the XBee device in the network or ``None`` if it is not found.
 
         Raises:
             ValueError: if ``node_id`` is ``None``.
         """
         if node_id is None:
             raise ValueError("Node ID cannot be None")
+
+        if self.__xbee_device.get_node_id() == node_id:
+            return self.__xbee_device
 
         with self.__lock:
             for device in self.__devices_list:
@@ -6700,9 +6706,12 @@ class XBeeNetwork(object):
             node_id (String, optional): the node identifier of the XBee device. Optional.
             
         Returns:
-            :class:`.RemoteXBeeDevice`: the remote XBee device with the updated parameters. If the XBee device
+            :class:`.AbstractXBeeDevice`: the remote XBee device with the updated parameters. If the XBee device
                 was not in the list yet, this method returns the given XBee device without changes.
         """
+        if x64bit_addr == self.__xbee_device.get_64bit_addr():
+            return self.__xbee_device
+
         remote = RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
                                   x16bit_addr=x16bit_addr, node_id=node_id)
         return self.add_remote(remote)
