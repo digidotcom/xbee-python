@@ -197,6 +197,13 @@ class AbstractXBeeDevice(object):
             self._16bit_addr = new_addr16
             updated = True
 
+        new_role = device.get_role()
+        if (new_role is not None
+                and new_role != Role.UNKNOWN
+                and new_role != self._role):
+            self._role = new_role
+            updated = True
+
         return updated
 
     def get_parameter(self, parameter, parameter_value=None):
