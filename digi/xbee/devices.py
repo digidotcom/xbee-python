@@ -6792,9 +6792,8 @@ class XBeeNetwork(object):
         if x64bit_addr == self.__xbee_device.get_64bit_addr():
             return self.__xbee_device
 
-        remote = RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
-                                  x16bit_addr=x16bit_addr, node_id=node_id)
-        return self.add_remote(remote)
+        return self.__add_remote_from_attr(NetworkEventReason.MANUAL, x64bit_addr=x64bit_addr,
+                                           x16bit_addr=x16bit_addr, node_id=node_id)
 
     def add_remote(self, remote_xbee_device):
         """
@@ -6839,6 +6838,43 @@ class XBeeNetwork(object):
             self.__network_modified(NetworkEventType.ADD, reason, node=remote_xbee)
 
             return remote_xbee
+
+    def __add_remote_from_attr(self, reason, x64bit_addr=None, x16bit_addr=None, node_id=None,
+                               role=Role.UNKNOWN):
+        """
+        Creates a new XBee using the provided data and adds it to the network if it is not
+        included yet.
+
+        If the XBee is already in the network, its data will be updated with the parameters of the
+        XBee that are not ``None``.
+
+        Args:
+            reason (:class:`.NetworkEventReason`): The reason of the addition to the network.
+            x64bit_addr (:class:`digi.xbee.models.address.XBee64BitAddress`, optional,
+                default=``None``): The 64-bit address of the remote XBee.
+            x16bit_addr (:class:`digi.xbee.models.address.XBee16BitAddress`, optional,
+                default=``None``): The 16-bit address of the remote XBee.
+            node_id (String, optional, default=``None``): The node identifier of the remote XBee.
+            role (:class:`digi.xbee.models.protocol.Role`, optional, default=``Role.UNKNOWN``):
+                The role of the remote XBee
+
+        Returns:
+            :class:`.RemoteXBeeDevice`: the remote XBee device generated from the provided data if
+                the data provided is correct and the XBee device's protocol is valid, ``None``
+                otherwise.
+
+        .. seealso::
+            | :class:`.NetworkEventReason`
+            | :class:`digi.xbee.models.address.XBee16BitAddress`
+            | :class:`digi.xbee.models.address.XBee64BitAddress`
+            | :class:`digi.xbee.models.protocol.Role`
+
+        Returns:
+            :class:`.AbstractXBeeDevice`: The created XBee with the updated parameters.
+        """
+        return self.__add_remote(
+            self.__create_remote(x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
+                                 node_id=node_id, role=role), reason)
 
     def add_remotes(self, remote_xbee_devices):
         """
@@ -6893,8 +6929,9 @@ class XBeeNetwork(object):
                     self.__discover_result = xbee_packet.status
                 self.stop_discovery_process()
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
-                remote = self.__create_remote(xbee_packet.command_value)
-                # if remote was created successfully and it is not int the
+                x16, x64, n_id, role = self.__get_data_for_remote(xbee_packet.command_value)
+                remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16, node_id=n_id,
+                                              role=role)
                 # XBee device list, add it and notify callbacks.
                 if remote is not None:
                     # if remote was created successfully and it is not in the
@@ -6921,7 +6958,9 @@ class XBeeNetwork(object):
                 self.stop_discovery_process()
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
                 # if it is not a finish signal, it contains info about a remote XBee device.
-                remote = self.__create_remote(xbee_packet.command_value)
+                x16, x64, n_id, role = self.__get_data_for_remote(xbee_packet.command_value)
+                remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16, node_id=n_id,
+                                              role=role)
                 # if it's the sought XBee device, put it in the proper variable.
                 if self.__sought_device_id == remote.get_node_id():
                     with self.__lock:
@@ -7074,23 +7113,36 @@ class XBeeNetwork(object):
 
         return discovery_timeout
 
-    def __create_remote(self, discovery_data):
+    def __create_remote(self, x64bit_addr=XBee64BitAddress.UNKNOWN_ADDRESS,
+                        x16bit_addr=XBee16BitAddress.UNKNOWN_ADDRESS, node_id=None, role=Role.UNKNOWN):
         """
         Creates and returns a :class:`.RemoteXBeeDevice` from the provided data,
         if the data contains the required information and in the required
         format.
-        
+
+        Args:
+            x64bit_addr (:class:`digi.xbee.models.address.XBee64BitAddress`, optional,
+                default=``XBee64BitAddress.UNKNOWN_ADDRESS``): The 64-bit address of the remote XBee.
+            x16bit_addr (:class:`digi.xbee.models.address.XBee16BitAddress`, optional,
+                default=``XBee16BitAddress.UNKNOWN_ADDRESS``): The 16-bit address of the remote XBee.
+            node_id (String, optional, default=``None``): The node identifier of the remote XBee.
+            role (:class:`digi.xbee.models.protocol.Role`, optional, default=``Role.UNKNOWN``):
+                The role of the remote XBee
+
         Returns:
-            :class:`.RemoteXBeeDevice`: the remote XBee device generated from the provided data if the data
-                provided is correct and the XBee device's protocol is valid, ``None`` otherwise.
+            :class:`.RemoteXBeeDevice`: the remote XBee device generated from the provided data if
+                the data provided is correct and the XBee device's protocol is valid, ``None``
+                otherwise.
         
         .. seealso::
-           | :meth:`.XBeeNetwork.__get_data_for_remote`
+            | :class:`digi.xbee.models.address.XBee16BitAddress`
+            | :class:`digi.xbee.models.address.XBee64BitAddress`
+            | :class:`digi.xbee.models.protocol.Role`
         """
-        if discovery_data is None:
+        if not x64bit_addr and not x16bit_addr:
             return None
+
         p = self.__xbee_device.get_protocol()
-        x16bit_addr, x64bit_addr, node_id, role = self.__get_data_for_remote(discovery_data)
 
         if p == XBeeProtocol.ZIGBEE:
             xb = RemoteZigBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,

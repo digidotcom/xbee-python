@@ -1158,9 +1158,8 @@ class PacketListener(threading.Thread):
         remote = None
         x64, x16 = self.__get_remote_device_data_from_packet(xbee_packet)
         if x64 is not None or x16 is not None:
-            remote = self.__xbee_device.get_network()._XBeeNetwork__add_remote(
-                digi.xbee.devices.RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64, x16bit_addr=x16),
-                digi.xbee.devices.NetworkEventReason.RECEIVED_MSG)
+            remote = self.__xbee_device.get_network()._XBeeNetwork__add_remote_from_attr(
+                digi.xbee.devices.NetworkEventReason.RECEIVED_MSG, x64bit_addr=x64, x16bit_addr=x16)
         return remote
 
     @staticmethod
