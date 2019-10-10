@@ -5915,7 +5915,11 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
 
         self._local_xbee_device = local_xbee_device
         self._64bit_addr = x64bit_addr
+        if not x64bit_addr:
+            self._64bit_addr = XBee64BitAddress.UNKNOWN_ADDRESS
         self._16bit_addr = x16bit_addr
+        if not x16bit_addr:
+            self._16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
         self._node_id = node_id
 
     def get_parameter(self, parameter, parameter_value=None):
@@ -6041,7 +6045,8 @@ class RemoteRaw802Device(RemoteXBeeDevice):
         if local_xbee_device.get_protocol() != XBeeProtocol.RAW_802_15_4:
             raise XBeeException("Invalid protocol.")
 
-        super().__init__(local_xbee_device, x64bit_addr, x16bit_addr, node_id=node_id)
+        super().__init__(local_xbee_device, x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
+                         node_id=node_id)
 
     def get_protocol(self):
         """
@@ -6103,7 +6108,8 @@ class RemoteDigiMeshDevice(RemoteXBeeDevice):
         if local_xbee_device.get_protocol() != XBeeProtocol.DIGI_MESH:
             raise XBeeException("Invalid protocol.")
 
-        super().__init__(local_xbee_device, x64bit_addr, None, node_id)
+        super().__init__(local_xbee_device, x64bit_addr=x64bit_addr,
+                         x16bit_addr=XBee16BitAddress.UNKNOWN_ADDRESS, node_id=node_id)
 
     def get_protocol(self):
         """
@@ -6141,7 +6147,8 @@ class RemoteDigiPointDevice(RemoteXBeeDevice):
         if local_xbee_device.get_protocol() != XBeeProtocol.DIGI_POINT:
             raise XBeeException("Invalid protocol.")
 
-        super().__init__(local_xbee_device, x64bit_addr, None, node_id)
+        super().__init__(local_xbee_device, x64bit_addr=x64bit_addr,
+                         x16bit_addr=XBee16BitAddress.UNKNOWN_ADDRESS, node_id=node_id)
 
     def get_protocol(self):
         """
@@ -6181,7 +6188,8 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
         if local_xbee_device.get_protocol() != XBeeProtocol.ZIGBEE:
             raise XBeeException("Invalid protocol.")
 
-        super().__init__(local_xbee_device, x64bit_addr, x16bit_addr, node_id)
+        super().__init__(local_xbee_device, x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
+                         node_id=node_id)
 
     def get_protocol(self):
         """
