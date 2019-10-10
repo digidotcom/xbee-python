@@ -6617,6 +6617,9 @@ class XBeeNetwork(object):
         self.__sought_device_id = None
         self.__discovered_device = None
 
+        self.__connections = []
+        self.__conn_lock = threading.Lock()
+
     def start_discovery_process(self):
         """
         Starts the discovery process. This method is not blocking.
@@ -6847,7 +6850,11 @@ class XBeeNetwork(object):
         Removes all the remote XBee devices from the network.
         """
         with self.__lock:
-            self.__devices_list = []
+            self.__devices_list.clear()
+
+        with self.__conn_lock:
+            self.__connections.clear()
+
         self.__network_modified(NetworkEventType.CLEAR, NetworkEventReason.MANUAL, None)
 
     def get_discovery_options(self):
@@ -7438,6 +7445,134 @@ class XBeeNetwork(object):
             role = Role.get(utils.bytes_to_int(data[i:i+1]))
         return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]), node_id.decode(), role
 
+    def get_connections(self):
+        """
+        Returns a copy of the XBee connections.
+
+        If a new connection is added to the list after the execution of this method,
+        this connection is not added to the list returned by this method.
+
+        Returns:
+            List: A copy of the list of :class:`.Connection` for the network.
+        """
+        with self.__conn_lock:
+            return self.__connections.copy()
+
+    def get_node_connections(self, node):
+        """
+        Returns the network connections with one of their ends ``node``.
+
+        If a new connection is added to the list after the execution of this method,
+        this connection is not added to the list returned by this method.
+
+        Returns:
+            List: List of :class:`.Connection` with ``node`` end.
+        """
+        connections = []
+        with self.__conn_lock:
+            for c in self.__connections:
+                if c.node_a == node or c.node_b == node:
+                    connections.append(c)
+
+        return connections
+
+    def __get_connection(self, node_a, node_b):
+        """
+        Returns the connection with ends node_a and node_b.
+
+        Args:
+            node_a (:class:`.AbstractXBeeDevice`): "node_a" end of the connection.
+            node_b (:class:`.AbstractXBeeDevice`): "node_b" end of the connection.
+
+        Returns:
+            :class:`.Connection`: The connection with ends ``node_a`` and ``node_b``,
+                ``None`` if not found.
+
+        Raises:
+            ValueError: If ``node_a`` or ``node_b`` are ``None``
+        """
+        if not node_a:
+            raise ValueError("Node A cannot be None")
+        if not node_b:
+            raise ValueError("Node B cannot be None")
+
+        c = Connection(node_a, node_b)
+
+        with self.__conn_lock:
+            if c not in self.__connections:
+                return None
+
+            index = self.__connections.index(c)
+
+            return self.__connections[index]
+
+    def __append_connection(self, connection):
+        """
+        Adds a new connection to the network.
+
+        Args:
+            connection (:class:`.Connection`): The connection to be added.
+
+        Raise:
+            ValueError: If ``connection`` is ``None``.
+        """
+        if not connection:
+            raise ValueError("Connection cannot be None")
+
+        with self.__conn_lock:
+            self.__connections.append(connection)
+
+    def __del_connection(self, connection):
+        """
+        Removes a connection from the network.
+
+        Args:
+            connection (:class:`.Connection`): The connection to be removed.
+
+        Raise:
+            ValueError: If ``connection`` is ``None``.
+        """
+        if not connection:
+            raise ValueError("Connection cannot be None")
+
+        with self.__conn_lock:
+            if connection in self.__connections:
+                self.__connections.remove(connection)
+
+    def __add_connection(self, connection):
+        """
+        Adds a new connection to the network. The end nodes of this connection are added
+        to the network if they do not exist.
+
+        Args:
+            connection (class:`.Connection`): The connection to add.
+
+        Returns:
+            Boolean: ``True`` if the connection was successfully added, ``False``
+                if the connection was already added.
+        """
+        if not connection:
+            return False
+
+        # TODO: to get the nodes we need to iterate, should we change the list and use a map?
+        #  The key would be the 64-bit address string, we can get the list with: list(d.values())
+        node_a = self.get_device_by_64(connection.node_a.get_64bit_addr())
+        node_b = self.get_device_by_64(connection.node_b.get_64bit_addr())
+
+        if not node_a or not node_b:
+            return False
+
+        # Check if the connection already exists a -> b or b -> a
+        c_ab = self.__get_connection(node_a, node_b)
+        c_ba = self.__get_connection(node_b, node_a)
+
+        # If none of them exist, add it
+        if not c_ab and not c_ba:
+            self.__append_connection(connection)
+            return True
+
+        return False
+
 
 class ZigBeeNetwork(XBeeNetwork):
     """
@@ -7632,4 +7767,297 @@ class NetworkEventReason(Enum):
 
         return None
 
+
 NetworkEventReason.__doc__ += utils.doc_enum(NetworkEventReason)
+
+
+class LinkQuality(object):
+    """
+    This class represents the link qualitity of a connection.
+    It can be a LQI (Link Quality Index) for ZigBee devices, or RSSI
+    (Received Signal Strength Indicator) for the rest.
+    """
+
+    UNKNOWN = None
+    """
+    Unknown link quality.
+    """
+
+    UNKNOWN_VALUE = -9999
+    """
+    Unknown link quality value.
+    """
+
+    __UNKNOWN_STR = '?'
+
+    def __init__(self, lq=UNKNOWN, is_rssi=False):
+        """
+        Class constructor. Instanciates a new ``LinkQuality``.
+
+        Args:
+            lq (Integer, optional, default=``L_UNKNOWN``): The link quality or ``None`` if unknown.
+            is_rssi (Boolean, optional, default=``False``): ``True`` to specify the value is a RSSI,
+                ``False`` otherwise.
+        """
+        self.__lq = lq
+        self.__is_rssi = is_rssi
+
+    def __str__(self):
+        if self.__lq == 0:
+            return str(self.__lq)
+
+        if self.__lq == self.__class__.UNKNOWN_VALUE:
+            return self.__class__.__UNKNOWN_STR
+
+        if self.__is_rssi:
+            return "-" + str(self.__lq)
+
+        return str(self.__lq)
+
+    @property
+    def lq(self):
+        """
+        Returns the link quality value.
+
+        Returns:
+             Integer: The link quality value.
+        """
+        return self.__lq
+
+    @property
+    def is_rssi(self):
+        """
+        Returns whether this is a RSSI value.
+
+        Returns:
+             Boolean: ``True`` if this is an RSSI value, ``False`` for LQI.
+        """
+        return self.__lq
+
+
+LinkQuality.UNKNOWN = LinkQuality(lq=LinkQuality.UNKNOWN_VALUE)
+
+
+class Connection(object):
+    """
+    This class represents a generic connection between two nodes in a XBee network.
+    It contains the source and destination nodes, the LQI value for the connection between them and
+    its status.
+    """
+
+    def __init__(self, node_a, node_b, lq_a2b=None, lq_b2a=None, status_a2b=None, status_b2a=None):
+        """
+        Class constructor. Instantiates a new ``Connection``.
+
+        Args:
+            node_a (:class:`.AbstractXBeeDevice`): One of the connection ends.
+            node_b (:class:`.AbstractXBeeDevice`): The other connection end.
+            lq_a2b (:class:`.LinkQuality` or Integer, optional, default=``None``): The link
+                quality for the connection node_a -> node_b. If not specified
+                ``LinkQuality.UNKNOWN`` is used.
+            lq_b2a (:class:`.LinkQuality` or Integer, optional, default=``None``): The link
+                quality for the connection node_b -> node_a. If not specified
+                ``LinkQuality.UNKNOWN`` is used.
+            status_a2b (:class:`digi.xbee.models.zdo.RouteStatus`, optional, default=``None``): The
+                status for the connection node_a -> node_b. If not specified
+                ``RouteStatus.UNKNOWN`` is used.
+            status_b2a (:class:`digi.xbee.models.zdo.RouteStatus`, optional, default=``None``): The
+                status for the connection node_b -> node_a. If not specified
+                ``RouteStatus.UNKNOWN`` is used.
+
+        Raises:
+            ValueError: if ``node_a`` or ``node_b`` is ``None``.
+
+        .. seealso::
+           | :class:`.AbstractXBeeDevice`
+           | :class:`.LinkQuality`
+           | :class:`digi.xbee.models.zdo.RouteStatus`
+        """
+        if not node_a:
+            raise ValueError("Node A must be defined")
+        if not node_b:
+            raise ValueError("Node B must be defined")
+
+        self.__node_a = node_a
+        self.__node_b = node_b
+
+        self.__lq_a2b = Connection.__get_lq(lq_a2b, node_a)
+        self.__lq_b2a = Connection.__get_lq(lq_b2a, node_a)
+
+        from digi.xbee.models.zdo import RouteStatus
+        self.__st_a2b = status_a2b if status_a2b else RouteStatus.UNKNOWN
+        self.__st_b2a = status_b2a if status_b2a else RouteStatus.UNKNOWN
+
+    def __str__(self):
+        return "{{{!s} >>> {!s} [{!s} / {!s}]: {!s} / {!s}}}".format(
+            self.__node_a, self.__node_b, self.__st_a2b, self.__st_b2a, self.__lq_a2b,
+            self.__lq_b2a)
+
+    def __eq__(self, other):
+        if not isinstance(other, Connection):
+            return False
+
+        return self.__node_a.get_64bit_addr() == other.node_a.get_64bit_addr() \
+            and self.__node_b.get_64bit_addr() == other.node_b.get_64bit_addr()
+
+    def __hash__(self):
+        return hash((self.__node_a.get_64bit_addr(), self.__node_b.get_64bit_addr()))
+
+    @property
+    def node_a(self):
+        """
+        Returns the node A of this connection.
+
+        Returns:
+             :class:`.AbstractXBeeDevice`: The node A.
+
+        .. seealso::
+           | :class:`.AbstractXBeeDevice`
+        """
+        return self.__node_a
+
+    @property
+    def node_b(self):
+        """
+        Returns the node B of this connection.
+
+        Returns:
+             :class:`.AbstractXBeeDevice`: The node .
+
+        .. seealso::
+           | :class:`.AbstractXBeeDevice`
+        """
+        return self.__node_b
+
+    @property
+    def lq_a2b(self):
+        """
+        Returns the link quality of the connection from node A to node B.
+
+        Returns:
+             :class:`.LinkQuality`: The link quality for the connection A -> B.
+
+        .. seealso::
+           | :class:`.LinkQuality`
+        """
+        return self.__lq_a2b
+
+    @lq_a2b.setter
+    def lq_a2b(self, new_lq_a2b):
+        """
+        Sets the link quality of the connection from node A to node B.
+
+        Args:
+            new_lq_a2b (:class:`.LinkQuality`): The new A -> B link quality value.
+
+        .. seealso::
+           | :class:`.LinkQuality`
+        """
+        self.__lq_a2b = new_lq_a2b
+
+    @property
+    def lq_b2a(self):
+        """
+        Returns the link quality of the connection from node B to node A.
+
+        Returns:
+             :class:`.LinkQuality`: The link quality for the connection B -> A.
+
+        .. seealso::
+           | :class:`.LinkQuality`
+        """
+        return self.__lq_b2a
+
+    @lq_b2a.setter
+    def lq_b2a(self, new_lq_b2a):
+        """
+        Sets the link quality of the connection from node B to node A.
+
+        Args:
+            new_lq_b2a (:class:`.LinkQuality`): The new B -> A link quality value.
+
+        .. seealso::
+           | :class:`.LinkQuality`
+        """
+        self.__lq_b2a = new_lq_b2a
+
+    @property
+    def status_a2b(self):
+        """
+        Returns the status of this connection from node A to node B.
+
+        Returns:
+             :class:`digi.xbee.models.zdo.RouteStatus`: The status for A -> B connection.
+
+        .. seealso::
+           | :class:`digi.xbee.models.zdo.RouteStatus`
+        """
+        return self.__st_a2b
+
+    @status_a2b.setter
+    def status_a2b(self, new_status_a2b):
+        """
+        Sets the status of this connection from node A to node B.
+
+        Args:
+            new_status_a2b (:class:`digi.xbee.models.zdo.RouteStatus`): The new
+                A -> B connection status.
+
+        .. seealso::
+           | :class:`digi.xbee.models.zdo.RouteStatus`
+        """
+        self.__st_a2b = new_status_a2b
+
+    @property
+    def status_b2a(self):
+        """
+        Returns the status of this connection from node B to node A.
+
+        Returns:
+             :class:`digi.xbee.models.zdo.RouteStatus`: The status for B -> A connection.
+
+        .. seealso::
+           | :class:`digi.xbee.models.zdo.RouteStatus`
+        """
+        return self.__st_b2a
+
+    @status_b2a.setter
+    def status_b2a(self, new_status_b2a):
+        """
+        Sets the status of this connection from node B to node A.
+
+        Args:
+            new_status_b2a (:class:`digi.xbee.models.zdo.RouteStatus`): The new
+                B -> A connection status.
+
+        .. seealso::
+           | :class:`digi.xbee.models.zdo.RouteStatus`
+        """
+        self.__st_b2a = new_status_b2a
+
+    @staticmethod
+    def __get_lq(lq, src):
+        """
+        Retrieves the `LinkQuality` object that corresponds to the integer provided.
+
+        Args:
+            lq (Integer): The link quality value.
+            src (:class:`.AbstractXBeeDevice`): The node from where the connection starts.
+
+        Returns:
+             :class:`.LinkQuality`: The corresponding `LinkQuality`.
+
+        .. seealso::
+           | :class:`.AbstractXBeeDevice`
+           | :class:`.LinkQuality`
+        """
+        if isinstance(lq, LinkQuality):
+            return lq
+        elif isinstance(lq, int):
+            return LinkQuality(lq=lq,
+                               is_rssi=src.get_protocol() in [XBeeProtocol.DIGI_MESH,
+                                                              XBeeProtocol.XTEND_DM,
+                                                              XBeeProtocol.XLR_DM, XBeeProtocol.SX])
+        else:
+            return LinkQuality.UNKNOWN
+
