@@ -24,6 +24,7 @@ from digi.xbee import firmware
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
 from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateException
 from digi.xbee.filesystem import LocalXBeeFileSystemManager, FileSystemException, FileSystemNotSupportedException
+from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.util import utils
 from enum import Enum, unique
@@ -31,11 +32,6 @@ from pathlib import Path
 from serial.serialutil import SerialException
 from xml.etree import ElementTree
 from xml.etree.ElementTree import ParseError
-
-
-_COMMAND_APPLY_CHANGES = "AC"
-_COMMAND_RESET_DEFAULTS = "RE"
-_COMMAND_WRITE_SETTINGS = "WR"
 
 _ERROR_ACCESS_FILESYSTEM = "Could not access XBee device file system"
 _ERROR_DEVICE_NOT_VALID = "The XBee device is not valid"
@@ -72,15 +68,12 @@ _FIRMWARE_XML_FILE_NAME = "radio_fw.xml"
 _IPV4_SEPARATOR = "."
 _IPV6_SEPARATOR = ":"
 
-_PARAMETER_BAUDRATE = "BD"
-_PARAMETER_CTS_FLOW_CONTROL = "D7"
-_PARAMETER_FIRMWARE_VERSION = "VR"
-_PARAMETER_HARDWARE_VERSION = "HV"
-_PARAMETER_PARITY = "NB"
 _PARAMETER_READ_RETRIES = 3
-_PARAMETER_STOP_BITS = "SB"
 _PARAMETER_WRITE_RETRIES = 3
-_PARAMETERS_SERIAL_PORT = [_PARAMETER_BAUDRATE, _PARAMETER_PARITY, _PARAMETER_STOP_BITS, _PARAMETER_CTS_FLOW_CONTROL]
+_PARAMETERS_SERIAL_PORT = [ATStringCommand.BD.command,
+                           ATStringCommand.NB.command,
+                           ATStringCommand.SB.command,
+                           ATStringCommand.D7.command]
 
 _PROFILE_XML_FILE_NAME = "profile.xml"
 
@@ -1017,10 +1010,10 @@ class _ProfileUpdater(object):
         else:
             # For remote devices, parameters are read with 'get_parameter()' method.
             try:
-                self._device_firmware_version = self._read_parameter_with_retries(_PARAMETER_FIRMWARE_VERSION,
+                self._device_firmware_version = self._read_parameter_with_retries(ATStringCommand.VR.command,
                                                                                   _PARAMETER_READ_RETRIES)
                 self._device_hardware_version = HardwareVersion.get(self._read_parameter_with_retries(
-                    _PARAMETER_HARDWARE_VERSION, _PARAMETER_READ_RETRIES)[0])
+                    ATStringCommand.HV.command, _PARAMETER_READ_RETRIES)[0])
             except XBeeException as e:
                 raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(e))
 
@@ -1105,16 +1098,16 @@ class _ProfileUpdater(object):
         cts_flow_control_changed = False
         for setting in self._xbee_profile.profile_settings:
             if setting.name in _PARAMETERS_SERIAL_PORT:
-                if setting.name == _PARAMETER_BAUDRATE:
+                if setting.name == ATStringCommand.BD.command:
                     baudrate_changed = True
                     port_parameters["baudrate"] = FirmwareBaudrate.get(int(setting.value, 16)).baudrate
-                elif setting.name == _PARAMETER_PARITY:
+                elif setting.name == ATStringCommand.NB.command:
                     parity_changed = True
                     port_parameters["parity"] = FirmwareParity.get(int(setting.value, 16)).parity
-                elif setting.name == _PARAMETER_STOP_BITS:
+                elif setting.name == ATStringCommand.SB.command:
                     stop_bits_changed = True
                     port_parameters["stopbits"] = FirmwareStopbits.get(int(setting.value, 16)).stop_bits
-                elif setting.name == _PARAMETER_CTS_FLOW_CONTROL:
+                elif setting.name == ATStringCommand.D7.command:
                     cts_flow_control_changed = True
                     if setting.value == _VALUE_CTS_ON:
                         port_parameters["rtscts"] = True
@@ -1123,15 +1116,17 @@ class _ProfileUpdater(object):
         if self._xbee_profile.reset_settings:
             if not baudrate_changed:
                 baudrate_changed = True
-                default_baudrate = self._xbee_profile.get_setting_default_value(_PARAMETER_BAUDRATE)
+                default_baudrate = self._xbee_profile.get_setting_default_value(
+                    ATStringCommand.BD.command)
                 port_parameters["baudrate"] = FirmwareBaudrate.get(int(default_baudrate, 16)).baudrate
             if not parity_changed:
                 parity_changed = True
-                default_parity = self._xbee_profile.get_setting_default_value(_PARAMETER_PARITY)
+                default_parity = self._xbee_profile.get_setting_default_value(ATStringCommand.NB.command)
                 port_parameters["parity"] = FirmwareParity.get(int(default_parity, 16)).parity
             if not stop_bits_changed:
                 stop_bits_changed = True
-                default_stop_bits = self._xbee_profile.get_setting_default_value(_PARAMETER_STOP_BITS)
+                default_stop_bits = self._xbee_profile.get_setting_default_value(
+                    ATStringCommand.SB.command)
                 port_parameters["stopbits"] = FirmwareStopbits.get(int(default_stop_bits, 16)).stop_bits
             if not cts_flow_control_changed:
                 cts_flow_control_changed = True
@@ -1171,7 +1166,8 @@ class _ProfileUpdater(object):
                 if self._progress_callback is not None and percent != previous_percent:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
-                self._set_parameter_with_retries(_COMMAND_RESET_DEFAULTS, bytearray(0), _PARAMETER_WRITE_RETRIES)
+                self._set_parameter_with_retries(ATStringCommand.RE.command,
+                                                 bytearray(0), _PARAMETER_WRITE_RETRIES)
                 setting_index += 1
             # Set settings.
             for setting in self._xbee_profile.profile_settings:
@@ -1186,13 +1182,15 @@ class _ProfileUpdater(object):
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                 previous_percent = percent
-            self._set_parameter_with_retries(_COMMAND_WRITE_SETTINGS, bytearray(0), _PARAMETER_WRITE_RETRIES)
+            self._set_parameter_with_retries(ATStringCommand.WR.command,
+                                             bytearray(0), _PARAMETER_WRITE_RETRIES)
             setting_index += 1
             # Apply changes.
             percent = setting_index * 100 // num_settings
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
-            self._set_parameter_with_retries(_COMMAND_APPLY_CHANGES, bytearray(0), _PARAMETER_WRITE_RETRIES)
+            self._set_parameter_with_retries(ATStringCommand.AC.command, bytearray(0),
+                                             _PARAMETER_WRITE_RETRIES)
         except XBeeException as e:
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(e))
 

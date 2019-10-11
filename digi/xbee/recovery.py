@@ -19,6 +19,7 @@ from serial import EIGHTBITS, STOPBITS_ONE, PARITY_NONE
 from serial.serialutil import SerialException
 
 from digi.xbee.devices import XBeeDevice
+from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.profile import FirmwareBaudrate, FirmwareParity, FirmwareStopbits
@@ -66,15 +67,15 @@ _DEVICE_BREAK_RESET_TIMEOUT = 10  # seconds
 _BOOTLOADER_CONTINUE_KEY = "2"
 _RECOVERY_DETECTION_TRIES = 2
 _BOOTLOADER_BAUDRATE = 115200
-_AT_COMMANDS = {_BAUDRATE_KEY: "atbd",
-                _PARITY_KEY: "atnb",
-                _STOPBITS_KEY: "atsb",
-                _API_ENABLE_KEY: "atap",
-                _CMD_SEQ_CHAR_KEY: "atcc",
-                _GUARD_TIME_KEY: "atgt",
-                _APPLY_CHANGES_KEY: "atac\r",
-                _WRITE_REGISTER_KEY: "atwr\r",
-                _EXIT_MODE_KEY: "atcn\r"
+_AT_COMMANDS = {_BAUDRATE_KEY: "at%s" % ATStringCommand.BD.command,
+                _PARITY_KEY: "at%s" % ATStringCommand.NB.command,
+                _STOPBITS_KEY: "at%s" % ATStringCommand.SB.command,
+                _API_ENABLE_KEY: "at%s" % ATStringCommand.AP.command,
+                _CMD_SEQ_CHAR_KEY: "at%s" % ATStringCommand.CC.command,
+                _GUARD_TIME_KEY: "at%s" % ATStringCommand.GT.command,
+                _APPLY_CHANGES_KEY: "at%s\r" % ATStringCommand.AC.command,
+                _WRITE_REGISTER_KEY: "at%s\r" % ATStringCommand.WR.command,
+                _EXIT_MODE_KEY: "at%s\r" % ATStringCommand.CN.command
                 }
 AT_OK_RESPONSE = b'OK\r'
 _BAUDS_LIST = tuple(e.value[1] for e in FirmwareBaudrate)

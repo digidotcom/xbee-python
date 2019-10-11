@@ -20,6 +20,7 @@ import string
 import time
 
 from digi.xbee.exception import XBeeException, OperationNotSupportedException
+from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.util import xmodem
 from digi.xbee.util.xmodem import XModemException
 from enum import Enum, unique
@@ -27,15 +28,15 @@ from os import listdir
 from os.path import isfile
 from serial.serialutil import SerialException
 
-_ANSWER_ATFS = "ATFS"
+_ANSWER_ATFS = "AT%s" % ATStringCommand.FS.command
 _ANSWER_SHA256 = "sha256"
 
 _COMMAND_AT = "AT\r"
-_COMMAND_ATFS = "ATFS %s\r"
-_COMMAND_FILE_SYSTEM = "ATFS\r"
+_COMMAND_ATFS = "AT%s %s" % (ATStringCommand.FS.command, "%s\r")
+_COMMAND_FILE_SYSTEM = "AT%s\r" % ATStringCommand.FS.command
 _COMMAND_MODE_ANSWER_OK = "OK"
 _COMMAND_MODE_CHAR = "+"
-_COMMAND_MODE_EXIT = "ATCN\r"
+_COMMAND_MODE_EXIT = "AT%s\r" % ATStringCommand.CN.command
 _COMMAND_MODE_TIMEOUT = 2
 
 _ERROR_CONNECT_FILESYSTEM = "Error connecting file system manager: %s"
@@ -57,7 +58,7 @@ _PATH_SEPARATOR = "/"
 _PATTERN_FILE_SYSTEM_DIRECTORY = "^ +<DIR> (.+)/$"
 _PATTERN_FILE_SYSTEM_ERROR = "^(.*\\s)?(E[A-Z0-9]+)( .*)?\\s*$"
 _PATTERN_FILE_SYSTEM_FILE = "^ +([0-9]+) (.+)$"
-_PATTERN_FILE_SYSTEM_FUNCTIONS = "^.*ATFS commands: (.*)$"
+_PATTERN_FILE_SYSTEM_FUNCTIONS = "^.*AT%s %s" % (ATStringCommand.FS.command, "commands: (.*)$")
 _PATTERN_FILE_SYSTEM_INFO = "^ *([0-9]*) (.*)$"
 
 _READ_BUFFER = 256

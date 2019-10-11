@@ -21,6 +21,7 @@ import time
 from abc import ABC, abstractmethod
 from digi.xbee.exception import XBeeException, FirmwareUpdateException, TimeoutException
 from digi.xbee.devices import AbstractXBeeDevice, RemoteXBeeDevice
+from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.models.status import TransmitStatus
@@ -63,7 +64,6 @@ _BUFFER_SIZE_INT = 4
 _BUFFER_SIZE_SHORT = 2
 _BUFFER_SIZE_STRING = 32
 
-_COMMAND_ENTER_PROGRAMMING_MODE = "%P"
 _COMMAND_EXECUTE_RETRIES = 3
 
 _READ_BUFFER_LEN = 256
@@ -136,16 +136,8 @@ _OTA_GBL_SIZE_BYTE_COUNT = 6
 
 _PACKET_DEFAULT_SEQ_NUMBER = 0x01
 
-_PARAMETER_16_BIT_SOURCE_ADDRESS = "MY"
-_PARAMETER_API_OUTPUT_MODE = "AO"
-_PARAMETER_BAUDRATE = "BD"
-_PARAMETER_BOOTLOADER_VERSION = "VH"  # Answer examples: 01 81 -> 1.8.1  -  0F 3E -> 15.3.14
-_PARAMETER_COMPATIBILITY_NUMBER = "%C"
-_PARAMETER_FIRMWARE_VERSION = "VR"
-_PARAMETER_HARDWARE_VERSION = "HV"
+_PARAMETER_BOOTLOADER_VERSION = ATStringCommand.VH.command  # Answer examples: 01 81 -> 1.8.1  -  0F 3E -> 15.3.14
 _PARAMETER_READ_RETRIES = 3
-_PARAMETER_REGION_LOCK = "R?"
-_PARAMETER_UNICAST_RETRIES = "RR"
 _PARAMETER_SET_RETRIES = 3
 
 _PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL = "^.*Gecko Bootloader.*\\(([0-9a-fA-F]{4})-([0-9a-fA-F]{2})(.*)\\).*$"
@@ -1530,7 +1522,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
 
         _log.debug("Setting device in programming mode")
         try:
-            self._xbee_device.execute_command(_COMMAND_ENTER_PROGRAMMING_MODE)
+            self._xbee_device.execute_command(ATStringCommand.PERCENT_P.command)
         except XBeeException:
             # We can ignore this error as at last instance we will attempt a Break method.
             pass
@@ -1863,44 +1855,45 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         if not _connect_device_with_retries(self._local_device, _DEVICE_CONNECTION_RETRIES):
             self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
         # Store AO value.
-        self._updater_ao_value = _read_device_parameter_with_retries(self._local_device, _PARAMETER_API_OUTPUT_MODE)
+        self._updater_ao_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
         if self._updater_ao_value is None:
-            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % _PARAMETER_API_OUTPUT_MODE)
+            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.AO.command)
         # Store BD value.
-        self._updater_bd_value = _read_device_parameter_with_retries(self._local_device, _PARAMETER_BAUDRATE)
+        self._updater_bd_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.BD.command)
         if self._updater_bd_value is None:
-            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % _PARAMETER_BAUDRATE)
+            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.BD.command)
         # Set new BD value.
-        if not _set_device_parameter_with_retries(self._local_device, _PARAMETER_BAUDRATE,
+        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.BD.command,
                                                   bytearray([_VALUE_BAUDRATE_230400])):
-            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % _PARAMETER_BAUDRATE)
+            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.BD.command)
         # Change local port baudrate to 230400.
         self._updater_old_baudrate = self._local_device.serial_port.get_settings()["baudrate"]
         self._local_device.serial_port.set_baudrate(230400)
         # Set new AO value.
-        if not _set_device_parameter_with_retries(self._local_device, _PARAMETER_API_OUTPUT_MODE,
+        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
                                                   bytearray([_VALUE_API_OUTPUT_MODE_EXPLICIT])):
-            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % _PARAMETER_API_OUTPUT_MODE)
+            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.AO.command)
         # Specific settings per protocol.
         if self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
             # Store RR value.
-            self._updater_rr_value = _read_device_parameter_with_retries(self._local_device, _PARAMETER_UNICAST_RETRIES)
+            self._updater_rr_value = _read_device_parameter_with_retries(self._local_device,
+                                                                         ATStringCommand.RR.command)
             if self._updater_ao_value is None:
-                self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % _PARAMETER_UNICAST_RETRIES)
+                self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.RR.command)
             # Set new RR value.
-            if not _set_device_parameter_with_retries(self._local_device, _PARAMETER_UNICAST_RETRIES,
+            if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.RR.command,
                                                       bytearray([_VALUE_UNICAST_RETRIES_MEDIUM])):
-                self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % _PARAMETER_UNICAST_RETRIES)
+                self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.RR.command)
         elif self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # Store MY value.
             self._updater_my_value = _read_device_parameter_with_retries(self._local_device,
-                                                                         _PARAMETER_16_BIT_SOURCE_ADDRESS)
+                                                                         ATStringCommand.MY.command)
             if self._updater_my_value is None:
-                self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % _PARAMETER_16_BIT_SOURCE_ADDRESS)
+                self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.MY.command)
             # Set new MY value.
-            if not _set_device_parameter_with_retries(self._local_device, _PARAMETER_16_BIT_SOURCE_ADDRESS,
+            if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.MY.command,
                                                       _VALUE_BROADCAST_ADDRESS):
-                self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % _PARAMETER_16_BIT_SOURCE_ADDRESS)
+                self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.MY.command)
 
     def _restore_updater(self, raise_exception=False):
         """
@@ -1923,11 +1916,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 self._local_device.open()
             # Restore AO.
             if self._updater_ao_value is not None:
-                _set_device_parameter_with_retries(self._local_device, _PARAMETER_API_OUTPUT_MODE,
+                _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
                                                    self._updater_ao_value)
             # Restore BD.
             if self._updater_bd_value is not None:
-                _set_device_parameter_with_retries(self._local_device, _PARAMETER_BAUDRATE,
+                _set_device_parameter_with_retries(self._local_device, ATStringCommand.BD.command,
                                                    self._updater_bd_value)
             # Restore port baudrate.
             if self._updater_old_baudrate is not None:
@@ -1935,11 +1928,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             # Specific settings per protocol.
             if self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
                 # Restore RR value.
-                _set_device_parameter_with_retries(self._local_device, _PARAMETER_UNICAST_RETRIES,
+                _set_device_parameter_with_retries(self._local_device, ATStringCommand.RR.command,
                                                    self._updater_rr_value)
             elif self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
                 # Restore MY value.
-                _set_device_parameter_with_retries(self._local_device, _PARAMETER_16_BIT_SOURCE_ADDRESS,
+                _set_device_parameter_with_retries(self._local_device, ATStringCommand.MY.command,
                                                    self._updater_my_value)
         except XBeeException as e:
             if raise_exception:
@@ -2101,8 +2094,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         Returns:
             Boolean: ``True`` if the given payload is valid for an image request received frame, ``False`` otherwise.
         """
-        return (len(payload) == _NOTIFY_PACKET_PAYLOAD_SIZE and \
-                payload[0] == _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER and \
+        return (len(payload) == _NOTIFY_PACKET_PAYLOAD_SIZE and
+                payload[0] == _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER and
                 payload[2] == _ZDO_COMMAND_ID_QUERY_NEXT_IMG_REQ)
 
     def _image_request_frame_callback(self, xbee_frame):
@@ -2767,7 +2760,7 @@ def _read_device_compatibility_number(xbee_device):
         Integer: the XBee device compatibility number as integer, ``None`` if it could not be read.
     """
     compatibility_number = _read_device_parameter_with_retries(xbee_device,
-                                                               _PARAMETER_COMPATIBILITY_NUMBER,
+                                                               ATStringCommand.PERCENT_C.command,
                                                                _PARAMETER_READ_RETRIES)
     if compatibility_number is None:
         return None
@@ -2786,7 +2779,7 @@ def _read_device_region_lock(xbee_device):
     Returns:
         Integer: the XBee device region lock number as integer, ``None`` if it could not be read.
     """
-    region_lock = _read_device_parameter_with_retries(xbee_device, _PARAMETER_REGION_LOCK,
+    region_lock = _read_device_parameter_with_retries(xbee_device, ATStringCommand.R_QUESTION.command,
                                                       _PARAMETER_READ_RETRIES)
     if region_lock is None:
         return None
@@ -2804,7 +2797,7 @@ def _read_device_hardware_version(xbee_device):
     Returns:
         Integer: the XBee device hardware version as integer, ``None`` if it could not be read.
     """
-    hardware_version = _read_device_parameter_with_retries(xbee_device, _PARAMETER_HARDWARE_VERSION,
+    hardware_version = _read_device_parameter_with_retries(xbee_device, ATStringCommand.HV.command,
                                                            _PARAMETER_READ_RETRIES)
     if hardware_version is None:
         return None
@@ -2822,7 +2815,7 @@ def _read_device_firmware_version(xbee_device):
     Returns:
         Integer: the XBee device firmware version as integer, ``None`` if it could not be read.
     """
-    firmware_version = _read_device_parameter_with_retries(xbee_device, _PARAMETER_FIRMWARE_VERSION,
+    firmware_version = _read_device_parameter_with_retries(xbee_device, ATStringCommand.VR.command,
                                                            _PARAMETER_READ_RETRIES)
     if firmware_version is None:
         return None
