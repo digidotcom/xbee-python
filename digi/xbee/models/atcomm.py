@@ -27,79 +27,84 @@ class ATStringCommand(Enum):
     |     **value** (String): value of this ATStringCommand.
     """
 
-    AC = "AC"
-    AI = "AI"
-    AO = "AO"
-    AP = "AP"
-    AS = "AS"
-    BD = "BD"
-    BL = "BL"
-    BT = "BT"
-    C0 = "C0"
-    C8 = "C8"
-    CC = "CC"
-    CE = "CE"
-    CN = "CN"
-    DA = "DA"
-    DH = "DH"
-    DL = "DL"
-    D7 = "D7"
-    EE = "EE"
-    FR = "FR"
-    FS = "FS"
-    GW = "GW"
-    GT = "GT"
-    HV = "HV"
-    IC = "IC"
-    ID = "ID"
-    IR = "IR"
-    IS = "IS"
-    KY = "KY"
-    MA = "MA"
-    MK = "MK"
-    MY = "MY"
-    NB = "NB"
-    NI = "NI"
-    ND = "ND"
-    NK = "NK"
-    NO = "NO"
-    NR = "NR"
-    NS = "NS"
-    NT = "NT"
-    N_QUESTION = "N?"
-    OP = "OP"
-    PK = "PK"
-    PL = "PL"
-    RE = "RE"
-    RR = "RR"
-    R_QUESTION = "R?"
-    SB = "SB"
-    SH = "SH"
-    SI = "SI"
-    SL = "SL"
-    SM = "SM"
-    SS = "SS"
-    VH = "VH"
-    VR = "VR"
-    WR = "WR"
-    ZU = "ZU"
-    ZV = "ZV"
-    DOLLAR_S = "$S"
-    DOLLAR_V = "$V"
-    DOLLAR_W = "$W"
-    DOLLAR_X = "$X"
-    DOLLAR_Y = "$Y"
-    PERCENT_C = "%C"
-    PERCENT_P = "%P"
+    AC = ("AC", "Apply changes")
+    AI = ("AI", "Association indication")
+    AO = ("AO", "API options")
+    AP = ("AP", "API enable")
+    AS = ("AS", "Active scan")
+    BD = ("BD", "UART baudrate")
+    BL = ("BL", "Bluetooth address")
+    BT = ("BT", "Bluetooth enable")
+    C0 = ("C0", "Source port")
+    C8 = ("C8", "Compatibility mode")
+    CC = ("CC", "Command sequence character")
+    CE = ("CE", "Device role")
+    CN = ("CN", "Exit command mode")
+    DA = ("DA", "Force Disassociation")
+    DH = ("DH", "Destination address high")
+    DL = ("DL", "Destination address low")
+    D7 = ("D7", "CTS configuration")
+    EE = ("EE", "Encryption enable")
+    FR = ("FR", "Software reset")
+    FS = ("FS", "File system")
+    GW = ("GW", "Gateway address")
+    GT = ("GT", "Guard times")
+    HV = ("HV", "Hardware version")
+    IC = ("IC", "Digital change detection")
+    ID = ("ID", "Network PAN ID/Network ID/SSID")
+    IR = ("IR", "I/O sample rate")
+    IS = ("IS", "Force sample")
+    KY = ("KY", "Link/Encryption key")
+    MA = ("MA", "IP addressing mode")
+    MK = ("MK", "IP address mask")
+    MY = ("MY", "16-bit address/IP address")
+    NB = ("NB", "Parity")
+    NI = ("NI", "Node identifier")
+    ND = ("ND", "Node discover")
+    NK = ("NK", "Trust Center network key")
+    NO = ("NO", "Node discover options")
+    NR = ("NR", "Network reset")
+    NS = ("NS", "DNS address")
+    NT = ("NT", "Node discover back-off")
+    N_QUESTION = ("N?", "Network discovery timeout")
+    OP = ("OP", "Operating extended PAN ID")
+    PK = ("PK", "Passphrase")
+    PL = ("PL", "TX power level")
+    RE = ("RE", "Restore defaults")
+    RR = ("RR", "XBee retries")
+    R_QUESTION = ("R?", "Region lock")
+    SB = ("SB", "Stop bits")
+    SH = ("SH", "Serial number high")
+    SI = ("SI", "Socket info")
+    SL = ("SL", "Serial number low")
+    SM = ("SM", "Sleep mode")
+    SS = ("SS", "Sleep status")
+    VH = ("VH", "Bootloader version")
+    VR = ("VR", "Firmware version")
+    WR = ("WR", "Write")
+    DOLLAR_S = ("$S", "SRP salt")
+    DOLLAR_V = ("$V", "SRP salt verifier")
+    DOLLAR_W = ("$W", "SRP salt verifier")
+    DOLLAR_X = ("$X", "SRP salt verifier")
+    DOLLAR_Y = ("$Y", "SRP salt verifier")
+    PERCENT_C = ("%C", "Hardware/software compatibility")
+    PERCENT_P = ("%P", "Invoke bootloader")
 
-    def __init__(self, command):
+    def __init__(self, command, description):
         self.__command = command
+        self.__description = description
 
     def __get_command(self):
         return self.__command
 
+    def __get_description(self):
+        return self.__description
+
     command = property(__get_command)
     """String. AT Command alias."""
+
+    description = property(__get_description)
+    """String. AT Command description"""
 
 
 ATStringCommand.__doc__ += utils.doc_enum(ATStringCommand)
