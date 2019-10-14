@@ -6608,7 +6608,7 @@ class XBeeNetwork(object):
         self.__last_search_dev_list = []
         self.__lock = threading.Lock()
         self.__discovering = False
-        self.__event = threading.Event()
+        self._stop_event = threading.Event()
         self.__discover_result = ATCommandStatus.OK
         self.__network_modified = NetworkModified()
         self.__device_discovered = DeviceDiscovered()
@@ -6653,7 +6653,7 @@ class XBeeNetwork(object):
         any parameter during the discovery process you will receive a timeout
         exception.
         """
-        self.__event.set()
+        self._stop_event.set()
 
         if self.__discovery_thread and self.__discovering:
             self.__discovery_thread.join()
@@ -7267,7 +7267,7 @@ class XBeeNetwork(object):
             node_id (String, optional): node identifier of the remote XBee device to discover. Optional.
         """
         try:
-            self.__event.clear()
+            self._stop_event.clear()
 
             timeout = self.__calculate_timeout()
             # send "ND" async
@@ -7275,7 +7275,7 @@ class XBeeNetwork(object):
                                                       ATStringCommand.ND.command,
                                                       parameter=None if node_id is None else bytearray(node_id, 'utf8')),
                                          sync=False)
-            self.__event.wait(timeout)
+            self._stop_event.wait(timeout)
         except Exception as e:
             self._local_xbee.log.exception(e)
         finally:
