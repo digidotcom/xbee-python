@@ -18,7 +18,6 @@ from enum import Enum, unique
 from ipaddress import IPv4Address
 import threading
 import time
-import srp
 
 from digi.xbee import serial
 from digi.xbee.packets.cellular import TXSMSPacket
@@ -1289,6 +1288,8 @@ class AbstractXBeeDevice(object):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
         """
+        import srp
+        
         # Generate the salt and verifier using the SRP library.
         salt, verifier = srp.create_salted_verification_key(self._BLE_API_USERNAME, new_password,
                                                             hash_alg=srp.SHA256, ng_type=srp.NG_1024, salt_len=4)
