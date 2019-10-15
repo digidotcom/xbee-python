@@ -5907,14 +5907,14 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         self._16bit_addr = x16bit_addr
         self._node_id = node_id
 
-    def get_parameter(self, parameter):
+    def get_parameter(self, parameter, parameter_value=None):
         """
         Override.
         
         .. seealso::
            | :meth:`.AbstractXBeeDevice.get_parameter`
         """
-        return super().get_parameter(parameter)
+        return super().get_parameter(parameter, parameter_value=parameter_value)
 
     def set_parameter(self, parameter, value):
         """
