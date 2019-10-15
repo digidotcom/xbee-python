@@ -676,18 +676,42 @@ receive data in application layer, or explicit, data format.
 
 To receive data in explicit format, you must first configure the data output
 mode of the receiver XBee device to explicit format using the
-``set_api_output_mode`` method.
+``set_api_output_mode_value`` method.
 
-+----------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Method                                 | Description                                                                                                                                                                                                                                                                                                          |
-+========================================+======================================================================================================================================================================================================================================================================================================================+
-| **get_api_output_mode()**              | Returns the API output mode of the data received by the XBee device.                                                                                                                                                                                                                                                 |
-+----------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| **set_api_output_mode(APIOutputMode)** | Specifies the API output mode of the data received by the XBee device. The mode can be one of the following:                                                                                                                                                                                                         |
-|                                        |   * **APIOutputMode.NATIVE**: The data received by the device will be output as standard received data and it must be read using standard data-reading methods. It does not matter if the data sent by the remote device was sent in standard or explicit format.                                                    |
-|                                        |   * **APIOutputMode.EXPLICIT**: The data received by the device will be output as explicit received data and it must be read using explicit data-reading methods. It does not matter if the data sent by the remote device was sent in standard or explicit format.                                                  |
-|                                        |   * **APIOutputMode.EXPLICIT_ZDO_PASSTHRU**: The data received by the device will be output as explicit received data, like the **APIOutputMode.EXPLICIT** option. In addition, this mode also outputs as explicit data ZigBee Device Object (ZDO) packets received by the XBee module through the serial interface. |
-+----------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++----------------------------------------+----------------------------------------------------------------------------------------------+
+| Method                                 | Description                                                                                  |
++========================================+==============================================================================================+
+| **get_api_output_mode_value()**        | Returns the API output mode of the data received by the XBee device.                         |
++----------------------------------------+----------------------------------------------------------------------------------------------+
+| **set_api_output_mode_value(Integer)** | Specifies the API output mode of the data received by the XBee device. Calculate the mode    |
+|                                        | with the method `calculate_api_output_mode_value` with a set of `APIOutputModeBit`.          |
++----------------------------------------+----------------------------------------------------------------------------------------------+
+
+**Set API output mode**
+
+.. code:: python
+
+  [...]
+
+  # Instantiate a ZigBee device object.
+  device = ZigBeeDevice("COM1", 9600)
+  device.open()
+
+  # Set explicit output mode
+  mode = APIOutputModeBit.calculate_api_output_mode_value(device.get_protocol(),
+    {APIOutputModeBit.EXPLICIT})
+  device.set_api_output_mode_value(mode)
+
+  # Set native output mode
+  mode = 0
+  device.set_api_output_mode_value(mode)
+
+  # Set explicit plus unsupported ZDO request pass-through
+  mode = APIOutputModeBit.calculate_api_output_mode_value(device.get_protocol(),
+    {APIOutputModeBit.EXPLICIT, APIOutputModeBit.UNSUPPORTED_ZDO_PASSTHRU})
+  device.set_api_output_mode_value(mode)
+
+  [...]
 
 Once you have configured the device to receive data in explicit format, you can
 read it using one of the following mechanisms provided by the XBee device

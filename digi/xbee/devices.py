@@ -1179,6 +1179,7 @@ class AbstractXBeeDevice(object):
                     flags[0] = flags[0] | ((1 << i) - 8)
         self.set_parameter(ATStringCommand.IC.command, flags)
 
+    @utils.deprecated("1.3", details="Use :meth:`get_api_output_mode_value`")
     def get_api_output_mode(self):
         """
         Returns the API output mode of the XBee device.
@@ -1201,6 +1202,37 @@ class AbstractXBeeDevice(object):
         """
         return APIOutputMode.get(self.get_parameter(ATStringCommand.AO.command)[0])
 
+    def get_api_output_mode_value(self):
+        """
+        Returns the API output mode of the XBee.
+
+        The API output mode determines the format that the received data is
+        output through the serial interface of the XBee.
+
+        Returns:
+            Bytearray: the parameter value.
+
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or
+                ESCAPED API. This method only checks the cached value of the operating mode.
+            ATCommandException: if the response is not as expected.
+            OperationNotSupportedException: if it is not supported by the current protocol.
+
+        .. seealso::
+           | :class:`digi.xbee.models.mode.APIOutputModeBit`
+        """
+        if self.get_protocol() not in (XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_MESH,
+                                       XBeeProtocol.DIGI_POINT, XBeeProtocol.XLR,
+                                       XBeeProtocol.XLR_DM):
+            raise OperationNotSupportedException(
+                message="Operation not supported for the current protocol (%s)"
+                        % self.get_protocol().description)
+
+        return self.get_parameter(ATStringCommand.AO.command)
+
+    @utils.deprecated("1.3", details="Use :meth:`set_api_output_mode_value`")
     def set_api_output_mode(self, api_output_mode):
         """
         Sets the API output mode of the XBee device.
@@ -1220,6 +1252,39 @@ class AbstractXBeeDevice(object):
            | :class:`.APIOutputMode`
         """
         self.set_parameter(ATStringCommand.AO.command, bytearray([api_output_mode.code]))
+
+    def set_api_output_mode_value(self, api_output_mode):
+        """
+        Sets the API output mode of the XBee.
+
+        Args:
+            api_output_mode (Integer): new API output mode options. Calculate this value using
+                the method
+                :meth:`digi.xbee.models.mode.APIOutputModeBit.calculate_api_output_mode_value`
+                with a set of :class:`digi.xbee.models.mode.APIOutputModeBit`.
+
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's serial port is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            ATCommandException: if the response is not as expected.
+            OperationNotSupportedException: if it is not supported by the current protocol.
+
+        .. seealso::
+           | :class:`digi.xbee.models.mode.APIOutputModeBit`
+        """
+        if api_output_mode is None:
+            raise ValueError("API output mode cannot be None")
+
+        if self.get_protocol() not in (XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_MESH,
+                                       XBeeProtocol.DIGI_POINT, XBeeProtocol.XLR,
+                                       XBeeProtocol.XLR_DM):
+            raise OperationNotSupportedException(
+                message="Operation not supported for the current protocol (%s)"
+                        % self.get_protocol().description)
+
+        self.set_parameter(ATStringCommand.AO.command, bytearray([api_output_mode]))
 
     def enable_bluetooth(self):
         """

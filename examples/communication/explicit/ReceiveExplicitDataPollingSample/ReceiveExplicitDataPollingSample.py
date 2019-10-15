@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from digi.xbee.devices import ZigBeeDevice
-from digi.xbee.models.mode import APIOutputMode
+from digi.xbee.models.mode import APIOutputModeBit
 from digi.xbee.util import utils
 
 # TODO: Replace with the serial port where your local module is connected to. 
@@ -32,7 +32,9 @@ def main():
     try:
         device.open()
 
-        device.set_api_output_mode(APIOutputMode.EXPLICIT)
+        device.set_api_output_mode_value(
+            APIOutputModeBit.calculate_api_output_mode_value(
+                device.get_protocol(), {APIOutputModeBit.EXPLICIT}))
 
         device.flush_queues()
 

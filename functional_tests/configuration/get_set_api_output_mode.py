@@ -13,12 +13,20 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from digi.xbee.devices import XBeeDevice
-from digi.xbee.models.mode import APIOutputMode
+from digi.xbee.models.mode import APIOutputModeBit
+from digi.xbee.models.protocol import XBeeProtocol
 
 # TODO: Replace with the serial port where your local module is connected to.
 PORT = "COM1"
 # TODO: Replace with the baud rate of your local module.
 BAUD_RATE = 9600
+
+NATIVE = 0
+EXPLICIT = APIOutputModeBit.calculate_api_output_mode_value(XBeeProtocol.ZIGBEE,
+                                                            {APIOutputModeBit.EXPLICIT})
+EXPLICIT_ZDO_PASSTHRU = APIOutputModeBit.calculate_api_output_mode_value(
+    XBeeProtocol.ZIGBEE,
+    {APIOutputModeBit.EXPLICIT, APIOutputModeBit.UNSUPPORTED_ZDO_PASSTHRU})
 
 
 def main():
@@ -32,10 +40,10 @@ def main():
     try:
         device.open()
 
-        for api_output_mode in [APIOutputMode.EXPLICIT, APIOutputMode.EXPLICIT_ZDO_PASSTHRU, APIOutputMode.NATIVE]:
-            device.set_api_output_mode(api_output_mode)
-            ao_mode = device.get_api_output_mode()
-            assert (ao_mode == api_output_mode)
+        for api_output_mode in [EXPLICIT, EXPLICIT_ZDO_PASSTHRU, NATIVE]:
+            device.set_api_output_mode_value(api_output_mode)
+            ao_mode = device.get_api_output_mode_value()
+            assert (ao_mode[0] == api_output_mode)
 
         print("Test finished successfully")
 

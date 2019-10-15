@@ -18,7 +18,7 @@ import logging
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
 from digi.xbee.exception import XBeeException, OperationNotSupportedException
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
-from digi.xbee.models.mode import APIOutputMode
+from digi.xbee.models.mode import APIOutputModeBit
 from digi.xbee.models.options import TransmitOptions
 from digi.xbee.models.protocol import Role, XBeeProtocol
 from digi.xbee.models.status import TransmitStatus
@@ -262,9 +262,16 @@ class __ZDOCommand(metaclass=ABCMeta):
             xb = self._xbee.get_local_xbee_device()
 
         try:
-            self.__saved_ao = xb.get_api_output_mode()
+            self.__saved_ao = xb.get_api_output_mode_value()
 
-            xb.set_api_output_mode(APIOutputMode.EXPLICIT)
+            # Do not configure AO if it is already
+            if utils.is_bit_enabled(self.__saved_ao[0], 0):
+                self.__saved_ao = None
+                return
+
+            value = APIOutputModeBit.calculate_api_output_mode_value(self._xbee.get_protocol(),
+                                                                     {APIOutputModeBit.EXPLICIT})
+            xb.set_api_output_mode_value(value)
 
         except XBeeException as e:
             raise XBeeException("Could not prepare XBee for ZDO: " + str(e))
@@ -283,7 +290,7 @@ class __ZDOCommand(metaclass=ABCMeta):
             xb = self._xbee.get_local_xbee_device()
 
         try:
-            xb.set_api_output_mode(self.__saved_ao)
+            xb.set_api_output_mode_value(self.__saved_ao[0])
         except XBeeException as e:
             self._error = "Could not restore XBee after ZDO: " + str(e)
 
