@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2019, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import logging
-
+from functools import wraps
 
 # Number of bits to extract with the mask (__MASK)
 __MASK_NUM_BITS = 8
@@ -343,3 +343,46 @@ def disable_logger(name):
     """
     log = logging.getLogger(name)
     log.disabled = True
+
+
+def deprecated(version, details="None"):
+    """
+    Decorates a method to mark as deprecated.
+    This adds a deprecation note to the method docstring and also raises a
+    :class:``warning.DeprecationWarning``.
+
+    Args:
+        version (String): Version that deprecates this feature.
+        details (String, optional, default=``None``): Extra details to be added to the
+            method docstring and warning.
+    """
+    def _function_wrapper(func):
+        docstring = func.__doc__ or ""
+        msg = ".. deprecated:: %s\n" % version
+
+        doc_list = docstring.split(sep="\n", maxsplit=1)
+        leading_spaces = 0
+        if len(doc_list) > 1:
+            leading_spaces = len(doc_list[1]) - len(doc_list[1].lstrip())
+
+        doc_list.insert(0, "\n\n")
+        doc_list.insert(0, ' ' * (leading_spaces + 4) + details if details else "")
+        doc_list.insert(0, ' ' * leading_spaces + msg)
+        doc_list.insert(0, "\n")
+
+        func.__doc__ = "".join(doc_list)
+
+        @wraps(func)
+        def _inner(*args, **kwargs):
+            message = "'%s' is deprecated." % func.__name__
+            if details:
+                message = "%s %s" % (message, details)
+                import warnings
+                warnings.simplefilter("default")
+                warnings.warn(message, category=DeprecationWarning, stacklevel=2)
+
+            return func(*args, **kwargs)
+
+        return _inner
+
+    return _function_wrapper
