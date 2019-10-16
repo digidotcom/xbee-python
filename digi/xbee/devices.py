@@ -1562,12 +1562,12 @@ class XBeeDevice(AbstractXBeeDevice):
     If you do something more with them, it's for your own risk.
     """
 
-    __TIMEOUT_BEFORE_COMMAND_MODE = 1.2  # seconds
+    __DEFAULT_GUARD_TIME = 1.2  # seconds
     """
-    Timeout to wait after entering in command mode in seconds.
+    Timeout to wait after entering and exiting command mode in seconds.
     
     It is used to determine the operating mode of the module (this 
-    library only supports API modes, not transparent mode).
+    library only supports API modes, not AT (transparent) mode).
     """
 
     __TIMEOUT_ENTER_COMMAND_MODE = 1.5  # seconds
@@ -1744,7 +1744,7 @@ class XBeeDevice(AbstractXBeeDevice):
         if self._operating_mode == OperatingMode.UNKNOWN:
             self.close()
             raise InvalidOperatingModeException(message="Could not determine operating mode")
-        if self._operating_mode == OperatingMode.AT_MODE:
+        if self._operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
             self.close()
             raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
@@ -2995,18 +2995,16 @@ class XBeeDevice(AbstractXBeeDevice):
             
         Raises:
             SerialTimeoutException: if there is any error trying to write within the serial port.
+            InvalidOperatingModeException: if the XBee device is in API mode.
         """
-        if self._operating_mode != OperatingMode.AT_MODE:
-            raise InvalidOperatingModeException(message="Invalid mode. Command mode can be only accessed while in AT mode")
-        listening = self._packet_listener is not None and self._packet_listener.is_running()
-        if listening:
-            self._packet_listener.stop()
-            self._packet_listener.join()
+        if self._operating_mode in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+            raise InvalidOperatingModeException(
+                message="Invalid mode. Command mode can be only accessed while in AT mode")
 
         self._serial_port.flushInput()
 
         # It is necessary to wait at least 1 second to enter in command mode after sending any data to the device.
-        time.sleep(self.__TIMEOUT_BEFORE_COMMAND_MODE)
+        time.sleep(self.__DEFAULT_GUARD_TIME)
         # Send the command mode sequence.
         b = bytearray(self.__COMMAND_MODE_CHAR, "utf8")
         self._serial_port.write(b)
@@ -3018,6 +3016,21 @@ class XBeeDevice(AbstractXBeeDevice):
         data = self._serial_port.read_existing().decode()
 
         return data and data in self.__COMMAND_MODE_OK
+
+    def _exit_at_command_mode(self):
+        """
+        Exits AT command mode. The XBee device has to be in command mode.
+
+        Raises:
+            SerialTimeoutException: if there is any error trying to write within the serial port.
+            InvalidOperatingModeException: if the XBee device is in API mode.
+        """
+        if self._operating_mode in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+            raise InvalidOperatingModeException(
+                message="Invalid mode. Command mode can be only be exited while in AT mode")
+
+        self._serial_port.write("ATCN\r".encode("utf-8"))
+        time.sleep(self.__DEFAULT_GUARD_TIME)
 
     def _determine_operating_mode(self):
         """
@@ -3038,13 +3051,25 @@ class XBeeDevice(AbstractXBeeDevice):
             return OperatingMode.get(response[0])
         except TimeoutException:
             self._operating_mode = OperatingMode.AT_MODE
+            listening = self._packet_listener is not None and self._packet_listener.is_running()
             try:
+                # Stop listening for packets.
+                if listening:
+                    self._packet_listener.stop()
+                    self._packet_listener.join()
                 # If there is timeout exception and is possible to enter
-                # in AT command mode, the current operating mode is AT.
+                # in AT command mode, get the actual mode.
                 if self._enter_at_command_mode():
-                    return OperatingMode.AT_MODE
+                    return self.__get_actual_mode()
             except SerialTimeoutException as ste:
                 self._log.exception(ste)
+            finally:
+                # Exit AT command mode.
+                self._exit_at_command_mode()
+                # Restore the packets listening.
+                if listening:
+                    self._packet_listener = PacketListener(self._serial_port, self)
+                    self._packet_listener.start()
         return OperatingMode.UNKNOWN
 
     def send_packet_sync_and_get_response(self, packet_to_send, timeout=None):
@@ -3147,6 +3172,29 @@ class XBeeDevice(AbstractXBeeDevice):
         return ExplicitAddressingPacket(self._get_next_frame_id(), x64addr,
                                         x16addr, src_endpoint, dest_endpoint,
                                         cluster_id, profile_id, 0, transmit_options, rf_data=data)
+
+    def __get_actual_mode(self):
+        """
+        Gets and returns the actual operating mode of the XBee device reading the ``AP`` parameter in AT command mode.
+
+        Returns:
+             :class:`.OperatingMode`. The actual operating mode of the XBee device or ``OperatingMode.UNKNOWN`` if the
+                mode could not be read.
+
+        Raises:
+            SerialTimeoutException: if there is any error trying to write within the serial port.
+        """
+        # Clear the serial input stream.
+        self._serial_port.flushInput()
+        # Send the 'AP' command.
+        self._serial_port.write("ATAP\r".encode("utf-8"))
+        time.sleep(0.1)
+        # Read the 'AP' answer.
+        ap_answer = self._serial_port.read_existing().decode("utf-8").rstrip()
+        if len(ap_answer) == 0:
+            return OperatingMode.UNKNOWN
+        # Return the corresponding operating mode for the AP answer.
+        return OperatingMode.get(int(ap_answer, 16))
 
     def get_next_frame_id(self):
         """
@@ -5100,8 +5148,8 @@ class WiFiDevice(IPDevice):
         """
         access_points_list = []
 
-        if self.operating_mode == OperatingMode.AT_MODE or self.operating_mode == OperatingMode.UNKNOWN:
-            raise InvalidOperatingModeException(message="Cannot scan for access points in AT mode.")
+        if self.operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+            raise InvalidOperatingModeException(message="Only can scan for access points in API mode.")
 
         def packet_receive_callback(xbee_packet):
             if not self.__scanning_aps:

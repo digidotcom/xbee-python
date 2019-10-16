@@ -29,6 +29,8 @@ class OperatingMode(Enum):
     AT_MODE = (0, "AT mode")
     API_MODE = (1, "API mode")
     ESCAPED_API_MODE = (2, "API mode with escaped characters")
+    MICROPYTHON_MODE = (4, "MicroPython REPL")
+    BYPASS_MODE = (5, "Bypass mode")
     UNKNOWN = (99, "Unknown")
 
     def __init__(self, code, description):

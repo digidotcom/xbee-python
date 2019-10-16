@@ -96,7 +96,7 @@ class InvalidOperatingModeException(ConnectionException):
     __DEFAULT_MESSAGE = "The operating mode of the XBee device is not supported by the library."
     __DEFAULT_MSG_FORMAT = "Unsupported operating mode: %s (%d)"
 
-    def __init__(self, message=__DEFAULT_MESSAGE, op_mode=None):
+    def __init__(self, message=None, op_mode=None):
         if op_mode and not message:
             message = InvalidOperatingModeException.__DEFAULT_MSG_FORMAT \
                       % (op_mode.description, op_mode.code)
