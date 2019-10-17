@@ -6735,7 +6735,9 @@ class XBeeNetwork(object):
         self.__rm_not_discovered_in_last_scan = False
         self.__time_bw_scans = self.__class__.DEFAULT_TIME_BETWEEN_SCANS
         self.__time_bw_nodes = self.__class__.DEFAULT_TIME_BETWEEN_REQUESTS
-        self.__node_timeout = self.__class__.DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
+        self._node_timeout = self.__class__.DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
+
+        self.__saved_nt = None
 
     def __increment_scan_counter(self):
         """
@@ -7188,7 +7190,7 @@ class XBeeNetwork(object):
             | :meth:`.XBeeNetwork.set_deep_discovery_timeouts`
             | :meth:`.XBeeNetwork.start_discovery_process`
         """
-        return self.__node_timeout, self.__time_bw_nodes, self.__time_bw_scans
+        return self._node_timeout, self.__time_bw_nodes, self.__time_bw_scans
 
     def set_deep_discovery_timeouts(self, node_timeout=None, time_bw_requests=None, time_bw_scans=None):
         """
@@ -7257,7 +7259,7 @@ class XBeeNetwork(object):
                              (self.__class__.MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT,
                               self.__class__.MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT))
 
-        self.__node_timeout = node_timeout if node_timeout is not None \
+        self._node_timeout = node_timeout if node_timeout is not None \
             else self.__class__.DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
         self.__time_bw_nodes = time_bw_requests if time_bw_requests is not None \
             else self.__class__.DEFAULT_TIME_BETWEEN_REQUESTS
@@ -7711,7 +7713,7 @@ class XBeeNetwork(object):
                 the discovery process.
         """
         try:
-            code = self._init_discovery(self.__nodes_queue)
+            code = self.__init_discovery(self.__nodes_queue)
             if code != NetworkDiscoveryStatus.SUCCESS:
                 return code
 
@@ -7733,7 +7735,7 @@ class XBeeNetwork(object):
                     return NetworkDiscoveryStatus.CANCEL
 
                 code = self.__discover_network(self.__nodes_queue, self.__active_processes,
-                                               self.__node_timeout)
+                                               self._node_timeout)
                 if code != NetworkDiscoveryStatus.SUCCESS:
                     return code
 
@@ -7744,7 +7746,7 @@ class XBeeNetwork(object):
         finally:
             self._discovery_done(self.__active_processes)
 
-    def _init_discovery(self, nodes_queue):
+    def __init_discovery(self, nodes_queue):
         """
         Initializes the discovery process before starting any network scan:
             * Initializes the scan counter
@@ -7782,7 +7784,39 @@ class XBeeNetwork(object):
 
         self.__purge(force=self.__rm_not_discovered_in_last_scan)
 
+        try:
+            self._prepare_network_discovery()
+        except XBeeException as e:
+            self._log.debug(str(e))
+            return NetworkDiscoveryStatus.ERROR_GENERAL
+
         return NetworkDiscoveryStatus.SUCCESS
+
+    def _prepare_network_discovery(self):
+        """
+        Performs XBee configuration before starting the full network discovery. This saves the
+        current NT value and sets it to the ``self._node_timeout``.
+        """
+        self._log.debug("[*] Preconfiguring %s" % ATStringCommand.NT.command)
+
+        try:
+            self.__saved_nt = self.get_discovery_timeout()
+
+            # Do not configure NT if it is already
+            if self.__saved_nt == self._node_timeout:
+                self.__saved_nt = None
+                return
+
+            value = self._node_timeout
+            v = self._node_timeout * 10  # seconds to 100ms
+            if v < 0x20:
+                value = 3.2  # 3.2 seconds is the minimum allowed
+            elif v > 0xFF:
+                value = 25.5  # 25.5 seconds is the maximum allowed
+
+            self.set_discovery_timeout(value)
+        except XBeeException as e:
+            raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
 
     def __init_scan(self):
         """
@@ -7798,7 +7832,7 @@ class XBeeNetwork(object):
         self._log.debug("  %d network scan" % self.__scan_counter)
         self._log.debug("       Mode: %s (%d)" % (self.__mode.description, self.__mode.code))
         self._log.debug("       Stop after scan: %d" % self.__stop_scan)
-        self._log.debug("       Timeout/node: %f" % self.__node_timeout)
+        self._log.debug("       Timeout/node: %f" % self._node_timeout)
         self._log.debug("================================")
 
     def __discover_network(self, nodes_queue, active_processes, node_timeout):
@@ -8083,6 +8117,8 @@ class XBeeNetwork(object):
         Args:
             active_processes (List): The list of active discovery processes.
         """
+        self._restore_network()
+
         if self.__nd_processes:
             copy = active_processes[:]
             for p in copy:
@@ -8098,6 +8134,22 @@ class XBeeNetwork(object):
 
         with self.__lock:
             self.__discovering = False
+
+    def _restore_network(self):
+        """
+        Performs XBee configuration after the full network discovery.
+        This restores the previous NT value.
+        """
+        if self.__saved_nt is None:
+            return
+
+        self._log.debug("[*] Postconfiguring %s" % ATStringCommand.NT.command)
+        try:
+            self.set_discovery_timeout(self.__saved_nt)
+        except XBeeException as e:
+            self._error = "Could not restore XBee after network discovery: " + str(e)
+
+        self.__saved_nt = None
 
     def __is_802_compatible(self):
         """
@@ -8631,24 +8683,30 @@ class ZigBeeNetwork(XBeeNetwork):
         # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
         self.__discovered_routes = {}
 
-    def _init_discovery(self, nodes_queue):
+    def _prepare_network_discovery(self):
         """
         Override.
 
         .. seealso::
-           | :meth:`.XBeeNetwork._init_discovery`
+           | :meth:`.XBeeNetwork._prepare_network_discovery`
         """
-        code = super()._init_discovery(nodes_queue)
-        if code != NetworkDiscoveryStatus.SUCCESS:
-            return code
-
+        self._log.debug("[*] Preconfiguring %s" % ATStringCommand.AO.command)
         try:
-            self.__prepare_network_discovery()
-        except XBeeException as e:
-            self._log.debug(str(e))
-            return NetworkDiscoveryStatus.ERROR_GENERAL
+            self.__saved_ao = self._local_xbee.get_api_output_mode_value()
 
-        return NetworkDiscoveryStatus.SUCCESS
+            # Do not configure AO if it is already
+            if utils.is_bit_enabled(self.__saved_ao[0], 0):
+                self.__saved_ao = None
+
+                return
+
+            value = APIOutputModeBit.calculate_api_output_mode_value(
+                self._local_xbee.get_protocol(), {APIOutputModeBit.EXPLICIT})
+
+            self._local_xbee.set_api_output_mode_value(value)
+
+        except XBeeException as e:
+            raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
 
     def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
         """
@@ -8696,9 +8754,25 @@ class ZigBeeNetwork(XBeeNetwork):
         self.__zdo_processes.clear()
         self.__discovered_routes.clear()
 
-        self.__restore_network()
-
         super()._discovery_done(active_processes)
+
+    def _restore_network(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._restore_network`
+        """
+        if self.__saved_ao is None:
+            return
+
+        self._log.debug("[*] Postconfiguring %s" % ATStringCommand.AO.command)
+        try:
+            self._local_xbee.set_api_output_mode_value(self.__saved_ao[0])
+        except XBeeException as e:
+            self._error = "Could not restore XBee after network discovery: " + str(e)
+
+        self.__saved_ao = None
 
     def _handle_special_errors(self, requester, error):
         """
@@ -8935,45 +9009,6 @@ class ZigBeeNetwork(XBeeNetwork):
             self._log.debug(
                 "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s"
                 % (node.scan_counter, requester, node))
-
-    def __prepare_network_discovery(self):
-        """
-        Performs XBee configuration before starting the full network discovery. This saves the
-        current AO value and sets it to 1.
-        """
-        self._log.debug("[*] Preconfiguring %s" % ATStringCommand.AO.command)
-        try:
-            self.__saved_ao = self._local_xbee.get_api_output_mode_value()
-
-            # Do not configure AO if it is already
-            if utils.is_bit_enabled(self.__saved_ao[0], 0):
-                self.__saved_ao = None
-
-                return
-
-            value = APIOutputModeBit.calculate_api_output_mode_value(
-                self._local_xbee.get_protocol(), {APIOutputModeBit.EXPLICIT})
-
-            self._local_xbee.set_api_output_mode_value(value)
-
-        except XBeeException as e:
-            raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
-
-    def __restore_network(self):
-        """
-        Performs XBee configuration after the full network discovery.
-        This restores the previous AO value.
-        """
-        if self.__saved_ao is None:
-            return
-
-        self._log.debug("[*] Postconfiguring %s" % ATStringCommand.AO.command)
-        try:
-            self._local_xbee.set_api_output_mode_value(self.__saved_ao[0])
-        except XBeeException as e:
-            self._error = "Could not restore XBee after network discovery: " + str(e)
-
-        self.__saved_ao = None
 
     def __get_zdo_command(self, xbee, cmd_type):
         """
