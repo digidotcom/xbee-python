@@ -18,13 +18,14 @@ from enum import Enum, unique
 from ipaddress import IPv4Address
 import threading
 import time
+from queue import Queue, Empty
 
 from digi.xbee import serial
 from digi.xbee.packets.cellular import TXSMSPacket
 from digi.xbee.models.accesspoint import AccessPoint, WiFiEncryptionType
 from digi.xbee.models.atcomm import ATCommandResponse, ATCommand, ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
-from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode
+from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode, NeighborDiscoveryMode
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, XBeeIMEIAddress
 from digi.xbee.models.info import SocketInfo
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage
@@ -126,6 +127,8 @@ class AbstractXBeeDevice(object):
         self._role = Role.UNKNOWN
 
         self._packet_listener = None
+
+        self._scan_counter = 0
 
         self.__generic_lock = threading.Lock()
 
@@ -1912,6 +1915,16 @@ class AbstractXBeeDevice(object):
 
         return reader.get_neighbor_table(neighbor_callback=neighbor_callback,
                                          process_finished_callback=process_finished_callback)
+
+    @property
+    def scan_counter(self):
+        """
+        Returns the scan counter for this node.
+
+        Returns:
+             Integer: The scan counter for this node.
+        """
+        return self._scan_counter
 
     def __get_log(self):
         """
@@ -6590,6 +6603,73 @@ class XBeeNetwork(object):
     __DIGI_MESH_SLEEP_TIMEOUT_CORRECTION = 0.1  # DigiMesh with sleep support.
     __DIGI_POINT_TIMEOUT_CORRECTION = 8
 
+    __TIME_FOR_NEW_NODES_IN_FIFO = 1  # seconds
+    __TIME_WHILE_FINISH_PREVIOUS_PROCESS = 1  # seconds, for 'Cascade' mode
+
+    __DEFAULT_QUEUE_MAX_SIZE = 300
+    """
+    Default max. size that the queue has.
+    """
+
+    __MAX_SCAN_COUNTER = 10000
+
+    DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT = 30  # seconds
+    """
+    Default maximum duration (in seconds) of the discovery process to find neighbors of a node.
+    """
+
+    MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT = 5  # seconds
+    """
+    Low limit for the maximum duration (in seconds) of the discovery process to find
+    neighbors of a node.
+    """
+
+    MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT = 2400  # seconds
+    """
+    High limit for the maximum duration (in seconds) of the discovery process to find
+    neighbors of a node.
+    """
+
+    DEFAULT_TIME_BETWEEN_SCANS = 10  # seconds
+    """
+    Default time (in seconds) to wait before starting a new scan.
+    """
+
+    MIN_TIME_BETWEEN_SCANS = 0  # seconds
+    """
+    Low limit for the time (in seconds) to wait before starting a new scan.
+    """
+
+    MAX_TIME_BETWEEN_SCANS = 300  # seconds
+    """
+    High limit for the time (in seconds) to wait before starting a new scan.
+    """
+
+    DEFAULT_TIME_BETWEEN_REQUESTS = 5  # seconds
+    """
+    Default time (in seconds) to wait between node neighbors requests.
+    """
+
+    MIN_TIME_BETWEEN_REQUESTS = 0  # seconds
+    """
+    Low limit for the time (in seconds) to wait between node neighbors requests.
+    """
+
+    MAX_TIME_BETWEEN_REQUESTS = 300  # seconds
+    """
+    High limit for the time (in seconds) to wait between node neighbors requests.
+    """
+
+    SCAN_TIL_CANCEL = 0  # 0 for not stopping
+    """
+    The neighbor discovery process continues until is manually stopped.
+    """
+
+    _log = logging.getLogger("XBeeNetwork")
+    """
+    Logger.
+    """
+
     def __init__(self, xbee_device):
         """
         Class constructor. Instantiates a new ``XBeeNetwork``.
@@ -6609,7 +6689,7 @@ class XBeeNetwork(object):
         self.__lock = threading.Lock()
         self.__discovering = False
         self._stop_event = threading.Event()
-        self.__discover_result = ATCommandStatus.OK
+        self.__discover_result = None
         self.__network_modified = NetworkModified()
         self.__device_discovered = DeviceDiscovered()
         self.__device_discovery_finished = DiscoveryProcessFinished()
@@ -6617,34 +6697,108 @@ class XBeeNetwork(object):
         self.__sought_device_id = None
         self.__discovered_device = None
 
+        # FIFO to store the nodes to ask for their neighbors
+        self.__nodes_queue = Queue(self.__class__.__DEFAULT_QUEUE_MAX_SIZE)
+
+        # List with the MAC address (string format) of the still active request processes
+        self.__active_processes = []
+
+        # Last date of a sent request. Used to wait certain time between requests:
+        #     * In 'Flood' mode to satisfy the minimum time to wait between node requests
+        #     * For 'Cascade', the time to wait is applied after finishing the previous request
+        #       process
+        self.__last_request_date = 0
+
+        self.__scan_counter = 0
+
         self.__connections = []
         self.__conn_lock = threading.Lock()
 
-    def start_discovery_process(self):
+        # Dictionary to store the route and node discovery processes per node, so they can be
+        # stop when required.
+        # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
+        self.__nd_processes = {}
+
+        self.__mode = NeighborDiscoveryMode.CASCADE
+        self.__stop_scan = 1
+        self.__rm_not_discovered_in_last_scan = False
+        self.__time_bw_scans = self.__class__.DEFAULT_TIME_BETWEEN_SCANS
+        self.__time_bw_nodes = self.__class__.DEFAULT_TIME_BETWEEN_REQUESTS
+        self.__node_timeout = self.__class__.DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
+
+    def __increment_scan_counter(self):
+        """
+        Increments (by one) the scan counter.
+        """
+        self.__scan_counter += 1
+        if self.__scan_counter > self.__class__.__MAX_SCAN_COUNTER:
+            self.__scan_counter = 0
+
+    @property
+    def scan_counter(self):
+        """
+        Returns the scan counter.
+
+        Returns:
+             Integer: The scan counter.
+        """
+        return self.__scan_counter
+
+    def start_discovery_process(self, deep=False, n_deep_scans=1):
         """
         Starts the discovery process. This method is not blocking.
-        
-        The discovery process will be running until the configured
-        timeout expires or, in case of 802.15.4, until the 'end' packet
-        is read.
-        
-        It may be that, after the timeout expires, there are devices
-        that continue sending discovery packets to this XBee device. In this
-        case, these devices will not be added to the network.
+
+        This process can discover node neighbors and connections, or only nodes:
+
+           * Deep discovery: Network nodes and connections between them (including quality)
+             are discovered.
+
+             The discovery process will be running the number of scans configured in
+             ``n_deep_scans``. A scan is considered the process of discovering the full network.
+             If there are more than one number of scans configured, after finishing one another
+             is started, until ``n_deep_scans`` is satisfied.
+
+             See :meth:`~.XBeeNetwork.set_deep_discovery_options` to establish the way the
+             network discovery process is performed.
+
+           * No deep discovery: Only network nodes are discovered.
+
+             The discovery process will be running until the configured timeout expires or, in
+             case of 802.15.4, until the 'end' packet is read.
+
+             It may be that, after the timeout expires, there are devices that continue sending
+             discovery packets to this XBee device. In this case, these devices will not be
+             added to the network.
+
+        In 802.15.4, both (deep and no deep discovery) are the same and none discover the node
+        connections or their quality. The difference is the possibility of running more than
+        one scan using a deep discovery.
+
+        Args:
+            deep (Boolean, optional, default=``False``): ``True`` for a deep network scan,
+                looking for neighbors and their connections, ``False`` otherwise.
+            n_deep_scans (Integer, optional, default=1): Number of scans to perform before
+                automatically stopping the discovery process.
+                :const:`SCAN_TIL_CANCEL` means the process will not be automatically
+                stopped. Only applicable if ``deep=True``.
 
         .. seealso::
            | :meth:`.XBeeNetwork.add_device_discovered_callback`
            | :meth:`.XBeeNetwork.add_discovery_process_finished_callback`
            | :meth:`.XBeeNetwork.del_device_discovered_callback`
            | :meth:`.XBeeNetwork.del_discovery_process_finished_callback`
+           | :meth:`.XBeeNetwork.get_deep_discovery_options`
+           | :meth:`.XBeeNetwork.set_deep_discovery_options`
         """
         with self.__lock:
             if self.__discovering:
                 return
 
-        self.__discovery_thread = threading.Thread(target=self.__discover_devices_and_notify_callbacks)
-        self.__discovering = True
-        self.__discover_result = ATCommandStatus.OK
+        if deep:
+            self.__stop_scan = n_deep_scans
+
+        self.__discovery_thread = threading.Thread(target=self.__discover_devices_and_notify_callbacks,
+                                                   kwargs={'discover_network': deep}, daemon=True)
         self.__discovery_thread.start()
 
     def stop_discovery_process(self):
@@ -6674,6 +6828,8 @@ class XBeeNetwork(object):
             :class:`.RemoteXBeeDevice`: the discovered remote XBee device with the given identifier,
                 ``None`` if the timeout expires and the device was not found.
         """
+        self._stop_event.clear()
+
         try:
             with self.__lock:
                 self.__sought_device_id = node_id
@@ -6876,6 +7032,8 @@ class XBeeNetwork(object):
     def set_discovery_options(self, options):
         """
         Configures the discovery options (``NO`` parameter) with the given value.
+        These options are only applicable for "no deep" discovery
+        (see :meth:`~.XBeeNetwork.start_discovery_process`)
 
         Args:
             options (Set of :class:`.DiscoveryOptions`): new discovery options, empty set to clear the options.
@@ -6896,6 +7054,50 @@ class XBeeNetwork(object):
 
         value = DiscoveryOptions.calculate_discovery_value(self._local_xbee.get_protocol(), options)
         self._local_xbee.set_parameter(ATStringCommand.NO.command, utils.int_to_bytes(value))
+
+    def get_deep_discovery_options(self):
+        """
+        Returns the deep discovery process options.
+
+        Returns:
+            Tuple: (:class:`digi.xbee.models.mode.NeighborDiscoveryMode`, Boolean): Tuple containing:
+                - mode (:class:`digi.xbee.models.mode.NeighborDiscoveryMode`): Neighbor discovery
+                    mode, the way to perform the network discovery process.
+                - remove_nodes (Boolean): ``True`` to remove nodes from the network if they were
+                    not discovered in the last scan, ``False`` otherwise.
+
+        .. seealso::
+           | :class:`digi.xbee.models.mode.NeighborDiscoveryMode`
+           | :meth:`.XBeeNetwork.set_deep_discovery_timeouts`
+           | :meth:`.XBeeNetwork.start_discovery_process`
+        """
+        return self.__mode, self.__rm_not_discovered_in_last_scan
+
+    def set_deep_discovery_options(self, deep_mode=NeighborDiscoveryMode.CASCADE,
+                                   del_not_discovered_nodes_in_last_scan=False):
+        """
+        Configures the deep discovery options with the given values.
+        These options are only applicable for "deep" discovery
+        (see :meth:`~.XBeeNetwork.start_discovery_process`)
+
+        Args:
+            deep_mode (:class:`.NeighborDiscoveryMode`, optional, default=`NeighborDiscoveryMode.CASCADE`): Neighbor
+                discovery mode, the way to perform the network discovery process.
+            del_not_discovered_nodes_in_last_scan (Boolean, optional, default=``False``): ``True`` to
+                remove nodes from the network if they were not discovered in the last scan,
+
+        .. seealso::
+           | :class:`digi.xbee.models.mode.NeighborDiscoveryMode`
+           | :meth:`.XBeeNetwork.get_deep_discovery_timeouts`
+           | :meth:`.XBeeNetwork.start_discovery_process`
+        """
+        if deep_mode is not None and not isinstance(deep_mode, NeighborDiscoveryMode):
+            raise TypeError("Deep mode must be NeighborDiscoveryMode not {!r}".format(
+                deep_mode.__class__.__name__))
+
+        self.__mode = deep_mode if deep_mode is not None else NeighborDiscoveryMode.CASCADE
+
+        self.__rm_not_discovered_in_last_scan = del_not_discovered_nodes_in_last_scan
 
     def get_discovery_timeout(self):
         """
@@ -6918,6 +7120,8 @@ class XBeeNetwork(object):
     def set_discovery_timeout(self, discovery_timeout):
         """
         Sets the discovery network timeout.
+        This timeout is only applicable for "no deep" discovery
+        (see :meth:`~.XBeeNetwork.start_discovery_process`)
         
         Args:
             discovery_timeout (Float): timeout in seconds.
@@ -6935,6 +7139,119 @@ class XBeeNetwork(object):
             raise ValueError("Value must be between 3.2 and 25.5")
         timeout = bytearray([int(discovery_timeout)])
         self._local_xbee.set_parameter(ATStringCommand.NT.command, timeout)
+
+    def get_deep_discovery_timeouts(self):
+        """
+        Gets deep discovery network timeouts.
+        These timeouts are only applicable for "deep" discovery
+        (see :meth:`~.XBeeNetwork.start_discovery_process`)
+
+        Returns:
+            Tuple (Float, Float, Float): Tuple containing:
+                - node_timeout (Float): Maximum duration in seconds of the discovery process per node.
+                    This used to find a node neighbors. This timeout is highly dependent on the
+                    nature of the network:
+
+                    .. hlist::
+                       :columns: 1
+
+                       * It should be greater than the highest NT (Node Discovery Timeout) of your
+                         network
+                       * and include enough time to let the message propagate depending on the
+                         sleep cycle of your devices.
+
+                - time_bw_nodes (Float): Time to wait between node neighbors requests.
+                    Use this setting not to saturate your network:
+
+                    .. hlist::
+                       :columns: 1
+
+                       * For 'Cascade' the number of seconds to wait after completion of the
+                         neighbor discovery process of the previous node.
+                       * For 'Flood' the minimum time to wait between each node's neighbor
+                         requests.
+
+                - time_bw_scans (Float): Time to wait before starting a new network scan.
+
+        .. seealso::
+            | :meth:`.XBeeNetwork.set_deep_discovery_timeouts`
+            | :meth:`.XBeeNetwork.start_discovery_process`
+        """
+        return self.__node_timeout, self.__time_bw_nodes, self.__time_bw_scans
+
+    def set_deep_discovery_timeouts(self, node_timeout=None, time_bw_requests=None, time_bw_scans=None):
+        """
+        Sets deep discovery network timeouts.
+        These timeouts are only applicable for "deep" discovery
+        (see :meth:`~.XBeeNetwork.start_discovery_process`)
+
+        node_timeout (Float, optional, default=`DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT`):
+            Maximum duration in seconds of the discovery process used to find neighbors of a node.
+            It must be between :const:`MIN_NEIGHBOR_DISCOVERY_TIMEOUT` and
+            :const:`MAX_NEIGHBOR_DISCOVERY_TIMEOUT` seconds inclusive.
+            This timeout is highly dependent on the nature of the network:
+
+                .. hlist::
+                   :columns: 1
+
+                   * It should be greater than the highest NT (Node Discovery Timeout) of your
+                     network.
+                   * and include enough time to let the message propagate depending on the sleep
+                     cycle of your devices.
+
+        time_bw_requests (Float, optional, default=`DEFAULT_TIME_BETWEEN_REQUESTS`): Time to wait
+            between node neighbors requests.
+            It must be between :const:`MIN_TIME_BETWEEN_REQUESTS` and
+            :const:`MAX_TIME_BETWEEN_REQUESTS` seconds inclusive. Use this setting not to saturate
+            your network:
+
+                .. hlist::
+                   :columns: 1
+
+                   * For 'Cascade' the number of seconds to wait after completion of the
+                     neighbor discovery process of the previous node.
+                   * For 'Flood' the minimum time to wait between each node's neighbor requests.
+
+        time_bw_scans (Float, optional, default=`DEFAULT_TIME_BETWEEN_SCANS`): Time to wait
+            before starting a new network scan.
+            It must be between :const:`MIN_TIME_BETWEEN_SCANS` and :const:`MAX_TIME_BETWEEN_SCANS`
+            seconds inclusive.
+
+        Raises:
+            ValueError: if ``node_timeout``, ``time_bw_requests`` or ``time_bw_scans`` are not
+                between their corresponding limits.
+
+        .. seealso::
+            | :meth:`.XBeeNetwork.get_deep_discovery_timeouts`
+            | :meth:`.XBeeNetwork.start_discovery_process`
+        """
+        if node_timeout \
+                and (node_timeout < self.__class__.MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
+                     or node_timeout > self.__class__.MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT):
+            raise ValueError("Node timeout must be between %d and %d" %
+                             (self.__class__.MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT,
+                              self.__class__.MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT))
+
+        if time_bw_requests \
+                and (time_bw_requests < self.__class__.MIN_TIME_BETWEEN_REQUESTS
+                     or time_bw_requests > self.__class__.MAX_TIME_BETWEEN_REQUESTS):
+            raise ValueError("Time between neighbor requests must be between %d and %d" %
+                             (self.__class__.MIN_TIME_BETWEEN_REQUESTS,
+                              self.__class__.MAX_TIME_BETWEEN_REQUESTS))
+
+        if time_bw_scans \
+                and (time_bw_scans < self.__class__.MIN_TIME_BETWEEN_SCANS
+                     or time_bw_scans > self.__class__.MAX_TIME_BETWEEN_SCANS):
+            raise ValueError("Time between scans must be between %d and %d" %
+                             (self.__class__.MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT,
+                              self.__class__.MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT))
+
+        self.__node_timeout = node_timeout if node_timeout is not None \
+            else self.__class__.DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
+        self.__time_bw_nodes = time_bw_requests if time_bw_requests is not None \
+            else self.__class__.DEFAULT_TIME_BETWEEN_REQUESTS
+        self.__time_bw_scans = time_bw_scans if time_bw_scans is not None \
+            else self.__class__.DEFAULT_TIME_BETWEEN_SCANS
 
     def get_device_by_64(self, x64bit_addr):
         """
@@ -7067,25 +7384,54 @@ class XBeeNetwork(object):
         parameters of the XBee device that are not ``None``.
 
         Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): the remote XBee device to add to the network.
+            remote_xbee (:class:`.RemoteXBeeDevice`): The remote XBee device to add to the network.
+            reason (:class:`.NetworkEventReason`): The reason of the addition to the network.
 
         Returns:
-            :class:`.RemoteXBeeDevice`: the provided XBee device with the updated parameters. If the XBee device
-                was not in the list yet, this method returns it without changes.
+            :class:`.AbstractXBeeDevice`: the provided XBee with the updated parameters. If the
+                XBee was not in the list yet, this method returns it without changes.
         """
-        if remote_xbee == remote_xbee.get_local_xbee_device():
-            return remote_xbee
+        found = None
 
-        with self.__lock:
-            for xbee in self.__devices_list:
-                if xbee == remote_xbee:
-                    if xbee.update_device_data_from(remote_xbee):
-                        self.__network_modified(NetworkEventType.UPDATE, reason, node=xbee)
-                    return xbee
-            self.__devices_list.append(remote_xbee)
-            self.__network_modified(NetworkEventType.ADD, reason, node=remote_xbee)
+        # Check if it is the local device
+        if not remote_xbee.is_remote() or remote_xbee == remote_xbee.get_local_xbee_device():
+            found = remote_xbee if not remote_xbee.is_remote() else remote_xbee.get_local_xbee_device()
+        # Look for the remote in the network list
+        else:
+            x64 = remote_xbee.get_64bit_addr()
+            if not x64 or x64 == XBee64BitAddress.UNKNOWN_ADDRESS:
+                # Ask for the 64-bit address
+                try:
+                    sh = remote_xbee.get_parameter(ATStringCommand.SH.command)
+                    sl = remote_xbee.get_parameter(ATStringCommand.SL.command)
+                    remote_xbee._64bit_addr = XBee64BitAddress(sh + sl)
+                except XBeeException as e:
+                    self._log.debug("Error while trying to get 64-bit address of XBee (%s): %s"
+                                    % (remote_xbee.get_16bit_addr(), str(e)))
 
-            return remote_xbee
+            with self.__lock:
+                if remote_xbee in self.__devices_list:
+                    found = self.__devices_list[self.__devices_list.index(remote_xbee)]
+
+        if found:
+            already_in_scan = False
+            if reason in (NetworkEventReason.NEIGHBOR, NetworkEventReason.DISCOVERED):
+                already_in_scan = found.scan_counter == self.__scan_counter
+                if not already_in_scan:
+                    found._scan_counter = self.__scan_counter
+
+            if found.update_device_data_from(remote_xbee):
+                self.__network_modified(NetworkEventType.UPDATE, reason, node=found)
+
+            return None if already_in_scan else found
+
+        if reason in (NetworkEventReason.NEIGHBOR, NetworkEventReason.DISCOVERED):
+            remote_xbee._scan_counter = self.__scan_counter
+
+        self.__devices_list.append(remote_xbee)
+        self.__network_modified(NetworkEventType.ADD, reason, node=remote_xbee)
+
+        return remote_xbee
 
     def __add_remote_from_attr(self, reason, x64bit_addr=None, x16bit_addr=None, node_id=None,
                                role=Role.UNKNOWN):
@@ -7137,19 +7483,43 @@ class XBeeNetwork(object):
         for rem in remote_xbee_devices:
             self.add_remote(rem)
 
+    def _remove_device(self, remote_xbee_device, reason, force=True):
+        """
+        Removes the provided remote XBee device from the network.
+
+        Args:
+            remote_xbee_device (:class:`.RemoteXBeeDevice`): the remote XBee device to be removed
+                from the list.
+            reason (:class:`.NetworkEventReason`): The reason of the removal from the network.
+            force (Boolean, optional, default=``True``): ``True`` to force the deletion of the node,
+                ``False`` otherwise.
+        """
+        if not remote_xbee_device:
+            return
+
+        with self.__lock:
+            if remote_xbee_device not in self.__devices_list:
+                return
+
+            i = self.__devices_list.index(remote_xbee_device)
+            found_node = self.__devices_list[i]
+            if force:
+                self.__devices_list.remove(found_node)
+
+        node_b_connections = self.__get_connections_for_node_a_b(found_node, node_a=False)
+
     def remove_device(self, remote_xbee_device):
         """
         Removes the provided remote XBee device from the network.
-        
+
         Args:
-            remote_xbee_device (:class:`.RemoteXBeeDevice`): the remote XBee device to be removed from the list.
-            
+            remote_xbee_device (:class:`.RemoteXBeeDevice`): the remote XBee device to be removed
+                from the list.
+
         Raises:
             ValueError: if the provided :class:`.RemoteXBeeDevice` is not in the network.
         """
-        self.__devices_list.remove(remote_xbee_device)
-        self.__network_modified(NetworkEventType.DEL, NetworkEventReason.MANUAL,
-                                node=remote_xbee_device)
+        self._remove_device(remote_xbee_device, NetworkEventReason.MANUAL, force=True)
 
     def get_discovery_callbacks(self):
         """
@@ -7172,22 +7542,50 @@ class XBeeNetwork(object):
             nd_id = self.__check_nd_packet(xbee_packet)
             if nd_id == XBeeNetwork.ND_PACKET_FINISH:
                 # if it's a ND finish signal, stop wait for packets
-                with self.__lock:
-                    self.__discovering = xbee_packet.status != ATCommandStatus.OK
-                    self.__discover_result = xbee_packet.status
-                self.stop_discovery_process()
+                self.__discover_result = xbee_packet.status
+                self._stop_event.set()
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
                 x16, x64, n_id, role = self.__get_data_for_remote(xbee_packet.command_value)
                 remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16, node_id=n_id,
                                               role=role)
-                # XBee device list, add it and notify callbacks.
                 if remote is not None:
-                    # if remote was created successfully and it is not in the
-                    # XBee device list, add it and notify callbacks.
-                    self.__add_remote(remote, NetworkEventReason.DISCOVERED)
-                    # always add the XBee device to the last discovered devices list:
-                    self.__last_search_dev_list.append(remote)
-                    self.__device_discovered(remote)
+                    # If remote was successfully created and it is not in the XBee list, add it
+                    # and notify callbacks.
+
+                    # Do not add a connection to the same node (the local one)
+                    if remote == self._local_xbee:
+                        return
+
+                    self._log.debug("     o Discovered neighbor of %s: %s"
+                                    % (self._local_xbee, remote))
+
+                    node = self.__add_remote(remote, NetworkEventReason.DISCOVERED)
+                    if not node:
+                        # Node already in network for this scan
+                        node = self.get_device_by_64(remote.get_64bit_addr())
+                        self._log.debug(
+                            "       - NODE already in network in this scan (scan: %d) %s"
+                            % (self.__scan_counter, node))
+                    else:
+                        # Do not add the neighbors to the FIFO, because
+                        # only the local device performs an 'ND'
+                        self._log.debug("       - Added to network (scan: %d)" % node.scan_counter)
+
+                    # Add connection (there is not RSSI info for a 'ND')
+                    from digi.xbee.models.zdo import RouteStatus
+                    if self.__add_connection(Connection(
+                            self._local_xbee, node, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
+                            RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
+                        self._log.debug("       - Added connection: %s >>> %s"
+                                        % (self._local_xbee, node))
+                    else:
+                        self._log.debug(
+                            "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s"
+                            % (self.__scan_counter, self._local_xbee, node))
+
+                    # Always add the XBee device to the last discovered devices list:
+                    self.__last_search_dev_list.append(node)
+                    self.__device_discovered(node)
 
         def discovery_spec_callback(xbee_packet):
             """
@@ -7200,6 +7598,7 @@ class XBeeNetwork(object):
             nd_id = self.__check_nd_packet(xbee_packet)
             if nd_id == XBeeNetwork.ND_PACKET_FINISH:
                 # if it's a ND finish signal, stop wait for packets
+                self.__discover_result = xbee_packet.status
                 if xbee_packet.status == ATCommandStatus.OK:
                     with self.__lock:
                         self.__sought_device_id = None
@@ -7251,43 +7650,352 @@ class XBeeNetwork(object):
         else:
             return None
 
-    def __discover_devices_and_notify_callbacks(self):
+    def __discover_devices_and_notify_callbacks(self, discover_network=False):
         """
         Blocking method. Performs a discovery operation, waits
         until it finish (timeout or 'end' packet for 802.15.4),
         and notifies callbacks.
+
+        Args:
+            discover_network (Boolean, optional, default=``False``): ``True`` to discovery the
+                full network with connections between nodes, ``False`` to only discover nodes
+                with a single 'ND'.
         """
-        self.__discover_devices()
+        self._stop_event.clear()
+        self.__discovering = True
+        self.__discover_result = None
 
-        status = NetworkDiscoveryStatus.SUCCESS
-        if self.__discover_result != ATCommandStatus.OK:
-            status = NetworkDiscoveryStatus.ERROR_NET_DISCOVER
+        if not discover_network:
+            status = self.__discover_devices()
+            self._discovery_done(self.__active_processes)
+        else:
+            status = self._discover_full_network()
 
-        self.__device_discovery_finished(status)
+        self.__device_discovery_finished(status if status else NetworkDiscoveryStatus.SUCCESS)
+
+    def _discover_full_network(self):
+        """
+        Discovers the network of the local node.
+
+        Returns:
+            :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: Resulting status of
+                the discovery process.
+        """
+        try:
+            code = self._init_discovery(self.__nodes_queue)
+            if code != NetworkDiscoveryStatus.SUCCESS:
+                return code
+
+            while self.__stop_scan == self.__class__.SCAN_TIL_CANCEL \
+                    or self.__scan_counter < self.__stop_scan:
+
+                if self.__scan_counter > 0:
+                    self._log.debug("")
+                    self._log.debug(" [*] Waiting %f seconds to start next scan"
+                                    % self.__time_bw_scans)
+                    code = self.__wait_checking(self.__time_bw_scans)
+                    if code != NetworkDiscoveryStatus.SUCCESS:
+                        return code
+
+                self.__init_scan()
+
+                # Check for cancel
+                if self._stop_event.is_set():
+                    return NetworkDiscoveryStatus.CANCEL
+
+                code = self.__discover_network(self.__nodes_queue, self.__active_processes,
+                                               self.__node_timeout)
+                if code != NetworkDiscoveryStatus.SUCCESS:
+                    return code
+
+                # Purge network
+                self.__purge(force=self.__rm_not_discovered_in_last_scan)
+
+            return code
+        finally:
+            self._discovery_done(self.__active_processes)
+
+    def _init_discovery(self, nodes_queue):
+        """
+        Initializes the discovery process before starting any network scan:
+            * Initializes the scan counter
+            * Removes all the nodes from the FIFO
+            * Prepares the local XBee to start the process
+
+        Args:
+             nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+
+        Returns:
+            :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: Resulting status of
+                the discovery process.
+        """
+        # Initialize the scan number
+        self.__scan_counter = 0
+
+        # Initialize all nodes/connections scan counter
+        with self.__lock:
+            for xb in self.__devices_list:
+                xb._scan_counter = self.__scan_counter
+
+        with self.__conn_lock:
+            for c in self.__connections:
+                c.scan_counter_a2b = self.__scan_counter
+                c.scan_counter_b2a = self.__scan_counter
+
+        # Clear the nodes FIFO
+        while not nodes_queue.empty():
+            try:
+                nodes_queue.get(block=False)
+            except Empty:
+                continue
+            nodes_queue.task_done()
+
+        self.__purge(force=self.__rm_not_discovered_in_last_scan)
+
+        return NetworkDiscoveryStatus.SUCCESS
+
+    def __init_scan(self):
+        """
+        Prepares a network to start a new scan.
+        """
+        self.__increment_scan_counter()
+        self._local_xbee._scan_counter = self.__scan_counter
+
+        self.__last_request_date = 0
+
+        self._log.debug("\n")
+        self._log.debug("================================")
+        self._log.debug("  %d network scan" % self.__scan_counter)
+        self._log.debug("       Mode: %s (%d)" % (self.__mode.description, self.__mode.code))
+        self._log.debug("       Stop after scan: %d" % self.__stop_scan)
+        self._log.debug("       Timeout/node: %f" % self.__node_timeout)
+        self._log.debug("================================")
+
+    def __discover_network(self, nodes_queue, active_processes, node_timeout):
+        """
+        Discovers the network of the local node.
+
+        Args:
+            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+            active_processes (List): The list of active discovery processes.
+            node_timeout (Float): Timeout to discover neighbors for each node (seconds).
+
+        Returns:
+            :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: Resulting status of
+                the discovery process.
+        """
+        code = NetworkDiscoveryStatus.SUCCESS
+
+        # Add local node to the FIFO
+        nodes_queue.put(self._local_xbee)
+
+        while True:
+            # Wait to have items in the nodes FIFO while some nodes are being discovered,
+            # because them can fill the FIFO with new nodes to ask
+            while nodes_queue.empty() and active_processes:
+                self._log.debug("")
+                self._log.debug(
+                    " [*] Waiting for more nodes to request or finishing active processes (%d)\n"
+                    % (len(active_processes)))
+                [self._log.debug("     Waiting for %s" % p) for p in active_processes]
+
+                code = self.__wait_checking(self.__class__.__TIME_FOR_NEW_NODES_IN_FIFO)
+                if code == NetworkDiscoveryStatus.CANCEL:
+                    return code
+
+            # Check if there are more nodes in the FIFO
+            while not nodes_queue.empty():
+                # Process the next node
+                code = self.__discover_next_node_neighbors(nodes_queue, active_processes,
+                                                           node_timeout)
+                # Only stop if the process has been cancelled, otherwise continue with the
+                # next node
+                if code == NetworkDiscoveryStatus.CANCEL:
+                    return code
+
+                # For cascade, wait until previous processes finish
+                if self.__mode == NeighborDiscoveryMode.CASCADE:
+                    while active_processes:
+                        code = self.__wait_checking(
+                            self.__class__.__TIME_WHILE_FINISH_PREVIOUS_PROCESS)
+                        if code == NetworkDiscoveryStatus.CANCEL:
+                            return code
+
+            # Check if all processes finish
+            if not active_processes:
+                break
+
+        return code
+
+    def __discover_next_node_neighbors(self, nodes_queue, active_processes, node_timeout):
+        """
+        Discovers the neighbors of the next node in the given FIFO.
+
+        Args:
+            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+            active_processes (List): The list of active discovery processes.
+            node_timeout (Float): Timeout to discover neighbors for each node (seconds).
+
+        Returns:
+             :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: Resulting status of the
+                neighbor discovery process.
+        """
+        code = NetworkDiscoveryStatus.SUCCESS
+
+        # Check for cancel
+        if self._stop_event.is_set():
+            return NetworkDiscoveryStatus.CANCEL
+
+        requester = nodes_queue.get()
+
+        # Wait between nodes but not for the local one
+        if requester != self._local_xbee:
+            time_to_wait = self.__time_bw_nodes
+            if self.__mode != NeighborDiscoveryMode.CASCADE:
+                time_to_wait = self.__time_bw_nodes + (time.time() - self.__last_request_date)
+            self._log.debug("")
+            self._log.debug(" [*] Waiting %f before sending next request to %s"
+                            % (time_to_wait if time_to_wait > 0 else 0.0, requester))
+            code = self.__wait_checking(time_to_wait)
+            if code != NetworkDiscoveryStatus.SUCCESS:
+                return code
+
+        # If the previous request finished, discover node neighbors
+        if not requester.get_64bit_addr() in active_processes:
+            self._log.debug("")
+            self._log.debug(" [*] Discovering neighbors of %s" % requester)
+            self.__last_request_date = time.time()
+            return self._discover_neighbors(requester, nodes_queue, active_processes, node_timeout)
+
+        self._log.debug("")
+        self._log.debug(" [*] Previous request for %s did not finish..." % requester)
+        nodes_queue.put(requester)
+
+        return code
+
+    def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
+        """
+        Starts the process to discover the neighbors of the given node.
+
+        Args:
+            requester(:class:`.AbstractXBeeDevice`): The XBee to discover its neighbors.
+            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+            active_processes (List): The list of active discovery processes.
+            node_timeout (Float): Timeout to discover neighbors (seconds).
+
+        Returns:
+            :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: Resulting status of
+                the neighbor discovery process.
+        """
+        code = self.__discover_devices()
+        if not code:
+            return NetworkDiscoveryStatus.SUCCESS
+
+        # Do not stop scans unless the process is cancel, not because of an error.
+        if code is NetworkDiscoveryStatus.ERROR_NET_DISCOVER:
+            self._stop_event.clear()
+            return NetworkDiscoveryStatus.SUCCESS
+
+        return code
 
     def __discover_devices(self, node_id=None):
         """
-        Blocking method. Performs a device discovery in the network and waits until it finish (timeout or 'end'
-        packet for 802.15.4)
+        Blocking method. Performs a device discovery in the network and waits until it finish
+        (timeout or 'end' packet for 802.15.4)
 
         Args:
-            node_id (String, optional): node identifier of the remote XBee device to discover. Optional.
-        """
-        try:
-            self._stop_event.clear()
+            node_id (String, optional): node identifier of the remote XBee device to discover.
 
+        Returns:
+            :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: The error code, ``None``
+                if finished successfully.
+        """
+        self.__active_processes.append(str(self._local_xbee.get_64bit_addr()))
+
+        try:
             timeout = self.__calculate_timeout()
             # send "ND" async
             self._local_xbee.send_packet(ATCommPacket(self._local_xbee.get_next_frame_id(),
                                                       ATStringCommand.ND.command,
                                                       parameter=None if node_id is None else bytearray(node_id, 'utf8')),
                                          sync=False)
-            self._stop_event.wait(timeout)
+
+            self.__nd_processes.update({str(self._local_xbee.get_64bit_addr()): self})
+
+            op_times_out = not self._stop_event.wait(timeout)
+
+            self.__nd_processes.pop(str(self._local_xbee), None)
+
+            if op_times_out or not self.__discover_result or self.__discover_result == ATCommandStatus.OK:
+                err_code = None
+            elif self.__discover_result and self.__discover_result != ATCommandStatus.OK:
+                err_code = NetworkDiscoveryStatus.ERROR_NET_DISCOVER
+            else:
+                err_code = NetworkDiscoveryStatus.CANCEL
+
+            self._node_discovery_process_finished(self._local_xbee, code=err_code,
+                                                  error=err_code.description if err_code else None)
+
+            return err_code
         except Exception as e:
             self._local_xbee.log.exception(e)
-        finally:
-            with self.__lock:
-                self.__discovering = False
+
+    def _node_discovery_process_finished(self, requester, code=None, error=None):
+        """
+        Notifies the discovery process has finished successfully for ``requester`` node.
+
+        Args:
+            requester (:class:`.AbstractXBeeDevice`): The XBee that requests the discovery process.
+            code (:class:`digi.xbee.models.status.NetworkDiscoveryStatus`): The error code for the process.
+            error (String): The error message if there was one, ``None`` if successfully finished.
+        """
+        # Purge the connections of the node
+        self._log.debug("")
+        self._log.debug(" [*] Purging node connections of %s" % requester)
+        purged = self.__purge_node_connections(requester, force=self.__rm_not_discovered_in_last_scan)
+        if self.__rm_not_discovered_in_last_scan:
+            for c in purged:
+                self._log.debug("     o Removed connection: %s" % c)
+
+        # Remove the discovery process from the active processes list
+        self.__active_processes.remove(str(requester.get_64bit_addr()))
+
+        if code and code not in (NetworkDiscoveryStatus.SUCCESS, NetworkDiscoveryStatus.CANCEL) or error:
+            self._log.debug("[***** ERROR] During neighbors scan of %s" % requester)
+            if error:
+                self._log.debug("        %s" % error)
+            else:
+                self._log.debug("        %s" % code.description)
+        else:
+            self._log.debug("[!!!] Process finishes for %s  - Remaining: %d"
+                            % (requester, len(self.__active_processes)))
+
+    def _discovery_done(self, active_processes):
+        """
+        Discovery process has finished either due to cancellation, successful completion, or failure.
+
+        Args:
+            active_processes (List): The list of active discovery processes.
+        """
+        if self.__nd_processes:
+            copy = active_processes[:]
+            for p in copy:
+                nd = self.__nd_processes.get(p)
+                if not nd:
+                    continue
+                nd.stop_discovery_process()
+                while p in self.__nd_processes:
+                    time.sleep(0.1)
+
+        self.__nd_processes.clear()
+        self.__active_processes.clear()
+
+        with self.__lock:
+            self.__discovering = False
 
     def __is_802_compatible(self):
         """
@@ -7476,6 +8184,27 @@ class XBeeNetwork(object):
 
         return connections
 
+    def __get_connections_for_node_a_b(self, node, node_a=True):
+        """
+        Returns the network connections with the given node as "node_a" or "node_b".
+
+        Args:
+            node (:class:`.AbstractXBeeDevice`): The node to get the connections.
+            node_a (Boolean, optional, default=``True``): ``True`` to get connections where
+                the given node is "node_a", ``False`` to get those where the node is "node_b".
+
+        Returns:
+            List: List of :class:`.Connection` with ``node`` as "node_a" end.
+        """
+        connections = []
+        with self.__conn_lock:
+            for c in self.__connections:
+                if (node_a and c.node_a == node) \
+                        or (not node_a and c.node_b == node):
+                    connections.append(c)
+
+        return connections
+
     def __get_connection(self, node_a, node_b):
         """
         Returns the connection with ends node_a and node_b.
@@ -7554,10 +8283,15 @@ class XBeeNetwork(object):
         if not connection:
             return False
 
-        # TODO: to get the nodes we need to iterate, should we change the list and use a map?
-        #  The key would be the 64-bit address string, we can get the list with: list(d.values())
         node_a = self.get_device_by_64(connection.node_a.get_64bit_addr())
         node_b = self.get_device_by_64(connection.node_b.get_64bit_addr())
+
+        # Add the source node
+        if not node_a:
+            node_a = self.__add_remote(connection.node_a, NetworkEventReason.NEIGHBOR)
+
+        if not node_b:
+            node_b = self.__add_remote(connection.node_b, NetworkEventReason.NEIGHBOR)
 
         if not node_a or not node_b:
             return False
@@ -7568,10 +8302,184 @@ class XBeeNetwork(object):
 
         # If none of them exist, add it
         if not c_ab and not c_ba:
+            connection.scan_counter_a2b= self.__scan_counter
             self.__append_connection(connection)
             return True
 
+        # If the connection exists, update its data
+        if c_ab:
+            if c_ab.scan_counter_a2b != self.__scan_counter:
+                c_ab.lq_a2b = connection.lq_a2b
+                c_ab.status_a2b = connection.status_a2b
+                c_ab.scan_counter_a2b = self.__scan_counter
+                return True
+
+        elif c_ba:
+            if c_ba.scan_counter_b2a != self.__scan_counter:
+                c_ba.lq_b2a = connection.lq_a2b
+                c_ba.status_b2a = connection.status_a2b
+                c_ba.scan_counter_b2a = self.__scan_counter
+                return True
+
         return False
+
+    def __remove_node_connections(self, node, only_as_node_a=False, force=False):
+        """
+        Remove the connections that has node as one of its ends.
+
+        Args:
+            node (:class:`.AbstractXBeeDevice`): The node whose connections are being removed.
+            only_as_node_a (Boolean, optional, default=``False``): Only remove those connections
+                with the provided node as "node_a".
+            force (Boolean, optional, default=``True``): ``True`` to force the
+                deletion of the connections, ``False`` otherwise.
+
+        Returns:
+            List: List of removed connections.
+        """
+        if only_as_node_a:
+            node_conn = self.__get_connections_for_node_a_b(node, node_a=True)
+        else:
+            node_conn = self.get_node_connections(node)
+
+        with self.__conn_lock:
+            c_removed = [len(node_conn)]
+            c_removed[:] = node_conn[:]
+            for c in node_conn:
+                if force:
+                    self.__del_connection(c)
+                else:
+                    c.lq_a2b = LinkQuality.UNKNOWN
+
+        return c_removed
+
+    def __purge(self, force=False):
+        """
+        Removes the nodes and connections that has not been discovered during the last scan.
+
+        Args:
+            force (Boolean, optional, default=``False``): ``True`` to force the deletion of nodes
+                and connections, ``False`` otherwise.
+        """
+        # Purge nodes and connections from network
+        removed_nodes = self.__purge_network_nodes(force=force)
+        removed_connections = self.__purge_network_connections(force=force)
+
+        self._log.debug("")
+        self._log.debug(" [*] Purging network...")
+        [self._log.debug("     o Removed node: %s" % n) for n in removed_nodes]
+        [self._log.debug("     o Removed connections: %s" % n) for n in removed_connections]
+
+    def __purge_network_nodes(self, force=False):
+        """
+        Removes the nodes and connections that has not been discovered during the last scan.
+
+        Args:
+            force (Boolean, optional, default=``False``): ``True`` to force the deletion of nodes,
+                ``False`` otherwise.
+
+        Returns:
+            List: The list of purged nodes.
+        """
+        nodes_to_remove = []
+        with self.__lock:
+            for n in self.__devices_list:
+                if not n.scan_counter or n.scan_counter != self.__scan_counter:
+                    nodes_to_remove.append(n)
+
+        [self._remove_device(n, NetworkEventReason.NEIGHBOR, force=force) for n in nodes_to_remove]
+
+        return nodes_to_remove
+
+    def __purge_network_connections(self, force=False):
+        """
+        Removes the connections that has not been discovered during the last scan.
+
+         Args:
+            force (Boolean, optional, default=``False``): ``True`` to force the deletion of
+                connections, ``False`` otherwise.
+
+        Returns:
+            List: The list of purged connections.
+        """
+        connections_to_remove = []
+        with self.__conn_lock:
+            for c in self.__connections:
+                if c.scan_counter_a2b != self.__scan_counter \
+                        and c.scan_counter_b2a != self.__scan_counter:
+                    c.lq_a2b = LinkQuality.UNKNOWN
+                    c.lq_b2a = LinkQuality.UNKNOWN
+                    connections_to_remove.append(c)
+                elif c.scan_counter_a2b != self.__scan_counter:
+                    c.lq_a2b = LinkQuality.UNKNOWN
+                elif c.scan_counter_b2a != self.__scan_counter:
+                    c.lq_b2a = LinkQuality.UNKNOWN
+                elif c.lq_a2b == LinkQuality.UNKNOWN \
+                        and c.lq_b2a == LinkQuality.UNKNOWN:
+                    connections_to_remove.append(c)
+
+        if force:
+            [self.__del_connection(c) for c in connections_to_remove]
+
+        return connections_to_remove
+
+    def __purge_node_connections(self, node_a, force=False):
+        """
+        Purges given node connections. Removes the connections that has not been discovered during
+        the last scan.
+
+        Args:
+            node_a (:class:`.AbstractXBeeDevice`): The node_a of the connections to purge.
+            force (Boolean, optional, default=``False``): ``True`` to force the deletion of the
+                connections, ``False`` otherwise.
+
+        Returns:
+            List: List of purged connections.
+        """
+        c_purged = []
+
+        # Get node connections, but only those whose "node_a" is "node" (we are only purging
+        # connections that are discovered with "node", and they are those with "node" as "node_a")
+        node_conn = self.__get_connections_for_node_a_b(node_a, node_a=True)
+
+        with self.__conn_lock:
+            for c in node_conn:
+                if c.scan_counter_a2b != self.__scan_counter:
+                    c.lq_a2b = LinkQuality.UNKNOWN
+                    if c.scan_counter_b2a == self.__scan_counter \
+                            and c.lq_b2a == LinkQuality.UNKNOWN:
+                        c_purged.append(c)
+
+        if force:
+            [self.__del_connection(c) for c in c_purged]
+
+        return c_purged
+
+    def __wait_checking(self, seconds):
+        """
+        Waits some time, verifying if the process has been canceled.
+
+        Args:
+            seconds (Float): The amount of seconds to wait.
+
+        Returns:
+            :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: Resulting status
+                of the discovery process.
+        """
+        if seconds <= 0:
+            return NetworkDiscoveryStatus.SUCCESS
+
+        def current_ms_time():
+            return int(round(time.time() * 1000))
+
+        dead_line = current_ms_time() + seconds*1000
+        while current_ms_time() < dead_line:
+            time.sleep(0.25)
+            # Check for cancel
+            if self._stop_event.is_set():
+                return NetworkDiscoveryStatus.CANCEL
+
+        return NetworkDiscoveryStatus.SUCCESS
 
 
 class ZigBeeNetwork(XBeeNetwork):
@@ -7722,8 +8630,9 @@ class NetworkEventReason(Enum):
     """
 
     DISCOVERED = (0x00, "Discovered XBee")
-    RECEIVED_MSG = (0x01, "Received message from XBee")
-    MANUAL = (0x02, "Manual modification")
+    NEIGHBOR = (0x01, "Discovered as XBee neighbor")
+    RECEIVED_MSG = (0x02, "Received message from XBee")
+    MANUAL = (0x03, "Manual modification")
 
     def __init__(self, code, description):
         self.__code = code
@@ -7887,6 +8796,9 @@ class Connection(object):
         from digi.xbee.models.zdo import RouteStatus
         self.__st_a2b = status_a2b if status_a2b else RouteStatus.UNKNOWN
         self.__st_b2a = status_b2a if status_b2a else RouteStatus.UNKNOWN
+
+        self.__scan_counter_a2b = 0
+        self.__scan_counter_b2a = 0
 
     def __str__(self):
         return "{{{!s} >>> {!s} [{!s} / {!s}]: {!s} / {!s}}}".format(
@@ -8061,3 +8973,44 @@ class Connection(object):
         else:
             return LinkQuality.UNKNOWN
 
+    @property
+    def scan_counter_a2b(self):
+        """
+        Returns the scan counter for this connection, discovered by its A node.
+
+        Returns:
+             Integer: The scan counter for this connection, discovered by its A node.
+        """
+        return self.__scan_counter_a2b
+
+    @scan_counter_a2b.setter
+    def scan_counter_a2b(self, new_scan_counter_a2b):
+        """
+        Configures the scan counter for this connection, discovered by its A node.
+
+        Args:
+             new_scan_counter_a2b (Integer): The scan counter for this connection, discovered by its
+                A node.
+        """
+        self.__scan_counter_a2b = new_scan_counter_a2b
+
+    @property
+    def scan_counter_b2a(self):
+        """
+        Returns the scan counter for this connection, discovered by its B node.
+
+        Returns:
+             Integer: The scan counter for this connection, discovered by its B node.
+        """
+        return self.__scan_counter_b2a
+
+    @scan_counter_b2a.setter
+    def scan_counter_b2a(self, new_scan_counter_b2a):
+        """
+        Configures the scan counter for this connection, discovered by its B node.
+
+        Args:
+             new_scan_counter_b2a (Integer): The scan counter for this connection, discovered by its
+                B node.
+        """
+        self.__scan_counter_b2a = new_scan_counter_b2a

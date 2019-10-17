@@ -298,3 +298,72 @@ class IPAddressingMode(Enum):
 
 IPAddressingMode.lookupTable = {x.code: x for x in IPAddressingMode}
 IPAddressingMode.__doc__ += utils.doc_enum(IPAddressingMode)
+
+
+@unique
+class NeighborDiscoveryMode(Enum):
+    """
+    Enumerates the different neighbor discovery modes. This mode establishes the way the
+    network discovery process is performed.
+
+    | Inherited properties:
+    |     **name** (String): the name (id) of this OperatingMode.
+    |     **value** (String): the value of this OperatingMode.
+    """
+
+    CASCADE = (0, "Cascade")
+    """
+    The discovery of a node neighbors is requested once the previous request finishes.
+    This means that just one discovery process is running at the same time.
+
+    This mode is recommended for large networks, it might be a slower method but it
+    generates less traffic than 'Flood'.
+    """
+
+    FLOOD = (1, "Flood")
+    """
+    The discovery of a node neighbors is requested when the node is found in the network.
+    This means that several discovery processes might be running at the same time.
+    """
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    @property
+    def code(self):
+        """
+        Returns the code of the NeighborDiscoveryMode element.
+
+        Returns:
+            String: the code of the NeighborDiscoveryMode element.
+        """
+        return self.__code
+
+    @property
+    def description(self):
+        """
+        Returns the description of the NeighborDiscoveryMode element.
+
+        Returns:
+            String: the description of the NeighborDiscoveryMode element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the NeighborDiscoveryMode for the given code.
+
+        Args:
+            code (Integer): the code corresponding to the mode to get.
+
+        Returns:
+            :class:`.NeighborDiscoveryMode`: the NeighborDiscoveryMode with
+                the given code. ``None`` if there is not a mode with that code.
+        """
+        for mode in cls:
+            if mode.code == code:
+                return mode
+
+        return None
