@@ -25,7 +25,7 @@ from digi.xbee.packets.cellular import TXSMSPacket
 from digi.xbee.models.accesspoint import AccessPoint, WiFiEncryptionType
 from digi.xbee.models.atcomm import ATCommandResponse, ATCommand, ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
-from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode, NeighborDiscoveryMode
+from digi.xbee.models.mode import OperatingMode, APIOutputMode, IPAddressingMode, NeighborDiscoveryMode, APIOutputModeBit
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, XBeeIMEIAddress
 from digi.xbee.models.info import SocketInfo
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage
@@ -129,6 +129,7 @@ class AbstractXBeeDevice(object):
         self._packet_listener = None
 
         self._scan_counter = 0
+        self._reachable = True
 
         self.__generic_lock = threading.Lock()
 
@@ -1915,6 +1916,16 @@ class AbstractXBeeDevice(object):
 
         return reader.get_neighbor_table(neighbor_callback=neighbor_callback,
                                          process_finished_callback=process_finished_callback)
+
+    @property
+    def reachable(self):
+        """
+        Returns whether the XBee is reachable.
+
+        Returns:
+            Boolean: ``True`` if the device is reachable, ``False`` otherwise.
+        """
+        return self._reachable
 
     @property
     def scan_counter(self):
@@ -7422,6 +7433,7 @@ class XBeeNetwork(object):
 
             if found.update_device_data_from(remote_xbee):
                 self.__network_modified(NetworkEventType.UPDATE, reason, node=found)
+                found._reachable = True
 
             return None if already_in_scan else found
 
@@ -7505,8 +7517,25 @@ class XBeeNetwork(object):
             found_node = self.__devices_list[i]
             if force:
                 self.__devices_list.remove(found_node)
+                if found_node.reachable:
+                    self.__network_modified(NetworkEventType.DEL, reason, node=remote_xbee_device)
 
         node_b_connections = self.__get_connections_for_node_a_b(found_node, node_a=False)
+
+        # Remove connections with this node as one of its ends
+        self.__remove_node_connections(found_node, only_as_node_a=True, force=force)
+
+        if not force:
+            # Only for Zigbee, mark non-reachable end devices
+            if remote_xbee_device.get_protocol() \
+                    in (XBeeProtocol.ZIGBEE, XBeeProtocol.SMART_ENERGY) \
+                    and remote_xbee_device.get_role() == Role.END_DEVICE:
+                for c in node_b_connections:
+                    # End devices do not have connections from them (not asking for their route
+                    # and neighbor tables), but if their parent is not reachable they are not either
+                    if not c.node_a.reachable:
+                        self._set_node_reachable(remote_xbee_device, False)
+                        break
 
     def remove_device(self, remote_xbee_device):
         """
@@ -7970,9 +7999,48 @@ class XBeeNetwork(object):
                 self._log.debug("        %s" % error)
             else:
                 self._log.debug("        %s" % code.description)
+
+            self._handle_special_errors(requester, error)
         else:
             self._log.debug("[!!!] Process finishes for %s  - Remaining: %d"
                             % (requester, len(self.__active_processes)))
+
+    def _handle_special_errors(self, requester, error):
+        """
+        Process some special errors.
+
+        Args:
+            requester (:class:`.AbstractXBeeDevice`): The XBee that requests the discovery process.
+            error (String): The error message.
+        """
+        if not error.endswith(TransmitStatus.NOT_JOINED_NETWORK.description) \
+                and not error.endswith(TransmitStatus.ADDRESS_NOT_FOUND.description):
+            return
+
+        # The node is not found so it is not reachable
+        self._log.debug("     o [***] Non-reachable: %s -> ERROR %s" % (requester, error))
+
+        # Do not remove any node here, although the preference is configured to so
+        # Do it at the end of the scan...
+        no_reachables = [requester]
+
+        # Get the children nodes to mark them as non-reachable
+        conn_list = self.__get_connections_for_node_a_b(requester, node_a=True)
+        for c in conn_list:
+            child = c.node_b
+            # Child node already discovered in this scan
+            if not child or child._scan_counter == self.__scan_counter:
+                continue
+            # Only the connection with the requester node joins the child to the network
+            # so it is not reachable
+            if len(self.get_node_connections(child)) <= 1:
+                no_reachables.append(child)
+
+            # If the node has more than one connection, we cannot be sure if it will
+            # be discovered by other devices later since the scan did not end
+
+        # Mark as non-reachable
+        [self._set_node_reachable(n, False) for n in no_reachables]
 
     def _discovery_done(self, active_processes):
         """
@@ -8152,6 +8220,20 @@ class XBeeNetwork(object):
             # role is the next byte
             role = Role.get(utils.bytes_to_int(data[i:i+1]))
         return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]), node_id.decode(), role
+
+    def _set_node_reachable(self, node, reachable):
+        """
+        Configures a node as reachable or non-reachable. It throws an network event if this
+        attribute changes.
+        If the value of the attribute was already ``reachable`` value, this method does nothing.
+
+        Args:
+            node (:class:`.AbstractXBeeDevice`): The node to configure.
+            reachable (Boolean): ``True`` to configure as reachable, ``False`` otherwise.
+        """
+        if node._reachable != reachable:
+            node._reachable = reachable
+            self.__network_modified(NetworkEventType.UPDATE, NetworkEventReason.NEIGHBOR, node=node)
 
     def get_connections(self):
         """
@@ -8384,7 +8466,7 @@ class XBeeNetwork(object):
         nodes_to_remove = []
         with self.__lock:
             for n in self.__devices_list:
-                if not n.scan_counter or n.scan_counter != self.__scan_counter:
+                if not n.scan_counter or n.scan_counter != self.__scan_counter or not n.reachable:
                     nodes_to_remove.append(n)
 
         [self._remove_device(n, NetworkEventReason.NEIGHBOR, force=force) for n in nodes_to_remove]
@@ -8489,6 +8571,8 @@ class ZigBeeNetwork(XBeeNetwork):
     The network allows the discovery of remote devices in the same network
     as the local one and stores them.
     """
+    __ROUTE_TABLE_TYPE = "route_table"
+    __NEIGHBOR_TABLE_TYPE = "neighbor_table"
 
     def __init__(self, device):
         """
@@ -8501,6 +8585,380 @@ class ZigBeeNetwork(XBeeNetwork):
             ValueError: if ``device`` is ``None``.
         """
         super().__init__(device)
+
+        self.__saved_ao = None
+
+        # Dictionary to store the route and neighbor discovery processes per node, so they can be
+        # stop when required.
+        # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
+        self.__zdo_processes = {}
+
+        # Dictionary to store discovered routes for each Zigbee device
+        # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
+        self.__discovered_routes = {}
+
+    def _init_discovery(self, nodes_queue):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._init_discovery`
+        """
+        code = super()._init_discovery(nodes_queue)
+        if code != NetworkDiscoveryStatus.SUCCESS:
+            return code
+
+        try:
+            self.__prepare_network_discovery()
+        except XBeeException as e:
+            self._log.debug(str(e))
+            return NetworkDiscoveryStatus.ERROR_GENERAL
+
+        return NetworkDiscoveryStatus.SUCCESS
+
+    def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._discover_neighbors`
+        """
+        active_processes.append(str(requester.get_64bit_addr()))
+        code = self.__get_route_table(requester, nodes_queue, node_timeout)
+
+        return code
+
+    def _discovery_done(self, active_processes):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._discovery_done`
+        """
+        copy = active_processes[:]
+        for p in copy:
+            zdos = self.__zdo_processes.get(p)
+            if not zdos:
+                continue
+
+            self.__stop_zdo_command(zdos, self.__class__.__ROUTE_TABLE_TYPE)
+            self.__stop_zdo_command(zdos, self.__class__.__NEIGHBOR_TABLE_TYPE)
+
+            zdos.clear()
+
+        self.__zdo_processes.clear()
+        self.__discovered_routes.clear()
+
+        self.__restore_network()
+
+        super()._discovery_done(active_processes)
+
+    def _handle_special_errors(self, requester, error):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._handle_special_errors`
+        """
+        super()._handle_special_errors(requester, error)
+
+        if error == "ZDO command answer not received":
+            # 'AO' value is misconfigured, restore it
+            self._log.debug("     [***] Local XBee misconfigured: restoring 'AO' value")
+            value = APIOutputModeBit.calculate_api_output_mode_value(
+                self._local_xbee.get_protocol(), {APIOutputModeBit.EXPLICIT})
+
+            self._local_xbee.set_api_output_mode_value(value)
+
+            # Add the node to the FIFO to try again
+            self._XBeeNetwork__nodes_queue.put(requester)
+
+    def __get_route_table(self, requester, nodes_queue, node_timeout):
+        """
+        Launch the process to get the route table of the XBee.
+
+        Args:
+            requester (:class:`.AbstractXBeeDevice`): The XBee to discover its route table.
+            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+            node_timeout (Float): Timeout to get the route table (seconds).
+
+        Returns:
+            :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: Resulting status of
+                the route table process.
+        """
+        def __new_route_callback(xbee, route):
+            self._log.debug("     o Discovered route of %s: %s - %s -> %s"
+                            % (xbee, route.destination, route.next_hop, route.status))
+
+            # Requester node is clearly reachable
+            self._set_node_reachable(xbee, True)
+
+            # Get the discovered routes of the node
+            routes_list = self.__discovered_routes.get(str(xbee.get_64bit_addr()))
+            if not routes_list:
+                routes_list = {}
+                self.__discovered_routes.update({str(xbee.get_64bit_addr()): routes_list})
+
+            # Add the new route
+            if str(route.next_hop) not in routes_list:
+                routes_list.update({str(route.next_hop): route})
+
+            # Check for cancel
+            if self._stop_event.is_set():
+                cmd = self.__get_zdo_command(xbee, self.__class__.__ROUTE_TABLE_TYPE)
+                if cmd:
+                    cmd.stop()
+
+        def __route_discover_finished_callback(xbee, routes, error):
+            zdo_processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
+            if zdo_processes:
+                zdo_processes.pop(self.__class__.__ROUTE_TABLE_TYPE)
+
+            if error:
+                self.__zdo_processes.pop(str(requester.get_64bit_addr()), None)
+                # Remove the discovered routes
+                self.__discovered_routes.pop(str(xbee.get_64bit_addr()), None)
+                # Process the error and do not continue
+                self._node_discovery_process_finished(
+                    xbee, code=NetworkDiscoveryStatus.ERROR_GENERAL, error=error)
+            else:
+                # Check for cancel
+                if self._stop_event.is_set():
+                    # Remove the discovered routes
+                    self.__discovered_routes.pop(str(xbee.get_64bit_addr()), None)
+                    self._node_discovery_process_finished(xbee, code=NetworkDiscoveryStatus.CANCEL)
+                    # return
+
+                # Get neighbor table
+                code = self.__get_neighbor_table(xbee, nodes_queue, node_timeout)
+                if code != NetworkDiscoveryStatus.SUCCESS:
+                    self._node_discovery_process_finished(
+                        xbee, code=NetworkDiscoveryStatus.ERROR_GENERAL, error=error)
+
+        self._log.debug("   [o] Getting ROUTE TABLE of node %s" % requester)
+
+        from digi.xbee.models.zdo import RouteTableReader
+        reader = RouteTableReader(requester, configure_ao=False, timeout=node_timeout)
+        reader.get_route_table(route_callback=__new_route_callback,
+                               process_finished_callback=__route_discover_finished_callback)
+
+        processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
+        if not processes:
+            processes = {}
+            self.__zdo_processes.update({str(requester.get_64bit_addr()): processes})
+        processes.update({self.__class__.__ROUTE_TABLE_TYPE: reader})
+
+        return NetworkDiscoveryStatus.SUCCESS
+
+    def __get_neighbor_table(self, requester, nodes_queue, node_timeout):
+        """
+        Launch the process to get the neighbor table of the XBee.
+
+        Args:
+            requester (:class:`.AbstractXBeeDevice`): The XBee to discover its neighbor table.
+            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+            node_timeout (Float): Timeout to get the route neighbor (seconds).
+
+        Returns:
+            :class:`digi.xbee.models.status.NetworkDiscoveryStatus`: Resulting status of the
+                neighbor table process.
+        """
+        def __new_neighbor_callback(xbee, neighbor):
+            # Do not add a connection to the same node
+            if neighbor == xbee:
+                return
+
+            # Get the discovered routes of the node
+            routes_list = self.__discovered_routes.get(str(xbee.get_64bit_addr()))
+
+            # Add the new neighbor
+            self.__process_discovered_neighbor_data(xbee, routes_list, neighbor, nodes_queue)
+
+            # Check for cancel
+            if self._stop_event.is_set():
+                cmd = self.__get_zdo_command(xbee, self.__class__.__NEIGHBOR_TABLE_TYPE)
+                if cmd:
+                    cmd.stop()
+
+        def __neighbor_discover_finished_callback(xbee, neighbors, error):
+            zdo_processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
+            if zdo_processes:
+                zdo_processes.pop(self.__class__.__NEIGHBOR_TABLE_TYPE, None)
+            self.__zdo_processes.pop(str(requester.get_64bit_addr()), None)
+
+            # Remove the discovered routes
+            self.__discovered_routes.pop(str(xbee.get_64bit_addr()), None)
+
+            # Process the error if exists
+            code = NetworkDiscoveryStatus.SUCCESS if not error \
+                else NetworkDiscoveryStatus.ERROR_GENERAL
+            self._node_discovery_process_finished(xbee, code=code, error=error)
+
+        self._log.debug("   [o] Getting NEIGHBOR TABLE of node %s" % requester)
+
+        from digi.xbee.models.zdo import NeighborTableReader
+        reader = NeighborTableReader(requester, configure_ao=False, timeout=node_timeout)
+        reader.get_neighbor_table(neighbor_callback=__new_neighbor_callback,
+                                  process_finished_callback=__neighbor_discover_finished_callback)
+
+        processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
+        if not processes:
+            processes = {}
+            self.__zdo_processes.update({str(requester.get_64bit_addr()): processes})
+        processes.update({self.__class__.__NEIGHBOR_TABLE_TYPE: reader})
+
+        return NetworkDiscoveryStatus.SUCCESS
+
+    def __process_discovered_neighbor_data(self, requester, routes, neighbor, nodes_queue):
+        """
+        Notifies a neighbor has been discovered.
+
+        Args:
+            requester (:class:`.AbstractXBeeDevice`): The Zigbee Device whose neighbor table was requested.
+            routes (Dictionary): A dictionary with the next hop 16-bit address string as key, and
+                the route (``digi.xbee.models.zdo.Route``) as value.
+            neighbor (:class:`digi.xbee.models.zdo.Neighbor`): The discovered neighbor.
+            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+        """
+        self._log.debug("     o Discovered neighbor of %s: %s (%s)"
+                        % (requester, neighbor.node, neighbor.relationship.name))
+
+        # Requester node is clearly reachable
+        self._set_node_reachable(requester, True)
+
+        # Add the neighbor node to the network
+        node = self._XBeeNetwork__add_remote(neighbor.node, NetworkEventReason.NEIGHBOR)
+        if not node:
+            # Node already in network for this scan
+            node = self.get_device_by_64(neighbor.node.get_64bit_addr())
+            self._log.debug("       - NODE already in network in this scan (scan: %d) %s"
+                            % (node.scan_counter, node))
+        else:
+            if neighbor.node.get_role() != Role.END_DEVICE:
+                # Add to the FIFO to ask for its neighbors
+                nodes_queue.put(node)
+                self._log.debug("       - Added to network (scan: %d)" % node.scan_counter)
+            else:
+                # Not asking to End Devices when found, consider them as reachable
+                self._set_node_reachable(node, True)
+            self._XBeeNetwork__device_discovered(node)
+
+        # Add connections
+        route = None
+        if routes:
+            route = routes.get(str(neighbor.node.get_16bit_addr()))
+
+        if not route and not neighbor.relationship:
+            return
+
+        from digi.xbee.models.zdo import RouteStatus, NeighborRelationship
+        connection = None
+
+        if route:
+            connection = Connection(requester, node, lq_a2b=neighbor.lqi,
+                                    lq_b2a=LinkQuality.UNKNOWN, status_a2b=route.status,
+                                    status_b2a=RouteStatus.UNKNOWN)
+            self._log.debug("       - Using route for the connection: %d" % route.status.id)
+        elif neighbor.node.get_role() != Role.UNKNOWN \
+                and neighbor.relationship != NeighborRelationship.PREVIOUS_CHILD \
+                and neighbor.relationship != NeighborRelationship.SIBLING:
+            self._log.debug(
+                "       - No route for this node, using relationship for the connection: %s"
+                % neighbor.relationship.name)
+            if neighbor.relationship == NeighborRelationship.PARENT:
+                connection = Connection(node, requester, lq_a2b=neighbor.lqi,
+                                        lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
+                                        status_b2a=RouteStatus.UNKNOWN)
+            elif neighbor.relationship == NeighborRelationship.CHILD \
+                    or neighbor.relationship == NeighborRelationship.UNDETERMINED:
+                connection = Connection(requester, node, lq_a2b=neighbor.lqi,
+                                        lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
+                                        status_b2a=RouteStatus.UNKNOWN)
+        if not connection:
+            self._log.debug("       - Connection NULL for this neighbor")
+            return
+
+        if self._XBeeNetwork__add_connection(connection):
+            self._log.debug("       - Added connection (LQI: %d) %s >>> %s"
+                            % (neighbor.lqi, requester, node))
+        else:
+            self._log.debug(
+                "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s"
+                % (node.scan_counter, requester, node))
+
+    def __prepare_network_discovery(self):
+        """
+        Performs XBee configuration before starting the full network discovery. This saves the
+        current AO value and sets it to 1.
+        """
+        self._log.debug("[*] Preconfiguring %s" % ATStringCommand.AO.command)
+        try:
+            self.__saved_ao = self._local_xbee.get_api_output_mode_value()
+
+            # Do not configure AO if it is already
+            if utils.is_bit_enabled(self.__saved_ao[0], 0):
+                self.__saved_ao = None
+
+                return
+
+            value = APIOutputModeBit.calculate_api_output_mode_value(
+                self._local_xbee.get_protocol(), {APIOutputModeBit.EXPLICIT})
+
+            self._local_xbee.set_api_output_mode_value(value)
+
+        except XBeeException as e:
+            raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
+
+    def __restore_network(self):
+        """
+        Performs XBee configuration after the full network discovery.
+        This restores the previous AO value.
+        """
+        if self.__saved_ao is None:
+            return
+
+        self._log.debug("[*] Postconfiguring %s" % ATStringCommand.AO.command)
+        try:
+            self._local_xbee.set_api_output_mode_value(self.__saved_ao[0])
+        except XBeeException as e:
+            self._error = "Could not restore XBee after network discovery: " + str(e)
+
+        self.__saved_ao = None
+
+    def __get_zdo_command(self, xbee, cmd_type):
+        """
+        Returns the ZDO command in process (route/neighbor table) for the provided device.
+
+        Args:
+            xbee (:class:`.AbstractXBeeDevice`): The device to get a ZDO command in process.
+            cmd_type (String): The ZDO command type (route/neighbor table)
+        """
+        cmds = self.__zdo_processes.get(str(xbee.get_64bit_addr()))
+        if cmds:
+            return cmds.get(cmd_type)
+
+        return None
+
+    def __stop_zdo_command(self, commands, cmd_type):
+        """
+        Stops the execution of the ZDO command contained in the given dictionary.
+        This method blocks until the ZDO command is completely stopped.
+
+        Args:
+            commands (Dictionary): The dictionary with the ZDO command to stop.
+            cmd_type (String): The ZDO command type (route/neighbor table)
+        """
+        if not commands or not cmd_type:
+            return
+
+        cmd = commands.get(cmd_type)
+        if not cmd or not cmd.running:
+            return
+
+        cmd.stop()
 
 
 class Raw802Network(XBeeNetwork):
