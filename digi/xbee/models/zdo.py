@@ -16,15 +16,16 @@ from abc import abstractmethod, ABCMeta
 import logging
 from enum import Enum
 
-from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, RemoteZigBeeDevice
+from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, RemoteZigBeeDevice, RemoteDigiMeshDevice
 from digi.xbee.exception import XBeeException, OperationNotSupportedException
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
+from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.mode import APIOutputModeBit
 from digi.xbee.models.options import TransmitOptions
 from digi.xbee.models.protocol import Role, XBeeProtocol
-from digi.xbee.models.status import TransmitStatus
+from digi.xbee.models.status import TransmitStatus, ATCommandStatus
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.common import ExplicitAddressingPacket
+from digi.xbee.packets.common import ExplicitAddressingPacket, RemoteATCommandPacket, ATCommPacket
 from digi.xbee.util import utils
 
 
@@ -1371,34 +1372,38 @@ class NeighborRelationship(Enum):
 
 class Neighbor(object):
     """
-    This class represents a Zigbee neighbor read from the neighbor table of an XBee.
+    This class represents a Zigbee or DigiMesh neighbor.
+
+    This information is read from the neighbor table of a Zigbee XBee, or provided by the 'FN'
+    command in a Digimesh XBee.
     """
 
-    def __init__(self, node, relationship, depth, lqi):
+    def __init__(self, node, relationship, depth, lq):
         """
         Class constructor. Instantiates a new :class:`.Neighbor` object with the provided
         parameters.
 
         Args:
-            node (:class:`digi.xbee.devices.RemoteZigBeeDevice`): The neighbor node.
+            node (:class:`digi.xbee.devices.RemoteXBeeDevice`): The neighbor node.
             relationship (:class:`.NeighborRelationship`): The relationship of this neighbor with
                 the node.
             depth (Integer): The tree depth of the neighbor. A value of 0 indicates the device is a
-                Zigbee coordinator for the network.
-            lqi (Integer): The estimated link quality of data transmission from this neighbor.
+                Zigbee coordinator for the network. -1 means this is unknown.
+            lq (Integer): The estimated link quality (LQI or RSSI) of data transmission from this
+                neighbor.
 
         .. seealso::
            | :class:`.NeighborRelationship`
-           | :class:`digi.xbee.devices.RemoteZigBeeDevice`
+           | :class:`digi.xbee.devices.RemoteXBeeDevice`
         """
         self.__node = node
         self.__relationship = relationship
         self.__depth = depth
-        self.__lqi = lqi
+        self.__lq = lq
 
     def __str__(self):
-        return "Node: {!s} (relationship: {!s}, depth: {!r}, lqi: {!r})"\
-            .format(self.__node, self.__relationship.name, self.__depth, self.__lqi)
+        return "Node: {!s} (relationship: {!s}, depth: {!r}, lq: {!r})"\
+            .format(self.__node, self.__relationship.name, self.__depth, self.__lq)
 
     @property
     def node(self):
@@ -1406,10 +1411,10 @@ class Neighbor(object):
         Gets the neighbor node.
 
         Returns:
-            :class:`digi.xbee.devices.RemoteZigBeeDevice`: The node itself.
+            :class:`digi.xbee.devices.RemoteXBeeDevice`: The node itself.
 
         .. seealso::
-           | :class:`digi.xbee.devices.RemoteZigBeeDevice`
+           | :class:`digi.xbee.devices.RemoteXBeeDevice`
         """
         return self.__node
 
@@ -1437,11 +1442,306 @@ class Neighbor(object):
         return self.__depth
 
     @property
-    def lqi(self):
+    def lq(self):
         """
-        Gets the estimated link quality of data transmission from this neighbor.
+        Gets the estimated link quality (LQI or RSSI) of data transmission from this neighbor.
 
         Returns:
             Integer: The estimated link quality of data transmission from this neighbor.
         """
-        return self.__lqi
+        return self.__lq
+
+
+class NeighborFinder(object):
+    """
+    This class performs a find neighbors (FN) of an XBee. This action requires an XBee device and
+    optionally a find timeout.
+
+    The process works only in DigiMesh.
+    """
+
+    DEFAULT_TIMEOUT = 20  # seconds
+
+    __global_frame_id = 1
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, xbee, timeout=DEFAULT_TIMEOUT):
+        """
+        Class constructor. Instantiates a new :class:`.NeighborFinder` object with the
+        provided parameters.
+
+        Args:
+            xbee (class:`digi.xbee.devices.XBeeDevice` or
+                class:`digi.xbee.devices.RemoteXBeeDevice`): The XBee to get neighbors from.
+            timeout(Float): The timeout for the process in seconds.
+
+        Raises:
+            OperationNotSupportedException: If the process is not supported in the XBee.
+            TypeError: If the ``xbee`` is not a ``digi.xbee.devices.AbstracXBeeDevice``.
+            ValueError: If ``xbee`` is ``None``.
+            ValueError: If ```timeout`` is less than 0.
+        """
+        if not xbee:
+            raise ValueError("XBee cannot be None")
+        if not isinstance(xbee, (XBeeDevice, RemoteXBeeDevice)):
+            raise TypeError("The xbee must be an XBeeDevice or a RemoteXBeeDevice"
+                            "not {!r}".format(xbee.__class__.__name__))
+        if xbee.get_protocol() not in (XBeeProtocol.DIGI_MESH, XBeeProtocol.XLR_DM,
+                                       XBeeProtocol.XTEND_DM, XBeeProtocol.SX):
+            raise OperationNotSupportedException("Find neighbors is not supported in %s"
+                                                 % xbee.get_protocol().description)
+        if timeout < 0:
+            raise ValueError("Timeout cannot be negative")
+
+        self.__xbee = xbee
+        self.__timeout = timeout
+
+        self.__running = False
+        self.__error = None
+        self.__fn_thread = None
+        self.__lock = threading.Event()
+        self.__received_answer = False
+        self.__neighbors = []
+        self.__cb = None
+
+        self.__current_frame_id = self.__class__.__global_frame_id
+        self.__class__.__global_frame_id = self.__class__.__global_frame_id + 1
+        if self.__class__.__global_frame_id == 0xFF:
+            self.__class__.__global_frame_id = 1
+
+    @property
+    def running(self):
+        """
+        Returns whether this find neighbors process is running.
+
+        Returns:
+            Boolean: ``True`` if it is running, ``False`` otherwise.
+        """
+        return self.__running
+
+    @property
+    def error(self):
+        """
+        Returns the error string if any.
+
+        Returns:
+             String: The error string.
+        """
+        return self.__error
+
+    def stop(self):
+        """
+        Stops the find neighbors process if it is running.
+        """
+        self.__lock.set()
+
+        if self.__fn_thread and self.__running:
+            self.__fn_thread.join()
+            self.__fn_thread = None
+
+    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None):
+        """
+        Returns the neighbors of the XBee. If ``neighbor_callback`` is not defined, the process
+        blocks until the complete neighbor table is read.
+
+        Args:
+            neighbor_callback (Function, optional, default=``None``): method called when a new
+                neighbor is received. Receives two arguments:
+
+                * The XBee that owns this new neighbor.
+                * The new neighbor.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the FN command.
+                * A list with the discovered neighbors.
+                * An error message if something went wrong.
+
+        Returns:
+            List: List of :class:`.Neighbor` when ``neighbor_callback`` is not defined, ``None``
+                otherwise (in this case neighbors are received in the callback).
+
+        .. seealso::
+           | :class:`.Neighbor`
+        """
+        self.__cb = neighbor_callback
+
+        if neighbor_callback:
+            self.__fn_thread = threading.Thread(
+                target=self.__send_command,
+                kwargs={'process_finished_callback': process_finished_callback},
+                daemon=True)
+            self.__fn_thread.start()
+        else:
+            self.__send_command(process_finished_callback=process_finished_callback)
+
+        return self.__neighbors
+
+    def __send_command(self, process_finished_callback=None):
+        """
+        Sends the FN command.
+
+        Args:
+            process_finished_callback (Function, optional): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that executed the FN command.
+                * A list with the discovered neighbors.
+                * An error message if something went wrong.
+        """
+        self.__lock.clear()
+
+        self.__running = True
+        self.__error = None
+        self.__received_answer = False
+        self.__neighbors = []
+
+        if not self.__xbee.is_remote():
+            xb = self.__xbee
+        else:
+            xb = self.__xbee.get_local_xbee_device()
+
+        xb.add_packet_received_callback(self.__fn_packet_callback)
+
+        try:
+            xb.send_packet(self.__generate_fn_packet())
+
+            self.__lock.wait(self.__timeout)
+
+            if not self.__received_answer:
+                if not self.__error:
+                    self.__error = "%s command answer not received" % ATStringCommand.FN.command
+                return
+        except XBeeException as e:
+            self.__error = "Error sending %s command: %s" % (ATStringCommand.FN.command, str(e))
+        finally:
+            xb.del_packet_received_callback(self.__fn_packet_callback)
+            if process_finished_callback:
+                process_finished_callback(self.__xbee, self.__neighbors, self.__error)
+            self.__running = False
+
+    def __generate_fn_packet(self):
+        """
+        Generates the AT command packet or remote AT command packet.
+
+        Returns:
+             :class:`digi.xbee.packets.common.RemoteATCommandPacket` or
+             :class:`digi.xbee.packets.common.ATCommandPacket`: The packet to send.
+        """
+        if self.__xbee.is_remote():
+            return RemoteATCommandPacket(self.__current_frame_id, self.__xbee.get_64bit_addr(),
+                                         XBee16BitAddress.UNKNOWN_ADDRESS, TransmitOptions.NONE.value,
+                                         ATStringCommand.FN.command)
+
+        return ATCommPacket(self.__current_frame_id, ATStringCommand.FN.command)
+
+    def __parse_data(self, data):
+        """
+        Handles what to do with the received data.
+
+        Args:
+            data (bytearray): Byte array containing the frame data.
+
+        Return
+        """
+        # Bytes 0 - 1: 16-bit neighbor address (always 0xFFFE)
+        # Bytes 2 - 9: 64-bit neighbor address
+        # Bytes 10 - x: Node identifier of the neighbor (ends with a 0x00 character)
+        # Next 2 bytes: Neighbor parent 16-bit address (always 0xFFFE)
+        # Next byte: Neighbor role:
+        #          * 0: Coordinator
+        #          * 1: Router
+        #          * 2: End device
+        # Next byte: Status (reserved)
+        # Next 2 bytes: Profile identifier
+        # Next 2 bytes: Manufacturer identifier
+        # Next 4 bytes: Digi device type (optional, depending on 'NO' settings)
+        # Next byte: RSSI of last hop (optional, depending on 'NO' settings)
+
+        # 64-bit address starts at index 2
+        x64 = XBee64BitAddress(data[2:10])
+
+        # Node ID starts at index 10
+        i = 10
+        # Node id: from 'i' to the next 0x00
+        while data[i] != 0x00:
+            i += 1
+        node_id = data[10:i]
+        i += 1  # The 0x00
+
+        i += 2  # The parent address (not needed)
+
+        # Role is the next byte
+        role = Role.get(utils.bytes_to_int(data[i:i + 1]))
+        i += 1
+
+        i += 1  # The status byte
+        i += 2  # The profile identifier
+        i += 2  # The manufacturer identifier
+
+        # Check if the Digi device type and/or the RSSI are included
+        if len(data) >= i + 5:
+            # Both included
+            rssi = utils.bytes_to_int(data[i+4:i+5])
+        elif len(data) >= i + 4:
+            # Only Digi device types
+            rssi = 0
+        elif len(data) >= i + 1:
+            # Only the RSSI
+            rssi = utils.bytes_to_int(data[i:i+1])
+        else:
+            # None of them
+            rssi = 0
+
+        if not self.__xbee.is_remote():
+            xb = self.__xbee
+        else:
+            xb = self.__xbee.get_local_xbee_device()
+
+        # Create a new remote node
+        n_xb = RemoteDigiMeshDevice(xb, x64bit_addr=x64, node_id=node_id.decode())
+        n_xb._role = role
+
+        neighbor = Neighbor(n_xb, NeighborRelationship.SIBLING, -1, rssi)
+        self.__neighbors.append(neighbor)
+
+        self.__cb(self.__xbee, neighbor)
+
+    def __fn_packet_callback(self, frame):
+        """
+        Callback notified when a new frame is received.
+
+        Args:
+            frame (:class:`digi.xbee.packets.base.XBeeAPIPacket`): The received packet.
+        """
+        if not self.__running:
+            return
+
+        frame_type = frame.get_frame_type()
+        if frame_type == ApiFrameType.AT_COMMAND_RESPONSE \
+                or frame_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
+
+            self._logger.debug("Received '%s' frame: %s"
+                               % (frame.get_frame_type().description,
+                                  utils.hex_to_string(frame.output())))
+
+            # If frame ID does not match, discard: it is not the frame we are waiting for
+            if frame.frame_id != self.__current_frame_id:
+                return
+            # Check the command
+            if frame.command != ATStringCommand.FN.command:
+                return
+
+            self.__received_answer = True
+
+            # Check for error.
+            if frame.status != ATCommandStatus.OK:
+                self.__error = "Error executing %s command (status: %s (%d))" \
+                               % (ATStringCommand.FN.command,
+                                  frame.status.description, frame.status.code)
+                self.stop()
+                return
+
+            self.__parse_data(frame.command_value)

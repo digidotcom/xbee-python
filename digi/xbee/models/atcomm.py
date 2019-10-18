@@ -45,6 +45,7 @@ class ATStringCommand(Enum):
     DL = ("DL", "Destination address low")
     D7 = ("D7", "CTS configuration")
     EE = ("EE", "Encryption enable")
+    FN = ("FN", "Find neighbors")
     FR = ("FR", "Software reset")
     FS = ("FS", "File system")
     GW = ("GW", "Gateway address")

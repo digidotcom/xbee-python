@@ -1880,8 +1880,9 @@ class AbstractXBeeDevice(object):
 
     def _get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
         """
-        Returns the neighbors of this XBee. If ``neighbor_callback`` is not defined, the process
-        blocks until the complete neighbor table is read.
+        Returns the neighbors of this XBee. If ``neighbor_callback`` is not defined:
+           * In Zigbee and SmartEnergy the process blocks until the complete neighbor table is read.
+           * In DigiMesh the process blocks the provided timeout.
 
         Args:
             neighbor_callback (Function, optional, default=``None``): method called when a new
@@ -1893,29 +1894,41 @@ class AbstractXBeeDevice(object):
             process_finished_callback (Function, optional, default=``None``): method to execute when
                 the process finishes. Receives two arguments:
 
-                * The XBee device that executed the ZDO command.
+                * The XBee device that is searching for its neighbors.
                 * A list with the discovered neighbors.
                 * An error message if something went wrong.
 
-            timeout (Float, optional, default=``NeighborTableReader.DEFAULT_TIMEOUT``): The ZDO
-                command timeout in seconds.
+            timeout (Float, optional, default=``None``): The timeout in seconds.
         Returns:
             List: List of :class:`com.digi.models.zdo.Neighbor` when ``neighbor_callback`` is
                 defined, ``None`` otherwise (in this case neighbors are received in the callback).
 
         Raises:
-            OperationNotSupportedException: If XBee protocol is not Zigbee or Smart Energy.
+            OperationNotSupportedException: If XBee protocol is not Zigbee, Smart Energy
+                or DigiMesh.
 
         .. seealso::
            | :class:`com.digi.models.zdo.Neighbor`
         """
-        from digi.xbee.models.zdo import NeighborTableReader
-        reader = NeighborTableReader(
-            self, configure_ao=True,
-            timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
+        if self.get_protocol() in (XBeeProtocol.ZIGBEE, XBeeProtocol.SMART_ENERGY):
+            from digi.xbee.models.zdo import NeighborTableReader
+            reader = NeighborTableReader(
+                self, configure_ao=True,
+                timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
 
-        return reader.get_neighbor_table(neighbor_callback=neighbor_callback,
-                                         process_finished_callback=process_finished_callback)
+            return reader.get_neighbor_table(neighbor_callback=neighbor_callback,
+                                             process_finished_callback=process_finished_callback)
+        elif self.get_protocol() in (XBeeProtocol.DIGI_MESH, XBeeProtocol.XLR_DM,
+                                     XBeeProtocol.XTEND_DM, XBeeProtocol.SX):
+            from digi.xbee.models.zdo import NeighborFinder
+            finder = NeighborFinder(
+                self, timeout=timeout if timeout else NeighborFinder.DEFAULT_TIMEOUT)
+
+            return finder.get_neighbors(neighbor_callback=neighbor_callback,
+                                        process_finished_callback=process_finished_callback)
+        else:
+            raise OperationNotSupportedException("Get neighbors is not supported in %s"
+                                                 % self.get_protocol().description)
 
     @property
     def reachable(self):
@@ -3927,6 +3940,43 @@ class DigiMeshDevice(XBeeDevice):
         super()._send_expl_data_async(remote_xbee_device, data, src_endpoint,
                                       dest_endpoint, cluster_id, profile_id,
                                       transmit_options=transmit_options)
+
+    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+        """
+        Returns the neighbors of this XBee. If ``neighbor_callback`` is not defined, the process
+        blocks during the specified timeout.
+
+        Args:
+            neighbor_callback (Function, optional, default=``None``): method called when a new
+                neighbor is received. Receives two arguments:
+
+                * The XBee that owns this new neighbor.
+                * The new neighbor.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that is searching for its neighbors.
+                * A list with the discovered neighbors.
+                * An error message if something went wrong.
+
+            timeout (Float, optional, default=``NeighborFinder.DEFAULT_TIMEOUT``): The timeout
+                in seconds.
+        Returns:
+            List: List of :class:`com.digi.models.zdo.Neighbor` when ``neighbor_callback`` is
+                defined, ``None`` otherwise (in this case neighbors are received in the callback).
+
+        Raises:
+            OperationNotSupportedException: If XBee protocol is not DigiMesh.
+
+        .. seealso::
+           | :class:`com.digi.models.zdo.Neighbor`
+        """
+        from digi.xbee.models.zdo import NeighborFinder
+        return super()._get_neighbors(
+            neighbor_callback=neighbor_callback,
+            process_finished_callback=process_finished_callback,
+            timeout=timeout if timeout else NeighborFinder.DEFAULT_TIMEOUT)
 
 
 class DigiPointDevice(XBeeDevice):
@@ -6415,6 +6465,43 @@ class RemoteDigiMeshDevice(RemoteXBeeDevice):
            | :meth:`.RemoteXBeeDevice.get_protocol`
         """
         return XBeeProtocol.DIGI_MESH
+
+    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+        """
+        Returns the neighbors of this XBee. If ``neighbor_callback`` is not defined, the process
+        blocks during the specified timeout.
+
+        Args:
+            neighbor_callback (Function, optional, default=``None``): method called when a new
+                neighbor is received. Receives two arguments:
+
+                * The XBee that owns this new neighbor.
+                * The new neighbor.
+
+            process_finished_callback (Function, optional, default=``None``): method to execute when
+                the process finishes. Receives two arguments:
+
+                * The XBee device that is searching for its neighbors.
+                * A list with the discovered neighbors.
+                * An error message if something went wrong.
+
+            timeout (Float, optional, default=``NeighborFinder.DEFAULT_TIMEOUT``): The timeout
+                in seconds.
+        Returns:
+            List: List of :class:`com.digi.models.zdo.Neighbor` when ``neighbor_callback`` is
+                defined, ``None`` otherwise (in this case neighbors are received in the callback).
+
+        Raises:
+            OperationNotSupportedException: If XBee protocol is not DigiMesh.
+
+        .. seealso::
+           | :class:`com.digi.models.zdo.Neighbor`
+        """
+        from digi.xbee.models.zdo import NeighborFinder
+        return super()._get_neighbors(
+            neighbor_callback=neighbor_callback,
+            process_finished_callback=process_finished_callback,
+            timeout=timeout if timeout else NeighborFinder.DEFAULT_TIMEOUT)
 
 
 class RemoteDigiPointDevice(RemoteXBeeDevice):
@@ -8983,7 +9070,7 @@ class ZigBeeNetwork(XBeeNetwork):
         connection = None
 
         if route:
-            connection = Connection(requester, node, lq_a2b=neighbor.lqi,
+            connection = Connection(requester, node, lq_a2b=neighbor.lq,
                                     lq_b2a=LinkQuality.UNKNOWN, status_a2b=route.status,
                                     status_b2a=RouteStatus.UNKNOWN)
             self._log.debug("       - Using route for the connection: %d" % route.status.id)
@@ -8994,12 +9081,12 @@ class ZigBeeNetwork(XBeeNetwork):
                 "       - No route for this node, using relationship for the connection: %s"
                 % neighbor.relationship.name)
             if neighbor.relationship == NeighborRelationship.PARENT:
-                connection = Connection(node, requester, lq_a2b=neighbor.lqi,
+                connection = Connection(node, requester, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
                                         status_b2a=RouteStatus.UNKNOWN)
             elif neighbor.relationship == NeighborRelationship.CHILD \
                     or neighbor.relationship == NeighborRelationship.UNDETERMINED:
-                connection = Connection(requester, node, lq_a2b=neighbor.lqi,
+                connection = Connection(requester, node, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
                                         status_b2a=RouteStatus.UNKNOWN)
         if not connection:
@@ -9008,7 +9095,7 @@ class ZigBeeNetwork(XBeeNetwork):
 
         if self._XBeeNetwork__add_connection(connection):
             self._log.debug("       - Added connection (LQI: %d) %s >>> %s"
-                            % (neighbor.lqi, requester, node))
+                            % (neighbor.lq, requester, node))
         else:
             self._log.debug(
                 "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s"
