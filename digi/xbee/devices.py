@@ -7854,6 +7854,9 @@ class XBeeNetwork(object):
 
             # Check if all processes finish
             if not active_processes:
+                self._check_not_discovered_nodes(self.__devices_list, nodes_queue)
+                if not nodes_queue.empty():
+                    continue
                 break
 
         return code
@@ -7904,6 +7907,37 @@ class XBeeNetwork(object):
         nodes_queue.put(requester)
 
         return code
+
+    def _check_not_discovered_nodes(self, devices_list, nodes_queue):
+        """
+        Checks not discovered nodes in the current scan, and add them to the FIFO if necessary.
+
+        Args:
+            devices_list (List): List of nodes to check.
+            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+        """
+        # Check for nodes in the network not discovered in this scan and ensure
+        # they are reachable by directly asking them for its NI
+        for n in devices_list:
+            if n.scan_counter != self.__scan_counter:
+                self._log.debug(" [*] Checking not discovered node %s... (scan %d)"
+                                % (n, self.__scan_counter))
+                n._scan_counter = self.__scan_counter
+                try:
+                    n.get_parameter(ATStringCommand.NI.command)
+                    n._reachable = True
+                    # Update also the connection
+                    from digi.xbee.models.zdo import RouteStatus
+                    if self.__add_connection(Connection(
+                            self._local_xbee, n, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
+                            RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
+                        self._log.debug("     - Added connection: %s >>> %s"
+                                        % (self._local_xbee, n))
+                except XBeeException:
+                    n._reachable = False
+                self._log.debug("     - Reachable: %s (scan %d)"
+                                % (n._reachable, self.__scan_counter))
 
     def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
         """
@@ -8029,7 +8063,7 @@ class XBeeNetwork(object):
         for c in conn_list:
             child = c.node_b
             # Child node already discovered in this scan
-            if not child or child._scan_counter == self.__scan_counter:
+            if not child or child.scan_counter == self.__scan_counter:
                 continue
             # Only the connection with the requester node joins the child to the network
             # so it is not reachable
@@ -8627,6 +8661,19 @@ class ZigBeeNetwork(XBeeNetwork):
         code = self.__get_route_table(requester, nodes_queue, node_timeout)
 
         return code
+
+    def _check_not_discovered_nodes(self, devices_list, nodes_queue):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._check_not_discovered_nodes`
+        """
+        for n in devices_list:
+            if not n.scan_counter or n.scan_counter != self.scan_counter:
+                self._log.debug(" [*] Adding to FIFO not discovered node %s... (scan %d)"
+                                % (n, self.scan_counter))
+                nodes_queue.put(n)
 
     def _discovery_done(self, active_processes):
         """
