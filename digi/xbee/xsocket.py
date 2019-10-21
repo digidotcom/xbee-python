@@ -27,6 +27,10 @@ from digi.xbee.packets.socket import SocketConnectPacket, SocketCreatePacket, So
 
 
 class socket:
+    """
+    This class represents an XBee socket and provides methods to create,
+    connect, bind and close a socket, as well as send and receive data with it.
+    """
 
     __DEFAULT_TIMEOUT = 5
     __MAX_PAYLOAD_BYTES = 1500

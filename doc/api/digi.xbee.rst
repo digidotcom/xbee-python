@@ -25,3 +25,4 @@ Submodules
    digi.xbee.io
    digi.xbee.reader
    digi.xbee.serial
+   digi.xbee.xsocket
