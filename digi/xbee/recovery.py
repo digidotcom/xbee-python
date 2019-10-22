@@ -228,7 +228,7 @@ class _LocalRecoverDevice(object):
                 time.sleep(0.1)
             read = self._xbee_serial_port.read(self._xbee_serial_port.inWaiting())
             _log.debug("command {!r} = {!r}".format(command, read))
-            if read != AT_OK_RESPONSE:
+            if AT_OK_RESPONSE not in read:
                 self._do_exception(
                     "Command {!r} failed, non OK returned value of {!r}".format(command, read))
             if command == _AT_COMMANDS[_APPLY_CHANGES_KEY]:
