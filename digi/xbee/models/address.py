@@ -130,9 +130,8 @@ class XBee16BitAddress(object):
         Checks if the provided hex string is a valid 16-bit address.
 
         Args:
-            address (String or Bytearray):
-                String: String containing the address. Must be made by hex. digits without blanks.
-                    Minimum 1 character, maximum 4 (16-bit).
+            address (String or Bytearray): String: String containing the address.
+                Must be made by hex. digits without blanks. Minimum 1 character, maximum 4 (16-bit).
                 Bytearray: Address as byte array. Must be 1-2 digits.
 
         Returns:

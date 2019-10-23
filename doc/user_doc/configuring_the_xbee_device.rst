@@ -176,6 +176,7 @@ the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -237,6 +238,7 @@ The ``get_parameter()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
@@ -286,6 +288,7 @@ The ``set_parameter()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -337,6 +340,7 @@ The ``execute_command()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -398,6 +402,7 @@ The ``apply_changes()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -449,6 +454,7 @@ The ``write_changes()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -492,6 +498,7 @@ The ``reset()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -546,6 +553,7 @@ supported IP addressing modes are contained in an enumerator called
 | Method                                       | Description                                                                                                                   |
 +==============================================+===============================================================================================================================+
 | **set_ip_addressing_mode(IPAddressingMode)** | Sets the IP addressing mode of the Wi-Fi module. Depending on the provided mode, network settings are configured differently: |
+|                                              |                                                                                                                               |
 |                                              |   * **DHCP**: Network settings are assigned by a server.                                                                      |
 |                                              |   * **STATIC**: Network settings must be provided manually one by one.                                                        |
 +----------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
@@ -573,6 +581,7 @@ The ``set_ip_addressing_mode()`` method may fail for the following reasons:
 * There is a timeout setting the IP addressing parameter, throwing a
   ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -654,9 +663,9 @@ Newer XBee3 devices have a Bluetooth® Low Energy (BLE) interface that enables
 you to connect your XBee device to another device such as a cellphone. The XBee
 device classes (local and remote) offer some methods that allow you to:
 
-* :ref:`_configBluetoothEnableDisable`
-* :ref:`_configBluetoothConfigurePassword`
-* :ref:`_configBluetoothReadMacAddress`
+* :ref:`configBluetoothEnableDisable`
+* :ref:`configBluetoothConfigurePassword`
+* :ref:`configBluetoothReadMacAddress`
 
 
 .. _configBluetoothEnableDisable:
@@ -701,6 +710,7 @@ These methods may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -746,6 +756,7 @@ The ``update_bluetooth_password`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -786,6 +797,7 @@ The ``get_bluetooth_mac_addr`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an

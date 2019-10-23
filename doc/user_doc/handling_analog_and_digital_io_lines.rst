@@ -76,6 +76,7 @@ The ``set_io_configuration()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -107,6 +108,7 @@ The ``get_io_configuration()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -149,6 +151,7 @@ The ``set_dio_value()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -180,6 +183,7 @@ The ``get_dio_value()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * If the received response does not contain the value for the given IO
@@ -234,6 +238,7 @@ The ``get_adc_value()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as `XBeeException`:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * If the received response does not contain the value for the given IO
@@ -293,6 +298,7 @@ The ``set_pwm_duty_cycle()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -387,6 +393,7 @@ The ``read_io_sample()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -433,6 +440,7 @@ The ``set_io_sampling_rate()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -466,6 +474,7 @@ The ``get_io_sampling_rate()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -517,6 +526,7 @@ The ``set_dio_change_detection()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an

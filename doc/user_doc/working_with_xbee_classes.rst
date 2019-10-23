@@ -190,6 +190,7 @@ XBee device you must open the connection of the associated local device.
 The ``open()`` method may fail for the following reasons:
 
 * All the possible errors are caught as ``XBeeException``:
+
     * If there is any problem with the communication, throwing a
       ``TimeoutException``.
     * If the operating mode of the device is not ``API`` or ``API_ESCAPE``,
@@ -269,6 +270,7 @@ The ``read_device_info()`` method may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * If the operating mode of the device is not ``API`` or ``API_ESCAPE``,
       throwing an ``InvalidOperatingModeException``.
     * If the response of the command is not valid, throwing an

@@ -68,19 +68,19 @@ synchronous unicast transmission with a remote node of the network:
 Protocol-specific classes offer additional synchronous unicast transmission
 methods apart from the one provided by the ``XBeeDevice`` object:
 
-+-----------------+---------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| XBee class      | Method                                                                          | Description                                                                                                                                                                                       |
-+=================+=================================================================================+===================================================================================================================================================================================================+
-| ZigBeeDevice    | **send_data(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+---------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Raw802Device    | **send_data(XBee16BitAddress, String or Bytearray, Integer)**                   | Specifies the 16-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+                 +---------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|                 | **send_data(XBee64BitAddress, String or Bytearray, Integer)**                   | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+-----------------+---------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiMeshDevice  | **send_data(XBee64BitAddress, String or Bytearray, Integer)**                   | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+-----------------+---------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiPointDevice | **send_data(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+---------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| XBee class      | Method                                                                                | Description                                                                                                                                                                                       |
++=================+=======================================================================================+===================================================================================================================================================================================================+
+| ZigBeeDevice    | **send_data_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
++-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Raw802Device    | **send_data_16(XBee16BitAddress, String or Bytearray, Integer)**                      | Specifies the 16-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
++                 +---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                 | **send_data_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
++-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| DigiMeshDevice  | **send_data_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
++-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| DigiPointDevice | **send_data_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
++-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send data synchronously**
 
@@ -105,6 +105,7 @@ The previous methods may fail for the following reasons:
 * ACK of the command sent is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -164,19 +165,19 @@ an asynchronous unicast transmission with a remote node on the network:
 Protocol-specific classes offer some other asynchronous unicast transmission
 methods in addition to the one provided by the XBeeDevice object:
 
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| XBee class      | Method                                                                                | Description                                                                                                                                                                                       |
-+=================+=======================================================================================+===================================================================================================================================================================================================+
-| ZigBeeDevice    | **send_data_async(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Raw802Device    | **send_data_async(XBee16BitAddress, String or Bytearray, Integer)**                   | Specifies the 16-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+                 +---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|                 | **send_data_async(XBee64BitAddress, String or Bytearray, Integer)**                   | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiMeshDevice  | **send_data_async(XBee64BitAddress, String or Bytearray, Integer)**                   | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiPointDevice | **send_data_async(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| XBee class      | Method                                                                                      | Description                                                                                                                                                                                       |
++=================+=============================================================================================+===================================================================================================================================================================================================+
+| ZigBeeDevice    | **send_data_async_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
++-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Raw802Device    | **send_data_async_16(XBee16BitAddress, String or Bytearray, Integer)**                      | Specifies the 16-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
++                 +---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                 | **send_data_async_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
++-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| DigiMeshDevice  | **send_data_async_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
++-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| DigiPointDevice | **send_data_async_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
++-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send data asynchronously**
 
@@ -199,6 +200,7 @@ methods in addition to the one provided by the XBeeDevice object:
 The previous methods may fail for the following reasons:
 
 * All the possible errors are caught as an ``XBeeException``:
+
     * The operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
     * There is an error writing to the XBee interface, throwing a generic
@@ -250,6 +252,7 @@ The ``send_data_broadcast`` method may fail for the following reasons:
 * Transmit status is not received in the configured timeout, throwing a
   ``TimeoutException`` exception.
 * Error types catch as ``XBeeException``:
+
     * The operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
     * The transmit status is not ``SUCCESS``, throwing a ``TransmitException``.
@@ -460,7 +463,7 @@ Some ZigBee applications may require communication with third-party (non-Digi)
 RF modules. These applications often send and receive data of different public
 profiles such as Home Automation or Smart Energy to other modules.
 
-XBee Zigbee modules offer a special type of frame for this purpose. Explicit
+XBee ZigBee modules offer a special type of frame for this purpose. Explicit
 frames are used to transmit and receive explicit data. When sending public
 profile packets, the frames transmit the data itself plus the application
 layer-specific fields—the source and destination endpoints, profile ID, and
@@ -514,20 +517,6 @@ the network:
 | **send_expl_data(RemoteXBeeDevice, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies remote XBee destination object, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. |
 +--------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Every protocol-specific XBee device object with support for explicit data
-includes at least one more method to transmit unicast explicit data
-synchronously:
-
-+-----------------+--------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| XBee class      | Method                                                                                                                   | Description                                                                                                                                                                                                                                                                                                       |
-+=================+==========================================================================================================================+===================================================================================================================================================================================================================================================================================================================+
-| ZigBeeDevice    | **send_expl_data(XBee64BitAddress, XBee16BitAddress, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses in addition to the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. If the 16-bit address is unknown, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+--------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiMeshDevice  | **send_expl_data(XBee64BitAddress, Integer, Integer, Integer, Integer, String or Bytearray, Integer)**                   | Specifies the 64-bit destination address, the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options.                                                                                                            |
-+-----------------+--------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiPointDevice | **send_expl_data(XBee64BitAddress, XBee16BitAddress, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses in addition to the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. If the 16-bit address is unknown, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+--------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
 **Send unicast explicit data synchronously**
 
 .. code:: python
@@ -551,6 +540,7 @@ The previous methods may fail for the following reasons:
 * The method throws a ``TimeoutException`` exception if the response is not
   received in the configured timeout.
 * Other errors register as ``XBeeException``:
+
     * If the operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``
       , the method throws an ``InvalidOperatingModeException``.
     * If the transmit status is not ``SUCCESS``, the method throws a
@@ -588,19 +578,6 @@ of the network:
 | **send_expl_data_async(RemoteXBeeDevice, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies remote XBee destination object, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. |
 +--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Every protocol-specific XBee device object that supports explicit data includes
-at least one additional method to transmit unicast explicit data asynchronously:
-
-+-----------------+--------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| XBee class      | Method                                                                                                                         | Description                                                                                                                                                                                                                                                                                                       |
-+=================+================================================================================================================================+===================================================================================================================================================================================================================================================================================================================+
-| ZigBeeDevice    | **send_expl_data_async(XBee64BitAddress, XBee16BitAddress, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses in addition to the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. If the 16-bit address is unknown, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+--------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiMeshDevice  | **send_expl_data_async(XBee64BitAddress, Integer, Integer, Integer, Integer, String or Bytearray, Integer)**                   | Specifies the 64-bit destination address, the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options.                                                                                                            |
-+-----------------+--------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiPointDevice | **send_expl_data_async(XBee64BitAddress, XBee16BitAddress, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses in addition to the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. If the 16-bit address is unknown, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+--------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
 **Send unicast explicit data asynchronously**
 
 .. code:: python
@@ -622,6 +599,7 @@ at least one additional method to transmit unicast explicit data asynchronously:
 The previous methods may fail for the following reasons:
 
 * All the possible errors are caught as an ``XBeeException``:
+
     * The operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
     * There is an error writing to the XBee interface, throwing a generic
@@ -673,6 +651,7 @@ The ``send_expl_data_broadcast`` method may fail for the following reasons:
 * Transmit status is not received in the configured timeout, throwing a
   ``TimeoutException`` exception.
 * Error types catch as ``XBeeException``:
+
     * The operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
     * The transmit status is not ``SUCCESS``, throwing a ``TransmitException``.
@@ -686,7 +665,6 @@ The ``send_expl_data_broadcast`` method may fail for the following reasons:
 |                                                                                                                                                                                       |
 | **examples/communication/explicit/SendBroadcastExplicitDataSample**                                                                                                                   |
 +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
 
 .. _communicateReceiveExplicitData:
 
@@ -906,19 +884,32 @@ callback.
 
 .. note::
   If your XBee module is configured to receive explicit data
-  (``APIOutputMode.EXPLICIT`` or ``APIOutputMode.EXPLICIT_ZDO_PASSTHRU``) and
-  another device sends non-explicit data, you receive an explicit message whose
-  application layer field values are:
+  (API output mode greater than 0) and another device sends non-explicit data or
+  a IO sample, you receive an explicit message whose application layer field
+  values are:
 
-  * Source endpoint: 0xE8
-  * Destination endpoint: 0xE8
-  * Cluster ID: 0x0011
-  * Profile ID: 0xC10
+  * For remote data:
 
-  When an XBee module receives explicit data with these values, the message
-  notifies both data reception callbacks (explicit and non-explicit) in case you
-  have registered them. If you read the received data with the polling
-  mechanism, you also receive the message through both methods.
+    * Source endpoint: 0xE8
+    * Destination endpoint: 0xE8
+    * Cluster ID: 0x0011
+    * Profile ID: 0xC105
+
+  * For remote IO sample:
+
+    * Source endpoint: 0xE8
+    * Destination endpoint: 0xE8
+    * Cluster ID: 0x0092
+    * Profile ID: 0xC105
+
+  That is, when an XBee receives explicit data with these values, the message
+  notifies the following reception callbacks in case you have registered them:
+
+  * Explicit and non-explicit data callbacks when receiving remote data.
+  * Explicit data callback and IO sample callback when receiving remote samples.
+
+  If you read the received data with the polling mechanism, you also receive
+  the message through both methods.
 
 
 .. _communicateSendReceiveIPData:
@@ -993,6 +984,7 @@ The ``send_ip_data`` method may fail for the following reasons:
 * There is a timeout setting the IP addressing parameter, throwing a
   ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
     * There is an error writing to the XBee interface, throwing a generic
@@ -1062,6 +1054,7 @@ transmit IP data asynchronously:
 The ``send_ip_data_async`` method may fail for the following reasons:
 
 * All possible errors are caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
     * There is an error writing to the XBee interface, throwing a generic
@@ -1120,6 +1113,7 @@ The ``start_listening`` method may fail for the following reasons:
 * If there is a timeout setting the listening port, the method throws a
   ``TimeoutException`` exception .
 * Errors that register as an ``XBeeException``:
+
     * If the operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``
       , the method throws an ``InvalidOperatingModeException``.
     * If the response of the listening port command is not valid, the method
@@ -1156,6 +1150,7 @@ The ``stop_listening`` method may fail for the following reasons:
 * There is a timeout setting the listening port, throwing a
   ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
+
     * The operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``,
       throwing an ``InvalidOperatingModeException``.
     * The response of the command is not valid, throwing an
@@ -1394,6 +1389,7 @@ The ``send_sms`` method may fail for the following reasons:
   a ``TimeoutException``.
 * If the phone number has an invalid format, the method throws a ``ValueError``.
 * Errors register as ``XBeeException``:
+
     * If the operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``
       , the method throws an ``InvalidOperatingModeException``.
     * If there is an error writing to the XBee interface, the method throws a
@@ -1446,6 +1442,7 @@ The ``send_sms_async`` method may fail for the following reasons:
 
 * If the phone number has an invalid format, the method throws a ``ValueError``.
 * Errors register as ``XBeeException``:
+
     * If the operating mode of the device is not ``API`` or ``ESCAPED_API_MODE``
       , the method throws an ``InvalidOperatingModeException``.
     * If there is an error writing to the XBee interface, the method throws a
@@ -1577,6 +1574,7 @@ during the transmit process.
 The ``send_bluetooth_data`` method may fail for the following reasons:
 
 * Errors register as ``XBeeException``:
+
     * If the operating mode of the device is not ``API`` or
       ``ESCAPED_API_MODE``, the method throws an
       ``InvalidOperatingModeException``.
@@ -1657,7 +1655,7 @@ already-registered listener.
 
 
 Send and receive MicroPython data
--------------------------------
+---------------------------------
 
 XBee3 modules have the ability to send and receive data from the MicroPython
 interface of the local XBee device through User Data Relay frames. This can be
@@ -1710,6 +1708,7 @@ during the transmit process.
 The ``send_micropython_data`` method may fail for the following reasons:
 
 * Errors register as ``XBeeException``:
+
     * If the operating mode of the device is not ``API`` or
       ``ESCAPED_API_MODE``, the method throws an
       ``InvalidOperatingModeException``.
@@ -2041,7 +2040,7 @@ the sequence ``bind()``, ``listen()``, ``accept()``.
 
 
 +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Example: Create a TCP server socket                                                                                                                                                  |
+| Example: Create a TCP server socket                                                                                                                                                         |
 +=============================================================================================================================================================================================+
 | The XBee Python Library includes a sample application that shows you how to create a TCP server socket to receive data from incoming sockets. The example is located in the following path: |
 |                                                                                                                                                                                             |

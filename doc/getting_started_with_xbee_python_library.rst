@@ -243,7 +243,7 @@ DigiMesh devices
    must be listed in the **Discovering remote devices** dialog.
 
 .. note::
-  If the other module is not listed, reboot both devices by pressing the
+   If the other module is not listed, reboot both devices by pressing the
    **Reset** button of the carrier board and try adding the device again. If
    the list is still empty, go to the corresponding product manual for your
    devices.

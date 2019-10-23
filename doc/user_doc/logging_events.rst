@@ -138,6 +138,7 @@ settings are:
 | Method                                       | Description                                                        |
 +==============================================+====================================================================+
 | **enable_logger(name, level=logging.DEBUG)** | Enables the logger.                                                |
+|                                              |                                                                    |
 |                                              |  - name: the name of the module whose logger you want to activate. |
 |                                              |  - level: default ``DEBUG``. The level you want to see.            |
 +----------------------------------------------+--------------------------------------------------------------------+

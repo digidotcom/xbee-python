@@ -773,12 +773,16 @@ class AbstractXBeeDevice(object):
         Sets the 64-bit address of the XBee device that data will be reported to.
 
         Args:
-            addr(:class:`.XBee64BitAddress` or :class:`.RemoteXBeeDevice`): the address itself or the remote XBee device
-                that you want to set up its address as destination address.
+            addr (:class:`.XBee64BitAddress` or :class:`.RemoteXBeeDevice`): the address itself or the remote XBee
+                device that you want to set up its address as destination address.
 
         Raises:
-            TimeoutException: if the response is not received before the read timeout expires.
-            All exceptions raised by :meth:`.XBeeDevice.set_parameter`.
+            TimeoutException: If the response is not received before the read timeout expires.
+            XBeeException: If the XBee device's serial port is closed.
+            InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            ATCommandException: If the response is not as expected.
+            ValueError: If ``addr`` is ``None``.
         """
         if isinstance(addr, RemoteXBeeDevice):
             addr = addr.get_64bit_addr()
@@ -1894,9 +1898,9 @@ class XBeeDevice(AbstractXBeeDevice):
         Opens the communication with the XBee device and loads some information about it.
         
         Args:
-            force_settings(Boolean, optional): ``True`` to open the device ensuring/forcing that the specified
+            force_settings (Boolean, optional): ``True`` to open the device ensuring/forcing that the specified
                 serial settings are applied even if the current configuration is different,
-                 ``False`` to open the device with the current configuration. Default to False.
+                ``False`` to open the device with the current configuration. Default to False.
 
         Raises:
             TimeoutException: if there is any problem with the communication.
@@ -3528,8 +3532,10 @@ class Raw802Device(XBeeDevice):
         Override.
         
         Raises:
-            XBeeException: if the protocol is invalid.
-            All exceptions raised by :meth:`.XBeeDevice.open`.
+            TimeoutException: If there is any problem with the communication.
+            InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: If the protocol is invalid or if the XBee device is already open.
 
         .. seealso::
            | :meth:`.XBeeDevice.open`
@@ -3641,8 +3647,10 @@ class DigiMeshDevice(XBeeDevice):
         Override.
 
         Raises:
-            XBeeException: if the protocol is invalid.
-            All exceptions raised by :meth:`.XBeeDevice.open`.
+            TimeoutException: If there is any problem with the communication.
+            InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: If the protocol is invalid or if the XBee device is already open.
 
         .. seealso::
            | :meth:`.XBeeDevice.open`
@@ -3780,8 +3788,10 @@ class DigiPointDevice(XBeeDevice):
         Override.
 
         Raises:
-            XBeeException: if the protocol is invalid.
-            All exceptions raised by :meth:`.XBeeDevice.open`.
+            TimeoutException: If there is any problem with the communication.
+            InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: If the protocol is invalid or if the XBee device is already open.
 
         .. seealso::
            | :meth:`.XBeeDevice.open`
@@ -3918,8 +3928,10 @@ class ZigBeeDevice(XBeeDevice):
         Override.
 
         Raises:
-            XBeeException: if the protocol is invalid.
-            All exceptions raised by :meth:`.XBeeDevice.open`.
+            TimeoutException: If there is any problem with the communication.
+            InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: If the protocol is invalid or if the XBee device is already open.
 
         .. seealso::
            | :meth:`.XBeeDevice.open`
@@ -4835,8 +4847,10 @@ class CellularDevice(IPDevice):
         Override.
 
         Raises:
-            XBeeException: if the protocol is invalid.
-            All exceptions raised by :meth:`.XBeeDevice.open`.
+            TimeoutException: If there is any problem with the communication.
+            InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: If the protocol is invalid or if the XBee device is already open.
 
         .. seealso::
            | :meth:`.XBeeDevice.open`
@@ -5289,8 +5303,10 @@ class NBIoTDevice(LPWANDevice):
         Override.
 
         Raises:
-            XBeeException: if the protocol is invalid.
-            All exceptions raised by :meth:`.XBeeDevice.open`.
+            TimeoutException: If there is any problem with the communication.
+            InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: If the protocol is invalid or if the XBee device is already open.
 
         .. seealso::
            | :meth:`.XBeeDevice.open`
@@ -5354,8 +5370,10 @@ class WiFiDevice(IPDevice):
         Override.
 
         Raises:
-            XBeeException: if the protocol is invalid.
-            All exceptions raised by :meth:`.XBeeDevice.open`.
+            TimeoutException: If there is any problem with the communication.
+            InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            XBeeException: If the protocol is invalid or if the XBee device is already open.
 
         .. seealso::
            | :meth:`.XBeeDevice.open`
@@ -6054,7 +6072,6 @@ class RemoteRaw802Device(RemoteXBeeDevice):
 
         Raises:
             XBeeException: if the protocol of ``local_xbee_device`` is invalid.
-            All exceptions raised by :class:`.RemoteXBeeDevice` constructor.
 
         .. seealso::
            | :class:`RemoteXBeeDevice`
@@ -6118,7 +6135,6 @@ class RemoteDigiMeshDevice(RemoteXBeeDevice):
 
         Raises:
             XBeeException: if the protocol of ``local_xbee_device`` is invalid.
-            All exceptions raised by :class:`.RemoteXBeeDevice` constructor.
 
         .. seealso::
            | :class:`RemoteXBeeDevice`
@@ -6157,7 +6173,6 @@ class RemoteDigiPointDevice(RemoteXBeeDevice):
 
         Raises:
             XBeeException: if the protocol of ``local_xbee_device`` is invalid.
-            All exceptions raised by :class:`.RemoteXBeeDevice` constructor.
 
         .. seealso::
            | :class:`RemoteXBeeDevice`
@@ -6197,7 +6212,6 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
 
         Raises:
             XBeeException: if the protocol of ``local_xbee_device`` is invalid.
-            All exceptions raised by :class:`.RemoteXBeeDevice` constructor.
 
         .. seealso::
            | :class:`RemoteXBeeDevice`
