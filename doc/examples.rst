@@ -142,6 +142,28 @@ You can locate the example in the following path:
    :ref:`discoverNetwork`.
 
 
+Network modifications sample
+````````````````````````````
+
+This sample application demonstrates how to listen to network modification
+events. The example adds a modifications network callback, so modifications
+events are received and printed out.
+
+A network is modified when:
+
+* a new node is added by discovering, manually, or because data is
+  received from it
+* an existing node is removed from the network
+* an existing node is updated with new information
+* it is fully cleared
+
+You can locate the example in the following path:
+**examples/network/NetworkModificationsSample**
+
+.. note::
+   For more information about how to listen to network modifications, see
+   :ref:`listenToNetworkCacheModifications`.
+
 .. _samplesCommunication:
 
 Communication samples
@@ -207,7 +229,7 @@ Send explicit data
 ``````````````````
 
 This sample application shows how to send data in application layer (explicit)
-format to a remote ZigBee device on the same network as the local one using the
+format to a remote Zigbee device on the same network as the local one using the
 XBee Python Library. In this example, the XBee module sends explicit data using
 a reliable transmission method. The application blocks during the transmission
 request, but you are notified if there is any error during the process.
@@ -224,7 +246,7 @@ Send explicit data asynchronously
 `````````````````````````````````
 
 This sample application shows how to send data in application layer (explicit)
-format asynchronously to a remote ZigBee device on the same network as the
+format asynchronously to a remote Zigbee device on the same network as the
 local one using the XBee Python Library. Transmitting data asynchronously means
 the execution is not blocked during the transmit request, but you cannot
 determine if the data was sent successfully.
@@ -372,10 +394,10 @@ You can locate the example in the following path:
 Receive explicit data
 `````````````````````
 
-This sample application shows how a ZigBee device receives data in application
+This sample application shows how a Zigbee device receives data in application
 layer (explicit) format using a callback executed every time new data is
 received. Before receiving data in explicit format, the API output mode of the
-ZigBee device is configured in explicit mode.
+Zigbee device is configured in explicit mode.
 
 You can locate the example in the following path:
 **examples/communication/explicit/ReceiveExplicitDataSample**
@@ -388,9 +410,9 @@ You can locate the example in the following path:
 Receive explicit data polling
 `````````````````````````````
 
-This sample application shows how a ZigBee device receives data in application
+This sample application shows how a Zigbee device receives data in application
 layer (explicit) format using a polling mechanism. Before receiving data in
-explicit format, the API output mode of the ZigBee device is configured in
+explicit format, the API output mode of the Zigbee device is configured in
 explicit mode.
 
 You can locate the example in the following path:

@@ -7,9 +7,19 @@ protocol of the XBee devices that form it.
 
 The XBee Python Library includes a class, called ``XBeeNetwork``, that represents
 the set of nodes forming the actual XBee network. This class allows you to
-perform some operations related to the nodes. The XBee Network object can be
-retrieved from a local XBee device after it has been opened using
-the ``get_network()`` method.
+perform some operations related to the nodes.
+
+.. note::
+  There are ``XBeeNetwork`` subclasses for different protocols which correspond
+  to the ``XBeeDevice`` subclasses:
+
+  * XBee ZigBee network (``ZigBeeNetwork``)
+  * XBee 802.15.4 network (``Raw802Network``)
+  * XBee DigiMesh network (``DigiMeshNetwork``)
+  * XBee DigiPoint network (``DigiPointNetwork``)
+
+The XBee Network object can be retrieved from a local XBee device after it has
+been opened using the ``get_network()`` method.
 
 .. warning::
   Because XBee Cellular and Wi-Fi module protocols are directly connected to the
@@ -38,6 +48,7 @@ provides the following operations related to the XBee devices discovery feature:
 * :ref:`discoverNetwork`
 * :ref:`accessDiscoveredDevices`
 * :ref:`addAndRemoveDevices`
+* :ref:`listenToNetworkCacheModifications`
 
 .. _configDiscoveryProcess:
 
@@ -89,7 +100,7 @@ Discover the network
 --------------------
 
 The ``XBeeNetwork`` object discovery process allows you to discover and store
-all the XBee devices that form the network. The XBeeNetwork object provides a
+all the XBee devices that form the network. The ``XBeeNetwork`` object provides a
 method for executing the discovery process:
 
 +-------------------------------+-------------------------------------------------------------------------------------------------------+
@@ -118,6 +129,8 @@ following methods provided by the ``XBeeNetwork`` object:
 Once the process has finished, you can retrieve the list of devices that form
 the network using the ``get_devices()`` method provided by the network object.
 If the discovery process is running, this method returns ``None``.
+
+All discovered XBee devices are stored in the ``XBeeNetwork`` instance.
 
 **Discover the network**
 
@@ -445,3 +458,121 @@ cleaning the list before calling the discovery method.
   xnet.clear()
 
   [...]
+
+.. _listenToNetworkCacheModifications:
+
+Listen to network modification events
+-------------------------------------
+
+When a discovery process finds new nodes that were not in the XBee network
+cache (``XBeeNetwork`` or a subclass), they are stored generating a modification
+in the XBee network object. A manual removal or addition of an XBee to the
+network also causes a modification.
+
+The XBee library notifies about these network cache modification events to
+registered callbacks. These events inform about network modifications:
+
+* Addition of new nodes
+* Removal of existing nodes
+* Update of nodes
+* Network clear
+
+To receive any of these modification events you must provide a callback using
+the ``add_network_modified_callback()`` method.
+This callback must follow the format:
+
+.. code:: python
+
+  def my_callback(event_type, reason, node):
+    """
+    Callback to notify about a new network modification event.
+
+    Args:
+      event_type (:class:`.NetworkEventType`): The type of modification.
+      reason (:class:`.NetworkEventReason`): The cause of the modification.
+      node (:class:`.AbstractXBeeDevice`): The node involved in the
+        modification (``None`` for ``NetworkEventType.CLEAR`` events)
+    """
+    [...]
+
+When a modification in the network cache occurs, all network modification
+callbacks are executed. Each callback receives the following arguments:
+
+* The type of network modification as a ``NetworkEventType``
+  (addition, removal, update or clear)
+* The modification cause as a ``NetworkEventReason`` (discovered, received
+  message, manual)
+* The XBee node, local or remote, (``AbstractXBeeDevice``) involved in the
+  modification (``None`` for a clear event type)
+
+**Register a network modifications callback**
+
+.. code:: python
+
+  [...]
+
+  # Define the network modified callback.
+  def cb_network_modified(event_type, reason, node):
+    print("  >>>> Network event:")
+    print("         Type: %s (%d)" % (event_type.description, event_type.code))
+    print("         Reason: %s (%d)" % (reason.description, reason.code))
+
+    if not node:
+      return
+
+    print("         Node:")
+    print("            %s" % node)
+
+  xnet = xbee.get_network()
+
+  # Add the network modified callback.
+  xnet.add_network_modified_callback(cb_network_modified)
+
+  [...]
+
+
+Network events
+``````````````
+
+The ``NetworkEventType`` class enumerates the possible network cache
+modification types:
+
+* Addition (``NetworkEventType.ADD``): A new XBee has just been added to the
+  network cache.
+* Deletion (``NetworkEventType.DEL``): An XBee in the network cache has just
+  been removed.
+* Update (``NetworkEventType.UPDATE``): An existing XBee in the network cache
+  has just been updated. This means any of its parameters (node id, 16-bit
+  address, role, ...) changed.
+* Clear (``NetworkEventType.CLEAR``): The network cached has just been cleared.
+
+As well, ``NetworkEventReason`` enumerates the network modification causes:
+
+* ``NetworkEventReason.DISCOVERED``: The device was added/removed/updated during
+  a discovery process.
+* ``NetworkEventReason.RECEIVED_MSG``: The device was added after receiving a
+  message from it.
+* ``NetworkEventReason.MANUAL``: The device was manually added/removed.
+
+For example, if, during a discovery process, a new device is found and:
+
+* it is not in the network cache yet, the addition triggers a new event with:
+
+  * type: ``NetworkEventType.ADD``
+  * cause: ``NetworkEventReason.DISCOVERED``
+
+* it is already in the network cache but its node identifier is updated, a new
+  event is raised with:
+
+  * type: ``NetworkEventType.UPDATE``
+  * cause: ``NetworkEventReason.DISCOVERED``
+
+* it is already in the network and nothing has changed, no event is triggered.
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Network modifications                                                                                                                                   |
++==================================================================================================================================================================+
+| The XBee Python Library includes a sample application that displays how to receive network modification events. It can be located in the following path:         |
+|                                                                                                                                                                  |
+| **examples/network/NetworkModificationsSample/NetworkModificationsSample.py**                                                                                    |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+
