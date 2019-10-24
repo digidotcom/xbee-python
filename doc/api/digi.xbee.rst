@@ -27,5 +27,6 @@ Submodules
    digi.xbee.io
    digi.xbee.profile
    digi.xbee.reader
+   digi.xbee.recovery
    digi.xbee.serial
    digi.xbee.xsocket

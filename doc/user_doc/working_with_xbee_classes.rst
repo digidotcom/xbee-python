@@ -161,6 +161,7 @@ device.
 The local device must also be the same protocol for protocol-specific remote
 XBee devices.
 
+.. _openXBeeConnection:
 
 Open the XBee device connection
 -------------------------------
@@ -200,6 +201,31 @@ The ``open()`` action performs some other operations apart from opening the
 connection interface of the device. It reads the device information (reads
 some sensitive data from it) and determines the operating mode of the device.
 
+Use ``force_settings=True`` as ``open()`` method parameter, to reconfigure
+the XBee serial settings (baud rate, data bits, stop bits, etc.) to those
+specified in the XBee object constructor.
+
+.. code:: python
+
+  [...]
+
+  # Instantiate an XBee device object.
+  local_xbee = XBeeDevice("COM1", 9600)
+
+  # Open the connection using constructor parameters: 9600 8N1.
+  # This reconfigures the XBee if its serial settings do not match.
+  local_xbee.open(force_settings=True)
+
+  [...]
+
++--------------------------------------------------------------------------------------------------------------------------------+
+| Example: Recover XBee serial communication                                                                                     |
++================================================================================================================================+
+| The XBee Python Library includes a sample application that displays how to recover the serial connection with a local XBee.    |
+| It can be located in the following path:                                                                                       |
+|                                                                                                                                |
+| **examples/configuration/RecoverSerialConnection/RecoverSerialConnection.py**                                                  |
++--------------------------------------------------------------------------------------------------------------------------------+
 
 Read device information
 ```````````````````````

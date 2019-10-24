@@ -92,6 +92,18 @@ You can locate the example in the following path:
    :ref:`configReset`.
 
 
+Recover XBee serial connection
+``````````````````````````````
+
+This sample application shows how to recover the serial settings of a local XBee.
+
+You can locate the example at the following path:
+**examples/configuration/RecoverSerialConnection**
+
+.. note::
+   For more information about this, see :ref:`openXBeeConnection`.
+
+
 Connect to access point (Wi-Fi)
 ```````````````````````````````
 
