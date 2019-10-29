@@ -22,7 +22,10 @@ Submodules
 
    digi.xbee.devices
    digi.xbee.exception
+   digi.xbee.filesystem
+   digi.xbee.firmware
    digi.xbee.io
+   digi.xbee.profile
    digi.xbee.reader
    digi.xbee.serial
    digi.xbee.xsocket

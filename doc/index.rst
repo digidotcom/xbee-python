@@ -84,6 +84,7 @@ provided by the library and how to use them.
 * :doc:`user_doc/discovering_the_xbee_network`
 * :doc:`user_doc/communicating_with_xbee_devices`
 * :doc:`user_doc/handling_analog_and_digital_io_lines`
+* :doc:`user_doc/update_the_xbee`
 * :doc:`user_doc/logging_events`
 
 
@@ -139,6 +140,7 @@ developers who are interested in using and extending the library functionality.
    user_doc/discovering_the_xbee_network
    user_doc/communicating_with_xbee_devices
    user_doc/handling_analog_and_digital_io_lines
+   user_doc/update_the_xbee
    user_doc/logging_events
 
 
@@ -176,7 +178,7 @@ Indices and tables
 License
 =======
 
-Copyright 2017, Digi International Inc.
+Copyright 2017-2019, Digi International Inc.
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this

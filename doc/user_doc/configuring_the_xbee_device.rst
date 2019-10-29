@@ -1,9 +1,13 @@
+.. _configureXBee:
+
 Configure the XBee device
 =========================
 
 One of the main features of the XBee Python Library is the ability to configure
 the parameters of local and remote XBee devices and execute some actions or
 commands on them.
+
+To apply a complete configuration profile see :ref:`applyProfile`.
 
 .. warning::
   The values set on the different parameters are not persistent through

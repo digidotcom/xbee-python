@@ -7,6 +7,9 @@ following:
 * Communicate with your modules
 * Configure your modules
 * Read the IO lines
+* Update device's firmware
+* Work with device's file system
+* Apply XBee profiles
 * Perform other common operations
 
 All of the sample applications are contained in the examples folder, organized
@@ -19,6 +22,9 @@ Examples are split by categories:
 * :ref:`samplesNetwork`
 * :ref:`samplesCommunication`
 * :ref:`samplesIO`
+* :ref:`samplesFirmware`
+* :ref:`samplesFilesystem`
+* :ref:`samplesProfile`
 
 
 .. _samplesConfiguration:
@@ -642,3 +648,124 @@ You can locate the example in the following path:
 .. note::
    For more information about how to read IO samples, see
    :ref:`linesReadIOSamples`.
+
+
+.. _samplesFirmware:
+
+Firmware samples
+----------------
+
+Update local firmware
+`````````````````````
+
+This sample Python application shows how to update the firmware of a local
+XBee device.
+
+The application provides the required hardware files to the update method
+as well as a callback function to be notified of progress.
+
+You can locate the example in the following path:
+**examples/firmware/LocalFirmwareUpdateSample**
+
+
+Update remote firmware
+``````````````````````
+
+This sample Python application shows how to update the firmware of a remote
+XBee device.
+
+The application provides the required hardware files to the update method
+as well as a callback function to be notified of progress.
+
+You can locate the example in the following path:
+**examples/firmware/RemotelFirmwareUpdateSample**
+
+
+.. _samplesFilesystem:
+
+File system samples
+-------------------
+
+Format file system
+``````````````````
+
+This sample Python application shows how to format the filesystem of a
+local XBee device and retrieve usage information.
+
+The application uses the LocalXBeeFileSystemManager to access the device
+filesystem and execute the required actions.
+
+You can locate the example in the following path:
+**examples/filesystem/FormatFilesystemSample**
+
+
+List directory contents
+```````````````````````
+
+This sample Python application shows how to list the contents of an XBee
+device filesystem directory.
+
+The application uses the LocalXBeeFileSystemManager to access the device
+filesystem and executes the required actions.
+
+You can locate the example in the following path:
+**examples/filesystem/ListDirectorySample**
+
+
+Upload/download file
+````````````````````
+
+This sample Python application shows how to upload and download a file from
+a local XBee device filesystem.
+
+The application uses the LocalXBeeFileSystemManager to access the device
+filesystem and provides the local file and the necessary paths to the
+upload/download methods as well as callback functions to be notified of
+progress.
+
+You can locate the example in the following path:
+**examples/filesystem/UploadDownloadFileSample**
+
+
+.. _samplesProfile:
+
+Profile samples
+---------------
+
+Apply local profile
+```````````````````
+
+This sample Python application shows how to apply an existing XBee profile
+to a XBee device.
+
+The application provides the profile file to the update method as well as a
+callback function to be notified of progress.
+
+You can locate the example in the following path:
+**examples/profile/ApplyXBeeProfileSample**
+
+
+Apply remote profile
+````````````````````
+
+This sample Python application shows how to apply an existing XBee profile
+to a remote XBee device.
+
+The application provides the profile file to the update method as well as a
+callback function to be notified of progress.
+
+You can locate the example in the following path:
+**examples/profile/ApplyXBeeProfileRemoteSample**
+
+
+Read profile
+````````````
+
+This sample Python application shows how to read an existing XBee profile
+and extract its properties.
+
+The application creates an XBee profile object from an existing XBee profile
+file and prints all the accessible settings and properties.
+
+You can locate the example in the following path:
+**examples/profile/ReadXBeeProfileSample**
