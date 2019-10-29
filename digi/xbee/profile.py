@@ -914,27 +914,27 @@ class XBeeProfile(object):
     @property
     def firmware_version(self):
         """
-        Returns whether the profile has filesystem information or not.
+        Returns the compatible firmware version of the profile.
 
         Returns:
-            Boolean: ``True`` if the profile has filesystem information, ``False`` otherwise.
+            Integer: the compatible firmware version of the profile.
         """
         return self._firmware_version
 
     @property
     def hardware_version(self):
         """
-        Returns whether the profile has filesystem information or not.
+        Returns the compatible hardware version of the profile.
 
         Returns:
-            Boolean: ``True`` if the profile has filesystem information, ``False`` otherwise.
+            Integer: the compatible hardware version of the profile.
         """
         return self._hardware_version
 
     @property
     def firmware_description_file(self):
         """
-        Returns the profile firmware description.
+        Returns the path of the profile firmware description file.
 
         Returns:
             String: the path of the profile firmware description file.

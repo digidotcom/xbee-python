@@ -1226,6 +1226,7 @@ class AbstractXBeeDevice(object):
             InvalidOperatingModeException: if the device operating mode is invalid.
             FirmwareUpdateException: if there is any error performing the firmware update.
             OperationNotSupportedException: if the firmware update is not supported in the XBee device.
+            FirmwareUpdateException: if there is any error performing the firmware update.
         """
         from digi.xbee import firmware
 
