@@ -21,7 +21,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
  
 setup(
     name='digi-xbee',
-    version='1.2.0',
+    version='1.3.0',
     description='Digi XBee Python library',
     long_description=long_description,
     url='https://github.com/digidotcom/xbee-python',

@@ -1,6 +1,28 @@
 Changelog
 =========
 
+v1.3.0 - 11/05/2019
+-------------------
+
+* Zigbee: Support to register joining devices to a trust center.
+* Cellular: XBee TCP/UDP socket support.
+* XBee 3:
+
+  * Firmware update for local and remote XBee devices.
+  * Profile update for local and remote XBee devices.
+  * File system management for local XBee devices.
+* New recover serial connection functionality to force the XBee serial
+  connection settings.
+* Support for notification of network cache modifications events (new node
+  added, removed of existing node, network clear, ...)
+* Deprecate ``get_api_output_mode`` and ``set_api_output_mode`` methods to
+  use new ``get_api_output_mode_value`` and ``set_api_output_mode_value``
+  with ``APIOutputModeBit`` enumeration.
+* Role as one of the cached parameters.
+* Report an error on 'finished discovery' callback if node discovery fails.
+* Several minor bug fixes.
+
+
 v1.2.0 - 04/05/2019
 -------------------
 
