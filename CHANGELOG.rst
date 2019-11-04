@@ -10,12 +10,14 @@ v1.2.0 - 04/05/2019
 * Add support to set AT parameters without applying them with the AT Command
   Queue packet.
 * Improve the callbacks mechanism:
+
   * Callbacks are now executed in parallel.
   * Internal callbacks are now defined when needed to avoid issues when more
     than one callback of the same type is defined.
 * Add missing 'Transmit Status', 'Modem Status' and 'Cellular Association
   Indication Status' values to cover all XBee Cellular/XBee3 Cellular features.
 * Bug Fixing:
+
   * Fix some bugs related to package spec data.
   * Log an error when processing a wrong frame instead of stopping the reader.
   * Fix an issue parsing Explicit RX Indicator packets.
@@ -30,6 +32,7 @@ v1.1.1 - 04/25/2018
   the library instead of raising an exception.
 * Change logging handler to log messages in the console.
 * Bug Fixing:
+
   * Fix a problem when closing the device connection in the reader.
   * Fix how is determined whether the module has entered in AT command mode
     or not.
@@ -41,10 +44,12 @@ v1.1.0 - 01/19/2018
 -------------------
 
 * Add support for new hardware variants:
+
   * XB8X
 * Add missing 'Modem Status' values for Remote Manager connect and disconnect
   events.
 * Bug Fixing:
+
   * Fix timeouts on Unix platforms.
   * Fix the return source endpoint method from the 'ExplicitRXIndicatorPacket'
     class.
@@ -64,6 +69,7 @@ include:
 * Discovery of remote XBee devices associated with the same network as the
   local device.
 * Configuration of local and remote XBee devices:
+
   * Configure common parameters with specific setters and getters.
   * Configure any other parameter with generic methods.
   * Execute AT commands.
@@ -73,11 +79,13 @@ include:
 * Transmission of data to all the XBee devices on the network or to a
   specific device.
 * Reception of data from remote XBee devices:
+
   * Data polling.
   * Data reception callback.
 * Transmission and reception of IP and SMS messages.
 * Reception of network status changes related to the local XBee device.
 * IO lines management:
+
   * Configure IO lines.
   * Set IO line value.
   * Read IO line value.
