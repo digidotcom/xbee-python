@@ -2021,6 +2021,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self._packet_listener.add_micropython_data_received_callback(mp_data_cbs)
 
         self._packet_listener.start()
+        self._packet_listener.wait_until_started()
 
         if force_settings:
             try:

@@ -14,6 +14,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue, Empty
+from threading import Event
 import logging
 import threading
 import time
@@ -410,12 +411,24 @@ class PacketListener(threading.Thread):
         self.__xbee_device = xbee_device
         self.__comm_iface = comm_iface
         self.__stop = True
+        self.__started = Event()
 
         self.__queue_max_size = queue_max_size if queue_max_size is not None else self.__DEFAULT_QUEUE_MAX_SIZE
         self.__xbee_queue = XBeeQueue(self.__queue_max_size)
         self.__data_xbee_queue = XBeeQueue(self.__queue_max_size)
         self.__explicit_xbee_queue = XBeeQueue(self.__queue_max_size)
         self.__ip_xbee_queue = XBeeQueue(self.__queue_max_size)
+
+    def wait_until_started(self, timeout=None):
+        """
+        Blocks until the thread has fully started. If already started, returns
+        immediately.
+
+        Args:
+            timeout (Float): timeout for the operation in seconds.
+        """
+
+        self.__started.wait(timeout)
 
     def run(self):
         """
@@ -425,6 +438,7 @@ class PacketListener(threading.Thread):
         """
         try:
             self.__stop = False
+            self.__started.set()
             while not self.__stop:
                 # Try to read a packet. Read packet is unescaped.
                 raw_packet = self.__comm_iface.wait_for_frame(self.__xbee_device.operating_mode)
