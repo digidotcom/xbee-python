@@ -1718,7 +1718,13 @@ class AbstractXBeeDevice(object):
                 # response and the command matches in both packets.
                 if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST \
                         and (received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
-                             or packet_to_send.command != received_packet.command):
+                             or packet_to_send.command != received_packet.command
+                             or (packet_to_send.x64bit_dest_addr != XBee64BitAddress.BROADCAST_ADDRESS
+                                 and packet_to_send.x64bit_dest_addr != XBee64BitAddress.UNKNOWN_ADDRESS
+                                 and packet_to_send.x64bit_dest_addr != received_packet.x64bit_source_addr)
+                             or (packet_to_send.x16bit_dest_addr != XBee16BitAddress.BROADCAST_ADDRESS
+                                 and packet_to_send.x16bit_dest_addr != XBee16BitAddress.UNKNOWN_ADDRESS
+                                 and packet_to_send.x16bit_dest_addr != received_packet.x16bit_source_addr)):
                     return
                 # If the packet sent is a Socket Create, verify that the received one is a Socket Create Response.
                 if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_CREATE \
