@@ -328,6 +328,20 @@ class __ZDOCommand(metaclass=ABCMeta):
             return
 
         if frame.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR:
+            # Check address
+            x64 = self._xbee.get_64bit_addr()
+            x16 = self._xbee.get_16bit_addr()
+            if (not self._is_broadcast()
+                    and x64 != XBee64BitAddress.UNKNOWN_ADDRESS
+                    and x64 != frame.x64bit_source_addr
+                    and x16 != XBee16BitAddress.UNKNOWN_ADDRESS
+                    and x16 != frame.x16bit_source_addr):
+                return
+            # Check profile and endpoints
+            if frame.profile_id != self.__class__._PROFILE_ID \
+                    or frame.source_endpoint != self.__class__._SOURCE_ENDPOINT \
+                    or frame.dest_endpoint != self.__class__._DESTINATION_ENDPOINT:
+                return
             # Check if the cluster ID is correct.
             if frame.cluster_id != self.__receive_cluster_id:
                 return
