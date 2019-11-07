@@ -2468,7 +2468,20 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                     continue
                 _log.debug("Received 'Upgrade end response' status frame: %s" %
                            status_frame.transmit_status.description)
-                if status_frame.transmit_status != TransmitStatus.SUCCESS:
+
+                # Workaround for 'No ack' error on XBee 3 DigiMesh remote firmware updates
+                #
+                # After sending the explicit frame with the 'Upgrade end response' command,
+                # the received transmit status always has a 'No acknowledgement received'
+                # error (0x01) instead of a 'Success' (0x00). This happens for 3004 or lower
+                # firmware versions at least.
+                # The workaround considers as valid the 'No ack' error only for DigiMesh firmwares.
+                #
+                # See https://jira.digi.com/browse/XBHAWKDM-796
+                dm_ack_error = (status_frame.transmit_status == TransmitStatus.NO_ACK
+                                and self._remote_device.get_protocol() == XBeeProtocol.DIGI_MESH)
+
+                if status_frame.transmit_status != TransmitStatus.SUCCESS and not dm_ack_error:
                     retries -= 1
                     continue
                 try:
