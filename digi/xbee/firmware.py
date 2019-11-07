@@ -289,7 +289,7 @@ class _OTAFile(object):
                 self._file = open(self._file_path, "rb")
                 self._file.read(self._discard_size)
 
-            return self._file.read(_OTA_DEFAULT_BLOCK_SIZE)
+            return self._file.read(self._chunk_size)
         except IOError as e:
             self.close_file()
             raise _ParsingOTAException(str(e))
