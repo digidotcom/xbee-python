@@ -22,7 +22,7 @@ import zipfile
 
 from digi.xbee import firmware
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
-from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateException
+from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateException, ATCommandException
 from digi.xbee.filesystem import LocalXBeeFileSystemManager, FileSystemException, FileSystemNotSupportedException
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
@@ -1060,16 +1060,18 @@ class _ProfileUpdater(object):
             XBeeException: if there is any error setting the parameter.
         """
         _log.debug("Setting parameter '%s' to '%s'" % (parameter, value))
+        msg = ""
         while retries > 0:
             try:
                 return self._xbee_device.set_parameter(parameter, value)
-            except TimeoutException:
+            except (TimeoutException, ATCommandException) as e:
+                msg = str(e)
                 retries -= 1
                 time.sleep(0.2)
             except XBeeException:
                 raise
 
-        raise XBeeException("Timeout setting parameter '%s'" % parameter)
+        raise XBeeException("Error setting parameter '%s': %s" % parameter, msg)
 
     def _update_firmware(self):
         """
