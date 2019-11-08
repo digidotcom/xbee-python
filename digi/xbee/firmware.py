@@ -73,7 +73,6 @@ _DEFAULT_RESPONSE_PACKET_PAYLOAD_SIZE = 5
 
 _DEVICE_BREAK_RESET_TIMEOUT = 10  # seconds
 _DEVICE_CONNECTION_RETRIES = 3
-_DEVICE_RESET_TIMEOUT = 3  # seconds
 
 _ERROR_BOOTLOADER_MODE = "Could not enter in bootloader mode"
 _ERROR_COMPATIBILITY_NUMBER = "Device compatibility number (%d) is greater than the firmware one (%d)"
@@ -998,6 +997,13 @@ class _XBeeFirmwareUpdater(ABC):
 
         return False
 
+    @abstractmethod
+    def _get_default_reset_timeout(self):
+        """
+        Returns the default timeout to wait for reset.
+        """
+        pass
+
     def _wait_for_target_reset(self):
         """
         Waits for the device to reset using the xml firmware file specified timeout or the default one.
@@ -1005,7 +1011,7 @@ class _XBeeFirmwareUpdater(ABC):
         if self._xml_update_timeout_ms is not None:
             time.sleep(self._xml_update_timeout_ms / 1000.0)
         else:
-            time.sleep(_DEVICE_RESET_TIMEOUT)
+            time.sleep(self._get_default_reset_timeout())
 
     def update_firmware(self):
         """
@@ -1162,6 +1168,8 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
     """
     Helper class used to handle the local firmware update process.
     """
+
+    __DEVICE_RESET_TIMEOUT = 3  # seconds
 
     def __init__(self, target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
                  timeout=_READ_DATA_TIMEOUT, progress_callback=None):
@@ -1691,11 +1699,24 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         except XModemException as e:
             raise FirmwareUpdateException(str(e))
 
+    def _get_default_reset_timeout(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._get_default_reset_timeout`
+        """
+        return self.__class__.__DEVICE_RESET_TIMEOUT
+
 
 class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
     """
     Helper class used to handle the remote firmware update process.
     """
+
+    __DEVICE_RESET_TIMEOUT_ZB = 3  # seconds
+    __DEVICE_RESET_TIMEOUT_DM = 20  # seconds
+    __DEVICE_RESET_TIMEOUT_802 = 28  # seconds
 
     def __init__(self, remote_device, xml_firmware_file, ota_firmware_file=None, otb_firmware_file=None,
                  timeout=_READ_DATA_TIMEOUT, progress_callback=None):
@@ -2498,6 +2519,25 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             self._exit_with_error(_ERROR_SEND_UPGRADE_END_RESPONSE % error_message)
         else:
             self._exit_with_error(_ERROR_SEND_UPGRADE_END_RESPONSE % "Timeout sending frame")
+
+    def _get_default_reset_timeout(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._get_default_reset_timeout`
+        """
+        protocol = self._remote_device.get_protocol()
+        if protocol == XBeeProtocol.ZIGBEE:
+            return self.__class__.__DEVICE_RESET_TIMEOUT_ZB
+        elif protocol == XBeeProtocol.DIGI_MESH:
+            return self.__class__.__DEVICE_RESET_TIMEOUT_DM
+        elif protocol == XBeeProtocol.RAW_802_15_4:
+            return self.__class__.__DEVICE_RESET_TIMEOUT_802
+
+        return max([self.__class__.__DEVICE_RESET_TIMEOUT_ZB,
+                    self.__class__.__DEVICE_RESET_TIMEOUT_DM,
+                    self.__class__.__DEVICE_RESET_TIMEOUT_802])
 
 
 def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
