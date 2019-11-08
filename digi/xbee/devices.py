@@ -3052,6 +3052,9 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         api_callbacks = PacketReceived()
 
+        if not self._network:
+            return api_callbacks
+
         for i in self._network.get_discovery_callbacks():
             api_callbacks.append(i)
         return api_callbacks
