@@ -47,6 +47,13 @@ def main(argv):
 
     device = ZigBeeDevice(port, baud_rate)
 
+    # Add a data received callback.
+    def data_callback(message):
+        if message.remote_device.get_64bit_addr() == remote.get_64bit_addr():
+            print("%s - [C] - %s" % (datetime.datetime.now(), message.data.decode()))
+            # Ensure that the sent and received messages are equal.
+            assert (data == message.data.decode())
+
     try:
         device.open()
 
@@ -76,13 +83,6 @@ def main(argv):
             return
 
         print("Selected remote device: %s" % remote)
-
-        # Add a data received callback.
-        def data_callback(message):
-            if message.remote_device.get_64bit_addr() == remote.get_64bit_addr():
-                print("%s - [C] - %s" % (datetime.datetime.now(), message.data.decode()))
-                # Ensure that the sent and received messages are equal.
-                assert (data == message.data.decode())
 
         device.add_data_received_callback(data_callback)
 
@@ -116,6 +116,9 @@ def main(argv):
         print("\nTest finished successfully")
 
     finally:
+
+        device.del_data_received_callback(data_callback)
+
         if device is not None and device.is_open():
             device.close()
 

@@ -31,15 +31,15 @@ def main():
 
     device = XBeeDevice(PORT, BAUD_RATE)
 
+    def device_discovered_callback(remote):
+        devices_callback.append(remote)
+
     try:
         device.open()
 
         network = device.get_network()
 
         devices_callback = []
-
-        def device_discovered_callback(remote):
-            devices_callback.append(remote)
 
         network.add_device_discovered_callback(device_discovered_callback)
 
@@ -53,6 +53,8 @@ def main():
         print("Test finished successfully")
 
     finally:
+        network.del_device_discovered_callback(device_discovered_callback)
+
         if device is not None and device.is_open():
             device.close()
 
