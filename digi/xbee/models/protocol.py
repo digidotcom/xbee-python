@@ -403,3 +403,6 @@ class Role(Enum):
                 return item
 
         return None
+
+
+Role.__doc__ += utils.doc_enum(Role)

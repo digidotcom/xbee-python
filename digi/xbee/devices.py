@@ -127,7 +127,6 @@ class AbstractXBeeDevice(object):
 
         self._packet_listener = None
 
-
         self.__generic_lock = threading.Lock()
 
     def __eq__(self, other):
@@ -7346,6 +7345,9 @@ class NetworkEventType(Enum):
         return None
 
 
+NetworkEventType.__doc__ += utils.doc_enum(NetworkEventType)
+
+
 @unique
 class NetworkEventReason(Enum):
     """
@@ -7397,3 +7399,5 @@ class NetworkEventReason(Enum):
                 return reason
 
         return None
+
+NetworkEventReason.__doc__ += utils.doc_enum(NetworkEventReason)

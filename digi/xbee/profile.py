@@ -185,6 +185,9 @@ class FirmwareBaudrate(Enum):
         return self.__baudrate
 
 
+FirmwareBaudrate.__doc__ += utils.doc_enum(FirmwareBaudrate)
+
+
 @unique
 class FirmwareParity(Enum):
     """
@@ -245,6 +248,9 @@ class FirmwareParity(Enum):
         return self.__parity
 
 
+FirmwareParity.__doc__ += utils.doc_enum(FirmwareParity)
+
+
 @unique
 class FirmwareStopbits(Enum):
     """
@@ -303,6 +309,9 @@ class FirmwareStopbits(Enum):
         return self.__stop_bits
 
 
+FirmwareStopbits.__doc__ += utils.doc_enum(FirmwareStopbits)
+
+
 @unique
 class FlashFirmwareOption(Enum):
     """
@@ -357,6 +366,9 @@ class FlashFirmwareOption(Enum):
             String: the description of the FlashFirmwareOption element.
         """
         return self.__description
+
+
+FlashFirmwareOption.__doc__ += utils.doc_enum(FlashFirmwareOption)
 
 
 @unique
@@ -417,6 +429,9 @@ class XBeeSettingType(Enum):
         return self.__description
 
 
+XBeeSettingType.__doc__ += utils.doc_enum(XBeeSettingType)
+
+
 @unique
 class XBeeSettingFormat(Enum):
     """
@@ -474,6 +489,9 @@ class XBeeSettingFormat(Enum):
             String: the description of the XBeeSettingFormat element.
         """
         return self.__description
+
+
+XBeeSettingFormat.__doc__ += utils.doc_enum(XBeeSettingFormat)
 
 
 class XBeeProfileSetting(object):

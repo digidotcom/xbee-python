@@ -175,6 +175,7 @@ class IOValue(Enum):
 
 
 IOValue.lookupTable = {x.code: x for x in IOValue}
+IOValue.__doc__ += utils.doc_enum(IOValue)
 
 
 class IOSample(object):
