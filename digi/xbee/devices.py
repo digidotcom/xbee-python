@@ -525,7 +525,13 @@ class AbstractXBeeDevice(object):
         if self._protocol in [XBeeProtocol.DIGI_MESH, XBeeProtocol.SX, XBeeProtocol.XTEND_DM]:
             ce = utils.bytes_to_int(self.get_parameter(ATStringCommand.CE.command))
             if ce == 0:
-                ss = self.get_parameter(ATStringCommand.SS.command)
+                try:
+                    # Capture the possible exception because DigiMesh S2C does not have
+                    # SS command, so the read will throw an ATCommandException
+                    ss = self.get_parameter(ATStringCommand.SS.command)
+                except ATCommandException:
+                    ss = None
+
                 if not ss:
                     return Role.ROUTER
 
