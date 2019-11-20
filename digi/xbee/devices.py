@@ -8169,7 +8169,8 @@ class XBeeNetwork(object):
             error (String): The error message.
         """
         if not error.endswith(TransmitStatus.NOT_JOINED_NETWORK.description) \
-                and not error.endswith(TransmitStatus.ADDRESS_NOT_FOUND.description):
+                and not error.endswith(TransmitStatus.ADDRESS_NOT_FOUND.description) \
+                and not error.endswith("FN command answer not received"):
             return
 
         # The node is not found so it is not reachable
@@ -8178,6 +8179,8 @@ class XBeeNetwork(object):
         # Do not remove any node here, although the preference is configured to so
         # Do it at the end of the scan...
         no_reachables = [requester]
+
+        requester._scan_counter = self.__scan_counter
 
         # Get the children nodes to mark them as non-reachable
         conn_list = self.__get_connections_for_node_a_b(requester, node_a=True)
@@ -8557,7 +8560,7 @@ class XBeeNetwork(object):
 
         # If none of them exist, add it
         if not c_ab and not c_ba:
-            connection.scan_counter_a2b= self.__scan_counter
+            connection.scan_counter_a2b = self.__scan_counter
             self.__append_connection(connection)
             return True
 
@@ -8994,7 +8997,7 @@ class ZigBeeNetwork(XBeeNetwork):
                 if cmd:
                     cmd.stop()
 
-        def __neighbor_discover_finished_callback(xbee, neighbors, error):
+        def __neighbor_discover_finished_callback(xbee, _, error):
             zdo_processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
             if zdo_processes:
                 zdo_processes.pop(self.__class__.__NEIGHBOR_TABLE_TYPE, None)
@@ -9098,8 +9101,9 @@ class ZigBeeNetwork(XBeeNetwork):
                             % (neighbor.lq, requester, node))
         else:
             self._log.debug(
-                "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s"
-                % (node.scan_counter, requester, node))
+                "       - CONNECTION (LQI: %d) already in network in this"
+                " scan (scan: %d) %s >>> %s"
+                % (neighbor.lq, node.scan_counter, requester, node))
 
     def __get_zdo_command(self, xbee, cmd_type):
         """
@@ -9174,6 +9178,175 @@ class DigiMeshNetwork(XBeeNetwork):
             ValueError: if ``device`` is ``None``.
         """
         super().__init__(device)
+
+        self.__saved_no = None
+
+        # Dictionary to store the neighbor find processes per node, so they can be
+        # stop when required.
+        # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
+        self.__neighbor_finders = {}
+
+    def _prepare_network_discovery(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._prepare_network_discovery`
+        """
+        super()._prepare_network_discovery()
+
+        self._log.debug("[*] Preconfiguring %s" % ATStringCommand.NO.command)
+        try:
+            self.__saved_no = self.get_discovery_options()
+
+            # Do not configure NO if it is already
+            if utils.is_bit_enabled(self.__saved_no[0], 2):
+                self.__saved_no = None
+
+                return
+
+            self.set_discovery_options({DiscoveryOptions.APPEND_RSSI})
+
+        except XBeeException as e:
+            raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
+
+    def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._discover_neighbors`
+        """
+        def __new_neighbor_callback(xbee, neighbor):
+            # Do not add a connection to the same node
+            if neighbor == xbee:
+                return
+
+            # Add the new neighbor
+            self.__process_discovered_neighbor_data(xbee, neighbor, nodes_queue)
+
+        def __neighbor_discover_finished_callback(xbee, _, error):
+            self.__neighbor_finders.pop(str(requester.get_64bit_addr()), None)
+
+            # Process the error if exists
+            code = NetworkDiscoveryStatus.SUCCESS if not error \
+                else NetworkDiscoveryStatus.ERROR_GENERAL
+            self._node_discovery_process_finished(xbee, code=code, error=error)
+
+        self._log.debug("   [o] Calling NEIGHBOR FINDER for node %s" % requester)
+
+        from digi.xbee.models.zdo import NeighborFinder
+        finder = NeighborFinder(requester, timeout=node_timeout)
+        finder.get_neighbors(neighbor_callback=__new_neighbor_callback,
+                             process_finished_callback=__neighbor_discover_finished_callback)
+
+        active_processes.append(str(requester.get_64bit_addr()))
+        self.__neighbor_finders.update({str(requester.get_64bit_addr()): finder})
+
+        return NetworkDiscoveryStatus.SUCCESS
+
+    def _check_not_discovered_nodes(self, devices_list, nodes_queue):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._check_not_discovered_nodes`
+        """
+        for n in devices_list:
+            if not n.scan_counter or n.scan_counter != self.scan_counter:
+                self._log.debug(" [*] Adding to FIFO not discovered node %s... (scan %d)"
+                                % (n, self.scan_counter))
+                nodes_queue.put(n)
+
+    def _discovery_done(self, active_processes):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._discovery_done`
+        """
+        copy = active_processes[:]
+        for p in copy:
+            finder = self.__neighbor_finders.get(p)
+            if not finder:
+                continue
+
+            finder.stop()
+
+        self.__neighbor_finders.clear()
+
+        super()._discovery_done(active_processes)
+
+    def _restore_network(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._restore_network`
+        """
+        super()._restore_network()
+
+        if self.__saved_no is None:
+            return
+
+        self._log.debug("[*] Postconfiguring %s" % ATStringCommand.NO.command)
+        try:
+            self._local_xbee.set_parameter(ATStringCommand.NO.command, self.__saved_no)
+        except XBeeException as e:
+            self._error = "Could not restore XBee after network discovery: " + str(e)
+
+        self.__saved_no = None
+
+    def __process_discovered_neighbor_data(self, requester, neighbor, nodes_queue):
+        """
+        Notifies a neighbor has been discovered.
+
+        Args:
+            requester (:class:`.AbstractXBeeDevice`): The DigiMesh device whose neighbors was
+                requested.
+            neighbor (:class:`digi.xbee.models.zdo.Neighbor`): The discovered neighbor.
+            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
+                neighbors are stored.
+        """
+        self._log.debug("     o Discovered neighbor of %s: %s (%s)"
+                        % (requester, neighbor.node, neighbor.relationship.name))
+
+        # Requester node is clearly reachable
+        self._set_node_reachable(requester, True)
+
+        # Add the neighbor node to the network
+        node = self._XBeeNetwork__add_remote(neighbor.node, NetworkEventReason.NEIGHBOR)
+        if not node:
+            # Node already in network for this scan
+            node = self.get_device_by_64(neighbor.node.get_64bit_addr())
+            self._log.debug("       - NODE already in network in this scan (scan: %d) %s"
+                            % (node.scan_counter, node))
+            # Do not add the connection if the discovered device is itself
+            if node.get_64bit_addr() == requester.get_64bit_addr():
+                return
+        else:
+            # Add to the FIFO to ask for its neighbors
+            nodes_queue.put(node)
+            self._log.debug("       - Added to network (scan: %d)" % node.scan_counter)
+
+            self._XBeeNetwork__device_discovered(node)
+
+        # Add connections
+        from digi.xbee.models.zdo import RouteStatus
+        connection = Connection(requester, node, lq_a2b=neighbor.lq, lq_b2a=LinkQuality.UNKNOWN,
+                                status_a2b=RouteStatus.ACTIVE, status_b2a=RouteStatus.ACTIVE)
+
+        if self._XBeeNetwork__add_connection(connection):
+            self._log.debug("       - Added connection (RSSI: %s) %s >>> %s"
+                            % (connection.lq_a2b, requester, node))
+        else:
+            self._log.debug(
+                "       - CONNECTION (RSSI: %d) already in network in this "
+                "scan (scan: %d) %s >>> %s"
+                % (connection.lq_a2b, node.scan_counter, requester, node))
+
+        # Found node is clearly reachable, it answered to a FN
+        self._set_node_reachable(node, True)
 
 
 class DigiPointNetwork(XBeeNetwork):
