@@ -66,7 +66,9 @@ class ATCommandStatus(Enum):
             :class:`.ATCommandStatus`: the AT command status with the given code.
         """
         try:
-            return cls.lookupTable[code]
+            # For ATCommResponsePacket (0x88) and RemoteATCommandResponsePacket
+            # (x097), use least significant nibble for status
+            return cls.lookupTable[code & 0x0F]
         except KeyError:
             return ATCommandStatus.UNKNOWN
 

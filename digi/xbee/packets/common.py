@@ -348,7 +348,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
     
     .. seealso::
        | :class:`.ATCommPacket`
-       | :class:`.ATCommandStatus` 
+       | :class:`.ATCommandStatus`
        | :class:`.XBeeAPIPacket`
     """
 
@@ -357,11 +357,11 @@ class ATCommResponsePacket(XBeeAPIPacket):
     def __init__(self, frame_id, command, response_status=ATCommandStatus.OK, comm_value=None):
         """
         Class constructor. Instantiates a new :class:`.ATCommResponsePacket` object with the provided parameters.
-        
+
         Args:
             frame_id (Integer): the frame ID of the packet. Must be between 0 and 255.
             command (String): the AT command of the packet. Must be a string.
-            response_status (:class:`.ATCommandStatus`): the status of the AT command.
+            response_status (:class:`.ATCommandStatus` or Integer): the status of the AT command.
             comm_value (Bytearray, optional): the AT command response value. Optional.
 
         Raises:
@@ -376,11 +376,21 @@ class ATCommResponsePacket(XBeeAPIPacket):
             raise ValueError("Frame id must be between 0 and 255.")
         if len(command) != 2:
             raise ValueError("Invalid command " + command)
+        if response_status is None:
+            response_status = ATCommandStatus.OK.code
+        elif not isinstance(response_status, (ATCommandStatus, int)):
+            raise TypeError("Response status must be ATCommandStatus or int not {!r}".format(
+                response_status.__class__.__name__))
 
         super().__init__(ApiFrameType.AT_COMMAND_RESPONSE)
         self._frame_id = frame_id
         self.__command = command
-        self.__response_status = response_status
+        if isinstance(response_status, ATCommandStatus):
+            self.__response_status = response_status.code
+        elif 0 <= response_status <= 255:
+            self.__response_status = response_status
+        else:
+            raise ValueError("Response status must be between 0 and 255.")
         self.__comm_value = comm_value
 
     @staticmethod
@@ -416,7 +426,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         if ATCommandStatus.get(raw[7]) is None:
             raise InvalidPacketException(message="Invalid command status.")
 
-        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), ATCommandStatus.get(raw[7]), comm_value=raw[8:-1])
+        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), raw[7], comm_value=raw[8:-1])
 
     def needs_id(self):
         """
@@ -435,7 +445,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         ret = bytearray(self.__command, "utf8")
-        ret.append(self.__response_status.code)
+        ret.append(self.__response_status)
         if self.__comm_value is not None:
             ret += self.__comm_value
         return ret
@@ -495,26 +505,49 @@ class ATCommResponsePacket(XBeeAPIPacket):
     def __get_response_status(self):
         """
         Returns the AT command response status of the packet.
-        
+
         Returns:
             :class:`.ATCommandStatus`: the AT command response status of the packet.
 
         .. seealso::
            | :class:`.ATCommandStatus`
         """
+        return ATCommandStatus.get(self.__response_status)
+
+    def __get_real_response_status(self):
+        """
+        Returns the AT command response status of the packet.
+
+        Returns:
+            Integer: the AT command response status of the packet.
+        """
         return self.__response_status
 
     def __set_response_status(self, response_status):
         """
         Sets the AT command response status of the packet
-        
+
         Args:
-            response_status (:class:`.ATCommandStatus`) : the new AT command response status of the packet.
+            response_status (:class:`.ATCommandStatus`) : the new AT command
+                response status of the packet.
 
         .. seealso::
            | :class:`.ATCommandStatus`
         """
-        self.__response_status = response_status
+        if response_status is None:
+            raise ValueError("Response status cannot be None")
+
+        if isinstance(response_status, ATCommandStatus):
+            self.__response_status = response_status.code
+        elif isinstance(response_status, int):
+            if 0 <= response_status <= 255:
+                self.__response_status = response_status
+            else:
+                raise ValueError("Response status must be between 0 and 255.")
+        else:
+            raise TypeError(
+                "Response status must be ATCommandStatus or int not {!r}".
+                format(response_status.__class__.__name__))
 
     command = property(__get_command, __set_command)
     """String. AT command."""
@@ -524,6 +557,9 @@ class ATCommResponsePacket(XBeeAPIPacket):
 
     status = property(__get_response_status, __set_response_status)
     """:class:`.ATCommandStatus`. AT command response status."""
+
+    real_status = property(__get_real_response_status, __set_response_status)
+    """Integer. AT command response status."""
 
 
 class ReceivePacket(XBeeAPIPacket):
@@ -1044,7 +1080,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit source address
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit source address.
             command (String): the AT command of the packet. Must be a string.
-            response_status (:class:`.ATCommandStatus`): the status of the AT command.
+            response_status (:class:`.ATCommandStatus` or Integer): the status of the AT command.
             comm_value (Bytearray, optional): the AT command response value. Optional.
 
         Raises:
@@ -1061,13 +1097,23 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
             raise ValueError("frame_id must be between 0 and 255.")
         if len(command) != 2:
             raise ValueError("Invalid command " + command)
+        if response_status is None:
+            response_status = ATCommandStatus.OK.code
+        elif not isinstance(response_status, (ATCommandStatus, int)):
+            raise TypeError("Response status must be ATCommandStatus or int not {!r}".format(
+                response_status.__class__.__name__))
 
         super().__init__(ApiFrameType.REMOTE_AT_COMMAND_RESPONSE)
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
         self.__command = command
-        self.__response_status = response_status
+        if isinstance(response_status, ATCommandStatus):
+            self.__response_status = response_status.code
+        elif 0 <= response_status <= 255:
+            self.__response_status = response_status
+        else:
+            raise ValueError("Response status must be between 0 and 255.")
         self.__comm_value = comm_value
 
     @staticmethod
@@ -1103,7 +1149,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
 
         return RemoteATCommandResponsePacket(raw[4], XBee64BitAddress(raw[5:13]),
                                              XBee16BitAddress(raw[13:15]), raw[15:17].decode("utf8"),
-                                             ATCommandStatus.get(raw[17]), comm_value=raw[18:-1])
+                                             raw[17], comm_value=raw[18:-1])
 
     def needs_id(self):
         """
@@ -1124,7 +1170,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
         ret += bytearray(self.__command, "utf8")
-        ret.append(self.__response_status.code)
+        ret.append(self.__response_status)
         if self.__comm_value is not None:
             ret += self.__comm_value
         return ret
@@ -1187,6 +1233,15 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ATCommandStatus`
         """
+        return ATCommandStatus.get(self.__response_status)
+
+    def __get_real_response_status(self):
+        """
+        Returns the AT command response status of the packet.
+
+        Returns:
+            Integer: the AT command response status of the packet.
+        """
         return self.__response_status
 
     def __set_response_status(self, response_status):
@@ -1194,12 +1249,26 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         Sets the AT command response status of the packet
 
         Args:
-            response_status (:class:`.ATCommandStatus`) : the new AT command response status of the packet.
+            response_status (:class:`.ATCommandStatus`) : the new AT command
+                response status of the packet.
 
         .. seealso::
            | :class:`.ATCommandStatus`
         """
-        self.__response_status = response_status
+        if response_status is None:
+            raise ValueError("Response status cannot be None")
+
+        if isinstance(response_status, ATCommandStatus):
+            self.__response_status = response_status.code
+        elif isinstance(response_status, int):
+            if 0 <= response_status <= 255:
+                self.__response_status = response_status
+            else:
+                raise ValueError("Response status must be between 0 and 255.")
+        else:
+            raise TypeError(
+                "Response status must be ATCommandStatus or int not {!r}".
+                format(response_status.__class__.__name__))
 
     def __get_64bit_addr(self):
         """
@@ -1263,6 +1332,9 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
 
     status = property(__get_response_status, __set_response_status)
     """:class:`.ATCommandStatus`. AT command response status."""
+
+    real_status = property(__get_real_response_status, __set_response_status)
+    """Integer. AT command response status."""
 
 
 class TransmitPacket(XBeeAPIPacket):
