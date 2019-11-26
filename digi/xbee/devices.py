@@ -6624,23 +6624,6 @@ class XBeeNetwork(object):
 
     __MAX_SCAN_COUNTER = 10000
 
-    DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT = 30  # seconds
-    """
-    Default maximum duration (in seconds) of the discovery process to find neighbors of a node.
-    """
-
-    MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT = 5  # seconds
-    """
-    Low limit for the maximum duration (in seconds) of the discovery process to find
-    neighbors of a node.
-    """
-
-    MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT = 2400  # seconds
-    """
-    High limit for the maximum duration (in seconds) of the discovery process to find
-    neighbors of a node.
-    """
-
     DEFAULT_TIME_BETWEEN_SCANS = 10  # seconds
     """
     Default time (in seconds) to wait before starting a new scan.
@@ -6675,6 +6658,12 @@ class XBeeNetwork(object):
     """
     The neighbor discovery process continues until is manually stopped.
     """
+
+    __NT_LIMITS = {
+        XBeeProtocol.RAW_802_15_4: (0x1 / 10, 0xFC / 10),  # 0.1, 25.2 seconds
+        XBeeProtocol.ZIGBEE: (0x20 / 10, 0xFF / 10),  # 3.2, 25.5 seconds
+        XBeeProtocol.DIGI_MESH: (0x20 / 10, 0x2EE0 / 10)  # 3.2, 5788.8 seconds
+    }
 
     _log = logging.getLogger("XBeeNetwork")
     """
@@ -6735,7 +6724,7 @@ class XBeeNetwork(object):
         self.__rm_not_discovered_in_last_scan = False
         self.__time_bw_scans = self.__class__.DEFAULT_TIME_BETWEEN_SCANS
         self.__time_bw_nodes = self.__class__.DEFAULT_TIME_BETWEEN_REQUESTS
-        self._node_timeout = self.__class__.DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
+        self._node_timeout = None
 
         self.__saved_nt = None
 
@@ -7045,8 +7034,6 @@ class XBeeNetwork(object):
     def set_discovery_options(self, options):
         """
         Configures the discovery options (``NO`` parameter) with the given value.
-        These options are only applicable for "no deep" discovery
-        (see :meth:`~.XBeeNetwork.start_discovery_process`)
 
         Args:
             options (Set of :class:`.DiscoveryOptions`): new discovery options, empty set to clear the options.
@@ -7133,23 +7120,27 @@ class XBeeNetwork(object):
     def set_discovery_timeout(self, discovery_timeout):
         """
         Sets the discovery network timeout.
-        This timeout is only applicable for "no deep" discovery
-        (see :meth:`~.XBeeNetwork.start_discovery_process`)
-        
+
         Args:
             discovery_timeout (Float): timeout in seconds.
-        
+
         Raises:
-            TimeoutException: if the response is not received before the read timeout expires.
+            TimeoutException: if the response is not received before the read
+                timeout expires.
             XBeeException: if the XBee device's serial port is closed.
-            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
-                method only checks the cached value of the operating mode.
+            InvalidOperatingModeException: if the XBee device's operating mode
+                is not API or ESCAPED API. This method only checks the cached
+                value of the operating mode.
             ATCommandException: if the response is not as expected.
-            ValueError: if ``discovery_timeout`` is not between 0x20 and 0xFF
+            ValueError: if ``discovery_timeout`` is not between the allowed
+                minimum and maximum values.
         """
+        min_nt, max_nt = self.__get_nt_limits()
+        if discovery_timeout < min_nt or discovery_timeout > max_nt:
+            raise ValueError("Value must be between %f and %f seconds"
+                             % (min_nt, max_nt))
+
         discovery_timeout *= 10  # seconds to 100ms
-        if discovery_timeout < 0x20 or discovery_timeout > 0xFF:
-            raise ValueError("Value must be between 3.2 and 25.5")
         timeout = bytearray([int(discovery_timeout)])
         self._local_xbee.set_parameter(ATStringCommand.NT.command, timeout)
 
@@ -7198,19 +7189,9 @@ class XBeeNetwork(object):
         These timeouts are only applicable for "deep" discovery
         (see :meth:`~.XBeeNetwork.start_discovery_process`)
 
-        node_timeout (Float, optional, default=`DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT`):
+        node_timeout (Float, optional, default=`None`):
             Maximum duration in seconds of the discovery process used to find neighbors of a node.
-            It must be between :const:`MIN_NEIGHBOR_DISCOVERY_TIMEOUT` and
-            :const:`MAX_NEIGHBOR_DISCOVERY_TIMEOUT` seconds inclusive.
-            This timeout is highly dependent on the nature of the network:
-
-                .. hlist::
-                   :columns: 1
-
-                   * It should be greater than the highest NT (Node Discovery Timeout) of your
-                     network.
-                   * and include enough time to let the message propagate depending on the sleep
-                     cycle of your devices.
+            If ``None`` already configured timeouts are used.
 
         time_bw_requests (Float, optional, default=`DEFAULT_TIME_BETWEEN_REQUESTS`): Time to wait
             between node neighbors requests.
@@ -7238,12 +7219,11 @@ class XBeeNetwork(object):
             | :meth:`.XBeeNetwork.get_deep_discovery_timeouts`
             | :meth:`.XBeeNetwork.start_discovery_process`
         """
-        if node_timeout \
-                and (node_timeout < self.__class__.MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
-                     or node_timeout > self.__class__.MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT):
-            raise ValueError("Node timeout must be between %d and %d" %
-                             (self.__class__.MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT,
-                              self.__class__.MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT))
+        min_nt, max_nt = self.__get_nt_limits()
+
+        if node_timeout and (node_timeout < min_nt or node_timeout > max_nt):
+            raise ValueError("Node timeout must be between %f and %f seconds"
+                             % (min_nt, max_nt))
 
         if time_bw_requests \
                 and (time_bw_requests < self.__class__.MIN_TIME_BETWEEN_REQUESTS
@@ -7256,15 +7236,37 @@ class XBeeNetwork(object):
                 and (time_bw_scans < self.__class__.MIN_TIME_BETWEEN_SCANS
                      or time_bw_scans > self.__class__.MAX_TIME_BETWEEN_SCANS):
             raise ValueError("Time between scans must be between %d and %d" %
-                             (self.__class__.MIN_MAX_NEIGHBOR_DISCOVERY_TIMEOUT,
-                              self.__class__.MAX_MAX_NEIGHBOR_DISCOVERY_TIMEOUT))
+                             (self.__class__.MIN_TIME_BETWEEN_SCANS,
+                              self.__class__.MAX_TIME_BETWEEN_SCANS))
 
-        self._node_timeout = node_timeout if node_timeout is not None \
-            else self.__class__.DEFAULT_MAX_NEIGHBOR_DISCOVERY_TIMEOUT
+        self._node_timeout = node_timeout
         self.__time_bw_nodes = time_bw_requests if time_bw_requests is not None \
             else self.__class__.DEFAULT_TIME_BETWEEN_REQUESTS
         self.__time_bw_scans = time_bw_scans if time_bw_scans is not None \
             else self.__class__.DEFAULT_TIME_BETWEEN_SCANS
+
+    def __get_nt_limits(self):
+        """
+        Returns a tuple with the minimum and maximum values for the 'NT'
+        value depending on the protocol.
+
+        Returns:
+             Tuple (Float, Float): Minimum value in seconds, maximum value in
+                seconds.
+        """
+        protocol = self._local_xbee.get_protocol()
+        if protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.ZIGBEE,
+                        XBeeProtocol.DIGI_MESH]:
+            return self.__class__.__NT_LIMITS[protocol]
+
+        # Calculate the minimum of the min values and the maximum of max values
+        min_nt = self.__class__.__NT_LIMITS[XBeeProtocol.RAW_802_15_4][0]
+        max_nt = self.__class__.__NT_LIMITS[XBeeProtocol.RAW_802_15_4][1]
+        for protocol in self.__class__.__NT_LIMITS:
+            min_nt = min(min_nt, self.__class__.__NT_LIMITS[protocol][0])
+            max_nt = max(max_nt, self.__class__.__NT_LIMITS[protocol][1])
+
+        return min_nt, max_nt
 
     def get_device_by_64(self, x64bit_addr):
         """
@@ -7800,21 +7802,18 @@ class XBeeNetwork(object):
         self._log.debug("[*] Preconfiguring %s" % ATStringCommand.NT.command)
 
         try:
+
             self.__saved_nt = self.get_discovery_timeout()
+
+            if self._node_timeout is None:
+                self._node_timeout = self.__saved_nt
 
             # Do not configure NT if it is already
             if self.__saved_nt == self._node_timeout:
                 self.__saved_nt = None
                 return
 
-            value = self._node_timeout
-            v = self._node_timeout * 10  # seconds to 100ms
-            if v < 0x20:
-                value = 3.2  # 3.2 seconds is the minimum allowed
-            elif v > 0xFF:
-                value = 25.5  # 25.5 seconds is the maximum allowed
-
-            self.set_discovery_timeout(value)
+            self.set_discovery_timeout(self._node_timeout)
         except XBeeException as e:
             raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
 
@@ -7832,7 +7831,8 @@ class XBeeNetwork(object):
         self._log.debug("  %d network scan" % self.__scan_counter)
         self._log.debug("       Mode: %s (%d)" % (self.__mode.description, self.__mode.code))
         self._log.debug("       Stop after scan: %d" % self.__stop_scan)
-        self._log.debug("       Timeout/node: %f" % self._node_timeout)
+        self._log.debug("       Timeout/node: %s" % self._node_timeout
+                        if self._node_timeout is not None else "-")
         self._log.debug("================================")
 
     def __discover_network(self, nodes_queue, active_processes, node_timeout):
@@ -8716,6 +8716,10 @@ class ZigBeeNetwork(XBeeNetwork):
            | :meth:`.XBeeNetwork._discover_neighbors`
         """
         active_processes.append(str(requester.get_64bit_addr()))
+
+        if node_timeout is None:
+            node_timeout = 30
+
         code = self.__get_route_table(requester, nodes_queue, node_timeout)
 
         return code
