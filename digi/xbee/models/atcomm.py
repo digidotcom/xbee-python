@@ -31,6 +31,7 @@ class ATStringCommand(Enum):
     AI = ("AI", "Association indication")
     AO = ("AO", "API options")
     AP = ("AP", "API enable")
+    AR = ("AR", "Many-to-one route broadcast time")
     AS = ("AS", "Active scan")
     BD = ("BD", "UART baudrate")
     BL = ("BL", "Bluetooth address")

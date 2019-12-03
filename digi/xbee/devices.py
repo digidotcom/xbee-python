@@ -4219,6 +4219,59 @@ class ZigBeeDevice(XBeeDevice):
         """
         super()._force_disassociate()
 
+    def get_many_to_one_broadcasting_time(self):
+        """
+        Returns the time between aggregation route broadcast in seconds.
+
+        Returns:
+            Integer: The number of seconds between aggregation route broadcasts.
+                -1 if it is disabled.
+
+        Raises:
+            TimeoutException: If the response is not received before the read
+                timeout expires.
+            XBeeException: If the XBee device's serial port is closed.
+            InvalidOperatingModeException: If the XBee device's operating mode
+                is not API or ESCAPED API. This method only checks the cached
+                value of the operating mode.
+            ATCommandException: If the response is not as expected.
+        """
+        seconds = utils.bytes_to_int(self.get_parameter(ATStringCommand.AR.command))
+        # 0xFF disables aggregation route broadcasting
+        if seconds == 0xFF:
+            return -1
+
+        return seconds
+
+    def set_many_to_one_broadcasting_time(self, seconds):
+        """
+        Configures the time between aggregation route broadcast in seconds.
+
+        Args:
+            seconds (Integer): The number of seconds between aggregation route
+                broadcasts. -1 to disable. 0 to only send one broadcast.
+
+        Raises:
+            TimeoutException: If the response is not received before the read
+                timeout expires.
+            XBeeException: If the XBee device's serial port is closed.
+            InvalidOperatingModeException: If the XBee device's operating mode
+                is not API or ESCAPED API. This method only checks the cached
+                value of the operating mode.
+            ATCommandException: If the response is not as expected.
+            ValueError: If ``seconds`` is ``None`` or is lower than -1, or
+                bigger than 254.
+        """
+        if seconds is None:
+            raise ValueError("The number of seconds cannot be None")
+        if seconds < -1 or seconds > 0xFE:
+            raise ValueError("The number of seconds must be between -1 and 254")
+
+        if seconds == -1:
+            seconds = 0xFF
+
+        self.set_parameter(ATStringCommand.AR.command, bytearray([seconds]))
+
     def send_data_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
         """
         Override.
