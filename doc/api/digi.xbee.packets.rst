@@ -16,6 +16,7 @@ Submodules
    digi.xbee.packets.cellular
    digi.xbee.packets.common
    digi.xbee.packets.devicecloud
+   digi.xbee.packets.digimesh
    digi.xbee.packets.network
    digi.xbee.packets.raw
    digi.xbee.packets.relay

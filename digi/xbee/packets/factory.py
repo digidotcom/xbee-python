@@ -16,6 +16,7 @@ from digi.xbee.packets.base import *
 from digi.xbee.packets.cellular import *
 from digi.xbee.packets.common import *
 from digi.xbee.packets.devicecloud import *
+from digi.xbee.packets.digimesh import RouteInformationPacket
 from digi.xbee.packets.network import *
 from digi.xbee.packets.raw import *
 from digi.xbee.packets.relay import *
@@ -272,6 +273,9 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
 
     elif frame_type == ApiFrameType.SOCKET_STATE:
         return SocketStatePacket.create_packet(packet_bytearray, operating_mode)
+
+    elif frame_type == ApiFrameType.DIGIMESH_ROUTE_INFORMATION:
+        return RouteInformationPacket.create_packet(packet_bytearray, operating_mode)
 
     else:
         return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)

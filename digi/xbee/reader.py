@@ -352,6 +352,34 @@ class RouteRecordIndicatorReceived(XBeeEvent):
     pass
 
 
+class RouteInformationReceived(XBeeEvent):
+    """
+    This event is fired when a route information packet is received.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. Source event (Integer): The source event (0x11: NACK, 0x12: Trace route)
+        2. Timestamp (Integer): The system timer value on the node generating
+            this package. The timestamp is in microseconds.
+        3. ACK timeout count (Integer): Number of MAC ACK timeouts that occur.
+        4. TX blocked count (Integer): Number of times the transmissions was
+            blocked due to reception in progress.
+        5. Destination address (:class:`.XBee64BitAddress`): 64-bit address of
+            the final destination node.
+        6. Source address (:class:`.XBee64BitAddress`): 64-bit address of
+            the source node.
+        7. Responder address (:class:`.XBee64BitAddress`): 64-bit address of
+            of the node that generates this packet after it sends (or attempts
+            to send) the packet to the next hop (successor node)
+        8. Successor address (:class:`.XBee64BitAddress`): 64-bit address of
+            of the next node after the responder in the route towards the
+            destination.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class InitDiscoveryScan(XBeeEvent):
     """
     This event is fired when a new network discovery scan is about to start.
@@ -450,6 +478,7 @@ class PacketListener(threading.Thread):
         self.__socket_data_received = SocketDataReceived()
         self.__socket_data_received_from = SocketDataReceivedFrom()
         self.__route_record_indicator_received_from = RouteRecordIndicatorReceived()
+        self.__dm_route_information_received_from = RouteInformationReceived()
 
         # API internal callbacks:
         self.__packet_received_API = xbee_device.get_xbee_device_callbacks()
@@ -790,6 +819,37 @@ class PacketListener(threading.Thread):
         elif callback:
             self.__route_record_indicator_received_from += callback
 
+    def add_route_info_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.RouteInformationReceived`.
+
+        Args:
+            callback (Function or List of functions): the callback. Receives eight
+            arguments.
+
+                * Source event (Integer): The source event (0x11: NACK,
+                    0x12: Trace route)
+                * Timestamp (Integer): The system timer value on the node generating
+                    this package. The timestamp is in microseconds.
+                * ACK timeout count (Integer): Number of MAC ACK timeouts that occur.
+                * TX blocked count (Integer): Number of times the transmissions was
+                    blocked due to reception in progress.
+                * Destination address (:class:`.XBee64BitAddress`): 64-bit address of
+                    the final destination node.
+                * Source address (:class:`.XBee64BitAddress`): 64-bit address of
+                    the source node.
+                * Responder address (:class:`.XBee64BitAddress`): 64-bit address
+                    of the node that generates this packet after it sends (or attempts
+                    to send) the packet to the next hop (successor node)
+                * Successor address (:class:`.XBee64BitAddress`): 64-bit address
+                    of the next node after the responder in the route towards the
+                    destination.
+        """
+        if isinstance(callback, list):
+            self.__dm_route_information_received_from.extend(callback)
+        elif callback:
+            self.__dm_route_information_received_from += callback
+
     def del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.PacketReceived` event.
@@ -971,6 +1031,20 @@ class PacketListener(threading.Thread):
         """
         self.__route_record_indicator_received_from -= callback
 
+    def del_route_info_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`.RouteInformationReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.RouteInformationReceived` event.
+        """
+        self.__dm_route_information_received_from -= callback
+
     def get_packet_received_callbacks(self):
         """
         Returns the list of registered callbacks for received packets.
@@ -1096,6 +1170,16 @@ class PacketListener(threading.Thread):
             List: List of :class:`.RouteRecordIndicatorReceived` events.
         """
         return self.__route_record_indicator_received_from
+
+    def get_route_info_callbacks(self):
+        """
+        Returns the list of registered callbacks for received route information
+        packets.
+
+        Returns:
+            List: List of :class:`.RouteInformationReceived` events.
+        """
+        return self.__dm_route_information_received_from
 
     def __execute_user_callbacks(self, xbee_packet, remote=None):
         """
@@ -1235,6 +1319,33 @@ class PacketListener(threading.Thread):
                                                     sender=str(remote.get_64bit_addr())
                                                     if remote else "None",
                                                     more_data="Hops: %s" % ' - '.join(map(str, xbee_packet.hops))))
+
+        # Route information
+        elif xbee_packet.get_frame_type() == ApiFrameType.DIGIMESH_ROUTE_INFORMATION:
+            self.__dm_route_information_received_from(xbee_packet.src_event,
+                                                      xbee_packet.timestamp,
+                                                      xbee_packet.ack_timeout_count,
+                                                      xbee_packet.tx_block_count,
+                                                      xbee_packet.dst_addr,
+                                                      xbee_packet.src_addr,
+                                                      xbee_packet.responder_addr,
+                                                      xbee_packet.successor_addr)
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                    event="RECEIVED",
+                                                    fr_type="ROUTE INFORMATION",
+                                                    sender=str(xbee_packet.responder_addr),
+                                                    more_data=
+                                                    "src: %s - dst: %s - responder: %s - "
+                                                    "successor: %s - src event: %d - "
+                                                    "timestamp: %d - ack timeouts: %d - "
+                                                    "tx blocked: %d"
+                                                    % (xbee_packet.src_addr,
+                                                       xbee_packet.dst_addr,
+                                                       xbee_packet.responder_addr,
+                                                       xbee_packet.successor_addr,
+                                                       xbee_packet.src_event, xbee_packet.timestamp,
+                                                       xbee_packet.ack_timeout_count,
+                                                       xbee_packet.tx_block_count)))
 
     @staticmethod
     def __get_remote_device_data_from_packet(xbee_packet):

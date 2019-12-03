@@ -90,6 +90,14 @@ class DictKeys(Enum):
     REMOTE_PORT = "remote_port"
     NUM_OF_HOPS = "number_hops"
     HOPS = "hops"
+    SRC_EVENT = "src_event"
+    TIMESTAMP = "timestamp"
+    ACK_TIMEOUT_COUNT = "ack_timeout_count"
+    TX_BLOCKED_COUNT = "tx_blocked_count"
+    SRC_ADDR = "src_address"
+    RESPONDER_ADDR = "responder_address"
+    SUCCESSOR_ADDR = "successor_address"
+    ADDITIONAL_DATA = "additional_data"
 
 
 class XBeePacket:
