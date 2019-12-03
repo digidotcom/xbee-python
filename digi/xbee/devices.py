@@ -6640,6 +6640,32 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
         super().__init__(local_xbee_device, x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
                          node_id=node_id)
 
+        # If the remote node is an end device, its parent is stored here.
+        self.__parent = None
+
+    @property
+    def parent(self):
+        """
+        Returns the parent of the XBee if it is an end device.
+
+        Returns:
+             :class:`.AbstractXBeeDevice`: The parent of the node for end
+                devices, ``None`` if unknown or if it is not an end device.
+        """
+        return self.__parent if self.get_role() == Role.END_DEVICE else None
+
+    @parent.setter
+    def parent(self, node):
+        """
+        Configures the XBee parent if it is an end device. If not it has no
+        effect.
+
+        Args:
+             node (:class:`.AbstractXBeeDevice`): The parent of the node.
+        """
+        if self.get_role() == Role.END_DEVICE:
+            self.__parent = node
+
     def get_protocol(self):
         """
         Override.
@@ -7792,9 +7818,11 @@ class XBeeNetwork(object):
                 self.__discover_result = xbee_packet.status
                 self._stop_event.set()
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
-                x16, x64, n_id, role = self.__get_data_for_remote(xbee_packet.command_value)
-                remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16, node_id=n_id,
-                                              role=role)
+                x16, x64, n_id, role, x64_parent = \
+                    self.__get_data_for_remote(xbee_packet.command_value)
+                remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16,
+                                              node_id=n_id, role=role,
+                                              parent_addr=x64_parent)
                 if remote is not None:
                     # If remote was successfully created and it is not in the XBee list, add it
                     # and notify callbacks.
@@ -7852,9 +7880,11 @@ class XBeeNetwork(object):
                 self.stop_discovery_process()
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
                 # if it is not a finish signal, it contains info about a remote XBee device.
-                x16, x64, n_id, role = self.__get_data_for_remote(xbee_packet.command_value)
-                remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16, node_id=n_id,
-                                              role=role)
+                x16, x64, n_id, role, x64_parent = \
+                    self.__get_data_for_remote(xbee_packet.command_value)
+                remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16,
+                                              node_id=n_id, role=role,
+                                              parent_addr= x64_parent)
                 # if it's the sought XBee device, put it in the proper variable.
                 if self.__sought_device_id == remote.get_node_id():
                     with self.__lock:
@@ -8447,7 +8477,8 @@ class XBeeNetwork(object):
         return discovery_timeout
 
     def __create_remote(self, x64bit_addr=XBee64BitAddress.UNKNOWN_ADDRESS,
-                        x16bit_addr=XBee16BitAddress.UNKNOWN_ADDRESS, node_id=None, role=Role.UNKNOWN):
+                        x16bit_addr=XBee16BitAddress.UNKNOWN_ADDRESS, node_id=None,
+                        role=Role.UNKNOWN, parent_addr=None):
         """
         Creates and returns a :class:`.RemoteXBeeDevice` from the provided data,
         if the data contains the required information and in the required
@@ -8461,6 +8492,8 @@ class XBeeNetwork(object):
             node_id (String, optional, default=``None``): The node identifier of the remote XBee.
             role (:class:`digi.xbee.models.protocol.Role`, optional, default=``Role.UNKNOWN``):
                 The role of the remote XBee
+            parent_addr (:class:`.XBee64BitAddress`, optional, default=``None``):
+                The 64-bit address of the parent.
 
         Returns:
             :class:`.RemoteXBeeDevice`: the remote XBee device generated from the provided data if
@@ -8480,6 +8513,11 @@ class XBeeNetwork(object):
         if p == XBeeProtocol.ZIGBEE:
             xb = RemoteZigBeeDevice(self._local_xbee, x64bit_addr=x64bit_addr,
                                     x16bit_addr=x16bit_addr, node_id=node_id)
+            if not parent_addr or parent_addr in [XBee64BitAddress.BROADCAST_ADDRESS,
+                                                  XBee64BitAddress.UNKNOWN_ADDRESS]:
+                xb.parent = None
+            else:
+                xb.parent = self.get_device_by_64(parent_addr)
         elif p == XBeeProtocol.DIGI_MESH:
             xb = RemoteDigiMeshDevice(self._local_xbee, x64bit_addr=x64bit_addr, node_id=node_id)
         elif p == XBeeProtocol.DIGI_POINT:
@@ -8504,9 +8542,13 @@ class XBeeNetwork(object):
             data (Bytearray): the data to extract information from.
         
         Returns:
-            Tuple (:class:`.XBee16BitAddress`, :class:`.XBee64BitAddress`, Bytearray): remote device information
+            Tuple (:class:`.XBee16BitAddress`, :class:`.XBee64BitAddress`,
+                String, :class:.`Role`, :class:`.XBee64BitAddress`):
+                Remote device information (16-bit address, 64-bit address,
+                node identifier, role, 64-bit address of parent).
         """
         role = Role.UNKNOWN
+        parent_addr = None
         if self._local_xbee.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # node ID starts at 11 if protocol is not 802.15.4:
             #    802.15.4 adds a byte of info between 64bit address and XBee device ID, avoid it:
@@ -8528,7 +8570,8 @@ class XBeeNetwork(object):
             i += 2
             # role is the next byte
             role = Role.get(utils.bytes_to_int(data[i:i+1]))
-        return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]), node_id.decode(), role
+        return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]),\
+               node_id.decode(), role, parent_addr
 
     def _set_node_reachable(self, node, reachable):
         """
@@ -9192,6 +9235,8 @@ class ZigBeeNetwork(XBeeNetwork):
             else:
                 # Not asking to End Devices when found, consider them as reachable
                 self._set_node_reachable(node, True)
+                # Save its parent
+                node.parent = requester
             self._XBeeNetwork__device_discovered(node)
 
         # Add connections
