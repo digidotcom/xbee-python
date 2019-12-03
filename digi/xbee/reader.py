@@ -380,6 +380,22 @@ class RouteInformationReceived(XBeeEvent):
     pass
 
 
+class RouteReceived(XBeeEvent):
+    """
+    This event is fired when a route is received.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. source (:class:`.XBeeDevice`): The local node.
+        2. destination (:class:`.RemoteXBeeDevice`): The remote node.
+        3. hops (List): List of intermediate hops from source node to
+            closest to destination (:class:`.RemoteXBeeDevice`).
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class InitDiscoveryScan(XBeeEvent):
     """
     This event is fired when a new network discovery scan is about to start.

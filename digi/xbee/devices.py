@@ -48,7 +48,7 @@ from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatin
     ATCommandException, OperationNotSupportedException, TransmitException
 from digi.xbee.io import IOSample, IOMode
 from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, \
-    DiscoveryProcessFinished, NetworkModified, InitDiscoveryScan, EndDiscoveryScan
+    DiscoveryProcessFinished, NetworkModified, RouteReceived, InitDiscoveryScan, EndDiscoveryScan
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
 from functools import wraps
@@ -2053,6 +2053,11 @@ class XBeeDevice(AbstractXBeeDevice):
 
         self.__modem_status_received = False
 
+        self.__tmp_dm_routes_to = {}
+        self.__tmp_dm_to_insert = []
+        self.__tmp_dm_routes_lock = threading.Lock()
+        self.__route_received = RouteReceived()
+
     @classmethod
     def create_xbee_device(cls, comm_port_data):
         """
@@ -3694,6 +3699,328 @@ class XBeeDevice(AbstractXBeeDevice):
             Integer: The next frame ID of the XBee device.
         """
         return self._get_next_frame_id()
+
+    def add_route_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.RouteReceived`.
+        This works for Zigbee and Digimesh devices.
+
+        Args:
+            callback (Function): the callback. Receives three arguments.
+
+                * source (:class:`.XBeeDevice`): The source node.
+                * destination (:class:`.RemoteXBeeDevice`): The destination node.
+                * hops (List): List of intermediate hops from closest to source
+                    to closest to destination (:class:`.RemoteXBeeDevice`).
+
+        .. seealso::
+           | :meth:`.XBeeDevice.del_route_received_callback`
+        """
+        if self._protocol not in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+                                  XBeeProtocol.SMART_ENERGY,
+                                  XBeeProtocol.DIGI_MESH,
+                                  XBeeProtocol.DIGI_POINT, XBeeProtocol.SX]:
+            raise ValueError("Cannot register callback for %s XBee devices" % self._protocol)
+
+        self.__route_received += callback
+
+        if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+                              XBeeProtocol.SMART_ENERGY]
+                and not self.__route_record_callback in self._packet_listener.get_route_record_received_callbacks()):
+            self._packet_listener.add_route_record_received_callback(self.__route_record_callback)
+        elif not self.__route_info_callback in self._packet_listener.get_route_info_callbacks():
+            self._packet_listener.add_route_info_received_callback(self.__route_info_callback)
+
+    def del_route_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.RouteReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.add_route_received_callback`
+        """
+        self.__route_received -= callback
+
+        if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+                              XBeeProtocol.SMART_ENERGY]
+                and self.__route_record_callback in self._packet_listener.get_route_record_received_callbacks()):
+            self._packet_listener.del_route_record_received_callback(self.__route_record_callback)
+        elif self.__route_info_callback in self._packet_listener.get_route_info_callbacks():
+            self._packet_listener.del_route_info_callback(self.__route_info_callback)
+
+    def __route_record_callback(self, src, hops):
+        """
+        Callback method to receive route record indicator (0xA1) frames.
+
+        Args:
+            src (:class:`.RemoteXBeeDevice`): The remote device that sent the
+                route record indicator frame.
+            hops (List): List of 16-bit addresses (:class:`XBee16BitAddress`)
+                of the intermediate hops starting from source node to closest
+                to destination.
+        """
+        node_list = []
+        network = self.get_network()
+
+        self._log.debug("Source route for %s (hops %d): %s", src, len(hops),
+                        " <<< ".join(map(str, hops)))
+        for hop in hops:
+            node = network.get_device_by_16(hop)
+            # If the intermediate hop is not yet in the network, add it
+            if not node:
+                node = network._XBeeNetwork__add_remote(
+                            RemoteZigBeeDevice(self, x16bit_addr=hop),
+                            NetworkEventReason.ROUTE)
+
+            if node not in node_list and hop != src.get_16bit_addr():
+                node_list.append(node)
+
+        # Reverse the route: closest to source node the first one
+        node_list.reverse()
+
+        self.__route_received(self, src, node_list)
+
+    def __route_info_callback(self, _src_event, _timestamp, _ack_timeout_count,
+                              _tx_block_count, dst_addr, src_addr,
+                              responder_addr, successor_addr):
+        """
+        Callback method to receive route information (0x8D) frames.
+
+        Args:
+            _src_event (Integer): The source event (0x11: NACK, 0x12: Trace route)
+            _timestamp (Integer): The system timer value on the node generating
+                this package. The timestamp is in microseconds.
+            _ack_timeout_count (Integer): Number of MAC ACK timeouts that occur.
+            _tx_block_count (Integer): Number of times the transmissions was
+                blocked due to reception in progress.
+            dst_addr (:class:`.XBee64BitAddress`): 64-bit address of the final
+                destination node.
+            src_addr (:class:`.XBee64BitAddress`): 64-bit address of
+                the source node.
+            responder_addr (:class:`.XBee64BitAddress`): 64-bit address of the
+                the node that generates this packet after it sends (or attempts
+                to send) the packet to the next hop (successor node)
+            successor_addr (:class:`.XBee64BitAddress`): 64-bit address of the
+                next node after the responder in the route towards the destination.
+        """
+        self._log.debug("Trace route for %s: responder %s >>> successor %s",
+                        dst_addr, responder_addr, successor_addr)
+
+        def check_dm_route_complete(src, dst, hops_list):
+            length = len(hops_list)
+
+            if not length:
+                return False
+
+            if hops_list[0][0] != src:
+                return False
+
+            if hops_list[length - 1][1] != dst:
+                return False
+
+            for i in range(len(hops_list)):
+                if length < i + 2:
+                    break
+                if hops_list[i][1] != hops_list[i + 1][0]:
+                    return False
+
+            return True
+
+        with self.__tmp_dm_routes_lock:
+            if str(dst_addr) not in self.__tmp_dm_routes_to:
+                self.__tmp_dm_routes_to.update({str(dst_addr): []})
+
+            dm_hops_list = self.__tmp_dm_routes_to.get(str(dst_addr))
+
+            # There is no guarantee that Route Information Packet frames
+            # arrive in the same order as the route taken by the unicast packet.
+            hop = (responder_addr, successor_addr)
+
+            if hop in dm_hops_list:
+                return
+
+            if responder_addr == src_addr:
+                dm_hops_list.insert(0, hop)
+            elif successor_addr == dst_addr or not dm_hops_list:
+                dm_hops_list.append(hop)
+            else:
+                self.__tmp_dm_to_insert.insert(0, hop)
+
+            aux_list = []
+            for to_insert in self.__tmp_dm_to_insert:
+                for element in dm_hops_list:
+                    # Successor in the list is the received responder
+                    if element[1] == to_insert[0]:
+                        dm_hops_list.insert(dm_hops_list.index(element) + 1, to_insert)
+                        break
+                    # Responder in the list is the received successor
+                    if element[0] == to_insert[1]:
+                        dm_hops_list.insert(dm_hops_list.index(element), to_insert)
+                        break
+                    # Cannot order it, save it for later
+                    aux_list.append(to_insert)
+
+            self.__tmp_dm_to_insert = aux_list
+
+            # Check if this is the latest packet of the Trace Route process
+            if self.__tmp_dm_to_insert \
+                    or not check_dm_route_complete(src_addr, dst_addr, dm_hops_list):
+                return
+
+            # Generate the list of ordered hops
+            node_list = []
+            network = self.get_network()
+            for i in range(len(dm_hops_list)):
+                address = dm_hops_list[i][0]
+                node = network.get_device_by_64(address)
+                if not node:
+                    # If the intermediate hop is not yet in the network, add it
+                    if not node:
+                        node = network._XBeeNetwork__add_remote(
+                            RemoteDigiMeshDevice(self, x64bit_addr=address),
+                            NetworkEventReason.ROUTE)
+
+                if node not in node_list and address != dst_addr:
+                    node_list.append(node)
+
+            dest_node = network.get_device_by_64(dst_addr)
+            if not dest_node:
+                # If the destination is not yet in the network, add it
+                if not dest_node:
+                    dest_node = network._XBeeNetwork__add_remote(
+                            RemoteDigiMeshDevice(self, x64bit_addr=dst_addr),
+                            NetworkEventReason.ROUTE)
+
+            self.__tmp_dm_to_insert.clear()
+            self.__tmp_dm_routes_to.clear()
+
+        # Remove the source node (first one in list) from the hops
+        self.__route_received(self, dest_node, node_list[1:])
+
+    def get_route_to_node(self, remote, timeout=10):
+        """
+        Gets the route from this XBee to the given remote node.
+
+        Args:
+            remote (:class:`.RemoteXBeeDevice`): The remote node.
+            timeout (Float, optional, default=10): Maximum number of seconds to
+                wait for the route.
+
+        Returns:
+            Tuple: Tuple containing route data (`None` if the route was not
+                read in the provided timeout):
+                - source (:class:`.RemoteXBeeDevice`: The source node of the route.
+                - destination (:class:`.RemoteXBeeDevice`): The destination node
+                  of the route.
+                - hops (List): List of intermediate nodes
+                  (:class:`.RemoteXBeeDevice`) ordered from closest to source
+                  to closest to destination node (source and destination not
+                  included).
+        """
+        if not remote.is_remote():
+            raise ValueError("Remote cannot be a local XBee")
+        if self._64bit_addr == remote.get_64bit_addr():
+            raise ValueError("Remote cannot be the local XBee")
+        if self != remote.get_local_xbee_device():
+            raise ValueError("Remote must have '%s' as local XBee" % self)
+        if timeout is None or timeout <= 0:
+            raise ValueError("Timeout must be greater than 0")
+
+        self._log.debug("Getting route for node %s", remote)
+
+        if self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+                              XBeeProtocol.SMART_ENERGY, XBeeProtocol.DIGI_MESH,
+                              XBeeProtocol.DIGI_POINT, XBeeProtocol.SX]:
+            route = self.__get_trace_route(remote, timeout)
+        else:
+            route = self, remote, [self]
+
+        if route:
+            self._log.debug("Route: {{{!s}{!s}{!s} >>> {!s} (hops: {!s})}}".format(
+                route[0], " >>> " if route[2] else "", " >>> ".join(map(str, route[2])),
+                route[1], len(route[2]) + 1))
+
+        return route
+
+    def __get_trace_route(self, remote, timeout):
+        """
+        Gets the route from this XBee to the given remote node.
+
+        Args:
+            remote (:class:`.RemoteXBeeDevice`): The remote node.
+            timeout (Float): Maximum number of seconds to wait for the route.
+
+        Returns:
+            Tuple: Tuple containing route data (`None` if the route was not
+                read in the provided timeout):
+                - source (:class:`.RemoteXBeeDevice`: The source node of the route.
+                - destination (:class:`.RemoteXBeeDevice`): The destination node
+                  of the route.
+                - hops (List): List of intermediate nodes
+                  (:class:`.RemoteXBeeDevice`) ordered from closest to source
+                  to closest to destination node (source and destination not
+                  included).
+        """
+        lock = threading.Event()
+        node_list = []
+
+        def route_cb(src, dest, hops):
+            nonlocal node_list
+            if dest == remote:
+                node_list = [src, *hops]
+                lock.set()
+
+        if remote == self:
+            return None
+
+        if self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+                              XBeeProtocol.SMART_ENERGY]:
+            if remote.get_role() == Role.END_DEVICE:
+                return None
+
+            # Transmit a some information to the remote
+            packet = TransmitPacket(
+                0x00,                          # Frame ID
+                remote.get_64bit_addr(),       # 64-bit address of the remote
+                remote.get_16bit_addr(),       # 16-bit address of the remote
+                0x00,                          # Broadcast radius (0x00 - Maximum)
+                0x00,                          # Transmit options (0x00 - None)
+                bytearray([0])                 # Dummy payload
+            )
+
+        elif self._protocol in [XBeeProtocol.DIGI_MESH,
+                                XBeeProtocol.DIGI_POINT, XBeeProtocol.SX]:
+            # Transmit a some information to the remote
+            packet = TransmitPacket(
+                0x00,                     # Frame ID
+                remote.get_64bit_addr(),  # 64-bit address of the remote
+                remote.get_16bit_addr(),  # 16-bit address of the remote
+                0x00,                     # Broadcast radius (0x00 - Maximum)
+                0x08,                     # Transmit options (0x08 - Generate trace route packets)
+                bytearray([0])            # Dummy payload
+            )
+
+        else:
+            return None
+
+        lock.clear()
+
+        self.add_route_received_callback(route_cb)
+
+        try:
+            self.send_packet(packet, sync=False)
+
+            timed_out = lock.wait(timeout)
+        finally:
+            self.del_route_received_callback(route_cb)
+
+        # Check if the list of intermediate nodes is empty
+        if timed_out or not node_list:
+            return None
+
+        return self, remote, node_list[1:]
 
     comm_iface = property(__get_comm_iface)
     """:class:`.XBeeCommunicationInterface`. The hardware interface associated to the XBee device."""
@@ -9643,6 +9970,7 @@ class NetworkEventReason(Enum):
     NEIGHBOR = (0x01, "Discovered as XBee neighbor")
     RECEIVED_MSG = (0x02, "Received message from XBee")
     MANUAL = (0x03, "Manual modification")
+    ROUTE = (0x04, "Hop of a network route")
 
     def __init__(self, code, description):
         self.__code = code
