@@ -28,6 +28,7 @@ class ATStringCommand(Enum):
     """
 
     AC = ("AC", "Apply changes")
+    AG = ("AG", "Aggregator support")
     AI = ("AI", "Association indication")
     AO = ("AO", "API options")
     AP = ("AP", "API enable")

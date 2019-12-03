@@ -3886,6 +3886,24 @@ class DigiMeshDevice(XBeeDevice):
         """
         return XBeeProtocol.DIGI_MESH
 
+    def build_aggregate_routes(self):
+        """
+        Automatically build routes to this node. All nodes in the network will
+        build routes to this node. The receiving node establishes a route back
+        to this node.
+
+        Raises:
+            TimeoutException: If the response is not received before the read
+                timeout expires.
+            XBeeException: If the XBee device's serial port is closed.
+            InvalidOperatingModeException: If the XBee device's operating mode
+                is not API or ESCAPED API. This method only checks the cached
+                value of the operating mode.
+            ATCommandException: If the response is not as expected.
+        """
+        self.set_parameter(ATStringCommand.AG.command,
+                           XBee16BitAddress.UNKNOWN_ADDRESS.address)
+
     def send_data_64(self, x64addr, data, transmit_options=TransmitOptions.NONE.value):
         """
         Override.
