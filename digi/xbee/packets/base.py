@@ -88,6 +88,8 @@ class DictKeys(Enum):
     CLIENT_SOCKET_ID = "client_socket_id"
     REMOTE_ADDR = "remote_address"
     REMOTE_PORT = "remote_port"
+    NUM_OF_HOPS = "number_hops"
+    HOPS = "hops"
 
 
 class XBeePacket:

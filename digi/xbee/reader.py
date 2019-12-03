@@ -335,6 +335,23 @@ class SocketDataReceivedFrom(XBeeEvent):
     pass
 
 
+class RouteRecordIndicatorReceived(XBeeEvent):
+    """
+    This event is fired when a route record packet is received.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. Source (:class:`.RemoteXBeeDevice`): The remote node that sent the
+            route record.
+        2. Hops (List): List of intermediate hops 16-bit addresses from closest
+            to source (who sent the route record) to closest to destination
+            (:class:`.XBee16BitAddress`).
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class InitDiscoveryScan(XBeeEvent):
     """
     This event is fired when a new network discovery scan is about to start.
@@ -432,6 +449,7 @@ class PacketListener(threading.Thread):
         self.__socket_state_received = SocketStateReceived()
         self.__socket_data_received = SocketDataReceived()
         self.__socket_data_received_from = SocketDataReceivedFrom()
+        self.__route_record_indicator_received_from = RouteRecordIndicatorReceived()
 
         # API internal callbacks:
         self.__packet_received_API = xbee_device.get_xbee_device_callbacks()
@@ -753,6 +771,25 @@ class PacketListener(threading.Thread):
         elif callback:
             self.__socket_data_received_from += callback
 
+    def add_route_record_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.RouteRecordIndicatorReceived`.
+
+        Args:
+            callback (Function or List of functions): the callback. Receives two
+            arguments.
+
+                * Source (:class:`.RemoteXBeeDevice`): The remote node that sent
+                    the route record.
+                * Hops (List): List of intermediate hops 16-bit addresses from
+                    closest to source (who sent the route record) to closest to
+                    destination.
+        """
+        if isinstance(callback, list):
+            self.__route_record_indicator_received_from.extend(callback)
+        elif callback:
+            self.__route_record_indicator_received_from += callback
+
     def del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.PacketReceived` event.
@@ -920,6 +957,20 @@ class PacketListener(threading.Thread):
         """
         self.__socket_data_received_from -= callback
 
+    def del_route_record_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`.RouteRecordIndicatorReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.RouteRecordIndicatorReceived` event.
+        """
+        self.__route_record_indicator_received_from -= callback
+
     def get_packet_received_callbacks(self):
         """
         Returns the list of registered callbacks for received packets.
@@ -1036,6 +1087,15 @@ class PacketListener(threading.Thread):
             List: List of :class:`.SocketDataReceivedFrom` events.
         """
         return self.__socket_data_received_from
+
+    def get_route_record_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received route records.
+
+        Returns:
+            List: List of :class:`.RouteRecordIndicatorReceived` events.
+        """
+        return self.__route_record_indicator_received_from
 
     def __execute_user_callbacks(self, xbee_packet, remote=None):
         """
@@ -1165,6 +1225,16 @@ class PacketListener(threading.Thread):
                                                     more_data="%s - %s" % (address,
                                                                            utils.hex_to_string(xbee_packet.payload))))
 
+        # Route record indicator
+        elif xbee_packet.get_frame_type() == ApiFrameType.ROUTE_RECORD_INDICATOR:
+            self.__route_record_indicator_received_from(remote,
+                                                        xbee_packet.hops)
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                    event="RECEIVED",
+                                                    fr_type="ROUTE RECORD INDICATOR",
+                                                    sender=str(remote.get_64bit_addr())
+                                                    if remote else "None",
+                                                    more_data="Hops: %s" % ' - '.join(map(str, xbee_packet.hops))))
 
     @staticmethod
     def __get_remote_device_data_from_packet(xbee_packet):

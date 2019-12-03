@@ -2131,6 +2131,8 @@ class XBeeDevice(AbstractXBeeDevice):
             if self._packet_listener else None
         socket_data_from_cbs = self._packet_listener.get_socket_data_received_from_callbacks() \
             if self._packet_listener else None
+        route_record_cbs = self._packet_listener.get_route_record_received_callbacks() \
+            if self._packet_listener else None
 
         self._comm_iface.open()
         self._log.info("%s port opened" % self._comm_iface)
@@ -2156,6 +2158,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self._packet_listener.add_socket_state_received_callback(socket_st_cbs)
         self._packet_listener.add_socket_data_received_callback(socket_data_cbs)
         self._packet_listener.add_socket_data_received_from_callback(socket_data_from_cbs)
+        self._packet_listener.add_route_record_received_callback(route_record_cbs)
 
         self._packet_listener.start()
         self._packet_listener.wait_until_started()
