@@ -1110,17 +1110,6 @@ class PacketListener(threading.Thread):
                                                     more_data="%s - %s" % (address,
                                                                            utils.hex_to_string(xbee_packet.payload))))
 
-    def __create_remote_device_from_packet(self, xbee_packet):
-        """
-        Creates a :class:`.RemoteXBeeDevice` that represents the device that
-        has sent the ``xbee_packet``.
-
-        Returns:
-            :class:`.RemoteXBeeDevice`
-        """
-        x64bit_addr, x16bit_addr = self.__get_remote_device_data_from_packet(xbee_packet)
-        return digi.xbee.devices.RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
-                                                  x16bit_addr=x16bit_addr)
 
     @staticmethod
     def __get_remote_device_data_from_packet(xbee_packet):
