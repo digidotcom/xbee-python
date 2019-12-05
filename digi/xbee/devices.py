@@ -2125,6 +2125,12 @@ class XBeeDevice(AbstractXBeeDevice):
             if self._packet_listener else None
         mp_data_cbs = self._packet_listener.get_micropython_data_received_callbacks() \
             if self._packet_listener else None
+        socket_st_cbs = self._packet_listener.get_socket_state_received_callbacks() \
+            if self._packet_listener else None
+        socket_data_cbs = self._packet_listener.get_socket_data_received_callbacks() \
+            if self._packet_listener else None
+        socket_data_from_cbs = self._packet_listener.get_socket_data_received_from_callbacks() \
+            if self._packet_listener else None
 
         self._comm_iface.open()
         self._log.info("%s port opened" % self._comm_iface)
@@ -2147,6 +2153,9 @@ class XBeeDevice(AbstractXBeeDevice):
         self._packet_listener.add_user_data_relay_received_callback(user_data_relay_cbs)
         self._packet_listener.add_bluetooth_data_received_callback(bt_data_cbs)
         self._packet_listener.add_micropython_data_received_callback(mp_data_cbs)
+        self._packet_listener.add_socket_state_received_callback(socket_st_cbs)
+        self._packet_listener.add_socket_data_received_callback(socket_data_cbs)
+        self._packet_listener.add_socket_data_received_from_callback(socket_data_from_cbs)
 
         self._packet_listener.start()
         self._packet_listener.wait_until_started()

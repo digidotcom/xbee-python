@@ -982,6 +982,33 @@ class PacketListener(threading.Thread):
         """
         return self.__micropython_data_received
 
+    def get_socket_state_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received socket state.
+
+        Returns:
+            List: List of :class:`.SocketStateReceived` events.
+        """
+        return self.__socket_state_received
+
+    def get_socket_data_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received socket data.
+
+        Returns:
+            List: List of :class:`.SocketDataReceived` events.
+        """
+        return self.__socket_data_received
+
+    def get_socket_data_received_from_callbacks(self):
+        """
+        Returns the list of registered callbacks for received socket data from.
+
+        Returns:
+            List: List of :class:`.SocketDataReceivedFrom` events.
+        """
+        return self.__socket_data_received_from
+
     def __execute_user_callbacks(self, xbee_packet, remote=None):
         """
         Executes callbacks corresponding to the received packet.
