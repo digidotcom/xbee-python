@@ -48,7 +48,7 @@ from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatin
     ATCommandException, OperationNotSupportedException, TransmitException
 from digi.xbee.io import IOSample, IOMode
 from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, \
-    DiscoveryProcessFinished, NetworkModified
+    DiscoveryProcessFinished, NetworkModified, InitDiscoveryScan, EndDiscoveryScan
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
 from functools import wraps
@@ -6827,6 +6827,9 @@ class XBeeNetwork(object):
 
         self.__saved_nt = None
 
+        self.__init_scan_cbs = InitDiscoveryScan()
+        self.__end_scan_cbs = EndDiscoveryScan()
+
     def __increment_scan_counter(self):
         """
         Increments (by one) the scan counter.
@@ -7040,6 +7043,36 @@ class XBeeNetwork(object):
         """
         self.__device_discovered += callback
 
+    def add_init_discovery_scan_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.InitDiscoveryScan`.
+
+        Args:
+            callback (Function): the callback. Receives two arguments.
+
+                * Number of scan to start (starting with 1).
+                * Total number of scans.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.del_init_discovery_scan_callback`
+        """
+        self.__init_scan_cbs += callback
+
+    def add_end_discovery_scan_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.EndDiscoveryScan`.
+
+        Args:
+            callback (Function): the callback. Receives two arguments.
+
+                * Number of scan that has finished (starting with 1).
+                * Total number of scans.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.del_end_discovery_scan_callback`
+        """
+        self.__end_scan_cbs += callback
+
     def add_discovery_process_finished_callback(self, callback):
         """
         Adds a callback for the event :class:`.DiscoveryProcessFinished`.
@@ -7084,6 +7117,32 @@ class XBeeNetwork(object):
            | :meth:`.XBeeNetwork.del_discovery_process_finished_callback`
         """
         self.__device_discovered -= callback
+
+    def del_init_discovery_scan_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.InitDiscoveryScan`.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.InitDiscoveryScan` event.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.add_init_discovery_scan_callback`
+        """
+        self.__init_scan_cbs -= callback
+
+    def del_end_discovery_scan_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.EndDiscoveryScan`.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.EndDiscoveryScan` event.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.add_end_discovery_scan_callback`
+        """
+        self.__end_scan_cbs -= callback
 
     def del_discovery_process_finished_callback(self, callback):
         """
@@ -7843,6 +7902,9 @@ class XBeeNetwork(object):
                 # Purge network
                 self.__purge(force=self.__rm_not_discovered_in_last_scan)
 
+                # Notify end scan
+                self.__end_scan_cbs(self.__scan_counter, self.__stop_scan)
+
             return code
         finally:
             self._discovery_done(self.__active_processes)
@@ -7924,6 +7986,9 @@ class XBeeNetwork(object):
         self._local_xbee._scan_counter = self.__scan_counter
 
         self.__last_request_date = 0
+
+        # Notify start scan
+        self.__init_scan_cbs(self.__scan_counter, self.__stop_scan)
 
         self._log.debug("\n")
         self._log.debug("================================")

@@ -335,6 +335,34 @@ class SocketDataReceivedFrom(XBeeEvent):
     pass
 
 
+class InitDiscoveryScan(XBeeEvent):
+    """
+    This event is fired when a new network discovery scan is about to start.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. Number of scan to start (starting with 1).
+        2. Total number of scans.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
+class EndDiscoveryScan(XBeeEvent):
+    """
+    This event is fired when a network discovery scan has just finished.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. Number of scan that has finished (starting with 1).
+        2. Total number of scans.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class PacketListener(threading.Thread):
     """
     This class represents a packet listener, which is a thread that's always
