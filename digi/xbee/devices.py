@@ -449,13 +449,15 @@ class AbstractXBeeDevice(object):
         """
         pass
 
-    def read_device_info(self, init=True):
+    def read_device_info(self, init=True, fire_event=True):
         """
         Updates all instance parameters reading them from the XBee device.
 
         Args:
             init (Boolean, optional, default=`True`): If ``False`` only not initialized parameters
                 are read, all if ``True``.
+            fire_event (Boolean, optional, default=`True`): `True` to launch and update
+                event if any parameter changed, `False` otherwise.
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
             XBeeException: if the XBee device's serial port is closed.
@@ -474,13 +476,21 @@ class AbstractXBeeDevice(object):
             if not self._comm_iface.is_interface_open:
                 raise XBeeException("XBee device's serial port closed")
 
+        updated = False
+
         # Hardware version:
         if init or self._hardware_version is None:
-            self._hardware_version = HardwareVersion.get(
+            hw_version = HardwareVersion.get(
                 self.get_parameter(ATStringCommand.HV.command)[0])
+            if self._hardware_version != hw_version:
+                updated = True
+                self._hardware_version = hw_version
         # Firmware version:
         if init or self._firmware_version is None:
-            self._firmware_version = self.get_parameter(ATStringCommand.VR.command)
+            fw_version = self.get_parameter(ATStringCommand.VR.command)
+            if self._firmware_version != fw_version:
+                updated = True
+                self._firmware_version = fw_version
 
         # Original value of the protocol:
         orig_protocol = self.get_protocol()
@@ -496,24 +506,45 @@ class AbstractXBeeDevice(object):
         if init or self._64bit_addr is None or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
             sh = self.get_parameter(ATStringCommand.SH.command)
             sl = self.get_parameter(ATStringCommand.SL.command)
-            self._64bit_addr = XBee64BitAddress(sh + sl)
+            x64bit_addr = XBee64BitAddress(sh + sl)
+            if self._64bit_addr != x64bit_addr:
+                self._64bit_addr = x64bit_addr
+                updated = True
         # Node ID:
         if init or self._node_id is None:
-            self._node_id = self.get_parameter(ATStringCommand.NI.command).decode()
+            node_id = self.get_parameter(ATStringCommand.NI.command).decode()
+            if self._node_id != node_id:
+                self._node_id = node_id
+                updated = True
         # 16-bit address:
         if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4, XBeeProtocol.XTEND,
                                XBeeProtocol.SMART_ENERGY, XBeeProtocol.ZNET]
                 and (init or self._16bit_addr is None
                      or self._16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS)):
-            r = self.get_parameter(ATStringCommand.MY.command)
-            self._16bit_addr = XBee16BitAddress(r)
+            x16bit_addr = XBee16BitAddress(self.get_parameter(ATStringCommand.MY.command))
+            if self._16bit_addr != x16bit_addr:
+                self._16bit_addr = x16bit_addr
+                updated = True
         elif not self._16bit_addr:
             # For protocols that do not support a 16 bit address, set it to unknown
             self._16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
 
         # Role:
         if init or self._role is None or self._role == Role.UNKNOWN:
-            self._role = self._determine_role()
+            role = self._determine_role()
+            if self._role != role:
+                self._role = role
+                updated = True
+
+        if fire_event and updated:
+            network = self.get_local_xbee_device().get_network() if self.is_remote() \
+                else self.get_network()
+            if (network
+                    and (not self.is_remote()
+                         or network.get_device_by_64(self._64bit_addr)
+                         or network.get_device_by_16(self._16bit_addr))):
+                network._XBeeNetwork__network_modified(
+                    NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
 
     def _determine_role(self):
         """
@@ -5021,7 +5052,7 @@ class IPDevice(XBeeDevice):
         self._ip_addr = None
         self._source_port = self.__DEFAULT_SOURCE_PORT
 
-    def read_device_info(self, init=True):
+    def read_device_info(self, init=True, fire_event=True):
         """
         Override.
 
@@ -5591,7 +5622,7 @@ class CellularDevice(IPDevice):
         """
         return XBeeProtocol.CELLULAR
 
-    def read_device_info(self, init=True):
+    def read_device_info(self, init=True, fire_event=True):
         """
         Override.
 
@@ -9971,6 +10002,7 @@ class NetworkEventReason(Enum):
     RECEIVED_MSG = (0x02, "Received message from XBee")
     MANUAL = (0x03, "Manual modification")
     ROUTE = (0x04, "Hop of a network route")
+    READ_INFO = (0x05, "Read XBee information")
 
     def __init__(self, code, description):
         self.__code = code
