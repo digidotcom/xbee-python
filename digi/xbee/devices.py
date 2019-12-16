@@ -507,7 +507,7 @@ class AbstractXBeeDevice(object):
                      or self._16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS)):
             r = self.get_parameter(ATStringCommand.MY.command)
             self._16bit_addr = XBee16BitAddress(r)
-        else:
+        elif not self._16bit_addr:
             # For protocols that do not support a 16 bit address, set it to unknown
             self._16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
 
