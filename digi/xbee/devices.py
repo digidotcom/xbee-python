@@ -1574,12 +1574,31 @@ class AbstractXBeeDevice(object):
             parameter (String): the parameter to refresh its value.
             value (Bytearray): the new value of the parameter.
         """
+        updated = False
+
+        # Node identifier
         if parameter == ATStringCommand.NI.command:
-            self._node_id = value.decode()
+            node_id = value.decode()
+            updated = self._node_id != node_id
+            self._node_id = node_id
+        # 16-bit address
         elif parameter == ATStringCommand.MY.command:
-            self._16bit_addr = XBee16BitAddress(value)
+            x16bit_addr = XBee16BitAddress(value)
+            updated = self._16bit_addr != x16bit_addr
+            self._16bit_addr = x16bit_addr
+        # Operating mode
         elif parameter == ATStringCommand.AP.command:
             self._operating_mode = OperatingMode.get(utils.bytes_to_int(value))
+
+        if updated:
+            network = self.get_local_xbee_device().get_network() if self.is_remote() \
+                else self.get_network()
+            if (network
+                    and (not self.is_remote()
+                         or network.get_device_by_64(self._64bit_addr)
+                         or network.get_device_by_16(self._16bit_addr))):
+                network._XBeeNetwork__network_modified(
+                    NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
 
     def _get_next_frame_id(self):
         """
@@ -8076,7 +8095,7 @@ class XBeeNetwork(object):
         return remote_xbee
 
     def __add_remote_from_attr(self, reason, x64bit_addr=None, x16bit_addr=None, node_id=None,
-                               role=Role.UNKNOWN):
+                               role=Role.UNKNOWN, hw_version=None, fw_version=None):
         """
         Creates a new XBee using the provided data and adds it to the network if it is not
         included yet.
@@ -8093,6 +8112,8 @@ class XBeeNetwork(object):
             node_id (String, optional, default=``None``): The node identifier of the remote XBee.
             role (:class:`digi.xbee.models.protocol.Role`, optional, default=``Role.UNKNOWN``):
                 The role of the remote XBee
+            hw_version (:class:`.HardwareVersion`, optional, default=`None`): The hardware version.
+            fw_version (bytearray, optional, default=`None`): The firmware version.
 
         Returns:
             :class:`.RemoteXBeeDevice`: the remote XBee device generated from the provided data if
@@ -8103,6 +8124,7 @@ class XBeeNetwork(object):
             | :class:`.NetworkEventReason`
             | :class:`digi.xbee.models.address.XBee16BitAddress`
             | :class:`digi.xbee.models.address.XBee64BitAddress`
+            | :class:`digi.xbee.models.hw.HardwareVersion`
             | :class:`digi.xbee.models.protocol.Role`
 
         Returns:
@@ -8110,7 +8132,8 @@ class XBeeNetwork(object):
         """
         return self.__add_remote(
             self.__create_remote(x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
-                                 node_id=node_id, role=role), reason)
+                                 node_id=node_id, role=role, hw_version=hw_version,
+                                 fw_version=fw_version), reason)
 
     def add_remotes(self, remote_xbee_devices):
         """
@@ -8864,7 +8887,8 @@ class XBeeNetwork(object):
 
     def __create_remote(self, x64bit_addr=XBee64BitAddress.UNKNOWN_ADDRESS,
                         x16bit_addr=XBee16BitAddress.UNKNOWN_ADDRESS, node_id=None,
-                        role=Role.UNKNOWN, parent_addr=None):
+                        role=Role.UNKNOWN, parent_addr=None, hw_version=None,
+                        fw_version=None):
         """
         Creates and returns a :class:`.RemoteXBeeDevice` from the provided data,
         if the data contains the required information and in the required
@@ -8880,6 +8904,8 @@ class XBeeNetwork(object):
                 The role of the remote XBee
             parent_addr (:class:`.XBee64BitAddress`, optional, default=``None``):
                 The 64-bit address of the parent.
+            hw_version (:class:`.HardwareVersion`, optional, default=`None`): The hardware version.
+            fw_version (bytearray, optional, default=`None`): The firmware version.
 
         Returns:
             :class:`.RemoteXBeeDevice`: the remote XBee device generated from the provided data if
@@ -8889,6 +8915,7 @@ class XBeeNetwork(object):
         .. seealso::
             | :class:`digi.xbee.models.address.XBee16BitAddress`
             | :class:`digi.xbee.models.address.XBee64BitAddress`
+            | :class:`digi.xbee.models.hw.HardwareVersion`
             | :class:`digi.xbee.models.protocol.Role`
         """
         if not x64bit_addr and not x16bit_addr:
@@ -8916,6 +8943,8 @@ class XBeeNetwork(object):
                                   x16bit_addr=x16bit_addr, node_id=node_id)
 
         xb._role = role
+        xb._hardware_version = hw_version
+        xb._firmware_version = fw_version
         return xb
 
     def __get_data_for_remote(self, data):

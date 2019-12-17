@@ -21,10 +21,13 @@ import time
 
 import digi.xbee.devices
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
+from digi.xbee.models.atcomm import ATStringCommand
+from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
     SMSMessage, UserDataRelayMessage
 from digi.xbee.models.options import XBeeLocalInterface
 from digi.xbee.models.protocol import XBeeProtocol
+from digi.xbee.models.status import ATCommandStatus
 from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.common import ReceivePacket, IODataSampleRxIndicatorPacket
@@ -1366,16 +1369,31 @@ class PacketListener(threading.Thread):
     @staticmethod
     def __get_remote_device_data_from_packet(xbee_packet):
         """
-        Extracts the 64 bit-address and the 16 bit-address from ``xbee_packet`` if is
-        possible.
+        Extracts the 64 bit-address, the 16 bit-address, node identifier,
+        hardware version, and firmware version from ``xbee_packet`` if is possible.
         """
         x64bit_addr = None
         x16bit_addr = None
+        node_id = None
+        hw_version = None
+        fw_version = None
         if hasattr(xbee_packet, "x64bit_source_addr"):
             x64bit_addr = xbee_packet.x64bit_source_addr
         if hasattr(xbee_packet, "x16bit_source_addr"):
             x16bit_addr = xbee_packet.x16bit_source_addr
-        return x64bit_addr, x16bit_addr
+
+        # Check if NI, HV, VR values are included in the response
+        if (xbee_packet.get_frame_type() in
+                [ApiFrameType.AT_COMMAND_RESPONSE, ApiFrameType.REMOTE_AT_COMMAND_RESPONSE]
+                and xbee_packet.status == ATCommandStatus.OK):
+            if xbee_packet.command == ATStringCommand.NI.command:
+                node_id = xbee_packet.command_value.decode()
+            elif xbee_packet.command == ATStringCommand.HV.command:
+                hw_version = HardwareVersion.get(xbee_packet.command_value[0])
+            elif xbee_packet.command == ATStringCommand.VR.command:
+                fw_version = xbee_packet.command_value
+
+        return x64bit_addr, x16bit_addr, node_id, hw_version, fw_version
 
     @staticmethod
     def __check_packet_802_15_4(raw_data):
@@ -1411,10 +1429,11 @@ class PacketListener(threading.Thread):
                 not information about a remote device.
         """
         remote = None
-        x64, x16 = self.__get_remote_device_data_from_packet(xbee_packet)
+        x64, x16, n_id, hw_ver, fw_ver = self.__get_remote_device_data_from_packet(xbee_packet)
         if x64 is not None or x16 is not None:
             remote = self.__xbee_device.get_network()._XBeeNetwork__add_remote_from_attr(
-                digi.xbee.devices.NetworkEventReason.RECEIVED_MSG, x64bit_addr=x64, x16bit_addr=x16)
+                digi.xbee.devices.NetworkEventReason.RECEIVED_MSG, x64bit_addr=x64,
+                x16bit_addr=x16, node_id=n_id, hw_version=hw_ver, fw_version=fw_ver)
         return remote
 
     @staticmethod
