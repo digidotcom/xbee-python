@@ -88,14 +88,14 @@ class UserDataRelayPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=UserDataRelayPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.USER_DATA_RELAY_REQUEST.code:
-            raise InvalidPacketException(message="This packet is not a user data relay packet.")
+            raise InvalidPacketException("This packet is not a user data relay packet.")
 
-        return UserDataRelayPacket(raw[4], XBeeLocalInterface.get([5]), data=raw[6:-1])
+        return UserDataRelayPacket(raw[4], XBeeLocalInterface.get([5]), raw[6:-1])
 
     def needs_id(self):
         """
@@ -248,14 +248,14 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=UserDataRelayOutputPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.USER_DATA_RELAY_OUTPUT.code:
-            raise InvalidPacketException(message="This packet is not a user data relay output packet.")
+            raise InvalidPacketException("This packet is not a user data relay output packet.")
 
-        return UserDataRelayOutputPacket(XBeeLocalInterface.get(raw[4]), data=raw[5:-1])
+        return UserDataRelayOutputPacket(XBeeLocalInterface.get(raw[4]), raw[5:-1])
 
     def needs_id(self):
         """

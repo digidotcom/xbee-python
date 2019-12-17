@@ -19,11 +19,10 @@ from digi.xbee.packets.devicecloud import *
 from digi.xbee.packets.network import *
 from digi.xbee.packets.raw import *
 from digi.xbee.packets.relay import *
-from digi.xbee.packets.socket import *
 from digi.xbee.packets.wifi import *
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.models.mode import OperatingMode
-from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, RegisterDeviceStatusPacket
+
 
 """
 This module provides functionality to build XBee packets from
@@ -117,7 +116,7 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     frame_type = ApiFrameType.get(packet_bytearray[3])
 
     if frame_type == ApiFrameType.GENERIC:
-        return GenericXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)
+        return GenericXBeePacket.create_packet(packet_bytearray, operating_mode)
 
     elif frame_type == ApiFrameType.AT_COMMAND:
         return ATCommPacket.create_packet(packet_bytearray, operating_mode)
@@ -215,59 +214,5 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     elif frame_type == ApiFrameType.FRAME_ERROR:
         return FrameErrorPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.REGISTER_JOINING_DEVICE:
-        return RegisterJoiningDevicePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.REGISTER_JOINING_DEVICE_STATUS:
-        return RegisterDeviceStatusPacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_CREATE:
-        return SocketCreatePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_CREATE_RESPONSE:
-        return SocketCreateResponsePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_OPTION_REQUEST:
-        return SocketOptionRequestPacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_OPTION_RESPONSE:
-        return SocketOptionResponsePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_CONNECT:
-        return SocketConnectPacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_CONNECT_RESPONSE:
-        return SocketConnectResponsePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_CLOSE:
-        return SocketClosePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_CLOSE_RESPONSE:
-        return SocketCloseResponsePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_SEND:
-        return SocketSendPacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_SENDTO:
-        return SocketSendToPacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_BIND:
-        return SocketBindListenPacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_LISTEN_RESPONSE:
-        return SocketListenResponsePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_NEW_IPV4_CLIENT:
-        return SocketNewIPv4ClientPacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_RECEIVE:
-        return SocketReceivePacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_RECEIVE_FROM:
-        return SocketReceiveFromPacket.create_packet(packet_bytearray, operating_mode)
-
-    elif frame_type == ApiFrameType.SOCKET_STATE:
-        return SocketStatePacket.create_packet(packet_bytearray, operating_mode)
-
     else:
-        return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)
+        return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode)

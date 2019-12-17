@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,6 +21,7 @@ from digi.xbee.models.mode import OperatingMode
 from digi.xbee.io import IOSample, IOLine
 from digi.xbee.util import utils
 
+import copy
 
 class TX64Packet(XBeeAPIPacket):
     """
@@ -36,7 +37,7 @@ class TX64Packet(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 15
 
-    def __init__(self, frame_id, x64bit_addr, transmit_options, rf_data=None):
+    def __init__(self, frame_id, x64bit_addr, transmit_options, rf_data):
         """
         Class constructor. Instantiates a new :class:`.TX64Packet` object with the provided parameters.
 
@@ -57,7 +58,7 @@ class TX64Packet(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.TX_64)
+        super(TX64Packet, self).__init__(ApiFrameType.TX_64)
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__transmit_options = transmit_options
@@ -86,14 +87,14 @@ class TX64Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TX64Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_64.code:
-            raise InvalidPacketException(message="This packet is not a TX 64 packet.")
+            raise InvalidPacketException("This packet is not a TX 64 packet.")
 
-        return TX64Packet(raw[4], XBee64BitAddress(raw[5:13]), raw[13], rf_data=raw[14:-1])
+        return TX64Packet(raw[4], XBee64BitAddress(raw[5:13]), raw[13], raw[14:-1])
 
     def needs_id(self):
         """
@@ -185,7 +186,7 @@ class TX64Packet(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -197,7 +198,7 @@ class TX64Packet(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
     x64bit_dest_addr = property(__get_64bit_addr, __set_64bit_addr)
     """XBee64BitAddress. 64-bit destination address."""
@@ -244,7 +245,7 @@ class TX16Packet(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.TX_16)
+        super(TX16Packet, self).__init__(ApiFrameType.TX_16)
         self._frame_id = frame_id
         self.__x16bit_addr = x16bit_addr
         self.__transmit_options = transmit_options
@@ -273,14 +274,14 @@ class TX16Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TX16Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_16.code:
-            raise InvalidPacketException(message="This packet is not a TX 16 packet.")
+            raise InvalidPacketException("This packet is not a TX 16 packet.")
 
-        return TX16Packet(raw[4], XBee16BitAddress(raw[5:7]), raw[7], rf_data=raw[8:-1])
+        return TX16Packet(raw[4], XBee16BitAddress(raw[5:7]), raw[7], raw[8:-1])
 
     def needs_id(self):
         """
@@ -372,7 +373,7 @@ class TX16Packet(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -384,7 +385,7 @@ class TX16Packet(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
     x16bit_dest_addr = property(__get_16bit_addr, __set_16bit_addr)
     """XBee64BitAddress. 16-bit destination address."""
@@ -431,7 +432,7 @@ class TXStatusPacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.TX_STATUS)
+        super(TXStatusPacket, self).__init__(ApiFrameType.TX_STATUS)
         self._frame_id = frame_id
         self.__transmit_status = transmit_status
 
@@ -458,12 +459,12 @@ class TXStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TXStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_STATUS.code:
-            raise InvalidPacketException(message="This packet is not a TX status packet.")
+            raise InvalidPacketException("This packet is not a TX status packet.")
 
         return TXStatusPacket(raw[4], TransmitStatus.get(raw[5]))
 
@@ -483,7 +484,7 @@ class TXStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        return utils.int_to_bytes(self.__transmit_status.code, num_bytes=1)
+        return utils.int_to_bytes(self.__transmit_status.code, 1)
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -556,7 +557,7 @@ class RX64Packet(XBeeAPIPacket):
            | :class:`.XBeeAPIPacket`
         """
 
-        super().__init__(ApiFrameType.RX_64)
+        super(RX64Packet, self).__init__(ApiFrameType.RX_64)
 
         self.__x64bit_addr = x64bit_addr
         self.__rssi = rssi
@@ -586,14 +587,14 @@ class RX64Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RX64Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_64.code:
-            raise InvalidPacketException(message="This packet is not an RX 64 packet.")
+            raise InvalidPacketException("This packet is not an RX 64 packet.")
 
-        return RX64Packet(XBee64BitAddress(raw[4:12]), raw[12], raw[13], rf_data=raw[14:-1])
+        return RX64Packet(XBee64BitAddress(raw[4:12]), raw[12], raw[13], raw[14:-1])
 
     def needs_id(self):
         """
@@ -603,16 +604,6 @@ class RX64Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
-
-    def is_broadcast(self):
-        """
-        Override method.
-
-        .. seealso::
-           | :meth:`XBeeAPIPacket.is_broadcast`
-        """
-        return (utils.is_bit_enabled(self.__receive_options, 1)
-                or utils.is_bit_enabled(self.__receive_options, 2))
 
     def _get_api_packet_spec_data(self):
         """
@@ -715,7 +706,7 @@ class RX64Packet(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -727,7 +718,7 @@ class RX64Packet(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
     x64bit_source_addr = property(__get_64bit_addr, __set_64bit_addr)
     """:class:`.XBee64BitAddress`. 64-bit source address."""
@@ -776,7 +767,7 @@ class RX16Packet(XBeeAPIPacket):
            | :class:`.XBeeAPIPacket`
         """
 
-        super().__init__(ApiFrameType.RX_16)
+        super(RX16Packet, self).__init__(ApiFrameType.RX_16)
 
         self.__x16bit_addr = x16bit_addr
         self.__rssi = rssi
@@ -806,14 +797,14 @@ class RX16Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RX16Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_16.code:
-            raise InvalidPacketException(message="This packet is not an RX 16 Packet")
+            raise InvalidPacketException("This packet is not an RX 16 Packet")
 
-        return RX16Packet(XBee16BitAddress(raw[4:6]), raw[6], raw[7], rf_data=raw[8:-1])
+        return RX16Packet(XBee16BitAddress(raw[4:6]), raw[6], raw[7], raw[8:-1])
 
     def needs_id(self):
         """
@@ -823,16 +814,6 @@ class RX16Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
-
-    def is_broadcast(self):
-        """
-        Override method.
-
-        .. seealso::
-           | :meth:`XBeeAPIPacket.is_broadcast`
-        """
-        return (utils.is_bit_enabled(self.__receive_options, 1)
-                or utils.is_bit_enabled(self.__receive_options, 2))
 
     def _get_api_packet_spec_data(self):
         """
@@ -936,7 +917,7 @@ class RX16Packet(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -948,7 +929,7 @@ class RX16Packet(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
     x16bit_source_addr = property(__get_16bit_addr, __set_16bit_addr)
     """:class:`.XBee16BitAddress`. 16-bit source address."""
@@ -991,7 +972,7 @@ class RX64IOPacket(XBeeAPIPacket):
            | :class:`.XBee64BitAddress`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.RX_IO_64)
+        super(RX64IOPacket, self).__init__(ApiFrameType.RX_IO_64)
         self.__x64bit_addr = x64bit_addr
         self.__rssi = rssi
         self.__receive_options = receive_options
@@ -1021,12 +1002,12 @@ class RX64IOPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RX64IOPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_IO_64.code:
-            raise InvalidPacketException(message="This packet is not an RX 64 IO packet.")
+            raise InvalidPacketException("This packet is not an RX 64 IO packet.")
 
         return RX64IOPacket(XBee64BitAddress(raw[4:12]), raw[12], raw[13], raw[14:-1])
 
@@ -1038,16 +1019,6 @@ class RX64IOPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
-
-    def is_broadcast(self):
-        """
-        Override method.
-
-        .. seealso::
-           | :meth:`XBeeAPIPacket.is_broadcast`
-        """
-        return (utils.is_bit_enabled(self.__receive_options, 1)
-                or utils.is_bit_enabled(self.__receive_options, 2))
 
     def _get_api_packet_spec_data(self):
         """
@@ -1175,7 +1146,7 @@ class RX64IOPacket(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -1187,7 +1158,7 @@ class RX64IOPacket(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
         # Modify the ioSample accordingly
         if rf_data is not None and len(rf_data) >= 5:
@@ -1264,7 +1235,7 @@ class RX16IOPacket(XBeeAPIPacket):
            | :class:`.XBee16BitAddress`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.RX_IO_16)
+        super(RX16IOPacket, self).__init__(ApiFrameType.RX_IO_16)
         self.__x16bit_addr = x16bit_addr
         self.__rssi = rssi
         self.__options = receive_options
@@ -1294,12 +1265,12 @@ class RX16IOPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RX16IOPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_IO_16.code:
-            raise InvalidPacketException(message="This packet is not an RX 16 IO packet.")
+            raise InvalidPacketException("This packet is not an RX 16 IO packet.")
 
         return RX16IOPacket(XBee16BitAddress(raw[4:6]), raw[6], raw[7], raw[8:-1])
 
@@ -1311,16 +1282,6 @@ class RX16IOPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
-
-    def is_broadcast(self):
-        """
-        Override method.
-
-        .. seealso::
-           | :meth:`XBeeAPIPacket.is_broadcast`
-        """
-        return (utils.is_bit_enabled(self.__receive_options, 1)
-                or utils.is_bit_enabled(self.__receive_options, 2))
 
     def _get_api_packet_spec_data(self):
         """
@@ -1449,7 +1410,7 @@ class RX16IOPacket(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -1461,7 +1422,7 @@ class RX16IOPacket(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
         # Modify the ioSample accordingly
         if rf_data is not None and len(rf_data) >= 5:

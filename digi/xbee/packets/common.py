@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,6 +21,7 @@ from digi.xbee.util import utils
 from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketException
 from digi.xbee.io import IOSample, IOLine
 
+import copy
 
 class ATCommPacket(XBeeAPIPacket):
     """
@@ -61,7 +62,7 @@ class ATCommPacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.AT_COMMAND)
+        super(ATCommPacket, self).__init__(ApiFrameType.AT_COMMAND)
         self.__command = command
         self.__parameter = parameter
         self._frame_id = frame_id
@@ -89,14 +90,14 @@ class ATCommPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.AT_COMMAND.code:
-            raise InvalidPacketException(message="This packet is not an AT command packet.")
+            raise InvalidPacketException("This packet is not an AT command packet.")
 
-        return ATCommPacket(raw[4], raw[5:7].decode("utf8"), parameter=raw[7:-1])
+        return ATCommPacket(raw[4], raw[5:7].decode("utf8"), raw[7:-1])
 
     def needs_id(self):
         """
@@ -218,7 +219,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.AT_COMMAND_QUEUE)
+        super(ATCommQueuePacket, self).__init__(ApiFrameType.AT_COMMAND_QUEUE)
         self.__command = command
         self.__parameter = parameter
         self._frame_id = frame_id
@@ -246,14 +247,14 @@ class ATCommQueuePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommQueuePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.AT_COMMAND_QUEUE.code:
-            raise InvalidPacketException(message="This packet is not an AT command Queue packet.")
+            raise InvalidPacketException("This packet is not an AT command Queue packet.")
 
-        return ATCommQueuePacket(raw[4], raw[5:7].decode("utf8"), parameter=raw[7:-1])
+        return ATCommQueuePacket(raw[4], raw[5:7].decode("utf8"), raw[7:-1])
 
     def needs_id(self):
         """
@@ -348,7 +349,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
     
     .. seealso::
        | :class:`.ATCommPacket`
-       | :class:`.ATCommandStatus`
+       | :class:`.ATCommandStatus` 
        | :class:`.XBeeAPIPacket`
     """
 
@@ -357,11 +358,11 @@ class ATCommResponsePacket(XBeeAPIPacket):
     def __init__(self, frame_id, command, response_status=ATCommandStatus.OK, comm_value=None):
         """
         Class constructor. Instantiates a new :class:`.ATCommResponsePacket` object with the provided parameters.
-
+        
         Args:
             frame_id (Integer): the frame ID of the packet. Must be between 0 and 255.
             command (String): the AT command of the packet. Must be a string.
-            response_status (:class:`.ATCommandStatus` or Integer): the status of the AT command.
+            response_status (:class:`.ATCommandStatus`): the status of the AT command.
             comm_value (Bytearray, optional): the AT command response value. Optional.
 
         Raises:
@@ -376,21 +377,11 @@ class ATCommResponsePacket(XBeeAPIPacket):
             raise ValueError("Frame id must be between 0 and 255.")
         if len(command) != 2:
             raise ValueError("Invalid command " + command)
-        if response_status is None:
-            response_status = ATCommandStatus.OK.code
-        elif not isinstance(response_status, (ATCommandStatus, int)):
-            raise TypeError("Response status must be ATCommandStatus or int not {!r}".format(
-                response_status.__class__.__name__))
 
-        super().__init__(ApiFrameType.AT_COMMAND_RESPONSE)
+        super(ATCommResponsePacket, self).__init__(ApiFrameType.AT_COMMAND_RESPONSE)
         self._frame_id = frame_id
         self.__command = command
-        if isinstance(response_status, ATCommandStatus):
-            self.__response_status = response_status.code
-        elif 0 <= response_status <= 255:
-            self.__response_status = response_status
-        else:
-            raise ValueError("Response status must be between 0 and 255.")
+        self.__response_status = response_status
         self.__comm_value = comm_value
 
     @staticmethod
@@ -417,16 +408,16 @@ class ATCommResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.AT_COMMAND_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not an AT command response packet.")
+            raise InvalidPacketException("This packet is not an AT command response packet.")
         if ATCommandStatus.get(raw[7]) is None:
-            raise InvalidPacketException(message="Invalid command status.")
+            raise InvalidPacketException("Invalid command status.")
 
-        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), raw[7], comm_value=raw[8:-1])
+        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), ATCommandStatus.get(raw[7]), raw[8:-1])
 
     def needs_id(self):
         """
@@ -445,7 +436,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         ret = bytearray(self.__command, "utf8")
-        ret.append(self.__response_status)
+        ret.append(self.__response_status.code)
         if self.__comm_value is not None:
             ret += self.__comm_value
         return ret
@@ -505,49 +496,26 @@ class ATCommResponsePacket(XBeeAPIPacket):
     def __get_response_status(self):
         """
         Returns the AT command response status of the packet.
-
+        
         Returns:
             :class:`.ATCommandStatus`: the AT command response status of the packet.
 
         .. seealso::
            | :class:`.ATCommandStatus`
         """
-        return ATCommandStatus.get(self.__response_status)
-
-    def __get_real_response_status(self):
-        """
-        Returns the AT command response status of the packet.
-
-        Returns:
-            Integer: the AT command response status of the packet.
-        """
         return self.__response_status
 
     def __set_response_status(self, response_status):
         """
         Sets the AT command response status of the packet
-
+        
         Args:
-            response_status (:class:`.ATCommandStatus`) : the new AT command
-                response status of the packet.
+            response_status (:class:`.ATCommandStatus`) : the new AT command response status of the packet.
 
         .. seealso::
            | :class:`.ATCommandStatus`
         """
-        if response_status is None:
-            raise ValueError("Response status cannot be None")
-
-        if isinstance(response_status, ATCommandStatus):
-            self.__response_status = response_status.code
-        elif isinstance(response_status, int):
-            if 0 <= response_status <= 255:
-                self.__response_status = response_status
-            else:
-                raise ValueError("Response status must be between 0 and 255.")
-        else:
-            raise TypeError(
-                "Response status must be ATCommandStatus or int not {!r}".
-                format(response_status.__class__.__name__))
+        self.__response_status = response_status
 
     command = property(__get_command, __set_command)
     """String. AT command."""
@@ -557,9 +525,6 @@ class ATCommResponsePacket(XBeeAPIPacket):
 
     status = property(__get_response_status, __set_response_status)
     """:class:`.ATCommandStatus`. AT command response status."""
-
-    real_status = property(__get_real_response_status, __set_response_status)
-    """Integer. AT command response status."""
 
 
 class ReceivePacket(XBeeAPIPacket):
@@ -600,7 +565,7 @@ class ReceivePacket(XBeeAPIPacket):
            | :class:`.XBee64BitAddress`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.RECEIVE_PACKET)
+        super(ReceivePacket, self).__init__(ApiFrameType.RECEIVE_PACKET)
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
         self.__receive_options = receive_options
@@ -629,16 +594,16 @@ class ReceivePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ReceivePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RECEIVE_PACKET.code:
-            raise InvalidPacketException(message="This packet is not a receive packet.")
+            raise InvalidPacketException("This packet is not a receive packet.")
         return ReceivePacket(XBee64BitAddress(raw[4:12]),
                              XBee16BitAddress(raw[12:14]),
                              raw[14],
-                             rf_data=raw[15:-1])
+                             raw[15:-1])
 
     def needs_id(self):
         """
@@ -648,15 +613,6 @@ class ReceivePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
-
-    def is_broadcast(self):
-        """
-        Override method.
-
-        .. seealso::
-           | :meth:`XBeeAPIPacket.is_broadcast`
-        """
-        return utils.is_bit_enabled(self.__receive_options, 1)
 
     def _get_api_packet_spec_data(self):
         """
@@ -765,7 +721,7 @@ class ReceivePacket(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -777,7 +733,7 @@ class ReceivePacket(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
     x64bit_source_addr = property(__get_64bit_addr, __set_64bit_addr)
     """:class:`.XBee64BitAddress`. 64-bit source address."""
@@ -841,7 +797,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         if len(command) != 2:
             raise ValueError("Invalid command " + command)
 
-        super().__init__(ApiFrameType.REMOTE_AT_COMMAND_REQUEST)
+        super(RemoteATCommandPacket, self).__init__(ApiFrameType.REMOTE_AT_COMMAND_REQUEST)
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
@@ -873,12 +829,12 @@ class RemoteATCommandPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_REQUEST.code:
-            raise InvalidPacketException(message="This packet is not a remote AT command request packet.")
+            raise InvalidPacketException("This packet is not a remote AT command request packet.")
 
         return RemoteATCommandPacket(
                 raw[4],
@@ -1080,7 +1036,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit source address
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit source address.
             command (String): the AT command of the packet. Must be a string.
-            response_status (:class:`.ATCommandStatus` or Integer): the status of the AT command.
+            response_status (:class:`.ATCommandStatus`): the status of the AT command.
             comm_value (Bytearray, optional): the AT command response value. Optional.
 
         Raises:
@@ -1097,23 +1053,13 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
             raise ValueError("frame_id must be between 0 and 255.")
         if len(command) != 2:
             raise ValueError("Invalid command " + command)
-        if response_status is None:
-            response_status = ATCommandStatus.OK.code
-        elif not isinstance(response_status, (ATCommandStatus, int)):
-            raise TypeError("Response status must be ATCommandStatus or int not {!r}".format(
-                response_status.__class__.__name__))
 
-        super().__init__(ApiFrameType.REMOTE_AT_COMMAND_RESPONSE)
+        super(RemoteATCommandResponsePacket, self).__init__(ApiFrameType.REMOTE_AT_COMMAND_RESPONSE)
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
         self.__command = command
-        if isinstance(response_status, ATCommandStatus):
-            self.__response_status = response_status.code
-        elif 0 <= response_status <= 255:
-            self.__response_status = response_status
-        else:
-            raise ValueError("Response status must be between 0 and 255.")
+        self.__response_status = response_status
         self.__comm_value = comm_value
 
     @staticmethod
@@ -1140,16 +1086,16 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not a remote AT command response packet.")
+            raise InvalidPacketException("This packet is not a remote AT command response packet.")
 
         return RemoteATCommandResponsePacket(raw[4], XBee64BitAddress(raw[5:13]),
                                              XBee16BitAddress(raw[13:15]), raw[15:17].decode("utf8"),
-                                             raw[17], comm_value=raw[18:-1])
+                                             ATCommandStatus.get(raw[17]), raw[18:-1])
 
     def needs_id(self):
         """
@@ -1170,7 +1116,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
         ret += bytearray(self.__command, "utf8")
-        ret.append(self.__response_status)
+        ret.append(self.__response_status.code)
         if self.__comm_value is not None:
             ret += self.__comm_value
         return ret
@@ -1233,15 +1179,6 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ATCommandStatus`
         """
-        return ATCommandStatus.get(self.__response_status)
-
-    def __get_real_response_status(self):
-        """
-        Returns the AT command response status of the packet.
-
-        Returns:
-            Integer: the AT command response status of the packet.
-        """
         return self.__response_status
 
     def __set_response_status(self, response_status):
@@ -1249,26 +1186,12 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         Sets the AT command response status of the packet
 
         Args:
-            response_status (:class:`.ATCommandStatus`) : the new AT command
-                response status of the packet.
+            response_status (:class:`.ATCommandStatus`) : the new AT command response status of the packet.
 
         .. seealso::
            | :class:`.ATCommandStatus`
         """
-        if response_status is None:
-            raise ValueError("Response status cannot be None")
-
-        if isinstance(response_status, ATCommandStatus):
-            self.__response_status = response_status.code
-        elif isinstance(response_status, int):
-            if 0 <= response_status <= 255:
-                self.__response_status = response_status
-            else:
-                raise ValueError("Response status must be between 0 and 255.")
-        else:
-            raise TypeError(
-                "Response status must be ATCommandStatus or int not {!r}".
-                format(response_status.__class__.__name__))
+        self.__response_status = response_status
 
     def __get_64bit_addr(self):
         """
@@ -1332,9 +1255,6 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
 
     status = property(__get_response_status, __set_response_status)
     """:class:`.ATCommandStatus`. AT command response status."""
-
-    real_status = property(__get_real_response_status, __set_response_status)
-    """Integer. AT command response status."""
 
 
 class TransmitPacket(XBeeAPIPacket):
@@ -1407,7 +1327,7 @@ class TransmitPacket(XBeeAPIPacket):
         if frame_id > 255 or frame_id < 0:
             raise ValueError("frame_id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.TRANSMIT_REQUEST)
+        super(TransmitPacket, self).__init__(ApiFrameType.TRANSMIT_REQUEST)
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
@@ -1438,16 +1358,16 @@ class TransmitPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TransmitPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TRANSMIT_REQUEST.code:
-            raise InvalidPacketException(message="This packet is not a transmit request packet.")
+            raise InvalidPacketException("This packet is not a transmit request packet.")
 
         return TransmitPacket(raw[4], XBee64BitAddress(raw[5:13]),
                               XBee16BitAddress(raw[13:15]), raw[15],
-                              raw[16], rf_data=raw[17:-1])
+                              raw[16], raw[17:-1])
 
     def needs_id(self):
         """
@@ -1470,7 +1390,7 @@ class TransmitPacket(XBeeAPIPacket):
         ret.append(self.__broadcast_radius)
         ret.append(self.__transmit_options)
         if self.__rf_data is not None:
-            return ret + self.__rf_data
+            return ret + bytes(self.__rf_data)
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -1495,7 +1415,7 @@ class TransmitPacket(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -1507,7 +1427,7 @@ class TransmitPacket(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
     def __get_transmit_options(self):
         """
@@ -1657,7 +1577,7 @@ class TransmitStatusPacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.TRANSMIT_STATUS)
+        super(TransmitStatusPacket, self).__init__(ApiFrameType.TRANSMIT_STATUS)
         self._frame_id = frame_id
         self.__x16bit_addr = x16bit_addr
         self.__transmit_retry_count = transmit_retry_count
@@ -1688,16 +1608,15 @@ class TransmitStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TransmitStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TRANSMIT_STATUS.code:
-            raise InvalidPacketException(message="This packet is not a transmit status packet.")
+            raise InvalidPacketException("This packet is not a transmit status packet.")
 
         return TransmitStatusPacket(raw[4], XBee16BitAddress(raw[5:7]), raw[7],
-                                    transmit_status=TransmitStatus.get(raw[8]),
-                                    discovery_status=DiscoveryStatus.get(raw[9]))
+                                    TransmitStatus.get(raw[8]), DiscoveryStatus.get(raw[9]))
 
     def needs_id(self):
         """
@@ -1861,7 +1780,7 @@ class ModemStatusPacket(XBeeAPIPacket):
            | :class:`.ModemStatus`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.MODEM_STATUS)
+        super(ModemStatusPacket, self).__init__(ApiFrameType.MODEM_STATUS)
         self.__modem_status = modem_status
 
     @staticmethod
@@ -1887,12 +1806,12 @@ class ModemStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ModemStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.MODEM_STATUS.code:
-            raise InvalidPacketException(message="This packet is not a modem status packet.")
+            raise InvalidPacketException("This packet is not a modem status packet.")
 
         return ModemStatusPacket(ModemStatus.get(raw[4]))
 
@@ -1991,7 +1910,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
            | :class:`.XBee64BitAddress`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR)
+        super(IODataSampleRxIndicatorPacket, self).__init__(ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR)
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
         self.__receive_options = receive_options
@@ -2021,15 +1940,15 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=IODataSampleRxIndicatorPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR.code:
-            raise InvalidPacketException(message="This packet is not an IO data sample RX indicator packet.")
+            raise InvalidPacketException("This packet is not an IO data sample RX indicator packet.")
 
         return IODataSampleRxIndicatorPacket(XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]),
-                                             raw[14], rf_data=raw[15:-1])
+                                             raw[14], raw[15:-1])
 
     def needs_id(self):
         """
@@ -2181,7 +2100,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -2193,7 +2112,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
         # Modify the ioSample accordingly
         if rf_data is not None and len(rf_data) >= 5:
@@ -2334,7 +2253,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         if profile_id < 0 or profile_id > 0xFFFF:
             raise ValueError("Profile id must be between 0 and 0xFFFF.")
 
-        super().__init__(ApiFrameType.EXPLICIT_ADDRESSING)
+        super(ExplicitAddressingPacket, self).__init__(ApiFrameType.EXPLICIT_ADDRESSING)
         self._frame_id = frame_id
         self.__x64_addr = x64bit_addr
         self.__x16_addr = x16bit_addr
@@ -2370,16 +2289,16 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ExplicitAddressingPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.EXPLICIT_ADDRESSING.code:
-            raise InvalidPacketException(message="This packet is not an explicit addressing packet")
+            raise InvalidPacketException("This packet is not an explicit addressing packet")
 
         return ExplicitAddressingPacket(raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
                                         raw[15], raw[16], utils.bytes_to_int(raw[17:19]),
-                                        utils.bytes_to_int(raw[19:21]), raw[21], raw[22], rf_data=raw[23:-1])
+                                        utils.bytes_to_int(raw[19:21]), raw[21], raw[22], raw[23:-1])
 
     def needs_id(self):
         """
@@ -2401,8 +2320,8 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         raw += self.__x16_addr.address
         raw.append(self.__source_endpoint)
         raw.append(self.__dest_endpoint)
-        raw += utils.int_to_bytes(self.__cluster_id, num_bytes=2)
-        raw += utils.int_to_bytes(self.__profile_id, num_bytes=2)
+        raw += utils.int_to_bytes(self.__cluster_id, 2)
+        raw += utils.int_to_bytes(self.__profile_id, 2)
         raw.append(self.__broadcast_radius)
         raw.append(self.__transmit_options)
         if self.__rf_data is not None:
@@ -2507,7 +2426,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -2519,7 +2438,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
     def __get_transmit_options(self):
         """
@@ -2696,7 +2615,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         if profile_id < 0 or profile_id > 0xFFFF:
             raise ValueError("Profile id must be between 0 and 0xFFFF.")
 
-        super().__init__(ApiFrameType.EXPLICIT_RX_INDICATOR)
+        super(ExplicitRXIndicatorPacket, self).__init__(ApiFrameType.EXPLICIT_RX_INDICATOR)
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
         self.__source_endpoint = source_endpoint
@@ -2730,16 +2649,16 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=ExplicitRXIndicatorPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.EXPLICIT_RX_INDICATOR.code:
-            raise InvalidPacketException(message="This packet is not an explicit RX indicator packet.")
+            raise InvalidPacketException("This packet is not an explicit RX indicator packet.")
 
         return ExplicitRXIndicatorPacket(XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]), raw[14], raw[15],
                                          utils.bytes_to_int(raw[16:18]), utils.bytes_to_int(raw[18:20]),
-                                         raw[20], rf_data=raw[21:-1])
+                                         raw[20], raw[21:-1])
 
     def needs_id(self):
         """
@@ -2749,15 +2668,6 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket.needs_id`
         """
         return False
-
-    def is_broadcast(self):
-        """
-        Override method.
-
-        .. seealso::
-           | :meth:`XBeeAPIPacket.is_broadcast`
-        """
-        return utils.is_bit_enabled(self.__receive_options, 1)
 
     def _get_api_packet_spec_data(self):
         """
@@ -2770,8 +2680,8 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         raw += self.__x16bit_addr.address
         raw.append(self.__source_endpoint)
         raw.append(self.__dest_endpoint)
-        raw += utils.int_to_bytes(self.__cluster_id, num_bytes=2)
-        raw += utils.int_to_bytes(self.__profile_id, num_bytes=2)
+        raw += utils.int_to_bytes(self.__cluster_id, 2)
+        raw += utils.int_to_bytes(self.__profile_id, 2)
         raw.append(self.__receive_options)
         if self.__rf_data is not None:
             raw += self.__rf_data
@@ -2946,7 +2856,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         """
         if self.__rf_data is None:
             return None
-        return self.__rf_data.copy()
+        return copy.copy(self.__rf_data)
 
     def __set_rf_data(self, rf_data):
         """
@@ -2958,7 +2868,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         if rf_data is None:
             self.__rf_data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__rf_data = copy.copy(rf_data)
 
     x64bit_source_addr = property(__get_64bit_addr, __set_64bit_addr)
     """:class:`.XBee64BitAddress`. 64-bit source address."""

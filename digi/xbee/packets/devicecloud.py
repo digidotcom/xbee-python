@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -88,17 +88,15 @@ class DeviceRequestPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=DeviceRequestPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.DEVICE_REQUEST.code:
-            raise InvalidPacketException(message="This packet is not a device request packet.")
+            raise InvalidPacketException("This packet is not a device request packet.")
 
         target_length = raw[7]
-
-        return DeviceRequestPacket(raw[4], target=raw[8:8 + target_length].decode("utf8"),
-                                   request_data=raw[8 + target_length:-1])
+        return DeviceRequestPacket(raw[4], raw[8:8 + target_length].decode("utf8"), raw[8 + target_length:-1])
 
     def needs_id(self):
         """
@@ -311,14 +309,14 @@ class DeviceResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=DeviceResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.DEVICE_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not a device response packet.")
+            raise InvalidPacketException("This packet is not a device response packet.")
 
-        return DeviceResponsePacket(raw[4], raw[5], response_data=raw[7:-1])
+        return DeviceResponsePacket(raw[4], raw[5], raw[7:-1])
 
     def needs_id(self):
         """
@@ -467,12 +465,12 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=DeviceResponseStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.DEVICE_RESPONSE_STATUS.code:
-            raise InvalidPacketException(message="This packet is not a device response status packet.")
+            raise InvalidPacketException("This packet is not a device response status packet.")
 
         return DeviceResponseStatusPacket(raw[4], DeviceCloudStatus.get(raw[5]))
 
@@ -582,12 +580,12 @@ class FrameErrorPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=FrameErrorPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.FRAME_ERROR.code:
-            raise InvalidPacketException(message="This packet is not a frame error packet.")
+            raise InvalidPacketException("This packet is not a frame error packet.")
 
         return FrameErrorPacket(FrameError.get(raw[4]))
 
@@ -715,12 +713,12 @@ class SendDataRequestPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=SendDataRequestPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SEND_DATA_REQUEST.code:
-            raise InvalidPacketException(message="This packet is not a send data request packet.")
+            raise InvalidPacketException("This packet is not a send data request packet.")
 
         path_length = raw[5]
         content_type_length = raw[6 + path_length]
@@ -728,7 +726,7 @@ class SendDataRequestPacket(XBeeAPIPacket):
                                      raw[6:6 + path_length].decode("utf8"),
                                      raw[6 + path_length + 1:6 + path_length + 1 + content_type_length].decode("utf8"),
                                      SendDataRequestOptions.get(raw[6 + path_length + 2 + content_type_length]),
-                                     file_data=raw[6 + path_length + 3 + content_type_length:-1])
+                                     raw[6 + path_length + 3 + content_type_length:-1])
 
     def needs_id(self):
         """
@@ -934,12 +932,12 @@ class SendDataResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=SendDataResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SEND_DATA_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not a send data response packet.")
+            raise InvalidPacketException("This packet is not a send data response packet.")
 
         return SendDataResponsePacket(raw[4], DeviceCloudStatus.get(raw[5]))
 

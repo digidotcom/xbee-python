@@ -279,7 +279,7 @@ class IPProtocol(Enum):
 
     UDP = (0, "UDP")
     TCP = (1, "TCP")
-    TCP_SSL = (4, "TLS")
+    TCP_SSL = (4, "TCP SSL")
 
     def __init__(self, code, description):
         self.__code = code
@@ -320,23 +320,6 @@ class IPProtocol(Enum):
         except KeyError:
             return None
 
-    @classmethod
-    def get_by_description(cls, description):
-        """
-        Returns the IP Protocol for the given description.
-
-        Args:
-            description (String): the description of the IP Protocol to get.
-
-        Returns:
-            :class:`.IPProtocol`: IP protocol for the given description or ``None`` if there
-                is not any ``IPProtocol`` with the given description.
-        """
-        for x in IPProtocol:
-            if x.description.lower() == description.lower():
-                return x
-        return None
-
     code = property(__get_code)
     """Integer: IP protocol code."""
 
@@ -346,63 +329,3 @@ class IPProtocol(Enum):
 
 IPProtocol.lookupTable = {x.code: x for x in IPProtocol}
 IPProtocol.__doc__ += utils.doc_enum(IPProtocol)
-
-
-@unique
-class Role(Enum):
-    """
-    Enumerates the available roles for an XBee.
-
-    | Inherited properties:
-    |     **name** (String): the name (id) of this Role.
-    |     **value** (String): the value of this Role.
-    """
-
-    COORDINATOR = (0, "Coordinator")
-    ROUTER = (1, "Router")
-    END_DEVICE = (2, "End device")
-    UNKNOWN = (3, "Unknown")
-
-    def __init__(self, identifier, description):
-        self.__id = identifier
-        self.__desc = description
-
-    @property
-    def id(self):
-        """
-        Gets the identifier of the role.
-
-        Returns:
-            Integer: the role identifier.
-        """
-        return self.__id
-
-    @property
-    def description(self):
-        """
-        Gets the description of the role.
-
-        Returns:
-            String: the role description.
-        """
-        return self.__desc
-
-    @classmethod
-    def get(cls, identifier):
-        """
-        Returns the Role for the given identifier.
-
-        Args:
-            identifier (Integer): the id value corresponding to the role to get.
-
-        Returns:
-            :class:`.Role`: the Role with the given identifier. ``None`` if it does not exist.
-        """
-        for item in cls:
-            if identifier == item.id:
-                return item
-
-        return None
-
-
-Role.__doc__ += utils.doc_enum(Role)

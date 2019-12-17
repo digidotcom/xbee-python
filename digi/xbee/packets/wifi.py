@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -91,14 +91,14 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=IODataSampleRxIndicatorWifiPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR_WIFI.code:
-            raise InvalidPacketException(message="This packet is not an IO data sample RX indicator Wi-Fi packet.")
+            raise InvalidPacketException("This packet is not an IO data sample RX indicator Wi-Fi packet.")
 
-        return IODataSampleRxIndicatorWifiPacket(IPv4Address(bytes(raw[4:8])), raw[7], raw[8], rf_data=raw[9:-1])
+        return IODataSampleRxIndicatorWifiPacket(IPv4Address(bytes(raw[4:8])), raw[7], raw[8], raw[9:-1])
 
     def needs_id(self):
         """
@@ -374,19 +374,19 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandWifiPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_REQUEST_WIFI.code:
-            raise InvalidPacketException(message="This packet is not a remote AT command request Wi-Fi packet.")
+            raise InvalidPacketException("This packet is not a remote AT command request Wi-Fi packet.")
 
         return RemoteATCommandWifiPacket(
             raw[4],
             IPv4Address(bytes(raw[9:13])),
             raw[13],
             raw[14:16].decode("utf8"),
-            parameter=raw[16:-1]
+            raw[16:-1]
         )
 
     def needs_id(self):
@@ -601,18 +601,18 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandResponseWifiPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE_WIFI.code:
-            raise InvalidPacketException(message="This packet is not a remote AT command response Wi-Fi packet.")
+            raise InvalidPacketException("This packet is not a remote AT command response Wi-Fi packet.")
 
         return RemoteATCommandResponseWifiPacket(raw[4],
                                                  IPv4Address(bytes(raw[9:13])),
                                                  raw[13:15].decode("utf8"),
                                                  ATCommandStatus.get(raw[15]),
-                                                 comm_value=raw[16:-1])
+                                                 raw[16:-1])
 
     def needs_id(self):
         """

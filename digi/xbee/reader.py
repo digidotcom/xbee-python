@@ -13,21 +13,23 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from concurrent.futures import ThreadPoolExecutor
-from queue import Queue, Empty
-from threading import Event
+from Queue import Queue, Empty
 import logging
 import threading
 import time
 
 import digi.xbee.devices
+from digi.xbee.models.atcomm import SpecialByte
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
     SMSMessage, UserDataRelayMessage
-from digi.xbee.models.options import XBeeLocalInterface
+from digi.xbee.models.mode import OperatingMode
+from digi.xbee.models.options import ReceiveOptions, XBeeLocalInterface
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.packets import factory
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.common import ReceivePacket, IODataSampleRxIndicatorPacket
+from digi.xbee.packets.base import XBeePacket, XBeeAPIPacket
+from digi.xbee.packets.common import ReceivePacket
 from digi.xbee.packets.raw import RX64Packet, RX16Packet
 from digi.xbee.util import utils
 from digi.xbee.exception import TimeoutException, InvalidPacketException
@@ -152,28 +154,6 @@ class IOSampleReceived(XBeeEvent):
     pass
 
 
-class NetworkModified(XBeeEvent):
-    """
-    This event is fired when the network is being modified by the addition of a new node, an
-    existing node information is updated, a node removal, or when the network items are cleared.
-
-    The callbacks that handle this event will receive the following arguments:
-        1. event_type (:class:`digi.xbee.devices.NetworkEventType`): the network event type.
-        2. reason (:class:`digi.xbee.devices.NetworkEventReason`): The reason of the event.
-        3. node (:class:`digi.xbee.devices.XBeeDevice` or
-           :class:`digi.xbee.devices.RemoteXBeeDevice`): The node added, updated or removed from
-           the network.
-
-    .. seealso::
-       | :class:`digi.xbee.devices.NetworkEventReason`
-       | :class:`digi.xbee.devices.NetworkEventType`
-       | :class:`digi.xbee.devices.RemoteXBeeDevice`
-       | :class:`digi.xbee.devices.XBeeDevice`
-       | :class:`.XBeeEvent`
-    """
-    pass
-
-
 class DeviceDiscovered(XBeeEvent):
     """
     This event is fired when an XBee discovers another remote XBee
@@ -290,51 +270,6 @@ class MicroPythonDataReceived(XBeeEvent):
     pass
 
 
-class SocketStateReceived(XBeeEvent):
-    """
-    This event is fired when an XBee receives a socket state packet.
-
-    The callbacks to handle these events will receive the following arguments:
-        1. socket_id (Integer): socket ID for state reported.
-        2. state (:class:`.SocketState`): received state.
-
-    .. seealso::
-       | :class:`.XBeeEvent`
-    """
-    pass
-
-
-class SocketDataReceived(XBeeEvent):
-    """
-    This event is fired when an XBee receives a socket receive data packet.
-
-    The callbacks to handle these events will receive the following arguments:
-        1. socket_id (Integer): ID of the socket that received the data.
-        2. payload (Bytearray): received data.
-
-    .. seealso::
-       | :class:`.XBeeEvent`
-    """
-    pass
-
-
-class SocketDataReceivedFrom(XBeeEvent):
-    """
-    This event is fired when an XBee receives a socket receive from data packet.
-
-    The callbacks to handle these events will receive the following arguments:
-        1. socket_id (Integer): ID of the socket that received the data.
-        2. address (Tuple): a pair (host, port) of the source address where
-            host is a string representing an IPv4 address like '100.50.200.5',
-            and port is an integer.
-        3. payload (Bytearray): received data.
-
-    .. seealso::
-       | :class:`.XBeeEvent`
-    """
-    pass
-
-
 class PacketListener(threading.Thread):
     """
     This class represents a packet listener, which is a thread that's always
@@ -356,6 +291,7 @@ class PacketListener(threading.Thread):
 
     1. PacketReceived:
         1.1 received_packet (:class:`.XBeeAPIPacket`): the received packet.
+        1.2 sender (:class:`.RemoteXBeeDevice`): the remote XBee device who has sent the packet.
     2. DataReceived
         2.1 message (:class:`.XBeeMessage`): message containing the data received, the sender and the time.
     3. ModemStatusReceived
@@ -367,7 +303,7 @@ class PacketListener(threading.Thread):
     Default max. size that the queue has.
     """
 
-    _LOG_PATTERN = "{comm_iface:<6s}{event:<12s}{fr_type:<10s}{sender:<18s}{more_data:<50s}"
+    _LOG_PATTERN = "{port:<6s}{event:<12s}{fr_type:<10s}{sender:<18s}{more_data:<50s}"
     """
     Generic pattern for display received messages (high-level) with logger.
     """
@@ -377,18 +313,16 @@ class PacketListener(threading.Thread):
     Logger.
     """
 
-    def __init__(self, comm_iface, xbee_device, queue_max_size=None):
+    def __init__(self, serial_port, xbee_device, queue_max_size=None):
         """
         Class constructor. Instantiates a new :class:`.PacketListener` object with the provided parameters.
 
         Args:
-            comm_iface (:class:`.XBeeCommunicationInterface`): the hardware interface to listen to.
+            serial_port (:class:`.XbeeSerialPort`): the COM port to which this listener will be listening.
             xbee_device (:class:`.XBeeDevice`): the XBee that is the listener owner.
             queue_max_size (Integer): the maximum size of the XBee queue.
         """
         threading.Thread.__init__(self)
-
-        self.daemon = True
 
         # User callbacks:
         self.__packet_received = PacketReceived()
@@ -401,17 +335,13 @@ class PacketListener(threading.Thread):
         self.__relay_data_received = RelayDataReceived()
         self.__bluetooth_data_received = BluetoothDataReceived()
         self.__micropython_data_received = MicroPythonDataReceived()
-        self.__socket_state_received = SocketStateReceived()
-        self.__socket_data_received = SocketDataReceived()
-        self.__socket_data_received_from = SocketDataReceivedFrom()
 
         # API internal callbacks:
         self.__packet_received_API = xbee_device.get_xbee_device_callbacks()
 
         self.__xbee_device = xbee_device
-        self.__comm_iface = comm_iface
+        self.__serial_port = serial_port
         self.__stop = True
-        self.__started = Event()
 
         self.__queue_max_size = queue_max_size if queue_max_size is not None else self.__DEFAULT_QUEUE_MAX_SIZE
         self.__xbee_queue = XBeeQueue(self.__queue_max_size)
@@ -419,16 +349,11 @@ class PacketListener(threading.Thread):
         self.__explicit_xbee_queue = XBeeQueue(self.__queue_max_size)
         self.__ip_xbee_queue = XBeeQueue(self.__queue_max_size)
 
-    def wait_until_started(self, timeout=None):
-        """
-        Blocks until the thread has fully started. If already started, returns
-        immediately.
+        self._log_handler = logging.StreamHandler()
+        self._log.addHandler(self._log_handler)
 
-        Args:
-            timeout (Float): timeout for the operation in seconds.
-        """
-
-        self.__started.wait(timeout)
+    def __del__(self):
+        self._log.removeHandler(self._log_handler)
 
     def run(self):
         """
@@ -438,10 +363,9 @@ class PacketListener(threading.Thread):
         """
         try:
             self.__stop = False
-            self.__started.set()
             while not self.__stop:
                 # Try to read a packet. Read packet is unescaped.
-                raw_packet = self.__comm_iface.wait_for_frame(self.__xbee_device.operating_mode)
+                raw_packet = self.__try_read_packet(self.__xbee_device.operating_mode)
 
                 if raw_packet is not None:
                     # If the current protocol is 802.15.4, the packet may have to be discarded.
@@ -456,7 +380,7 @@ class PacketListener(threading.Thread):
                         self._log.error("Error processing packet '%s': %s" % (utils.hex_to_string(raw_packet), str(e)))
                         continue
 
-                    self._log.debug(self.__xbee_device.LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                    self._log.debug(self.__xbee_device.LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                                           event="RECEIVED",
                                                                           opmode=self.__xbee_device.operating_mode,
                                                                           content=utils.hex_to_string(raw_packet)))
@@ -479,17 +403,14 @@ class PacketListener(threading.Thread):
         finally:
             if not self.__stop:
                 self.__stop = True
-                if self.__comm_iface.is_interface_open:
-                    self.__comm_iface.close()
+                if self.__serial_port.isOpen():
+                    self.__serial_port.close()
 
     def stop(self):
         """
         Stops listening.
         """
-        self.__comm_iface.quit_reading()
         self.__stop = True
-        # Wait until thread fully stops.
-        self.join()
 
     def is_running(self):
         """
@@ -541,189 +462,113 @@ class PacketListener(threading.Thread):
         Adds a callback for the event :class:`.PacketReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives two arguments.
+            callback (Function): the callback. Receives two arguments.
 
                 * The received packet as a :class:`.XBeeAPIPacket`
+                * The sender as a :class:`.RemoteXBeeDevice`
         """
-        if isinstance(callback, list):
-            self.__packet_received.extend(callback)
-        elif callback:
-            self.__packet_received += callback
+        self.__packet_received += callback
 
     def add_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.DataReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives one argument.
+            callback (Function): the callback. Receives one argument.
 
                 * The data received as an :class:`.XBeeMessage`
         """
-        if isinstance(callback, list):
-            self.__data_received.extend(callback)
-        elif callback:
-            self.__data_received += callback
+        self.__data_received += callback
 
     def add_modem_status_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.ModemStatusReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives one argument.
+            callback (Function): the callback. Receives one argument.
 
                 * The modem status as a :class:`.ModemStatus`
         """
-        if isinstance(callback, list):
-            self.__modem_status_received.extend(callback)
-        elif callback:
-            self.__modem_status_received += callback
+        self.__modem_status_received += callback
 
     def add_io_sample_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.IOSampleReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives three arguments.
+            callback (Function): the callback. Receives three arguments.
 
                 * The received IO sample as an :class:`.IOSample`
                 * The remote XBee device who has sent the packet as a :class:`.RemoteXBeeDevice`
                 * The time in which the packet was received as an Integer
         """
-        if isinstance(callback, list):
-            self.__io_sample_received.extend(callback)
-        elif callback:
-            self.__io_sample_received += callback
+        self.__io_sample_received += callback
 
     def add_explicit_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.ExplicitDataReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives one argument.
+            callback (Function): the callback. Receives one argument.
 
                 * The explicit data received as an :class:`.ExplicitXBeeMessage`
         """
-        if isinstance(callback, list):
-            self.__explicit_packet_received.extend(callback)
-        elif callback:
-            self.__explicit_packet_received += callback
+        self.__explicit_packet_received += callback
 
     def add_ip_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.IPDataReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives one argument.
+            callback (Function): the callback. Receives one argument.
 
                 * The data received as an :class:`.IPMessage`
         """
-        if isinstance(callback, list):
-            self.__ip_data_received.extend(callback)
-        elif callback:
-            self.__ip_data_received += callback
+        self.__ip_data_received += callback
 
     def add_sms_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.SMSReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives one argument.
+            callback (Function): the callback. Receives one argument.
 
                 * The data received as an :class:`.SMSMessage`
         """
-        if isinstance(callback, list):
-            self.__sms_received.extend(callback)
-        elif callback:
-            self.__sms_received += callback
+        self.__sms_received += callback
 
     def add_user_data_relay_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.RelayDataReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives one argument.
+            callback (Function): the callback. Receives one argument.
 
                 * The data received as a :class:`.UserDataRelayMessage`
         """
-        if isinstance(callback, list):
-            self.__relay_data_received.extend(callback)
-        elif callback:
-            self.__relay_data_received += callback
+        self.__relay_data_received += callback
 
     def add_bluetooth_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.BluetoothDataReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives one argument.
+            callback (Function): the callback. Receives one argument.
 
                 * The data received as a Bytearray
         """
-        if isinstance(callback, list):
-            self.__bluetooth_data_received.extend(callback)
-        elif callback:
-            self.__bluetooth_data_received += callback
+        self.__bluetooth_data_received += callback
 
     def add_micropython_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.MicroPythonDataReceived`.
 
         Args:
-            callback (Function or List of functions): the callback. Receives one argument.
+            callback (Function): the callback. Receives one argument.
 
                 * The data received as a Bytearray
         """
-        if isinstance(callback, list):
-            self.__micropython_data_received.extend(callback)
-        elif callback:
-            self.__micropython_data_received += callback
-
-    def add_socket_state_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.SocketStateReceived`.
-
-        Args:
-            callback (Function or List of functions): the callback. Receives two arguments.
-
-                * The socket ID as an Integer.
-                * The state received as a :class:`.SocketState`
-        """
-        if isinstance(callback, list):
-            self.__socket_state_received.extend(callback)
-        elif callback:
-            self.__socket_state_received += callback
-
-    def add_socket_data_received_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.SocketDataReceived`.
-
-        Args:
-            callback (Function or List of functions): the callback. Receives two arguments.
-
-                * The socket ID as an Integer.
-                * The status received as a :class:`.SocketStatus`
-        """
-        if isinstance(callback, list):
-            self.__socket_data_received.extend(callback)
-        elif callback:
-            self.__socket_data_received += callback
-
-    def add_socket_data_received_from_callback(self, callback):
-        """
-        Adds a callback for the event :class:`.SocketDataReceivedFrom`.
-
-        Args:
-            callback (Function or List of functions): the callback. Receives three arguments.
-
-                * The socket ID as an Integer.
-                * A pair (host, port) of the source address where host is a string representing an IPv4 address
-                    like '100.50.200.5', and port is an integer.
-                * The status received as a :class:`.SocketStatus`
-        """
-        if isinstance(callback, list):
-            self.__socket_data_received_from.extend(callback)
-        elif callback:
-            self.__socket_data_received_from += callback
+        self.__micropython_data_received += callback
 
     def del_packet_received_callback(self, callback):
         """
@@ -733,8 +578,7 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.PacketReceived` event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.PacketReceived` event.
         """
         self.__packet_received -= callback
 
@@ -758,8 +602,7 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.ModemStatusReceived` event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.ModemStatusReceived` event.
         """
         self.__modem_status_received -= callback
 
@@ -771,8 +614,7 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.IOSampleReceived` event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.IOSampleReceived` event.
         """
         self.__io_sample_received -= callback
 
@@ -784,8 +626,7 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.ExplicitDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.ExplicitDataReceived` event.
         """
         self.__explicit_packet_received -= callback
 
@@ -797,8 +638,7 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of :class:`.IPDataReceived`
-                event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.IPDataReceived` event.
         """
         self.__ip_data_received -= callback
 
@@ -822,8 +662,7 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.RelayDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.RelayDataReceived` event.
         """
         self.__relay_data_received -= callback
 
@@ -835,8 +674,7 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.BluetoothDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.BluetoothDataReceived` event.
         """
         self.__bluetooth_data_received -= callback
 
@@ -848,139 +686,9 @@ class PacketListener(threading.Thread):
             callback (Function): the callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.MicroPythonDataReceived` event.
+            ValueError: if ``callback`` is not in the callback list of :class:`.MicroPythonDataReceived` event.
         """
         self.__micropython_data_received -= callback
-
-    def del_socket_state_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.SocketStateReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.SocketStateReceived` event.
-        """
-        self.__socket_state_received -= callback
-
-    def del_socket_data_received_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.SocketDataReceived` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.SocketDataReceived` event.
-        """
-        self.__socket_data_received -= callback
-
-    def del_socket_data_received_from_callback(self, callback):
-        """
-        Deletes a callback for the callback list of :class:`.SocketDataReceivedFrom` event.
-
-        Args:
-            callback (Function): the callback to delete.
-
-        Raises:
-            ValueError: if ``callback`` is not in the callback list of
-                :class:`.SocketDataReceivedFrom` event.
-        """
-        self.__socket_data_received_from -= callback
-
-    def get_packet_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received packets.
-
-        Returns:
-            List: List of :class:`.PacketReceived` events.
-        """
-        return self.__packet_received
-
-    def get_data_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received data.
-
-        Returns:
-            List: List of :class:`.DataReceived` events.
-        """
-        return self.__data_received
-
-    def get_modem_status_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received modem status.
-
-        Returns:
-            List: List of :class:`.ModemStatusReceived` events.
-        """
-        return self.__modem_status_received
-
-    def get_io_sample_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received IO samples.
-
-        Returns:
-            List: List of :class:`.IOSampleReceived` events.
-        """
-        return self.__io_sample_received
-
-    def get_explicit_data_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received explicit data.
-
-        Returns:
-            List: List of :class:`.ExplicitDataReceived` events.
-        """
-        return self.__explicit_packet_received
-
-    def get_ip_data_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received IP data.
-
-        Returns:
-            List: List of :class:`.IPDataReceived` events.
-        """
-        return self.__ip_data_received
-
-    def get_sms_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received SMS.
-
-        Returns:
-            List: List of :class:`.SMSReceived` events.
-        """
-        return self.__sms_received
-
-    def get_user_data_relay_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received user data relay.
-
-        Returns:
-            List: List of :class:`.RelayDataReceived` events.
-        """
-        return self.__relay_data_received
-
-    def get_bluetooth_data_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received Bluetooth data.
-
-        Returns:
-            List: List of :class:`.BluetoothDataReceived` events.
-        """
-        return self.__bluetooth_data_received
-
-    def get_micropython_data_received_callbacks(self):
-        """
-        Returns the list of registered callbacks for received micropython data.
-
-        Returns:
-            List: List of :class:`.MicroPythonDataReceived` events.
-        """
-        return self.__micropython_data_received
 
     def __execute_user_callbacks(self, xbee_packet, remote=None):
         """
@@ -997,20 +705,20 @@ class PacketListener(threading.Thread):
         if (xbee_packet.get_frame_type() == ApiFrameType.RX_64 or
                 xbee_packet.get_frame_type() == ApiFrameType.RX_16 or
                 xbee_packet.get_frame_type() == ApiFrameType.RECEIVE_PACKET):
-            data = xbee_packet.rf_data
-            is_broadcast = xbee_packet.is_broadcast()
-            self.__data_received(XBeeMessage(data, remote, time.time(), broadcast=is_broadcast))
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+            _data = xbee_packet.rf_data
+            is_broadcast = xbee_packet.receive_options == ReceiveOptions.BROADCAST_PACKET
+            self.__data_received(XBeeMessage(_data, remote, time.time(), is_broadcast))
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="DATA",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
                                                     else "None",
-                                                    more_data=utils.hex_to_string(data)))
+                                                    more_data=utils.hex_to_string(xbee_packet.rf_data)))
 
         # Modem status callbacks
         elif xbee_packet.get_frame_type() == ApiFrameType.MODEM_STATUS:
             self.__modem_status_received(xbee_packet.modem_status)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="MODEM STATUS",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
@@ -1022,7 +730,7 @@ class PacketListener(threading.Thread):
               xbee_packet.get_frame_type() == ApiFrameType.RX_IO_64 or
               xbee_packet.get_frame_type() == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR):
             self.__io_sample_received(xbee_packet.io_sample, remote, time.time())
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="IOSAMPLE",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
@@ -1031,27 +739,24 @@ class PacketListener(threading.Thread):
 
         # Explicit packet callbacks
         elif xbee_packet.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR:
-            data = xbee_packet.rf_data
-            is_broadcast = xbee_packet.is_broadcast()
+            is_broadcast = False
             # If it's 'special' packet, notify the data_received callbacks too:
-            if self.__is_explicit_data_packet(xbee_packet):
-                self.__data_received(XBeeMessage(data, remote, time.time(), broadcast=is_broadcast))
-            elif self.__is_explicit_io_packet(xbee_packet):
-                self.__io_sample_received(IOSample(data), remote, time.time())
+            if self.__is_special_explicit_packet(xbee_packet):
+                self.__data_received(XBeeMessage(xbee_packet.rf_data, remote, time.time(), is_broadcast))
             self.__explicit_packet_received(PacketListener.__expl_to_message(remote, is_broadcast, xbee_packet))
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="EXPLICIT DATA",
                                                     sender=str(remote.get_64bit_addr()) if remote is not None
                                                     else "None",
-                                                    more_data=utils.hex_to_string(data)))
+                                                    more_data=utils.hex_to_string(xbee_packet.rf_data)))
 
         # IP data
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_IPV4:
             self.__ip_data_received(
                 IPMessage(xbee_packet.source_address, xbee_packet.source_port,
                           xbee_packet.dest_port, xbee_packet.ip_protocol, xbee_packet.data))
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="IP DATA",
                                                     sender=str(xbee_packet.source_address),
@@ -1060,7 +765,7 @@ class PacketListener(threading.Thread):
         # SMS
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_SMS:
             self.__sms_received(SMSMessage(xbee_packet.phone_number, xbee_packet.data))
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="SMS",
                                                     sender=str(xbee_packet.phone_number),
@@ -1075,40 +780,85 @@ class PacketListener(threading.Thread):
                 self.__bluetooth_data_received(xbee_packet.data)
             elif xbee_packet.src_interface == XBeeLocalInterface.MICROPYTHON:
                 self.__micropython_data_received(xbee_packet.data)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+            self._log.info(self._LOG_PATTERN.format(port=self.__xbee_device.serial_port.port,
                                                     event="RECEIVED",
                                                     fr_type="RELAY DATA",
                                                     sender=xbee_packet.src_interface.description,
                                                     more_data=utils.hex_to_string(xbee_packet.data)))
 
-        # Socket state
-        elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_STATE:
-            self.__socket_state_received(xbee_packet.socket_id, xbee_packet.state)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="SOCKET STATE",
-                                                    sender=str(xbee_packet.socket_id),
-                                                    more_data=xbee_packet.state))
+    def __read_next_byte(self, operating_mode):
+        """
+        Returns the next byte in bytearray format. If the operating mode is
+        OperatingMode.ESCAPED_API_MODE, the bytearray could contain 2 bytes.
 
-        # Socket receive data
-        elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_RECEIVE:
-            self.__socket_data_received(xbee_packet.socket_id, xbee_packet.payload)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="SOCKET DATA",
-                                                    sender=str(xbee_packet.socket_id),
-                                                    more_data=utils.hex_to_string(xbee_packet.payload)))
+        If in escaped API mode and the byte that was read was the escape byte,
+        it will also read the next byte.
 
-        # Socket receive data from
-        elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_RECEIVE_FROM:
-            address = (str(xbee_packet.source_address), xbee_packet.source_port)
-            self.__socket_data_received_from(xbee_packet.socket_id, address, xbee_packet.payload)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="SOCKET DATA",
-                                                    sender=str(xbee_packet.socket_id),
-                                                    more_data="%s - %s" % (address,
-                                                                           utils.hex_to_string(xbee_packet.payload))))
+        Args:
+            operating_mode (:class:`.OperatingMode`): the operating mode in which the byte should be read.
+
+        Returns:
+            Bytearray: the read byte or bytes as bytearray, ``None`` otherwise.
+        """
+        read_data = bytearray()
+        read_byte = self.__serial_port.read_byte()
+        read_data.append(read_byte)
+        # Read escaped bytes in API escaped mode.
+        if operating_mode == OperatingMode.ESCAPED_API_MODE and read_byte == XBeePacket.ESCAPE_BYTE:
+            read_data.append(self.__serial_port.read_byte())
+
+        return read_data
+
+    def __try_read_packet(self, operating_mode=OperatingMode.API_MODE):
+        """
+        Reads the next packet. Starts to read when finds the start delimiter.
+        The last byte read is the checksum.
+
+        If there is something in the COM buffer after the
+        start delimiter, this method discards it.
+
+        If the method can't read a complete and correct packet,
+        it will return ``None``.
+
+        Args:
+            operating_mode (:class:`.OperatingMode`): the operating mode in which the packet should be read.
+
+        Returns:
+            Bytearray: the read packet as bytearray if a packet is read, ``None`` otherwise.
+        """
+        try:
+            xbee_packet = bytearray(1)
+            # Add packet delimiter.
+            xbee_packet[0] = self.__serial_port.read_byte()
+            while xbee_packet[0] != SpecialByte.HEADER_BYTE.value:
+                xbee_packet[0] = self.__serial_port.read_byte()
+
+            # Add packet length.
+            packet_length_byte = bytearray()
+            for _ in range(0, 2):
+                packet_length_byte += self.__read_next_byte(operating_mode)
+            xbee_packet += packet_length_byte
+            # Length needs to be un-escaped in API escaped mode to obtain its integer equivalent.
+            if operating_mode == OperatingMode.ESCAPED_API_MODE:
+                length = utils.length_to_int(XBeeAPIPacket.unescape_data(packet_length_byte))
+            else:
+                length = utils.length_to_int(packet_length_byte)
+
+            # Add packet payload.
+            for _ in range(0, length):
+                xbee_packet += self.__read_next_byte(operating_mode)
+
+            # Add packet checksum.
+            for _ in range(0, 1):
+                xbee_packet += self.__read_next_byte(operating_mode)
+
+            # Return the packet unescaped.
+            if operating_mode == OperatingMode.ESCAPED_API_MODE:
+                return XBeeAPIPacket.unescape_data(xbee_packet)
+            else:
+                return xbee_packet
+        except TimeoutException:
+            return None
 
     def __create_remote_device_from_packet(self, xbee_packet):
         """
@@ -1119,8 +869,7 @@ class PacketListener(threading.Thread):
             :class:`.RemoteXBeeDevice`
         """
         x64bit_addr, x16bit_addr = self.__get_remote_device_data_from_packet(xbee_packet)
-        return digi.xbee.devices.RemoteXBeeDevice(self.__xbee_device, x64bit_addr=x64bit_addr,
-                                                  x16bit_addr=x16bit_addr)
+        return digi.xbee.devices.RemoteXBeeDevice(self.__xbee_device, x64bit_addr, x16bit_addr)
 
     @staticmethod
     def __get_remote_device_data_from_packet(xbee_packet):
@@ -1172,18 +921,16 @@ class PacketListener(threading.Thread):
         remote = None
         x64, x16 = self.__get_remote_device_data_from_packet(xbee_packet)
         if x64 is not None or x16 is not None:
-            remote = self.__xbee_device.get_network()._XBeeNetwork__add_remote_from_attr(
-                digi.xbee.devices.NetworkEventReason.RECEIVED_MSG, x64bit_addr=x64, x16bit_addr=x16)
+            remote = self.__xbee_device.get_network().add_if_not_exist(x64, x16)
         return remote
 
     @staticmethod
-    def __is_explicit_data_packet(xbee_packet):
+    def __is_special_explicit_packet(xbee_packet):
         """
-        Checks if the provided explicit data packet is directed to the data cluster.
+        Checks if an explicit data packet is 'special'.
 
-        This means that this XBee has its API Output Mode distinct than Native (it's expecting
-        explicit data packets), but some device has sent it a non-explicit data packet
-        (TransmitRequest f.e.).
+        'Special' means that this XBee has its API Output Mode distinct than Native (it's expecting
+        explicit data packets), but some device has sent it a non-explicit data packet (TransmitRequest f.e.).
         In this case, this XBee will receive a explicit data packet with the following values:
 
             1. Source endpoint = 0xE8
@@ -1191,26 +938,10 @@ class PacketListener(threading.Thread):
             3. Cluster ID = 0x0011
             4. Profile ID = 0xC105
         """
-        return (xbee_packet.source_endpoint == 0xE8 and xbee_packet.dest_endpoint == 0xE8
-                and xbee_packet.cluster_id == 0x0011 and xbee_packet.profile_id == 0xC105)
-
-    @staticmethod
-    def __is_explicit_io_packet(xbee_packet):
-        """
-        Checks if the provided explicit data packet is directed to the IO cluster.
-
-        This means that this XBee has its API Output Mode distinct than Native (it's expecting
-        explicit data packets), but some device has sent an IO sample packet
-        (IODataSampleRxIndicatorPacket f.e.).
-        In this case, this XBee will receive a explicit data packet with the following values:
-
-            1. Source endpoint = 0xE8
-            2. Destination endpoint = 0xE8
-            3. Cluster ID = 0x0092
-            4. Profile ID = 0xC105
-        """
-        return (xbee_packet.source_endpoint == 0xE8 and xbee_packet.dest_endpoint == 0xE8
-                and xbee_packet.cluster_id == 0x0092 and xbee_packet.profile_id == 0xC105)
+        if (xbee_packet.source_endpoint == 0xE8 and xbee_packet.dest_endpoint == 0xE8 and
+                xbee_packet.cluster_id == 0x0011 and xbee_packet.profile_id == 0xC105):
+            return True
+        return False
 
     def __expl_to_no_expl(self, xbee_packet):
         """
@@ -1218,35 +949,22 @@ class PacketListener(threading.Thread):
         this listener's XBee device protocol.
 
         Returns:
-            :class:`.XBeeAPIPacket`: the proper receive packet depending on the current protocol and
-                the available information (inside the packet).
+            :class:`.XBeeAPIPacket`: the proper receive packet depending on the current protocol and the
+                available information (inside the packet).
         """
         x64addr = xbee_packet.x64bit_source_addr
         x16addr = xbee_packet.x16bit_source_addr
         if self.__xbee_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
             if x64addr != XBee64BitAddress.UNKNOWN_ADDRESS:
-                new_pkt = RX64Packet(x64addr, 0, xbee_packet.receive_options, rf_data=xbee_packet.rf_data)
+                new_packet = RX64Packet(x64addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
             elif x16addr != XBee16BitAddress.UNKNOWN_ADDRESS:
-                new_pkt = RX16Packet(x16addr, 0, xbee_packet.receive_options, rf_data=xbee_packet.rf_data)
+                new_packet = RX16Packet(x16addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
             else:  # both address UNKNOWN
-                new_pkt = RX64Packet(x64addr, 0, xbee_packet.receive_options, rf_data=xbee_packet.rf_data)
+                new_packet = RX64Packet(x64addr, 0, xbee_packet.receive_options, xbee_packet.rf_data)
         else:
-            new_pkt = ReceivePacket(x64addr, x16addr, xbee_packet.receive_options,
-                                    rf_data=xbee_packet.rf_data)
-        return new_pkt
-
-    def __expl_to_io(self, xbee_packet):
-        """
-        Creates a IO packet from the given explicit packet depending on this listener's XBee device
-        protocol.
-
-        Returns:
-            :class:`.XBeeAPIPacket`: the proper receive packet depending on the current protocol and
-                the available information (inside the packet).
-        """
-        return IODataSampleRxIndicatorPacket(xbee_packet.x64bit_source_addr,
-                                             xbee_packet.x16bit_source_addr,
-                                             xbee_packet.receive_options, rf_data=xbee_packet.rf_data)
+            new_packet = ReceivePacket(xbee_packet.x64bit_source_addr, xbee_packet.x16bit_source_addr,
+                                       xbee_packet.receive_options, xbee_packet.rf_data)
+        return new_packet
 
     def __add_packet_queue(self, xbee_packet):
         """
@@ -1268,12 +986,9 @@ class PacketListener(threading.Thread):
                 self.__explicit_xbee_queue.get()
             self.__explicit_xbee_queue.put_nowait(xbee_packet)
             # Check if the explicit packet is 'special'.
-            if self.__is_explicit_data_packet(xbee_packet):
+            if self.__is_special_explicit_packet(xbee_packet):
                 # Create the non-explicit version of this packet and add it to the queue.
                 self.__add_packet_queue(self.__expl_to_no_expl(xbee_packet))
-            elif self.__is_explicit_io_packet(xbee_packet):
-                # Create the IO packet corresponding to this packet and add it to the queue.
-                self.__add_packet_queue(self.__expl_to_io(xbee_packet))
         # IP packets.
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_IPV4:
             if self.__ip_xbee_queue.full():
@@ -1301,7 +1016,7 @@ class PacketListener(threading.Thread):
         """
         return ExplicitXBeeMessage(xbee_packet.rf_data, remote, time.time(), xbee_packet.source_endpoint,
                                    xbee_packet.dest_endpoint, xbee_packet.cluster_id,
-                                   xbee_packet.profile_id, broadcast=broadcast)
+                                   xbee_packet.profile_id, broadcast)
 
 
 class XBeeQueue(Queue):
@@ -1381,11 +1096,11 @@ class XBeeQueue(Queue):
                         return xbee_packet
             return None
         else:
-            xbee_packet = self.get_by_remote(remote_xbee_device)
+            xbee_packet = self.get_by_remote(remote_xbee_device, None)
             dead_line = time.time() + timeout
             while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
-                xbee_packet = self.get_by_remote(remote_xbee_device)
+                xbee_packet = self.get_by_remote(remote_xbee_device, None)
             if xbee_packet is None:
                 raise TimeoutException()
             return xbee_packet
@@ -1419,11 +1134,11 @@ class XBeeQueue(Queue):
                         return xbee_packet
             return None
         else:
-            xbee_packet = self.get_by_ip(ip_addr)
+            xbee_packet = self.get_by_ip(ip_addr, None)
             dead_line = time.time() + timeout
             while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
-                xbee_packet = self.get_by_ip(ip_addr)
+                xbee_packet = self.get_by_ip(ip_addr, None)
             if xbee_packet is None:
                 raise TimeoutException()
             return xbee_packet
@@ -1457,11 +1172,11 @@ class XBeeQueue(Queue):
                         return xbee_packet
             return None
         else:
-            xbee_packet = self.get_by_id(frame_id)
+            xbee_packet = self.get_by_id(frame_id, None)
             dead_line = time.time() + timeout
             while xbee_packet is None and dead_line > time.time():
                 time.sleep(0.1)
-                xbee_packet = self.get_by_id(frame_id)
+                xbee_packet = self.get_by_id(frame_id, None)
             if xbee_packet is None:
                 raise TimeoutException()
             return xbee_packet

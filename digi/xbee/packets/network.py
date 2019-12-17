@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017, 2018, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -87,16 +87,16 @@ class RXIPv4Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=RXIPv4Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_IPV4.code:
-            raise InvalidPacketException(message="This packet is not an RXIPv4Packet.")
+            raise InvalidPacketException("This packet is not an RXIPv4Packet.")
 
         return RXIPv4Packet(IPv4Address(bytes(raw[4:8])), utils.bytes_to_int(raw[8:10]),
                             utils.bytes_to_int(raw[10:12]), IPProtocol.get(raw[12]),
-                            data=raw[14:-1])
+                            raw[14:-1])
 
     def needs_id(self):
         """
@@ -338,16 +338,16 @@ class TXIPv4Packet(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode =operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=TXIPv4Packet.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_IPV4.code:
-            raise InvalidPacketException(message="This packet is not an TXIPv4Packet.")
+            raise InvalidPacketException("This packet is not an TXIPv4Packet.")
 
         return TXIPv4Packet(raw[4], IPv4Address(bytes(raw[5:9])), utils.bytes_to_int(raw[9:11]),
                             utils.bytes_to_int(raw[11:13]), IPProtocol.get(raw[13]),
-                            raw[14], data=raw[15:-1])
+                            raw[14], raw[15:-1])
 
     def needs_id(self):
         """

@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -42,11 +42,7 @@ class ATCommandException(CommunicationException):
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    __DEFAULT_MESSAGE = "There was a problem sending the AT command packet."
-
-    def __init__(self, message=__DEFAULT_MESSAGE, cmd_status=None):
-        super().__init__(message)
-        self.status = cmd_status
+    pass
 
 
 class ConnectionException(XBeeException):
@@ -73,7 +69,7 @@ class XBeeDeviceException(XBeeException):
 
 class InvalidConfigurationException(ConnectionException):
     """
-    This exception will be thrown when trying to open an interface with an
+    This exception will be thrown when trying to open an interface with an 
     invalid configuration.
 
     All functionality of this class is the inherited of `Exception
@@ -82,7 +78,7 @@ class InvalidConfigurationException(ConnectionException):
     __DEFAULT_MESSAGE = "The configuration used to open the interface is invalid."
 
     def __init__(self, message=__DEFAULT_MESSAGE):
-        super().__init__(message)
+        ConnectionException.__init__(self, message)
 
 
 class InvalidOperatingModeException(ConnectionException):
@@ -94,17 +90,19 @@ class InvalidOperatingModeException(ConnectionException):
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
     __DEFAULT_MESSAGE = "The operating mode of the XBee device is not supported by the library."
-    __DEFAULT_MSG_FORMAT = "Unsupported operating mode: %s (%d)"
 
-    def __init__(self, message=None, op_mode=None):
-        if op_mode and not message:
-            message = InvalidOperatingModeException.__DEFAULT_MSG_FORMAT \
-                      % (op_mode.description, op_mode.code)
-        elif not message:
-            message = InvalidOperatingModeException.__DEFAULT_MESSAGE
+    def __init__(self, message=__DEFAULT_MESSAGE):
+        ConnectionException.__init__(self, message)
 
-        super().__init__(message)
-        self.__op_mode = op_mode
+    @classmethod
+    def from_operating_mode(cls, operating_mode):
+        """
+        Class constructor.
+
+        Args:
+            operating_mode (:class:`.OperatingMode`): the operating mode that generates the exceptions.
+        """
+        return cls("Unsupported operating mode: " + operating_mode.description)
 
 
 class InvalidPacketException(CommunicationException):
@@ -118,7 +116,7 @@ class InvalidPacketException(CommunicationException):
     __DEFAULT_MESSAGE = "The XBee API packet is not properly formed."
 
     def __init__(self, message=__DEFAULT_MESSAGE):
-        super().__init__(message)
+        CommunicationException.__init__(self, message)
 
 
 class OperationNotSupportedException(XBeeDeviceException):
@@ -129,11 +127,11 @@ class OperationNotSupportedException(XBeeDeviceException):
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    __DEFAULT_MESSAGE = "The requested operation is not supported by either " \
-                        "the connection interface or the XBee device."
+    __DEFAULT_MESSAGE = "The requested operation is not supported by either the connection interface or " \
+                        "the XBee device."
 
     def __init__(self, message=__DEFAULT_MESSAGE):
-        super().__init__(message)
+        XBeeDeviceException.__init__(self, message)
 
 
 class TimeoutException(CommunicationException):
@@ -146,8 +144,8 @@ class TimeoutException(CommunicationException):
     """
     __DEFAULT_MESSAGE = "There was a timeout while executing the requested operation."
 
-    def __init__(self, message=__DEFAULT_MESSAGE):
-        super().__init__(message)
+    def __init__(self, _message=__DEFAULT_MESSAGE):
+        CommunicationException.__init__(self)
 
 
 class TransmitException(CommunicationException):
@@ -160,44 +158,5 @@ class TransmitException(CommunicationException):
     """
     __DEFAULT_MESSAGE = "There was a problem with a transmitted packet response (status not ok)"
 
-    def __init__(self, message=__DEFAULT_MESSAGE, transmit_status=None):
-        super().__init__(message)
-        self.status = transmit_status
-
-
-class XBeeSocketException(XBeeException):
-    """
-    This exception will be thrown when there is an error performing any socket operation.
-
-    All functionality of this class is the inherited of `Exception
-    <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
-    """
-    __DEFAULT_MESSAGE = "There was a socket error"
-    __DEFAULT_STATUS_MESSAGE = "There was a socket error: %s (%d)"
-
-    def __init__(self, message=__DEFAULT_MESSAGE, status=None):
-        super().__init__(self.__DEFAULT_STATUS_MESSAGE % (status.description, status.code) if status is not None else
-                         message)
-        self.status = status
-
-
-class FirmwareUpdateException(XBeeException):
-    """
-    This exception will be thrown when any problem related to the firmware update
-    process of the XBee device occurs.
-
-    All functionality of this class is the inherited of `Exception
-    <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
-    """
-    pass
-
-
-class RecoveryException(XBeeException):
-    """
-    This exception will be thrown when any problem related to the auto-recovery
-    process of the XBee device occurs.
-
-    All functionality of this class is the inherited of `Exception
-    <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
-    """
-    pass
+    def __init__(self, _message=__DEFAULT_MESSAGE):
+        CommunicationException.__init__(self, _message)
