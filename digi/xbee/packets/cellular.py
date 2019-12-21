@@ -81,12 +81,12 @@ class RXSMSPacket(XBeeAPIPacket):
            | :meth:`.XBeePacket.create_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
         
         XBeeAPIPacket._check_api_packet(raw, min_length=RXSMSPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_SMS.code:
-            raise InvalidPacketException(message="This packet is not an RXSMSPacket")
+            raise InvalidPacketException("This packet is not an RXSMSPacket")
 
         return RXSMSPacket(raw[4:23].decode("utf8").replace("\0", ""), raw[24:-1].decode("utf8"))
 
@@ -249,12 +249,12 @@ class TXSMSPacket(XBeeAPIPacket):
            | :meth:`.XBeePacket.create_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
         
         XBeeAPIPacket._check_api_packet(raw, min_length=TXSMSPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_SMS.code:
-            raise InvalidPacketException(message="This packet is not a TXSMSPacket")
+            raise InvalidPacketException("This packet is not a TXSMSPacket")
 
         return TXSMSPacket(raw[4], raw[6:25].decode("utf8").replace("\0", ""), raw[26:-1].decode("utf8"))
 

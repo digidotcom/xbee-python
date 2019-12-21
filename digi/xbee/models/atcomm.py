@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -27,85 +27,21 @@ class ATStringCommand(Enum):
     |     **value** (String): value of this ATStringCommand.
     """
 
-    AC = ("AC", "Apply changes")
-    AI = ("AI", "Association indication")
-    AO = ("AO", "API options")
-    AP = ("AP", "API enable")
-    AS = ("AS", "Active scan")
-    BD = ("BD", "UART baudrate")
-    BL = ("BL", "Bluetooth address")
-    BT = ("BT", "Bluetooth enable")
-    C0 = ("C0", "Source port")
-    C8 = ("C8", "Compatibility mode")
-    CC = ("CC", "Command sequence character")
-    CE = ("CE", "Device role")
-    CN = ("CN", "Exit command mode")
-    DA = ("DA", "Force Disassociation")
-    DH = ("DH", "Destination address high")
-    DL = ("DL", "Destination address low")
-    D7 = ("D7", "CTS configuration")
-    EE = ("EE", "Encryption enable")
-    FN = ("FN", "Find neighbors")
-    FR = ("FR", "Software reset")
-    FS = ("FS", "File system")
-    GW = ("GW", "Gateway address")
-    GT = ("GT", "Guard times")
-    HV = ("HV", "Hardware version")
-    IC = ("IC", "Digital change detection")
-    ID = ("ID", "Network PAN ID/Network ID/SSID")
-    IR = ("IR", "I/O sample rate")
-    IS = ("IS", "Force sample")
-    KY = ("KY", "Link/Encryption key")
-    MA = ("MA", "IP addressing mode")
-    MK = ("MK", "IP address mask")
-    MY = ("MY", "16-bit address/IP address")
-    NB = ("NB", "Parity")
-    NI = ("NI", "Node identifier")
-    ND = ("ND", "Node discover")
-    NK = ("NK", "Trust Center network key")
-    NO = ("NO", "Node discover options")
-    NR = ("NR", "Network reset")
-    NS = ("NS", "DNS address")
-    NT = ("NT", "Node discover back-off")
-    N_QUESTION = ("N?", "Network discovery timeout")
-    OP = ("OP", "Operating extended PAN ID")
-    PK = ("PK", "Passphrase")
-    PL = ("PL", "TX power level")
-    RE = ("RE", "Restore defaults")
-    RR = ("RR", "XBee retries")
-    R_QUESTION = ("R?", "Region lock")
-    SB = ("SB", "Stop bits")
-    SH = ("SH", "Serial number high")
-    SI = ("SI", "Socket info")
-    SL = ("SL", "Serial number low")
-    SM = ("SM", "Sleep mode")
-    SS = ("SS", "Sleep status")
-    VH = ("VH", "Bootloader version")
-    VR = ("VR", "Firmware version")
-    WR = ("WR", "Write")
-    DOLLAR_S = ("$S", "SRP salt")
-    DOLLAR_V = ("$V", "SRP salt verifier")
-    DOLLAR_W = ("$W", "SRP salt verifier")
-    DOLLAR_X = ("$X", "SRP salt verifier")
-    DOLLAR_Y = ("$Y", "SRP salt verifier")
-    PERCENT_C = ("%C", "Hardware/software compatibility")
-    PERCENT_P = ("%P", "Invoke bootloader")
+    NI = "NI"
+    KY = "KY"
+    NK = "NK"
+    ZU = "ZU"
+    ZV = "ZV"
+    CC = "CC"
 
-    def __init__(self, command, description):
+    def __init__(self, command):
         self.__command = command
-        self.__description = description
 
     def __get_command(self):
         return self.__command
 
-    def __get_description(self):
-        return self.__description
-
     command = property(__get_command)
     """String. AT Command alias."""
-
-    description = property(__get_description)
-    """String. AT Command description"""
 
 
 ATStringCommand.__doc__ += utils.doc_enum(ATStringCommand)

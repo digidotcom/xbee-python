@@ -77,17 +77,6 @@ class DictKeys(Enum):
     SOURCE_INTERFACE = "source_interface"
     DEST_INTERFACE = "dest_interface"
     DATA = "data"
-    OPTIONS = "options"
-    KEY = "key"
-    SOCKET_ID = "socket_id"
-    OPTION_ID = "option_id"
-    OPTION_DATA = "option_data"
-    DEST_ADDR_TYPE = "dest_address_type"
-    DEST_ADDR = "dest_address"
-    PAYLOAD = "payload"
-    CLIENT_SOCKET_ID = "client_socket_id"
-    REMOTE_ADDR = "remote_address"
-    REMOTE_PORT = "remote_port"
 
 
 class XBeePacket:
@@ -332,7 +321,7 @@ class XBeeAPIPacket(XBeePacket):
            | :class:`.ApiFrameType`
            | :class:`.XBeePacket`
         """
-        super().__init__()
+        super(XBeeAPIPacket, self).__init__()
         # Check the type of the API frame type.
         if isinstance(api_frame_type, ApiFrameType):
             self._frame_type = api_frame_type
@@ -443,22 +432,22 @@ class XBeeAPIPacket(XBeePacket):
            | :mod:`.factory`
         """
         if len(raw) < min_length:
-            raise InvalidPacketException(message="Bytearray must have, at least, 5 of complete length (header, length, "
-                                         "frameType, checksum)")
+                raise InvalidPacketException("Bytearray must have, at least, 5 of complete length (header, length, "
+                                             "frameType, checksum)")
 
         if raw[0] & 0xFF != SpecialByte.HEADER_BYTE.code:
-            raise InvalidPacketException(message="Bytearray must start with the header byte (SpecialByte.HEADER_BYTE.code)")
+            raise InvalidPacketException("Bytearray must start with the header byte (SpecialByte.HEADER_BYTE.code)")
 
         # real frame specific data length
         real_length = len(raw[3:-1])
         # length is specified in the length field.
         length_field = utils.length_to_int(raw[1:3])
         if real_length != length_field:
-            raise InvalidPacketException(message="The real length of this frame is distinct than the specified by length "
+            raise InvalidPacketException("The real length of this frame is distinct than the specified by length "
                                          "field (bytes 2 and 3)")
 
         if 0xFF - (sum(raw[3:-1]) & 0xFF) != raw[-1]:
-            raise InvalidPacketException(message="Wrong checksum")
+            raise InvalidPacketException("Wrong checksum")
 
     @abstractmethod
     def _get_api_packet_spec_data(self):
@@ -514,7 +503,7 @@ class GenericXBeePacket(XBeeAPIPacket):
            | :mod:`.factory`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(api_frame_type=ApiFrameType.GENERIC)
+        super(GenericXBeePacket, self).__init__(api_frame_type=ApiFrameType.GENERIC)
         self.__rf_data = rf_data
 
     @staticmethod
@@ -540,12 +529,12 @@ class GenericXBeePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=GenericXBeePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.GENERIC.code:
-            raise InvalidPacketException(message="Wrong frame type, expected: " + ApiFrameType.GENERIC.description +
+            raise InvalidPacketException("Wrong frame type, expected: " + ApiFrameType.GENERIC.description +
                                          ". Value: " + ApiFrameType.GENERIC.code)
 
         return GenericXBeePacket(raw[4:-1])
@@ -600,7 +589,7 @@ class UnknownXBeePacket(XBeeAPIPacket):
            | :mod:`.factory`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(api_frame_type=api_frame)
+        super(UnknownXBeePacket, self).__init__(api_frame_type=api_frame)
         self.__rf_data = rf_data
 
     @staticmethod
@@ -625,7 +614,7 @@ class UnknownXBeePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
         if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
-            raise InvalidOperatingModeException(op_mode=operating_mode)
+            raise InvalidOperatingModeException(operating_mode + " is not supported.")
 
         XBeeAPIPacket._check_api_packet(raw, min_length=UnknownXBeePacket.__MIN_PACKET_LENGTH)
 

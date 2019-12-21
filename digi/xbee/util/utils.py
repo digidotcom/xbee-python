@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import logging
-from functools import wraps
+
 
 # Number of bits to extract with the mask (__MASK)
 __MASK_NUM_BITS = 8
@@ -34,44 +34,6 @@ def is_bit_enabled(number, position):
         Boolean: ``True`` if the bit located at ``position`` within ``number`` is enabled, ``False`` otherwise.
     """
     return ((number & 0xFFFFFFFF) >> position) & 0x01 == 0x01
-
-
-def get_int_from_byte(number, offset, length):
-    """
-    Reads an integer value from the given byte using the provived bit offset and length.
-
-    Args:
-        number (Integer): Byte to read the integer from.
-        offset (Integer): Bit offset inside the byte to start reading (LSB = 0, MSB = 7).
-        length (Integer): Number of bits to read.
-
-    Returns:
-        Integer: The integer value read.
-
-    Raises:
-        ValueError: If ``number`` is lower than 0 or higher than 255.
-                    If ``offset`` is lower than 0 or higher than 7.
-                    If ``length`` is lower than 0 or higher than 8.
-                    If ``offset + length`` is higher than 8.
-    """
-    if number < 0 or number > 255:
-        raise ValueError("Number must be between 0 and 255")
-    if offset < 0 or offset > 7:
-        raise ValueError("Offset must be between 0 and 7")
-    if length < 0 or length > 8:
-        raise ValueError("Length must be between 0 and 8")
-    if offset + length > 8:
-        raise ValueError(
-            "Starting at offset=%d, length must be between 0 and %d" % (offset, 8 - offset))
-
-    if not length:
-        return 0
-
-    binary = "{0:08b}".format(number)
-    end = len(binary) - offset - 1
-    start = end - length + 1
-
-    return int(binary[start:end + 1], 2)
 
 
 def hex_string_to_bytes(hex_string):
@@ -343,46 +305,3 @@ def disable_logger(name):
     """
     log = logging.getLogger(name)
     log.disabled = True
-
-
-def deprecated(version, details="None"):
-    """
-    Decorates a method to mark as deprecated.
-    This adds a deprecation note to the method docstring and also raises a
-    :class:``warning.DeprecationWarning``.
-
-    Args:
-        version (String): Version that deprecates this feature.
-        details (String, optional, default=``None``): Extra details to be added to the
-            method docstring and warning.
-    """
-    def _function_wrapper(func):
-        docstring = func.__doc__ or ""
-        msg = ".. deprecated:: %s\n" % version
-
-        doc_list = docstring.split(sep="\n", maxsplit=1)
-        leading_spaces = 0
-        if len(doc_list) > 1:
-            leading_spaces = len(doc_list[1]) - len(doc_list[1].lstrip())
-
-        doc_list.insert(0, "\n\n")
-        doc_list.insert(0, ' ' * (leading_spaces + 4) + details if details else "")
-        doc_list.insert(0, ' ' * leading_spaces + msg)
-        doc_list.insert(0, "\n")
-
-        func.__doc__ = "".join(doc_list)
-
-        @wraps(func)
-        def _inner(*args, **kwargs):
-            message = "'%s' is deprecated." % func.__name__
-            if details:
-                message = "%s %s" % (message, details)
-                import warnings
-                warnings.simplefilter("default")
-                warnings.warn(message, category=DeprecationWarning, stacklevel=2)
-
-            return func(*args, **kwargs)
-
-        return _inner
-
-    return _function_wrapper
