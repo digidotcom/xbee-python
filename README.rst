@@ -1,4 +1,4 @@
-Digi XBee Python library python 2
+Digi XBee Python 2 library
 ======================================================
 
 This project contains the source code of the XBee Python library, an
