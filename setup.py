@@ -2,9 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2017, 2018, Digi International Inc. All Rights Reserved.
+# Copyright 2017-2020, Digi International Inc. All Rights Reserved.
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 from codecs import open
 from os import path
 
@@ -21,13 +21,14 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
  
 setup(
     name='digi-xbee',
+    namespace_packages=['digi'],
     version='1.3.0',
     description='Digi XBee Python library',
     long_description=long_description,
     url='https://github.com/digidotcom/xbee-python',
     author='Digi International Inc.',
     author_email='tech.support@digi.com',
-    packages=find_packages(exclude=('unit_test*', 'functional_tests*', 'demos*')),
+    packages=find_namespace_packages(include=['digi.*']),
     keywords=['xbee', 'IOT', 'wireless', 'radio frequency'],
     license='Mozilla Public License 2.0 (MPL 2.0)',
     python_requires='>=3',
