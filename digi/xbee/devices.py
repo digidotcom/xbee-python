@@ -473,6 +473,9 @@ class AbstractXBeeDevice(object):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
+
+        .. seealso::
+           | :meth:`.AbstractXBeeDevice.is_device_info_complete`
         """
         if self.is_remote():
             if not self._local_xbee_device.comm_iface.is_interface_open:
@@ -554,6 +557,31 @@ class AbstractXBeeDevice(object):
                          or network.get_device_by_16(self._16bit_addr))):
                 network._XBeeNetwork__network_modified(
                     NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
+
+    def is_device_info_complete(self):
+        """
+        Returns if device information is complete.
+
+        Returns:
+            Boolean: `True` if the device info is complete, `False` otherwise.
+
+        .. seealso::
+           | :meth:`.AbstractXBeeDevice.read_device_info`
+        """
+        is_16bit_init = True
+        if self._protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.ZIGBEE,
+                              XBeeProtocol.XTEND, XBeeProtocol.SMART_ENERGY,
+                              XBeeProtocol.ZNET]:
+            is_16bit_init = (self._16bit_addr is not None
+                             and self._16bit_addr != XBee16BitAddress.UNKNOWN_ADDRESS)
+
+        return (self._hardware_version is not None
+                and self._firmware_version is not None
+                and self._64bit_addr is not None
+                and self._64bit_addr != XBee64BitAddress.UNKNOWN_ADDRESS
+                and self._node_id is not None
+                and is_16bit_init
+                and self._role is not None and self._role != Role.UNKNOWN)
 
     def _determine_role(self):
         """
