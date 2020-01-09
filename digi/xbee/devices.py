@@ -3993,15 +3993,18 @@ class XBeeDevice(AbstractXBeeDevice):
                 wait for the route.
 
         Returns:
-            Tuple: Tuple containing route data (`None` if the route was not
-                read in the provided timeout):
-                - source (:class:`.RemoteXBeeDevice`: The source node of the route.
-                - destination (:class:`.RemoteXBeeDevice`): The destination node
-                  of the route.
-                - hops (List): List of intermediate nodes
-                  (:class:`.RemoteXBeeDevice`) ordered from closest to source
-                  to closest to destination node (source and destination not
-                  included).
+            Tuple: Tuple containing route data:
+                - status (:class:`.TransmitStatus`): The transmit status.
+                - Tuple with route data (`None` if the route was not read in the
+                  provided timeout):
+                    - source (:class:`.RemoteXBeeDevice`): The source node of the
+                      route.
+                    - destination (:class:`.RemoteXBeeDevice`): The destination node
+                      of the route.
+                    - hops (List): List of intermediate nodes
+                      (:class:`.RemoteXBeeDevice`) ordered from closest to source
+                      to closest to destination node (source and destination not
+                      included).
         """
         if not remote.is_remote():
             raise ValueError("Remote cannot be a local XBee")
@@ -4017,16 +4020,17 @@ class XBeeDevice(AbstractXBeeDevice):
         if self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                               XBeeProtocol.SMART_ENERGY, XBeeProtocol.DIGI_MESH,
                               XBeeProtocol.DIGI_POINT, XBeeProtocol.SX]:
-            route = self.__get_trace_route(remote, timeout)
+            status, route = self.__get_trace_route(remote, timeout)
         else:
             route = self, remote, [self]
+            status = TransmitStatus.SUCCESS
 
         if route:
             self._log.debug("Route: {{{!s}{!s}{!s} >>> {!s} (hops: {!s})}}".format(
                 route[0], " >>> " if route[2] else "", " >>> ".join(map(str, route[2])),
                 route[1], len(route[2]) + 1))
 
-        return route
+        return status, route
 
     def __get_trace_route(self, remote, timeout):
         """
@@ -4037,15 +4041,18 @@ class XBeeDevice(AbstractXBeeDevice):
             timeout (Float): Maximum number of seconds to wait for the route.
 
         Returns:
-            Tuple: Tuple containing route data (`None` if the route was not
-                read in the provided timeout):
-                - source (:class:`.RemoteXBeeDevice`: The source node of the route.
-                - destination (:class:`.RemoteXBeeDevice`): The destination node
-                  of the route.
-                - hops (List): List of intermediate nodes
-                  (:class:`.RemoteXBeeDevice`) ordered from closest to source
-                  to closest to destination node (source and destination not
-                  included).
+            Tuple: Tuple containing route data:
+                - status (:class:`.TransmitStatus`): The transmit status.
+                - Tuple with route data (`None` if the route was not read in the
+                  provided timeout):
+                    - source (:class:`.RemoteXBeeDevice`): The source node of the
+                      route.
+                    - destination (:class:`.RemoteXBeeDevice`): The destination node
+                      of the route.
+                    - hops (List): List of intermediate nodes
+                      (:class:`.RemoteXBeeDevice`) ordered from closest to source
+                      to closest to destination node (source and destination not
+                      included).
         """
         lock = threading.Event()
         node_list = []
@@ -4057,12 +4064,12 @@ class XBeeDevice(AbstractXBeeDevice):
                 lock.set()
 
         if remote == self:
-            return None
+            return None, None
 
         if self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                               XBeeProtocol.SMART_ENERGY]:
             if remote.get_role() == Role.END_DEVICE:
-                return None
+                return None, None
 
             # Transmit a some information to the remote
             packet = TransmitPacket(
@@ -4087,24 +4094,33 @@ class XBeeDevice(AbstractXBeeDevice):
             )
 
         else:
-            return None
+            return None, None
 
         lock.clear()
 
+        st_frame = None
         self.add_route_received_callback(route_cb)
 
         try:
-            self.send_packet(packet, sync=False)
+            timed_out = False
+            start = time.time()
 
-            timed_out = lock.wait(timeout)
+            st_frame = self.send_packet_sync_and_get_response(packet, timeout=timeout)
+            if st_frame.transmit_status in [TransmitStatus.SUCCESS,
+                                            TransmitStatus.SELF_ADDRESSED]:
+                timed_out = lock.wait(timeout - (time.time() - start))
+        except TimeoutException:
+            timed_out = True
         finally:
             self.del_route_received_callback(route_cb)
 
+        status = st_frame.transmit_status if st_frame else None
+
         # Check if the list of intermediate nodes is empty
         if timed_out or not node_list:
-            return None
+            return status, None
 
-        return self, remote, node_list[1:]
+        return status, (self, remote, node_list[1:])
 
     comm_iface = property(__get_comm_iface)
     """:class:`.XBeeCommunicationInterface`. The hardware interface associated to the XBee device."""
