@@ -1,4 +1,4 @@
-# Copyright 2019, Digi International Inc.
+# Copyright 2019-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -608,7 +608,7 @@ class socket:
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.SocketInfo`
