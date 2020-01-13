@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -221,7 +221,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -260,7 +260,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -283,7 +283,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -398,7 +398,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -428,7 +428,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -442,7 +442,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -460,21 +460,21 @@ class AbstractXBeeDevice(object):
                 event if any parameter changed, `False` otherwise.
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
         """
         if self.is_remote():
             if not self._local_xbee_device.comm_iface.is_interface_open:
-                raise XBeeException("Local XBee device's serial port closed")
+                raise XBeeException("Local XBee device's communication interface closed")
         else:
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
                 raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
             if not self._comm_iface.is_interface_open:
-                raise XBeeException("XBee device's serial port closed")
+                raise XBeeException("XBee device's communication interface closed")
 
         updated = False
 
@@ -555,7 +555,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -699,7 +699,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -821,7 +821,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: If the response is not received before the read timeout expires.
-            XBeeException: If the XBee device's serial port is closed.
+            XBeeException: If the XBee device's communication interface is closed.
             InvalidOperatingModeException: If the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: If the response is not as expected.
@@ -911,7 +911,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -934,7 +934,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -957,7 +957,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -975,7 +975,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -992,7 +992,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1067,7 +1067,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1095,7 +1095,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1126,7 +1126,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1156,7 +1156,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1182,7 +1182,7 @@ class AbstractXBeeDevice(object):
             
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1204,7 +1204,7 @@ class AbstractXBeeDevice(object):
             
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1235,7 +1235,7 @@ class AbstractXBeeDevice(object):
             
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1257,7 +1257,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or
                 ESCAPED API. This method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1285,7 +1285,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1308,7 +1308,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1340,7 +1340,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
         """
@@ -1354,7 +1354,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
         """
@@ -1369,7 +1369,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
         """
@@ -1388,7 +1388,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
         """
@@ -1405,7 +1405,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
         """
@@ -1540,7 +1540,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1557,7 +1557,7 @@ class AbstractXBeeDevice(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -1640,7 +1640,7 @@ class AbstractXBeeDevice(object):
         @wraps(func)
         def dec_function(self, *args, **kwargs):
             if not self._comm_iface.is_interface_open:
-                raise XBeeException("XBee device's serial port closed.")
+                raise XBeeException("XBee device's communication interface closed.")
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
                 raise InvalidOperatingModeException(op_mode=args[0].operating_mode)
@@ -1875,7 +1875,7 @@ class AbstractXBeeDevice(object):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             XBeeException: if the packet listener is not running.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBeePacket`
@@ -2354,7 +2354,7 @@ class XBeeDevice(AbstractXBeeDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TransmitException: if the status of the response received is not OK.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBee64BitAddress`
@@ -2410,7 +2410,7 @@ class XBeeDevice(AbstractXBeeDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TransmitException: if the status of the response received is not OK.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBee64BitAddress`
@@ -2469,7 +2469,7 @@ class XBeeDevice(AbstractXBeeDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TransmitException: if the status of the response received is not OK.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBee16BitAddress`
@@ -2516,7 +2516,7 @@ class XBeeDevice(AbstractXBeeDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TransmitException: if the status of the response received is not OK.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.RemoteXBeeDevice`
@@ -2572,7 +2572,7 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``data`` is ``None``.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBee64BitAddress`
@@ -2622,7 +2622,7 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``data`` is ``None``.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBee64BitAddress`
@@ -2675,7 +2675,7 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``data`` is ``None``.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBee16BitAddress`
@@ -2713,7 +2713,7 @@ class XBeeDevice(AbstractXBeeDevice):
         Raises:
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.RemoteXBeeDevice`
@@ -2764,7 +2764,7 @@ class XBeeDevice(AbstractXBeeDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TransmitException: if the status of the response received is not OK.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
         """
         return self._send_data_64(XBee64BitAddress.BROADCAST_ADDRESS, data,
                                   transmit_options=transmit_options)
@@ -2848,7 +2848,7 @@ class XBeeDevice(AbstractXBeeDevice):
             TimeoutException: if a timeout is specified and no data was received during that time.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBeeMessage`
@@ -2876,7 +2876,7 @@ class XBeeDevice(AbstractXBeeDevice):
             TimeoutException: if a timeout is specified and no data was received during that time.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBeeMessage`
@@ -3332,7 +3332,7 @@ class XBeeDevice(AbstractXBeeDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TransmitException: if the status of the response received is not OK.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             ValueError: if ``cluster_id`` is less than 0x0 or greater than 0xFFFF.
             ValueError: if ``profile_id`` is less than 0x0 or greater than 0xFFFF.
 
@@ -3367,7 +3367,7 @@ class XBeeDevice(AbstractXBeeDevice):
         Raises:
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             ValueError: if ``cluster_id`` is less than 0x0 or greater than 0xFFFF.
             ValueError: if ``profile_id`` is less than 0x0 or greater than 0xFFFF.
 
@@ -3429,7 +3429,7 @@ class XBeeDevice(AbstractXBeeDevice):
             TimeoutException: if a timeout is specified and no explicit data was received during that time.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.ExplicitXBeeMessage`
@@ -3457,7 +3457,7 @@ class XBeeDevice(AbstractXBeeDevice):
             TimeoutException: if a timeout is specified and no explicit data was received during that time.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.ExplicitXBeeMessage`
@@ -3487,7 +3487,7 @@ class XBeeDevice(AbstractXBeeDevice):
             TimeoutException: if a timeout is specified and no data was received during that time.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBeeMessage`
@@ -4275,7 +4275,7 @@ class DigiMeshDevice(XBeeDevice):
         Raises:
             TimeoutException: If the response is not received before the read
                 timeout expires.
-            XBeeException: If the XBee device's serial port is closed.
+            XBeeException: If the XBee device's communication interface is closed.
             InvalidOperatingModeException: If the XBee device's operating mode
                 is not API or ESCAPED API. This method only checks the cached
                 value of the operating mode.
@@ -4631,7 +4631,7 @@ class ZigBeeDevice(XBeeDevice):
         Raises:
             TimeoutException: If the response is not received before the read
                 timeout expires.
-            XBeeException: If the XBee device's serial port is closed.
+            XBeeException: If the XBee device's communication interface is closed.
             InvalidOperatingModeException: If the XBee device's operating mode
                 is not API or ESCAPED API. This method only checks the cached
                 value of the operating mode.
@@ -4655,7 +4655,7 @@ class ZigBeeDevice(XBeeDevice):
         Raises:
             TimeoutException: If the response is not received before the read
                 timeout expires.
-            XBeeException: If the XBee device's serial port is closed.
+            XBeeException: If the XBee device's communication interface is closed.
             InvalidOperatingModeException: If the XBee device's operating mode
                 is not API or ESCAPED API. This method only checks the cached
                 value of the operating mode.
@@ -4771,7 +4771,7 @@ class ZigBeeDevice(XBeeDevice):
                 :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS` seconds.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             XBeeException: if the status of the response received is not OK.
 
         .. seealso::
@@ -4806,7 +4806,7 @@ class ZigBeeDevice(XBeeDevice):
                 :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS` seconds.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`XBee16BitAddress`
@@ -4842,7 +4842,7 @@ class ZigBeeDevice(XBeeDevice):
             TimeoutException: if the answer is not received in the configured timeout.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             ValueError: if ``registrant_address`` is ``None`` or if ``options`` is ``None``.
 
         .. seealso::
@@ -4882,7 +4882,7 @@ class ZigBeeDevice(XBeeDevice):
         Raises:
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             ValueError: if ``registrant_address`` is ``None`` or if ``options`` is ``None``.
 
         .. seealso::
@@ -4919,7 +4919,7 @@ class ZigBeeDevice(XBeeDevice):
             TimeoutException: if the answer is not received in the configured timeout.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             ValueError: if ``registrant_address`` is ``None``.
 
         .. seealso::
@@ -4942,7 +4942,7 @@ class ZigBeeDevice(XBeeDevice):
         Raises:
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             ValueError: if ``registrant_address`` is ``None``.
 
         .. seealso::
@@ -4979,7 +4979,7 @@ class ZigBeeDevice(XBeeDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or
                 ESCAPED API. This method only checks the cached value of the operating mode.
             OperationNotSupportedException: If XBee protocol is not Zigbee or Smart Energy.
-            XBeeException: If the XBee device's serial port is closed.
+            XBeeException: If the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`com.digi.models.zdo.Route`
@@ -5798,7 +5798,7 @@ class CellularDevice(IPDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
         """
         response = self.get_parameter(ATStringCommand.SI.command)
         return SocketInfo.parse_socket_list(response)
@@ -5817,7 +5817,7 @@ class CellularDevice(IPDevice):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.SocketInfo`
@@ -7662,7 +7662,7 @@ class XBeeNetwork(object):
         
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -7679,7 +7679,7 @@ class XBeeNetwork(object):
         Raises:
             ValueError: if ``options`` is ``None``.
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -7746,7 +7746,7 @@ class XBeeNetwork(object):
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
@@ -7765,7 +7765,7 @@ class XBeeNetwork(object):
         Raises:
             TimeoutException: if the response is not received before the read
                 timeout expires.
-            XBeeException: if the XBee device's serial port is closed.
+            XBeeException: if the XBee device's communication interface is closed.
             InvalidOperatingModeException: if the XBee device's operating mode
                 is not API or ESCAPED API. This method only checks the cached
                 value of the operating mode.
