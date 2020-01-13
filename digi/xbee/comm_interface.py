@@ -101,6 +101,24 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         """
         pass
 
+    def get_network(self, local_xbee):
+        """
+        Returns the XBeeNetwork object associated to the XBeeDevice associated to this XBeeCommunicationInterface.
+
+        Some XBeeCommunicationInterface implementations may need to handle the XBeeNetwork assoociated to the XBeeDevice
+        themselves. If that is the case, a implementation-specific XBeeNetwork object that complains to the generic
+        XBeeNetwork class will be returned.
+        Otherwise this method returns None and the XBeeNetwork associated is handled as for a serial-connected
+        XBeeDevice.
+
+        Args:
+            local_xbee (:class:`.XBeeDevice`): The local XBee device
+
+        Returns:
+            XBeeNetwork: ``None`` if the XBeeNetwork should handled as usual, otherwise a XBeeNetwork object.
+        """
+        return None
+
     @property
     @abstractmethod
     def timeout(self):
