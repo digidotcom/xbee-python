@@ -565,7 +565,7 @@ class AbstractXBeeDevice(object):
                         and (not self.is_remote()
                              or network.get_device_by_64(self._64bit_addr)
                              or network.get_device_by_16(self._16bit_addr))):
-                    network._XBeeNetwork__network_modified(
+                    network._network_modified(
                         NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
         finally:
             self._initializing = False
@@ -1651,7 +1651,7 @@ class AbstractXBeeDevice(object):
                     and (not self.is_remote()
                          or network.get_device_by_64(self._64bit_addr)
                          or network.get_device_by_16(self._16bit_addr))):
-                network._XBeeNetwork__network_modified(
+                network._network_modified(
                     NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
 
     def _get_next_frame_id(self):
@@ -3897,7 +3897,7 @@ class XBeeDevice(AbstractXBeeDevice):
             node = network.get_device_by_16(hop)
             # If the intermediate hop is not yet in the network, add it
             if not node:
-                node = network._XBeeNetwork__add_remote(
+                node = network._add_remote(
                             RemoteZigBeeDevice(self, x16bit_addr=hop),
                             NetworkEventReason.ROUTE)
 
@@ -4005,7 +4005,7 @@ class XBeeDevice(AbstractXBeeDevice):
                 if not node:
                     # If the intermediate hop is not yet in the network, add it
                     if not node:
-                        node = network._XBeeNetwork__add_remote(
+                        node = network._add_remote(
                             RemoteDigiMeshDevice(self, x64bit_addr=address),
                             NetworkEventReason.ROUTE)
 
@@ -4016,7 +4016,7 @@ class XBeeDevice(AbstractXBeeDevice):
             if not dest_node:
                 # If the destination is not yet in the network, add it
                 if not dest_node:
-                    dest_node = network._XBeeNetwork__add_remote(
+                    dest_node = network._add_remote(
                             RemoteDigiMeshDevice(self, x64bit_addr=dst_addr),
                             NetworkEventReason.ROUTE)
 
@@ -7427,15 +7427,15 @@ class XBeeNetwork(object):
         self.__discovering = False
         self._stop_event = threading.Event()
         self.__discover_result = None
-        self.__network_modified = NetworkModified()
-        self.__device_discovered = DeviceDiscovered()
+        self._network_modified = NetworkModified()
+        self._device_discovered = DeviceDiscovered()
         self.__device_discovery_finished = DiscoveryProcessFinished()
         self.__discovery_thread = None
         self.__sought_device_id = None
         self.__discovered_device = None
 
         # FIFO to store the nodes to ask for their neighbors
-        self.__nodes_queue = Queue(self.__class__.__DEFAULT_QUEUE_MAX_SIZE)
+        self._nodes_queue = Queue(self.__class__.__DEFAULT_QUEUE_MAX_SIZE)
 
         # List with the MAC address (string format) of the still active request processes
         self.__active_processes = []
@@ -7585,7 +7585,7 @@ class XBeeNetwork(object):
                 remote = self.__discovered_device
                 self.__discovered_device = None
             if remote is not None:
-                self.__add_remote(remote, NetworkEventReason.DISCOVERED)
+                self._add_remote(remote, NetworkEventReason.DISCOVERED)
             return remote
 
     def discover_devices(self, device_id_list):
@@ -7666,7 +7666,7 @@ class XBeeNetwork(object):
         .. seealso::
            | :meth:`.XBeeNetwork.del_network_modified_callback`
         """
-        self.__network_modified += callback
+        self._network_modified += callback
 
     def add_device_discovered_callback(self, callback):
         """
@@ -7682,7 +7682,7 @@ class XBeeNetwork(object):
            | :meth:`.XBeeNetwork.add_discovery_process_finished_callback`
            | :meth:`.XBeeNetwork.del_discovery_process_finished_callback`
         """
-        self.__device_discovered += callback
+        self._device_discovered += callback
 
     def add_init_discovery_scan_callback(self, callback):
         """
@@ -7780,7 +7780,7 @@ class XBeeNetwork(object):
         .. seealso::
            | :meth:`.XBeeNetwork.add_network_modified_callback`
         """
-        self.__network_modified -= callback
+        self._network_modified -= callback
 
     def del_device_discovered_callback(self, callback):
         """
@@ -7797,7 +7797,7 @@ class XBeeNetwork(object):
            | :meth:`.XBeeNetwork.add_discovery_process_finished_callback`
            | :meth:`.XBeeNetwork.del_discovery_process_finished_callback`
         """
-        self.__device_discovered -= callback
+        self._device_discovered -= callback
 
     def del_init_discovery_scan_callback(self, callback):
         """
@@ -7876,7 +7876,7 @@ class XBeeNetwork(object):
         with self.__conn_lock:
             self.__connections.clear()
 
-        self.__network_modified(NetworkEventType.CLEAR, NetworkEventReason.MANUAL, None)
+        self._network_modified(NetworkEventType.CLEAR, NetworkEventReason.MANUAL, None)
 
     def get_discovery_options(self):
         """
@@ -8235,7 +8235,7 @@ class XBeeNetwork(object):
         if x64bit_addr == self._local_xbee.get_64bit_addr():
             return self._local_xbee
 
-        return self.__add_remote_from_attr(NetworkEventReason.MANUAL, x64bit_addr=x64bit_addr,
+        return self._add_remote_from_attr(NetworkEventReason.MANUAL, x64bit_addr=x64bit_addr,
                                            x16bit_addr=x16bit_addr, node_id=node_id)
 
     def add_remote(self, remote_xbee_device):
@@ -8252,9 +8252,9 @@ class XBeeNetwork(object):
             :class:`.RemoteXBeeDevice`: the provided XBee device with the updated parameters. If the XBee device
                 was not in the list yet, this method returns it without changes.
         """
-        return self.__add_remote(remote_xbee_device, NetworkEventReason.MANUAL)
+        return self._add_remote(remote_xbee_device, NetworkEventReason.MANUAL)
 
-    def __add_remote(self, remote_xbee, reason):
+    def _add_remote(self, remote_xbee, reason):
         """
         Adds the provided remote XBee device to the network if it is not contained yet.
 
@@ -8328,7 +8328,7 @@ class XBeeNetwork(object):
                     found._scan_counter = self.__scan_counter
 
             if not found._initializing and found.update_device_data_from(remote_xbee):
-                self.__network_modified(NetworkEventType.UPDATE, reason, node=found)
+                self._network_modified(NetworkEventType.UPDATE, reason, node=found)
                 found._reachable = True
 
             return None if already_in_scan else found
@@ -8337,11 +8337,11 @@ class XBeeNetwork(object):
             remote_xbee._scan_counter = self.__scan_counter
 
         self.__devices_list.append(remote_xbee)
-        self.__network_modified(NetworkEventType.ADD, reason, node=remote_xbee)
+        self._network_modified(NetworkEventType.ADD, reason, node=remote_xbee)
 
         return remote_xbee
 
-    def __add_remote_from_attr(self, reason, x64bit_addr=None, x16bit_addr=None, node_id=None,
+    def _add_remote_from_attr(self, reason, x64bit_addr=None, x16bit_addr=None, node_id=None,
                                role=Role.UNKNOWN, hw_version=None, fw_version=None):
         """
         Creates a new XBee using the provided data and adds it to the network if it is not
@@ -8377,7 +8377,7 @@ class XBeeNetwork(object):
         Returns:
             :class:`.AbstractXBeeDevice`: The created XBee with the updated parameters.
         """
-        return self.__add_remote(
+        return self._add_remote(
             self.__create_remote(x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
                                  node_id=node_id, role=role, hw_version=hw_version,
                                  fw_version=fw_version), reason)
@@ -8418,7 +8418,7 @@ class XBeeNetwork(object):
             if force:
                 self.__devices_list.remove(found_node)
                 if found_node.reachable:
-                    self.__network_modified(NetworkEventType.DEL, reason, node=remote_xbee_device)
+                    self._network_modified(NetworkEventType.DEL, reason, node=remote_xbee_device)
 
         node_b_connections = self.__get_connections_for_node_a_b(found_node, node_a=False)
 
@@ -8490,7 +8490,7 @@ class XBeeNetwork(object):
                     self._log.debug("     o Discovered neighbor of %s: %s"
                                     % (self._local_xbee, remote))
 
-                    node = self.__add_remote(remote, NetworkEventReason.DISCOVERED)
+                    node = self._add_remote(remote, NetworkEventReason.DISCOVERED)
                     if not node:
                         # Node already in network for this scan
                         node = self.get_device_by_64(remote.get_64bit_addr())
@@ -8504,7 +8504,7 @@ class XBeeNetwork(object):
 
                     # Add connection (there is not RSSI info for a 'ND')
                     from digi.xbee.models.zdo import RouteStatus
-                    if self.__add_connection(Connection(
+                    if self._add_connection(Connection(
                             self._local_xbee, node, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
                             RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
                         self._log.debug("       - Added connection: %s >>> %s"
@@ -8516,7 +8516,7 @@ class XBeeNetwork(object):
 
                     # Always add the XBee device to the last discovered devices list:
                     self.__last_search_dev_list.append(node)
-                    self.__device_discovered(node)
+                    self._device_discovered(node)
 
         def discovery_spec_callback(xbee_packet):
             """
@@ -8615,7 +8615,7 @@ class XBeeNetwork(object):
                 the discovery process.
         """
         try:
-            code = self.__init_discovery(self.__nodes_queue)
+            code = self.__init_discovery(self._nodes_queue)
             if code != NetworkDiscoveryStatus.SUCCESS:
                 return code
 
@@ -8636,7 +8636,7 @@ class XBeeNetwork(object):
                 if self._stop_event.is_set():
                     return NetworkDiscoveryStatus.CANCEL
 
-                code = self.__discover_network(self.__nodes_queue, self.__active_processes,
+                code = self.__discover_network(self._nodes_queue, self.__active_processes,
                                                self._node_timeout)
                 if code != NetworkDiscoveryStatus.SUCCESS:
                     return code
@@ -8869,7 +8869,7 @@ class XBeeNetwork(object):
                     n._reachable = True
                     # Update also the connection
                     from digi.xbee.models.zdo import RouteStatus
-                    if self.__add_connection(Connection(
+                    if self._add_connection(Connection(
                             self._local_xbee, n, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
                             RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
                         self._log.debug("     - Added connection: %s >>> %s"
@@ -9249,7 +9249,7 @@ class XBeeNetwork(object):
         """
         if node._reachable != reachable:
             node._reachable = reachable
-            self.__network_modified(NetworkEventType.UPDATE, NetworkEventReason.NEIGHBOR, node=node)
+            self._network_modified(NetworkEventType.UPDATE, NetworkEventReason.NEIGHBOR, node=node)
 
     def get_connections(self):
         """
@@ -9366,7 +9366,7 @@ class XBeeNetwork(object):
             if connection in self.__connections:
                 self.__connections.remove(connection)
 
-    def __add_connection(self, connection):
+    def _add_connection(self, connection):
         """
         Adds a new connection to the network. The end nodes of this connection are added
         to the network if they do not exist.
@@ -9386,10 +9386,10 @@ class XBeeNetwork(object):
 
         # Add the source node
         if not node_a:
-            node_a = self.__add_remote(connection.node_a, NetworkEventReason.NEIGHBOR)
+            node_a = self._add_remote(connection.node_a, NetworkEventReason.NEIGHBOR)
 
         if not node_b:
-            node_b = self.__add_remote(connection.node_b, NetworkEventReason.NEIGHBOR)
+            node_b = self._add_remote(connection.node_b, NetworkEventReason.NEIGHBOR)
 
         if not node_a or not node_b:
             return False
@@ -9726,7 +9726,7 @@ class ZigBeeNetwork(XBeeNetwork):
             self._local_xbee.set_api_output_mode_value(value)
 
             # Add the node to the FIFO to try again
-            self._XBeeNetwork__nodes_queue.put(requester)
+            self._nodes_queue.put(requester)
 
     def __get_route_table(self, requester, nodes_queue, node_timeout):
         """
@@ -9885,7 +9885,7 @@ class ZigBeeNetwork(XBeeNetwork):
         self._set_node_reachable(requester, True)
 
         # Add the neighbor node to the network
-        node = self._XBeeNetwork__add_remote(neighbor.node, NetworkEventReason.NEIGHBOR)
+        node = self._add_remote(neighbor.node, NetworkEventReason.NEIGHBOR)
         if not node:
             # Node already in network for this scan
             node = self.get_device_by_64(neighbor.node.get_64bit_addr())
@@ -9901,7 +9901,7 @@ class ZigBeeNetwork(XBeeNetwork):
                 self._set_node_reachable(node, True)
                 # Save its parent
                 node.parent = requester
-            self._XBeeNetwork__device_discovered(node)
+            self._device_discovered(node)
 
         # Add connections
         route = None
@@ -9938,7 +9938,7 @@ class ZigBeeNetwork(XBeeNetwork):
             self._log.debug("       - Connection NULL for this neighbor")
             return
 
-        if self._XBeeNetwork__add_connection(connection):
+        if self._add_connection(connection):
             self._log.debug("       - Added connection (LQI: %d) %s >>> %s"
                             % (neighbor.lq, requester, node))
         else:
@@ -10157,7 +10157,7 @@ class DigiMeshNetwork(XBeeNetwork):
         self._set_node_reachable(requester, True)
 
         # Add the neighbor node to the network
-        node = self._XBeeNetwork__add_remote(neighbor.node, NetworkEventReason.NEIGHBOR)
+        node = self._add_remote(neighbor.node, NetworkEventReason.NEIGHBOR)
         if not node:
             # Node already in network for this scan
             node = self.get_device_by_64(neighbor.node.get_64bit_addr())
@@ -10171,14 +10171,14 @@ class DigiMeshNetwork(XBeeNetwork):
             nodes_queue.put(node)
             self._log.debug("       - Added to network (scan: %d)" % node.scan_counter)
 
-            self._XBeeNetwork__device_discovered(node)
+            self._device_discovered(node)
 
         # Add connections
         from digi.xbee.models.zdo import RouteStatus
         connection = Connection(requester, node, lq_a2b=neighbor.lq, lq_b2a=LinkQuality.UNKNOWN,
                                 status_a2b=RouteStatus.ACTIVE, status_b2a=RouteStatus.ACTIVE)
 
-        if self._XBeeNetwork__add_connection(connection):
+        if self._add_connection(connection):
             self._log.debug("       - Added connection (RSSI: %s) %s >>> %s"
                             % (connection.lq_a2b, requester, node))
         else:
