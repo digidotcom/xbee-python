@@ -2149,7 +2149,11 @@ class XBeeDevice(AbstractXBeeDevice):
                          sync_ops_timeout=_sync_ops_timeout,
                          comm_iface=comm_iface
                          )
-        self._network = self._init_network()
+        # If there is no XBeeNetwork object provided by comm_iface, initialize a default XBeeNetwork
+        if not comm_iface or comm_iface.get_network(self) is None:
+            self._network = self._init_network()
+        else:
+            self._network = None
 
         self.__packet_queue = None
         self.__data_queue = None
@@ -3362,6 +3366,10 @@ class XBeeDevice(AbstractXBeeDevice):
         Returns:
             :class:`.XBeeDevice.XBeeNetwork`
         """
+        comm_network = self._comm_iface.get_network(self) if self._comm_iface else None
+        if comm_network:
+            return comm_network
+
         if self._network is None:
             self._network = self._init_network()
 
