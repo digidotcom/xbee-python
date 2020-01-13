@@ -2961,6 +2961,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         super()._add_packet_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.DataReceived`.
@@ -2972,6 +2973,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_modem_status_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.ModemStatusReceived`.
@@ -2983,6 +2985,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_modem_status_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_io_sample_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.IOSampleReceived`.
@@ -2996,6 +2999,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_io_sample_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_expl_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.ExplicitDataReceived`.
@@ -3008,6 +3012,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_explicit_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_user_data_relay_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.RelayDataReceived`.
@@ -3019,6 +3024,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_user_data_relay_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_bluetooth_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.BluetoothDataReceived`.
@@ -3030,6 +3036,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_bluetooth_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_micropython_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.MicroPythonDataReceived`.
@@ -3041,6 +3048,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_micropython_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_socket_state_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.SocketStateReceived`.
@@ -3053,6 +3061,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_socket_state_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_socket_data_received_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.SocketDataReceived`.
@@ -3065,6 +3074,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_socket_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def add_socket_data_received_from_callback(self, callback):
         """
         Adds a callback for the event :class:`digi.xbee.reader.SocketDataReceivedFrom`.
@@ -3093,6 +3103,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         super()._del_packet_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_data_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.DataReceived` event.
@@ -3106,6 +3117,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_modem_status_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.ModemStatusReceived`
@@ -3120,6 +3132,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_modem_status_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_io_sample_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.IOSampleReceived`
@@ -3134,6 +3147,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_io_sample_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_expl_data_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.ExplicitDataReceived`
@@ -3148,6 +3162,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_explicit_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_user_data_relay_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.RelayDataReceived`
@@ -3162,6 +3177,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_user_data_relay_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_bluetooth_data_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.BluetoothDataReceived`
@@ -3176,6 +3192,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_bluetooth_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_micropython_data_received_callback(self, callback):
         """
         Deletes a callback for the callback list of
@@ -3190,6 +3207,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_micropython_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_socket_state_received_callback(self, callback):
         """
         Deletes a callback for the callback list of
@@ -3204,6 +3222,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_socket_state_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_socket_data_received_callback(self, callback):
         """
         Deletes a callback for the callback list of
@@ -3218,6 +3237,7 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.del_socket_data_received_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
     def del_socket_data_received_from_callback(self, callback):
         """
         Deletes a callback for the callback list of
