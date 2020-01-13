@@ -132,6 +132,8 @@ class AbstractXBeeDevice(object):
         self._scan_counter = 0
         self._reachable = True
 
+        self._initializing = False
+
         self.__generic_lock = threading.Lock()
 
     def __eq__(self, other):
@@ -488,75 +490,85 @@ class AbstractXBeeDevice(object):
             if not self._comm_iface.is_interface_open:
                 raise XBeeException("XBee device's communication interface closed")
 
+        if self._initializing:
+            return
+
+        self._initializing = True
+
         updated = False
 
-        # Hardware version:
-        if init or self._hardware_version is None:
-            hw_version = HardwareVersion.get(
-                self.get_parameter(ATStringCommand.HV.command)[0])
-            if self._hardware_version != hw_version:
-                updated = True
-                self._hardware_version = hw_version
-        # Firmware version:
-        if init or self._firmware_version is None:
-            fw_version = self.get_parameter(ATStringCommand.VR.command)
-            if self._firmware_version != fw_version:
-                updated = True
-                self._firmware_version = fw_version
+        try:
+            # Hardware version:
+            if init or self._hardware_version is None:
+                hw_version = HardwareVersion.get(
+                    self.get_parameter(ATStringCommand.HV.command)[0])
+                if self._hardware_version != hw_version:
+                    updated = True
+                    self._hardware_version = hw_version
+            # Firmware version:
+            if init or self._firmware_version is None:
+                fw_version = self.get_parameter(ATStringCommand.VR.command)
+                if self._firmware_version != fw_version:
+                    updated = True
+                    self._firmware_version = fw_version
 
-        # Original value of the protocol:
-        orig_protocol = self.get_protocol()
-        # Protocol:
-        self._protocol = XBeeProtocol.determine_protocol(self._hardware_version.code, self._firmware_version)
+            # Original value of the protocol:
+            orig_protocol = self.get_protocol()
+            # Protocol:
+            self._protocol = XBeeProtocol.determine_protocol(self._hardware_version.code, self._firmware_version)
 
-        if orig_protocol is not None and orig_protocol != XBeeProtocol.UNKNOWN and orig_protocol != self._protocol:
-            raise XBeeException("Error reading device information: "
-                                "Your module seems to be %s and NOT %s. " % (self._protocol, orig_protocol) +
-                                "Check if you are using the appropriate device class.")
+            if orig_protocol is not None and orig_protocol != XBeeProtocol.UNKNOWN and orig_protocol != self._protocol:
+                raise XBeeException("Error reading device information: "
+                                    "Your module seems to be %s and NOT %s. " % (self._protocol, orig_protocol) +
+                                    "Check if you are using the appropriate device class.")
 
-        # 64-bit address:
-        if init or self._64bit_addr is None or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
-            sh = self.get_parameter(ATStringCommand.SH.command)
-            sl = self.get_parameter(ATStringCommand.SL.command)
-            x64bit_addr = XBee64BitAddress(sh + sl)
-            if self._64bit_addr != x64bit_addr:
-                self._64bit_addr = x64bit_addr
-                updated = True
-        # Node ID:
-        if init or self._node_id is None:
-            node_id = self.get_parameter(ATStringCommand.NI.command).decode()
-            if self._node_id != node_id:
-                self._node_id = node_id
-                updated = True
-        # 16-bit address:
-        if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4, XBeeProtocol.XTEND,
-                               XBeeProtocol.SMART_ENERGY, XBeeProtocol.ZNET]
-                and (init or self._16bit_addr is None
-                     or self._16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS)):
-            x16bit_addr = XBee16BitAddress(self.get_parameter(ATStringCommand.MY.command))
-            if self._16bit_addr != x16bit_addr:
-                self._16bit_addr = x16bit_addr
-                updated = True
-        elif not self._16bit_addr:
-            # For protocols that do not support a 16 bit address, set it to unknown
-            self._16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
+            # 64-bit address:
+            if init or self._64bit_addr is None or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
+                sh = self.get_parameter(ATStringCommand.SH.command)
+                sl = self.get_parameter(ATStringCommand.SL.command)
+                x64bit_addr = XBee64BitAddress(sh + sl)
+                if self._64bit_addr != x64bit_addr:
+                    self._64bit_addr = x64bit_addr
+                    updated = True
+            # Node ID:
+            if init or self._node_id is None:
+                node_id = self.get_parameter(ATStringCommand.NI.command).decode()
+                if self._node_id != node_id:
+                    self._node_id = node_id
+                    updated = True
+            # 16-bit address:
+            if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4, XBeeProtocol.XTEND,
+                                   XBeeProtocol.SMART_ENERGY, XBeeProtocol.ZNET]
+                    and (init or self._16bit_addr is None
+                         or self._16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS)):
+                x16bit_addr = XBee16BitAddress(self.get_parameter(ATStringCommand.MY.command))
+                if self._16bit_addr != x16bit_addr:
+                    self._16bit_addr = x16bit_addr
+                    updated = True
+            elif not self._16bit_addr:
+                # For protocols that do not support a 16 bit address, set it to unknown
+                self._16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
 
-        # Role:
-        if init or self._role is None or self._role == Role.UNKNOWN:
-            role = self._determine_role()
-            if self._role != role:
-                self._role = role
-                updated = True
-
-        if fire_event and updated:
-            network = self.get_local_xbee_device().get_network() if self.is_remote() \
-                else self.get_network()
-            if (network
-                    and (not self.is_remote()
-                         or network.get_device_by_64(self._64bit_addr)
-                         or network.get_device_by_16(self._16bit_addr))):
-                network._XBeeNetwork__network_modified(
-                    NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
+            # Role:
+            if init or self._role is None or self._role == Role.UNKNOWN:
+                role = self._determine_role()
+                if self._role != role:
+                    self._role = role
+                    updated = True
+        except XBeeException:
+            raise
+        else:
+            if fire_event and updated:
+                network = self.get_local_xbee_device().get_network() if self.is_remote() \
+                    else self.get_network()
+                if (network
+                        and (not self.is_remote()
+                             or network.get_device_by_64(self._64bit_addr)
+                             or network.get_device_by_16(self._16bit_addr))):
+                    network._XBeeNetwork__network_modified(
+                        NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
+        finally:
+            self._initializing = False
 
     def is_device_info_complete(self):
         """
@@ -8133,21 +8145,34 @@ class XBeeNetwork(object):
         # Look for the remote in the network list
         else:
             x64 = remote_xbee.get_64bit_addr()
+
+            # If node to add does not have its 64-bit address, look for it
+            # in the cached list by its 16-bit address
             if not x64 or x64 == XBee64BitAddress.UNKNOWN_ADDRESS:
+                x16 = remote_xbee.get_16bit_addr()
+                if x16 and x16 != XBee16BitAddress.UNKNOWN_ADDRESS \
+                        and x16 != XBee16BitAddress.BROADCAST_ADDRESS:
+                    found = self.get_device_by_16(x16)
+                    if found:
+                        x64 = found.get_64bit_addr()
+
+            # If not found by its 16-bit address or found but it still does
+            # not have the 64-bit address, ask for it
+            if not x64 or x64 == XBee64BitAddress.UNKNOWN_ADDRESS:
+                if found:
+                    found._initializing = True
                 # Ask for the 64-bit address
                 try:
                     sh = remote_xbee.get_parameter(ATStringCommand.SH.command)
                     sl = remote_xbee.get_parameter(ATStringCommand.SL.command)
                     remote_xbee._64bit_addr = XBee64BitAddress(sh + sl)
+                    if found:
+                        found._64bit_addr = remote_xbee.get_64bit_addr()
                 except XBeeException as e:
                     self._log.debug("Error while trying to get 64-bit address of XBee (%s): %s"
                                     % (remote_xbee.get_16bit_addr(), str(e)))
-
-                    # Look for the device by its 16-bit address.
-                    x16 = remote_xbee.get_16bit_addr()
-                    if x16 and x16 != XBee16BitAddress.UNKNOWN_ADDRESS \
-                            and x16 != XBee16BitAddress.BROADCAST_ADDRESS:
-                        found = self.get_device_by_16(x16)
+                if found:
+                    found._initializing = False
 
             if not found:
                 with self.__lock:
@@ -8161,7 +8186,7 @@ class XBeeNetwork(object):
                 if not already_in_scan:
                     found._scan_counter = self.__scan_counter
 
-            if found.update_device_data_from(remote_xbee):
+            if not found._initializing and found.update_device_data_from(remote_xbee):
                 self.__network_modified(NetworkEventType.UPDATE, reason, node=found)
                 found._reachable = True
 
