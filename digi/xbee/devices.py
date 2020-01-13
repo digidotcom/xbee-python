@@ -5112,7 +5112,7 @@ class IPDevice(XBeeDevice):
         .. seealso::
            | :meth:`.AbstractXBeeDevice.read_device_info`
         """
-        super().read_device_info(init=init)
+        super().read_device_info(init=init, fire_event=fire_event)
 
         # Read the module's IP address.
         if init or self._ip_addr is None:
@@ -5682,7 +5682,7 @@ class CellularDevice(IPDevice):
         .. seealso::
            | :meth:`.XBeeDevice.read_device _info`
         """
-        super().read_device_info(init=init)
+        super().read_device_info(init=init, fire_event=fire_event)
 
         # Generate the IMEI address.
         if init or self._imei_addr is None:
