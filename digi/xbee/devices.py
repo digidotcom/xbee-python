@@ -48,7 +48,7 @@ from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatin
     ATCommandException, OperationNotSupportedException, TransmitException
 from digi.xbee.io import IOSample, IOMode
 from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, \
-    DiscoveryProcessFinished, NetworkModified, RouteReceived, InitDiscoveryScan, EndDiscoveryScan
+    DiscoveryProcessFinished, NetworkModified, RouteReceived, InitDiscoveryScan, EndDiscoveryScan, XBeeEvent
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
 from functools import wraps
@@ -2216,6 +2216,8 @@ class XBeeDevice(AbstractXBeeDevice):
         # Store already registered callbacks
         packet_cbs = self._packet_listener.get_packet_received_callbacks() \
             if self._packet_listener else None
+        packet_from_cbs = self._packet_listener.get_packet_received_from_callbacks() \
+            if self._packet_listener else None
         data_cbs = self._packet_listener.get_data_received_callbacks() \
             if self._packet_listener else None
         modem_status_cbs = self._packet_listener.get_modem_status_received_callbacks() \
@@ -2257,6 +2259,7 @@ class XBeeDevice(AbstractXBeeDevice):
 
         # Restore callbacks if any
         self._packet_listener.add_packet_received_callback(packet_cbs)
+        self._packet_listener.add_packet_received_from_callback(packet_from_cbs)
         self._packet_listener.add_data_received_callback(data_cbs)
         self._packet_listener.add_modem_status_received_callback(modem_status_cbs)
         self._packet_listener.add_io_sample_received_callback(io_cbs)
@@ -7403,6 +7406,9 @@ class XBeeNetwork(object):
         self.__init_scan_cbs = InitDiscoveryScan()
         self.__end_scan_cbs = EndDiscoveryScan()
 
+        # Dictionary to store registered callbacks per node.
+        self.__packet_received_from = {}
+
     def __increment_scan_counter(self):
         """
         Increments (by one) the scan counter.
@@ -7662,6 +7668,46 @@ class XBeeNetwork(object):
         """
         self.__device_discovery_finished += callback
 
+    def add_packet_received_from_callback(self, node, callback):
+        """
+        Adds a callback to listen to any received packet from the provided node.
+
+        Args:
+            node (:class:`.RemoteXBeeDevice`): The node to listen for frames.
+            callback (Function): The callback. Receives one argument.
+
+                * The received packet as a :class:`.XBeeAPIPacket`
+                * The remote XBee device who has sent the packet as a
+                  :class:`.RemoteXBeeDevice`
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.del_packet_received_from_callback`
+        """
+        if not self.__packet_received_from:
+            self._local_xbee._packet_listener.add_packet_received_from_callback(
+                self.__received_packet_from_cb)
+
+        cbs = self.__packet_received_from.get(str(node.get_64bit_addr()))
+        if not cbs:
+            cbs = XBeeEvent()
+            self.__packet_received_from.update({str(node.get_64bit_addr()): cbs})
+
+        cbs += callback
+
+    def __received_packet_from_cb(self, packet, remote):
+        """
+        Callback method to handle received packets from a remote.
+
+        Args:
+            packet (:class:.`XBeeAPIPacket`): The packet received
+            remote (:class:`.RemoteXBeeDevice`): The node receiving the packet
+        """
+        cbs = self.__packet_received_from.get(str(remote.get_64bit_addr()))
+        if not cbs:
+            return
+
+        cbs(packet, remote)
+
     def del_network_modified_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.NetworkModified`.
@@ -7733,6 +7779,30 @@ class XBeeNetwork(object):
            | :meth:`.XBeeNetwork.del_device_discovered_callback`
         """
         self.__device_discovery_finished -= callback
+
+    def del_packet_received_from_callback(self, node, callback):
+        """
+        Deletes a received packet callback from the provided node..
+
+        Args:
+            node (:class:`.RemoteXBeeDevice`): The node to listen for frames.
+            callback (Function): The callback to delete.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.add_packet_received_from_callback`
+        """
+        cbs = self.__packet_received_from.get(str(node.get_64bit_addr()))
+        if not cbs:
+            return
+
+        cbs -= callback
+
+        if not cbs:
+            self.__packet_received_from.pop(str(node.get_64bit_addr()), None)
+
+        if not self.__packet_received_from:
+            self._local_xbee._packet_listener.del_packet_received_from_callback(
+                self.__received_packet_from_cb)
 
     def clear(self):
         """

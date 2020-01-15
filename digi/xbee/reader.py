@@ -104,6 +104,23 @@ class PacketReceived(XBeeEvent):
     pass
 
 
+class PacketReceivedFrom(XBeeEvent):
+    """
+    This event is fired when an XBee receives any packet, independent of
+    its frame type.
+
+    The callbacks for handle this events will receive the following arguments:
+        1. received_packet (:class:`.XBeeAPIPacket`): the received packet.
+        2. sender (:class:`.RemoteXBeeDevice`): The remote XBee device who has sent the packet.
+
+    .. seealso::
+       | :class:`.RemoteXBeeDevice`
+       | :class:`.XBeeAPIPacket`
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class DataReceived(XBeeEvent):
     """
     This event is fired when an XBee receives data.
@@ -484,6 +501,7 @@ class PacketListener(threading.Thread):
 
         # User callbacks:
         self.__packet_received = PacketReceived()
+        self.__packet_received_from = PacketReceivedFrom()
         self.__data_received = DataReceived()
         self.__modem_status_received = ModemStatusReceived()
         self.__io_sample_received = IOSampleReceived()
@@ -643,6 +661,21 @@ class PacketListener(threading.Thread):
             self.__packet_received.extend(callback)
         elif callback:
             self.__packet_received += callback
+
+    def add_packet_received_from_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.PacketReceivedFrom`.
+
+        Args:
+            callback (Function or List of functions): the callback. Receives two arguments.
+
+                * The received packet as a :class:`.XBeeAPIPacket`
+                * The remote XBee device who has sent the packet as a :class:`.RemoteXBeeDevice`
+        """
+        if isinstance(callback, list):
+            self.__packet_received_from.extend(callback)
+        elif callback:
+            self.__packet_received_from += callback
 
     def add_data_received_callback(self, callback):
         """
@@ -882,6 +915,19 @@ class PacketListener(threading.Thread):
         """
         self.__packet_received -= callback
 
+    def del_packet_received_from_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.PacketReceivedFrom` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.PacketReceivedFrom` event.
+        """
+        self.__packet_received_from -= callback
+
     def del_data_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.DataReceived` event.
@@ -1073,6 +1119,15 @@ class PacketListener(threading.Thread):
         """
         return self.__packet_received
 
+    def get_packet_received_from_callbacks(self):
+        """
+        Returns the list of registered callbacks for received packets.
+
+        Returns:
+            List: List of :class:`.PacketReceivedFrom` events.
+        """
+        return self.__packet_received_from
+
     def get_data_received_callbacks(self):
         """
         Returns the list of registered callbacks for received data.
@@ -1210,6 +1265,8 @@ class PacketListener(threading.Thread):
         """
         # All packets callback.
         self.__packet_received(xbee_packet)
+        if remote:
+            self.__packet_received_from(xbee_packet, remote)
 
         # Data reception callbacks
         if (xbee_packet.get_frame_type() == ApiFrameType.RX_64 or
