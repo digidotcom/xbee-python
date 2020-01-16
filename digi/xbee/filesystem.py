@@ -641,6 +641,9 @@ class LocalXBeeFileSystemManager(object):
         if not directory:
             return
 
+        # Sanitize path.
+        directory = directory.replace('\\', '/')
+
         _log.info("Navigating to directory '%s'" % directory)
         return self._execute_command(_FilesystemFunction.CD, directory).replace("\r", "")
 
@@ -655,8 +658,11 @@ class LocalXBeeFileSystemManager(object):
             FileSystemException: if there is any error creating the directory or the function is not supported.
         """
         # Sanity checks.
-        if not directory or directory == "/":
+        if not directory or directory == "/" or directory == "\\":
             return
+
+        # Sanitize path.
+        directory = directory.replace('\\', '/')
 
         current_dir = self.get_current_directory()
         try:
@@ -697,6 +703,8 @@ class LocalXBeeFileSystemManager(object):
             _log.info("Listing directory contents of current dir")
             answer = self._execute_command(_FilesystemFunction.LS)
         else:
+            # Sanitize path.
+            directory = directory.replace('\\', '/')
             _log.info("Listing directory contents of '%s'" % directory)
             answer = self._execute_command(_FilesystemFunction.LS_DIR, directory)
 
@@ -738,6 +746,9 @@ class LocalXBeeFileSystemManager(object):
         if not element_path:
             return
 
+        # Sanitize path.
+        element_path = element_path.replace('\\', '/')
+
         _log.info("Removing file '%s'" % element_path)
         self._execute_command(_FilesystemFunction.RM, element_path)
 
@@ -755,6 +766,10 @@ class LocalXBeeFileSystemManager(object):
         # Sanity checks.
         if not source_path or not dest_path:
             return
+
+        # Sanitize paths.
+        source_path = source_path.replace('\\', '/')
+        dest_path = dest_path.replace('\\', '/')
 
         _log.info("Moving file '%s' to '%s'" % (source_path, dest_path))
         self._execute_command(_FilesystemFunction.MV, source_path, dest_path)
@@ -782,6 +797,9 @@ class LocalXBeeFileSystemManager(object):
             raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED % _FilesystemFunction.XPUT.name)
         if not secure and not self._is_function_supported(_FilesystemFunction.PUT):
             raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED % _FilesystemFunction.PUT.name)
+
+        # Sanitize destination path.
+        dest_path = dest_path.replace('\\', '/')
 
         # Create intermediate directories if required.
         dest_parent = os.path.dirname(dest_path)
@@ -872,6 +890,8 @@ class LocalXBeeFileSystemManager(object):
             FileSystemException: if there is any error downloading the file or the function is not supported.
         """
         command = _COMMAND_ATFS % (_FilesystemFunction.GET.command % source_path)
+        # Sanitize path.
+        source_path = source_path.replace('\\', '/')
         _log.info("Downloading file '%s' to '%s'" % (source_path, dest_path))
         self._execute_command(_FilesystemFunction.GET, source_path, wait_for_answer=False)
         try:
@@ -955,6 +975,8 @@ class LocalXBeeFileSystemManager(object):
         Raises:
             FileSystemException: if there is any error retrieving the file hash.
         """
+        # Sanitize path.
+        file_path = file_path.replace('\\', '/')
         _log.info("Retrieving SHA256 hash of file '%s'..." % file_path)
         answer = self._execute_command(_FilesystemFunction.HASH, file_path)
         parts = answer.split(_ANSWER_SHA256)
