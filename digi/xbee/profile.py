@@ -1205,12 +1205,9 @@ class _ProfileUpdater(object):
             self._set_parameter_with_retries(ATStringCommand.WR.command,
                                              bytearray(0), _PARAMETER_WRITE_RETRIES)
             setting_index += 1
-            # Apply changes.
             percent = setting_index * 100 // num_settings
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
-            self._set_parameter_with_retries(ATStringCommand.AC.command, bytearray(0),
-                                             _PARAMETER_WRITE_RETRIES)
         except XBeeException as e:
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(e))
 
