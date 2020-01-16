@@ -22,7 +22,8 @@ import zipfile
 
 from digi.xbee import firmware
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
-from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateException, ATCommandException
+from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateException, ATCommandException, \
+    InvalidOperatingModeException
 from digi.xbee.filesystem import LocalXBeeFileSystemManager, FileSystemException, FileSystemNotSupportedException
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
@@ -1247,7 +1248,14 @@ class _ProfileUpdater(object):
             except FileSystemException as e:
                 raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(e))
             finally:
-                filesystem_manager.disconnect()
+                try:
+                    filesystem_manager.disconnect()
+                except InvalidOperatingModeException:
+                    # This exception is thrown while trying to reconnect the device after finishing
+                    # with the FileSystem Manager but the device Operating Mode was changed to '0'
+                    # or '4'. Just ignore it, profile has been successfully applied.
+                    pass
+
         else:
             # TODO: remote filesystem update is not implemented yet.
             _log.info("Remote filesystem update is not yet supported, skipping.")

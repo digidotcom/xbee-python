@@ -110,6 +110,7 @@ class AbstractXBeeDevice(object):
 
         self._is_open = False
         self._operating_mode = None
+        self._future_operating_mode = None
 
         self._local_xbee_device = local_xbee_device
         self._comm_iface = serial_port if serial_port is not None else comm_iface
@@ -317,6 +318,14 @@ class AbstractXBeeDevice(object):
         response = self._send_at_command(at_command)
 
         self._check_at_cmd_response_is_valid(response)
+
+        # Check if the parameter matches the apply changes or write settings command
+        # and we have the operation mode pending to update.
+        if not self.is_remote() \
+                and (parameter in (ATStringCommand.AC.command, ATStringCommand.WR.command)) \
+                and self._future_operating_mode is not None:
+            self._operating_mode = self._future_operating_mode
+            self._future_operating_mode = None
 
         return response.response
 
@@ -1588,7 +1597,12 @@ class AbstractXBeeDevice(object):
             self._16bit_addr = x16bit_addr
         # Operating mode
         elif parameter == ATStringCommand.AP.command:
-            self._operating_mode = OperatingMode.get(utils.bytes_to_int(value))
+            # Only update the cached operating mode if the setting has been written. If not,
+            # just store the new value and update it after applying or writing settings.
+            if self.is_apply_changes_enabled():
+                self._operating_mode = OperatingMode.get(utils.bytes_to_int(value))
+            else:
+                self._future_operating_mode = OperatingMode.get(utils.bytes_to_int(value))
 
         if updated:
             network = self.get_local_xbee_device().get_network() if self.is_remote() \
