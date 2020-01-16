@@ -964,6 +964,16 @@ class XBeeProfile(object):
         """
         return self._file_system_path
 
+    @property
+    def bootloader_file(self):
+        """
+        Returns the profile bootloader file path.
+
+        Returns:
+             String: the path of the profile bootloader file.
+        """
+        return self._bootloader_file
+
 
 class _ProfileUpdater(object):
     """
@@ -1101,6 +1111,7 @@ class _ProfileUpdater(object):
         """
         try:
             self._xbee_device.update_firmware(self._xbee_profile.firmware_description_file,
+                                              bootloader_firmware_file=self._xbee_profile.bootloader_file,
                                               progress_callback=self._firmware_progress_callback)
         except FirmwareUpdateException as e:
             raise UpdateProfileException(_ERROR_UPDATE_FIRMWARE % str(e))
