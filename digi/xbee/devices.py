@@ -1643,7 +1643,7 @@ class AbstractXBeeDevice(object):
                 raise XBeeException("XBee device's communication interface closed.")
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
-                raise InvalidOperatingModeException(op_mode=args[0].operating_mode)
+                raise InvalidOperatingModeException(op_mode=self._operating_mode)
             return func(self, *args, **kwargs)
         return dec_function
 
