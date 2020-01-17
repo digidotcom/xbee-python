@@ -13,7 +13,7 @@
   Requirements
   ------------
   To run this example you will need:
-  
+
     * One Cellular radio with a micro SIM card inserted and its corresponding
       carrier board (XBIB or equivalent). The Cellular module must be working
       in API mode and connected to the Internet.

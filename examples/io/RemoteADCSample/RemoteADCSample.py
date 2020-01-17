@@ -17,7 +17,7 @@ from digi.xbee.io import IOLine, IOMode
 import time
 import threading
 
-# TODO: Replace with the serial port where your local module is connected to. 
+# TODO: Replace with the serial port where your local module is connected to.
 PORT = "COM1"
 # TODO: Replace with the baud rate of your local module.
 BAUD_RATE = 9600
@@ -54,7 +54,7 @@ def main():
                 # Read the analog value from the remote input line.
                 value = remote_device.get_adc_value(IOLINE_IN)
                 print("%s: %d" % (IOLINE_IN, value))
-                
+
                 time.sleep(0.2)
 
         th = threading.Thread(target=read_adc_task)

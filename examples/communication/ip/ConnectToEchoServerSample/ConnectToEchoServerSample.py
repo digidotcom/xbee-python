@@ -16,7 +16,7 @@ from ipaddress import IPv4Address
 from digi.xbee.devices import CellularDevice
 from digi.xbee.models.protocol import IPProtocol
 
-# TODO: Replace with the serial port where your local module is connected to. 
+# TODO: Replace with the serial port where your local module is connected to.
 PORT = "COM1"
 # TODO: Replace with the baud rate of your local module.
 BAUD_RATE = 9600

@@ -3,12 +3,12 @@
   This sample Python application shows how to create a UDP socket to deliver
   messages to a server and and listen for data coming from multiple peers using
   the XBee socket API.
-  
+
   The application associates the UDP socket with a port (binds it) to listen
   for individual messages. Then, it sends a message to a server Digi has at
   52.43.121.77 port 10001, which echos all UDP traffic sent to it. This causes
   the socket to receive the echoed message and prints it.
-  
+
   NOTE: This example uses the Cellular device (CellularDevice) class as it is
         the only device able to use the XBee socket API.
 
@@ -16,7 +16,7 @@
   Requirements
   ------------
   To run this example you will need:
-  
+
     * One Cellular radio with a micro SIM card inserted and its corresponding
       carrier board (XBIB or equivalent). The Cellular module must be working
       in API mode and connected to the Internet.

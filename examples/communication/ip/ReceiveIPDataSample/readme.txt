@@ -38,14 +38,14 @@ Compatible protocols
 
     3) Set the port and baud rate of the receiver XBee radio in the sample
        file.
-       If you configured the modules in the previous step with the XCTU, you 
-       will see the port number and baud rate in the 'Port' label of the device 
+       If you configured the modules in the previous step with the XCTU, you
+       will see the port number and baud rate in the 'Port' label of the device
        on the left view.
 
 
   Running the example
   -------------------
-  First, build and launch the application. Then, you need to send a data frame 
+  First, build and launch the application. Then, you need to send a data frame
   to the receiver (local) module from another device. Follow the steps below to
   do so:
 
