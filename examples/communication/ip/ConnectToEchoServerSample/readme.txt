@@ -14,7 +14,7 @@
   Requirements
   ------------
   To run this example you will need:
-  
+
     * One Internet capable XBee radio (for example a Cellular radio) in API
       mode and its corresponding carrier board (XBIB or equivalent).
     * The XCTU application (available at www.digi.com/xctu).

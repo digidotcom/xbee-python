@@ -2,19 +2,19 @@
   ------------
   This sample Python application shows how to list the contents of an XBee
   device filesystem directory.
-  
+
   The application uses the LocalXBeeFileSystemManager to access the device
   filesystem and execute the required actions.
-  
-  NOTE: This example uses the generic XBee device (XBeeDevice) class, but it 
+
+  NOTE: This example uses the generic XBee device (XBeeDevice) class, but it
         can be applied to any other local device class.
 
 
   Requirements
   ------------
   To run this example you will need:
-  
-    * One XBee radio in API mode and its corresponding carrier board (XBIB 
+
+    * One XBee radio in API mode and its corresponding carrier board (XBIB
       or XBee Development Board).
     * The XCTU application (available at www.digi.com/xctu).
 
@@ -35,14 +35,14 @@
   -------------
     1) Plug the XBee radio into the XBee adapter and connect it to your
        computer's USB or serial port.
-       
+
     2) Ensure that the module is in API mode.
-       For further information on how to perform this task, read the 
+       For further information on how to perform this task, read the
        'Configuring Your XBee Modules' topic of the Getting Started guide.
-       
+
     3) Set the port and baud rate of the XBee radio in the sample file class.
-       If you configured the module in the previous step with the XCTU, you 
-       will see the port number and baud rate in the 'Port' label of the device 
+       If you configured the module in the previous step with the XCTU, you
+       will see the port number and baud rate in the 'Port' label of the device
        on the left view.
 
     4) Configure the path of the XBee directory to list.
@@ -52,7 +52,7 @@
   -------------------
   First, build and launch the application. To test the functionality, check
   that the console lists the selected directory contents like this:
-  
+
     Starting file system manager... OK
 
     Current directory: /flash

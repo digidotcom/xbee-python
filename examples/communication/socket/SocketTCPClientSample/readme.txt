@@ -2,11 +2,11 @@
   ------------
   This sample Python application shows how to perform a complete request with
   an HTTP server using the XBee socket API.
-  
+
   The application opens the connection with an XBee device and, using the XBee
   socket API, it fetches a random fact about a number from a web services API
   offered by the website 'http://numbersapi.com'.
-  
+
   NOTE: This example uses the Cellular device (CellularDevice) class as it is
         the only device able to use the XBee socket API.
 
@@ -14,7 +14,7 @@
   Requirements
   ------------
   To run this example you will need:
-  
+
     * One Cellular radio with a micro SIM card inserted and its corresponding
       carrier board (XBIB or equivalent). The Cellular module must be working
       in API mode and connected to the Internet.

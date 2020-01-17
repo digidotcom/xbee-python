@@ -17,7 +17,7 @@ from digi.xbee.util import utils
 from digi.xbee.models.address import XBee64BitAddress
 from digi.xbee.models.status import PowerLevel
 
-# TODO: Replace with the serial port where your local module is connected to. 
+# TODO: Replace with the serial port where your local module is connected to.
 PORT = "COM1"
 # TODO: Replace with the baud rate of your local module.
 BAUD_RATE = 9600

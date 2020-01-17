@@ -12,7 +12,7 @@
 
   NOTE: A SIM card with fixed IP address is required for to the TCP server to
         be accessed externally.
-  
+
   NOTE: This example uses the Cellular device (CellularDevice) class as it is
         the only device able to use the XBee socket API.
 
@@ -20,7 +20,7 @@
   Requirements
   ------------
   To run this example you will need:
-  
+
     * One Cellular radio with a micro SIM card (with fixed IP) inserted and its
       corresponding carrier board (XBIB or equivalent). The Cellular module
       must be working in API mode and connected to the Internet.
