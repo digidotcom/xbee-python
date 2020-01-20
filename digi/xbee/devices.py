@@ -8174,10 +8174,19 @@ class XBeeNetwork(object):
                 if found:
                     found._initializing = False
 
+            # Look for the node in the cache by its 64-bit address
             if not found:
                 with self.__lock:
                     if remote_xbee in self.__devices_list:
                         found = self.__devices_list[self.__devices_list.index(remote_xbee)]
+
+            # If not found, look for the node in the cache by its 16-bit address
+            # (Useful if the 64-bit address could not be read)
+            if not found:
+                x16 = remote_xbee.get_16bit_addr()
+                if x16 and x16 != XBee16BitAddress.UNKNOWN_ADDRESS \
+                        and x16 != XBee16BitAddress.BROADCAST_ADDRESS:
+                    found = self.get_device_by_16(x16)
 
         if found:
             already_in_scan = False
