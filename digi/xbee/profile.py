@@ -12,6 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+import fnmatch
 import logging
 import os
 import shutil
@@ -50,6 +51,7 @@ _ERROR_OPEN_DEVICE = "Error opening XBee device: %s"
 _ERROR_PROFILE_NOT_VALID = "The XBee profile is not valid"
 _ERROR_PROFILE_INVALID = "Invalid XBee profile: %s"
 _ERROR_PROFILE_PATH_INVALID = "Profile path '%s' is not valid"
+_ERROR_PROFILE_READ = "Error reading profile file: %s"
 _ERROR_PROFILE_UNCOMPRESS = "Error un-compressing profile file: %s"
 _ERROR_PROFILE_TEMP_DIR = "Error creating temporary directory: %s"
 _ERROR_PROFILE_XML_NOT_EXIST = "Profile XML file does not exist"
@@ -636,11 +638,13 @@ class XBeeProfile(object):
         self._profile_folder = None
         self._profile_xml_file = None
         self._firmware_xml_file = None
+        self._firmware_xml_file_name = None
         self._bootloader_file = None
         self._version = 0
         self._flash_firmware_option = FlashFirmwareOption.FLASH_DIFFERENT
         self._description = None
         self._reset_settings = True
+        self._raw_settings = {}
         self._profile_settings = []
         self._firmware_binary_files = []
         self._file_system_path = None
@@ -648,12 +652,10 @@ class XBeeProfile(object):
         self._cellular_bootloader_files = []
         self._firmware_version = None
         self._hardware_version = None
+        self._has_filesystem = False
         self._protocol = XBeeProtocol.UNKNOWN
 
-        self._uncompress_profile()
-        self._check_profile_integrity()
-        self._parse_xml_profile_file()
-        self._parse_xml_firmware_file()
+        self._initialize_profile()
 
     def __del__(self):
         if not hasattr(self, 'profile_folder'):
@@ -662,25 +664,26 @@ class XBeeProfile(object):
         if self._profile_folder is not None and os.path.isdir(self._profile_folder):
             shutil.rmtree(self._profile_folder)
 
-    def _parse_xml_profile_file(self):
+    def _parse_xml_profile_file(self, zip_file):
         """
         Parses the XML profile file and stores the required parameters.
+
+        Args:
+            zip_file (ZipFile): the profile read as zip file.
 
         Raises:
             ProfileReadException: if there is any error parsing the XML profile file.
         """
         _log.debug("Parsing XML profile file %s:" % self._profile_xml_file)
         try:
-            root = ElementTree.parse(self._profile_xml_file).getroot()
+            root = ElementTree.parse(zip_file.open(_PROFILE_XML_FILE_NAME)).getroot()
             # XML firmware file. Mandatory.
             firmware_xml_file_element = root.find(_XML_PROFILE_XML_FIRMWARE_FILE)
             if firmware_xml_file_element is None:
                 self._throw_read_exception(_ERROR_PROFILE_XML_INVALID % "missing firmware file element")
-            self._firmware_xml_file = os.path.join(self._profile_folder, _FIRMWARE_FOLDER_NAME,
-                                                   firmware_xml_file_element.text)
-            if not os.path.isfile(self._firmware_xml_file):
-                self._throw_read_exception(_ERROR_FIRMWARE_XML_NOT_EXIST)
-            _log.debug(" - XML firmware file: %s" % self._firmware_xml_file)
+            # Store XML firmware file name.
+            self._firmware_xml_file_name = _FIRMWARE_FOLDER_NAME + "/" + firmware_xml_file_element.text
+            _log.debug(" - XML firmware file: %s" % self._firmware_xml_file_name)
             # Version. Optional.
             version_element = root.find(_XML_PROFILE_VERSION)
             if version_element is not None:
@@ -703,39 +706,20 @@ class XBeeProfile(object):
             if reset_settings_element is not None:
                 self._reset_settings = reset_settings_element.text in ("True", "true", "1")
             _log.debug(" - Reset settings: %s" % self._reset_settings)
-            # Parse AT settings.
-            _log.debug(" - AT settings:")
-            firmware_root = ElementTree.parse(self._firmware_xml_file).getroot()
+            # Read AT settings.
             setting_elements = root.findall(_XML_PROFILE_AT_SETTING)
             if not setting_elements:
-                _log.debug("  - None")
                 return
             for setting_element in setting_elements:
                 setting_name = setting_element.get(_XML_COMMAND)
                 setting_value = setting_element.text
-                for firmware_setting_element in firmware_root.findall(_XML_FIRMWARE_SETTING):
-                    if firmware_setting_element.get(_XML_COMMAND) == setting_name:
-                        setting_type_element = firmware_setting_element.find(_XML_CONTROL_TYPE)
-                        setting_type = XBeeSettingType.NO_TYPE
-                        if setting_type_element is not None:
-                            setting_type = XBeeSettingType.get(setting_type_element.text)
-                        setting_format_element = firmware_setting_element.find(_XML_FORMAT)
-                        setting_format = XBeeSettingFormat.NO_FORMAT
-                        if setting_format_element is not None:
-                            setting_format = XBeeSettingFormat.get(setting_format_element.text)
-                        profile_setting = XBeeProfileSetting(setting_name, setting_type, setting_format,
-                                                             setting_value)
-                        _log.debug("  - Setting '%s' - type: %s - format: %s - value: %s" %
-                                   (profile_setting.name, profile_setting.type.description,
-                                    profile_setting.format.description, profile_setting.value))
-                        self._profile_settings.append(profile_setting)
-
+                self._raw_settings[setting_name] = setting_value
         except ParseError as e:
             self._throw_read_exception(_ERROR_PROFILE_XML_PARSE % str(e))
 
     def _uncompress_profile(self):
         """
-        Un-compresses the profile into a temporary folder and saves the folder location.
+        Un-compresses the profile into a temporary folder and saves the folder and files locations.
 
         Raises:
             ProfileReadException: if there is any error un-compressing the profile file.
@@ -750,27 +734,13 @@ class XBeeProfile(object):
             with zipfile.ZipFile(self._profile_file, "r") as zip_ref:
                 zip_ref.extractall(self._profile_folder)
         except Exception as e:
-            _log.error(_ERROR_PROFILE_UNCOMPRESS % str(e))
             self._throw_read_exception(_ERROR_PROFILE_UNCOMPRESS % str(e))
-
-    def _check_profile_integrity(self):
-        """
-        Checks the profile integrity and stores the required information.
-
-        Raises:
-            ProfileReadException: if there is any error checking the profile integrity.
-        """
+        # Fill paths.
+        firmware_path = Path(os.path.join(self._profile_folder, _FIRMWARE_FOLDER_NAME))
+        # Firmware XML file.
+        self._firmware_xml_file = os.path.join(self._profile_folder, self._firmware_xml_file_name)
         # Profile XML file.
         self._profile_xml_file = os.path.join(self._profile_folder, _PROFILE_XML_FILE_NAME)
-        if not os.path.isfile(self._profile_xml_file):
-            self._throw_read_exception(_ERROR_PROFILE_XML_NOT_EXIST)
-        # Firmware folder.
-        if not os.path.isdir(os.path.join(self._profile_folder, _FIRMWARE_FOLDER_NAME)):
-            self._throw_read_exception(_ERROR_FIRMWARE_FOLDER_NOT_EXIST)
-        # Firmware XML file pattern.
-        firmware_path = Path(os.path.join(self._profile_folder, _FIRMWARE_FOLDER_NAME))
-        if len(list(firmware_path.rglob(_WILDCARD_XML))) is 0:
-            self._throw_read_exception(_ERROR_FIRMWARE_XML_NOT_EXIST)
         # Filesystem folder.
         if os.path.isdir(os.path.join(self._profile_folder, _FILESYSTEM_FOLDER)):
             self._file_system_path = os.path.join(self._profile_folder, _FILESYSTEM_FOLDER)
@@ -788,16 +758,58 @@ class XBeeProfile(object):
         for file in list(firmware_path.rglob(_WILDCARD_CELLULAR_BOOTLOADER)):
             self._cellular_bootloader_files.append(str(file))
 
-    def _parse_xml_firmware_file(self):
+    def _initialize_profile(self):
+        """
+        Initializes the profile information by checking its integrity and parsing the XML files.
+
+        Raises:
+            ProfileReadException: if there is any error checking the profile integrity.
+        """
+        try:
+            with zipfile.ZipFile(self._profile_file, "r") as zip_file:
+                self._check_profile_integrity(zip_file)
+                self._parse_xml_profile_file(zip_file)
+                self._parse_xml_firmware_file(zip_file)
+        except Exception as e:
+            self._throw_read_exception(_ERROR_PROFILE_READ % str(e))
+
+    def _check_profile_integrity(self, zip_file):
+        """
+        Checks the profile integrity.
+
+        Args:
+            zip_file (ZipFile): the profile read as zip file.
+
+        Raises:
+            ProfileReadException: if there is any error checking the profile integrity.
+        """
+        # Profile XML file.
+        files = list(map(lambda f: f.filename, zip_file.filelist))
+        # Profile XML file.
+        if _PROFILE_XML_FILE_NAME not in files:
+            self._throw_read_exception(_ERROR_PROFILE_XML_NOT_EXIST)
+        # Firmware folder.
+        if not any(f.startswith(_FIRMWARE_FOLDER_NAME) for f in files):
+            self._throw_read_exception(_ERROR_FIRMWARE_FOLDER_NOT_EXIST)
+        # Firmware XML file.
+        if len(fnmatch.filter(files, _FIRMWARE_FOLDER_NAME + _WILDCARD_XML)) == 0:
+            self._throw_read_exception(_ERROR_FIRMWARE_XML_NOT_EXIST)
+        # Check file system.
+        self._has_filesystem = any(f.startswith(_FILESYSTEM_FOLDER) for f in files)
+
+    def _parse_xml_firmware_file(self, zip_file):
         """
         Parses the XML firmware file and stores the required parameters.
+
+        Args:
+            zip_file (ZipFile): the profile read as zip file.
 
         Raises:
             ProfileReadException: if there is any error parsing the XML firmware file.
         """
         _log.debug("Parsing XML firmware file %s:" % self._firmware_xml_file)
         try:
-            root = ElementTree.parse(self._firmware_xml_file).getroot()
+            root = ElementTree.parse(zip_file.open(self._firmware_xml_file_name)).getroot()
             # Firmware version.
             firmware_element = root.find(_XML_FIRMWARE_FIRMWARE)
             if firmware_element is None:
@@ -816,6 +828,28 @@ class XBeeProfile(object):
             self._protocol = XBeeProtocol.determine_protocol(self._hardware_version,
                                                              utils.hex_string_to_bytes(str(self._firmware_version)))
             _log.debug(" - Protocol: %s" % self._protocol.description)
+            # Parse AT settings.
+            _log.debug(" - AT settings:")
+            if not self._raw_settings:
+                _log.debug("  - None")
+                return
+            for setting_element, setting_value in self._raw_settings.items():
+                for firmware_setting_element in root.findall(_XML_FIRMWARE_SETTING):
+                    if firmware_setting_element.get(_XML_COMMAND) == setting_element:
+                        setting_type_element = firmware_setting_element.find(_XML_CONTROL_TYPE)
+                        setting_type = XBeeSettingType.NO_TYPE
+                        if setting_type_element is not None:
+                            setting_type = XBeeSettingType.get(setting_type_element.text)
+                        setting_format_element = firmware_setting_element.find(_XML_FORMAT)
+                        setting_format = XBeeSettingFormat.NO_FORMAT
+                        if setting_format_element is not None:
+                            setting_format = XBeeSettingFormat.get(setting_format_element.text)
+                        profile_setting = XBeeProfileSetting(setting_element, setting_type, setting_format,
+                                                             setting_value)
+                        _log.debug("  - Setting '%s' - type: %s - format: %s - value: %s" %
+                                   (profile_setting.name, profile_setting.type.description,
+                                    profile_setting.format.description, profile_setting.value))
+                        self._profile_settings.append(profile_setting)
         except ParseError as e:
             self._throw_read_exception(_ERROR_FIRMWARE_XML_PARSE % str(e))
 
@@ -918,7 +952,7 @@ class XBeeProfile(object):
         Returns:
             Boolean: ``True`` if the profile has filesystem information, ``False`` otherwise.
          """
-        return self._file_system_path is not None
+        return self._has_filesystem
 
     @property
     def profile_settings(self):
@@ -958,6 +992,9 @@ class XBeeProfile(object):
         Returns:
             String: the path of the profile firmware description file.
         """
+        if self._profile_folder is None:
+            self._uncompress_profile()
+
         return self._firmware_xml_file
 
     @property
@@ -968,6 +1005,9 @@ class XBeeProfile(object):
         Returns:
             String: the path of the profile file system directory.
         """
+        if self._profile_folder is None:
+            self._uncompress_profile()
+
         return self._file_system_path
 
     @property
@@ -978,6 +1018,9 @@ class XBeeProfile(object):
         Returns:
              String: the path of the profile bootloader file.
         """
+        if self._profile_folder is None:
+            self._uncompress_profile()
+
         return self._bootloader_file
 
     @property
