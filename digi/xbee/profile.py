@@ -27,6 +27,7 @@ from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateE
 from digi.xbee.filesystem import LocalXBeeFileSystemManager, FileSystemException, FileSystemNotSupportedException
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
+from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.util import utils
 from enum import Enum, unique
 from pathlib import Path
@@ -647,6 +648,7 @@ class XBeeProfile(object):
         self._cellular_bootloader_files = []
         self._firmware_version = None
         self._hardware_version = None
+        self._protocol = XBeeProtocol.UNKNOWN
 
         self._uncompress_profile()
         self._check_profile_integrity()
@@ -810,6 +812,10 @@ class XBeeProfile(object):
                 self._throw_read_exception(_ERROR_FIRMWARE_XML_INVALID % "missing hardware version element")
             self._hardware_version = int(hardware_version_element.text, 16)
             _log.debug(" - Hardware version: %s" % self._hardware_version)
+            # Determine protocol.
+            self._protocol = XBeeProtocol.determine_protocol(self._hardware_version,
+                                                             utils.hex_string_to_bytes(str(self._firmware_version)))
+            _log.debug(" - Protocol: %s" % self._protocol.description)
         except ParseError as e:
             self._throw_read_exception(_ERROR_FIRMWARE_XML_PARSE % str(e))
 
@@ -973,6 +979,16 @@ class XBeeProfile(object):
              String: the path of the profile bootloader file.
         """
         return self._bootloader_file
+
+    @property
+    def protocol(self):
+        """
+        Returns the profile XBee protocol.
+
+        Returns:
+             XBeeProtocol: the profile XBee protocol.
+        """
+        return self._protocol
 
 
 class _ProfileUpdater(object):
