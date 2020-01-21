@@ -30,6 +30,7 @@ def main():
         print("  - Version: %s" % xbee_profile.version)
         print("  - Firmware version: %s" % xbee_profile.firmware_version)
         print("  - Hardware version: %s" % xbee_profile.hardware_version)
+        print("  - Protocol: %s" % xbee_profile.protocol.description)
         print("  - Flash firmware option: %s" % xbee_profile.flash_firmware_option.description)
         print("  - Description: %s" % xbee_profile.description)
         print("  - Reset settings: %s" % xbee_profile.reset_settings)
