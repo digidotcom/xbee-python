@@ -1046,14 +1046,14 @@ class _XBeeFirmwareUpdater(ABC):
         # Finish the firmware update process.
         self._finish_firmware_update()
 
+        # Wait for target to reset.
+        self._wait_for_target_reset()
+
         # Leave updater in its original state.
         try:
             self._restore_updater()
         except Exception as e:
             raise FirmwareUpdateException(_ERROR_RESTORE_TARGET_CONNECTION % str(e))
-
-        # Wait for target to reset.
-        self._wait_for_target_reset()
 
         _log.info("Update process finished successfully")
 
