@@ -42,7 +42,7 @@ from digi.xbee.packets.common import ATCommPacket, TransmitPacket, RemoteATComma
 from digi.xbee.packets.network import TXIPv4Packet
 from digi.xbee.packets.raw import TX64Packet, TX16Packet
 from digi.xbee.packets.relay import UserDataRelayPacket
-from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, RegisterDeviceStatusPacket
+from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, RegisterDeviceStatusPacket, CreateSourceRoutePacket
 from digi.xbee.util import utils
 from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatingModeException, \
     ATCommandException, OperationNotSupportedException, TransmitException
@@ -5121,6 +5121,68 @@ class ZigBeeDevice(XBeeDevice):
             neighbor_callback=neighbor_callback,
             process_finished_callback=process_finished_callback,
             timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
+
+    def create_source_route(self, dest_node, hops):
+        """
+        Creates a source route for the provided destination node. A source route
+        specifies the complete route a packet traveses to get from source to
+        destination.
+
+        For best results, use source routing with many-to-one routing.
+
+        Args:
+             dest_node (:class:`.RemoteXBeeDevice`): The destination node.
+             hops (List): List of intermediate nodes (:class:`.RemoteXBeeDevice`)
+                ordered from closest to source to closest to destination node
+                (source and destination excluded).
+
+        Raises:
+            ValueError: If `dest_node` is `None`, or if it is a local node, or
+                if its protocol is not Zigbee based, or if its 64-bit address or
+                16-bit address is `None`, unknown, or invalid.
+            InvalidOperatingModeException: If the XBee device's operating mode
+                is not API or ESCAPED API. This method only checks the cached
+                value of the operating mode.
+            XBeeException: If the packet listener is not running or the XBee
+                device's communication interface is closed.
+        """
+        if not dest_node:
+            raise ValueError("Destination node cannot be None")
+        if not dest_node.is_remote():
+            raise ValueError("Destination node cannot be a local node")
+
+        if dest_node.get_protocol() not in (XBeeProtocol.ZIGBEE,
+                                            XBeeProtocol.ZNET,
+                                            XBeeProtocol.SMART_ENERGY):
+            raise ValueError("Invalid protocol of destination node")
+
+        x64 = dest_node.get_64bit_addr()
+        if (not x64 or x64 == XBee64BitAddress.UNKNOWN_ADDRESS
+                or x64 == XBee64BitAddress.BROADCAST_ADDRESS):
+            raise ValueError("Invalid 64-bit address of destination node: %s" % x64)
+
+        x16 = dest_node.get_16bit_addr()
+        if (not x16 or x16 == XBee16BitAddress.UNKNOWN_ADDRESS
+                or x16 == XBee16BitAddress.BROADCAST_ADDRESS):
+            raise ValueError("Invalid 16-bit address of destination node: %s" % x16)
+
+        if hops is None:
+            hops = []
+
+        addresses = []
+        for hop in hops:
+            hop16 = hop.get_16bit_addr()
+            if (not hop16 or hop16 == XBee16BitAddress.UNKNOWN_ADDRESS
+                    or hop16 == XBee16BitAddress.BROADCAST_ADDRESS):
+                raise ValueError("Invalid 16-bit address of hop node: %s" % hop16)
+            addresses.append(hop16)
+
+        self._log.debug("Create source route for %s: {%s%s%s >>> %s (hops: %s)}",
+                        dest_node, dest_node.get_local_xbee_device(),
+                        " >>> " if hops else "", " >>> ".join(map(str, hops)),
+                        dest_node, len(hops) + 1)
+        self.send_packet(
+            CreateSourceRoutePacket(0x00, x64, x16, route_options=0, hops=addresses), sync=False)
 
 
 class IPDevice(XBeeDevice):

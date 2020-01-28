@@ -98,6 +98,7 @@ class DictKeys(Enum):
     RESPONDER_ADDR = "responder_address"
     SUCCESSOR_ADDR = "successor_address"
     ADDITIONAL_DATA = "additional_data"
+    ROUTE_CMD_OPTIONS = "route_command_options"
 
 
 class XBeePacket:

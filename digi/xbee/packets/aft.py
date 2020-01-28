@@ -36,6 +36,7 @@ class ApiFrameType(Enum):
     REMOTE_AT_COMMAND_REQUEST = (0x17, "Remote AT Command Request")
     TX_SMS = (0x1F, "TX SMS")
     TX_IPV4 = (0x20, "TX IPv4")
+    CREATE_SOURCE_ROUTE = (0x21, "Create Source Route")
     REGISTER_JOINING_DEVICE = (0x24, "Register Joining Device")
     SEND_DATA_REQUEST = (0x28, "Send Data Request")
     DEVICE_RESPONSE = (0x2A, "Device Response")

@@ -406,7 +406,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         self.__x64_addr = x64bit_addr
         self.__x16_addr = x16bit_addr
         self.__receive_options = receive_options
-        self.__hops = hops
+        self.__hops = hops if hops else []
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -489,12 +489,9 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         ret = self.__x64_addr.address
         ret += self.__x16_addr.address
         ret.append(self.__receive_options)
-        if self.__hops:
-            ret.append(len(self.__hops))
-            for hop in self.__hops:
-                ret += hop.address
-        else:
-            ret.append(0)
+        ret.append(len(self.__hops))
+        for hop in self.__hops:
+            ret += hop.address
 
         return ret
 
@@ -505,9 +502,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        hops_array = []
-        if self.__hops:
-            hops_array = [self.__hops[i].address for i in range(len(self.__hops))]
+        hops_array = [hop.address for hop in self.__hops]
 
         return {DictKeys.X64BIT_ADDR:     self.__x64_addr.address,
                 DictKeys.X16BIT_ADDR:     self.__x16_addr.address,
@@ -602,7 +597,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         Returns:
             Integer: The number of addresses.
         """
-        return len(self.__hops) if self.__hops else 0
+        return len(self.__hops)
 
     @property
     def hops(self):
@@ -617,11 +612,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBee16BitAddress`
         """
-        if not self.__hops:
-            return []
-
-        return [XBee16BitAddress(self.__hops[i].address)
-                for i in range(len(self.__hops))]
+        return self.__hops
 
     @hops.setter
     def hops(self, hops):
@@ -634,8 +625,258 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBee16BitAddress`
         """
-        if hops is None:
-            self.__hops = None
-        else:
-            self.__hops = \
-                [XBee16BitAddress(hops[i].address) for i in range(len(hops))]
+        self.__hops = hops if hops else []
+
+
+class CreateSourceRoutePacket(XBeeAPIPacket):
+    """
+    This class represents a Zigbee Create Source Route packet. This packet is
+    built using the parameters of the constructor or providing a valid API
+    payload.
+
+    This frame creates a source route in the node. A source route specifies the
+    complete route a packet should travese to get from source to destination.
+    Source routing should be used with many-to-one routing for best results.
+
+    Note: Both, 64-bit and 16-bit destination addresses are required when
+    creating a source route. These are obtained when a Route Record Indicator
+    (0xA1) frame is received.
+
+    .. seealso::
+       | :class:`.RouteRecordIndicatorPacket`
+       | :class:`.XBeeAPIPacket`
+    """
+
+    __MIN_PACKET_LENGTH = 18
+
+    def __init__(self, frame_id, x64bit_addr, x16bit_addr, route_options=0, hops=None):
+        """
+        Class constructor. Instantiates a new :class:`.CreateSourceRoutePacket`
+        object with the provided parameters.
+
+        Args:
+            frame_id (integer): the frame ID of the packet.
+            x64bit_addr (:class:`.XBee64BitAddress`): The 64-bit destination address.
+            x16bit_addr (:class:`.XBee16BitAddress`): The 16-bit destination address.
+            route_options (Integer): Route command options.
+            hops (List, optional, default=`None`): List of 16-bit addresses of
+                intermediate hops in the source route (excluding source and
+                destination).
+
+        .. seealso::
+           | :class:`.XBee16BitAddress`
+           | :class:`.XBee64BitAddress`
+           | :class:`.XBeeAPIPacket`
+        """
+        if frame_id < 0 or frame_id > 255:
+            raise ValueError("Frame id must be between 0 and 255.")
+
+        super().__init__(ApiFrameType.CREATE_SOURCE_ROUTE)
+
+        self._frame_id = frame_id
+        self.__x64_addr = x64bit_addr
+        self.__x16_addr = x16bit_addr
+        self.__route_options = route_options
+        self.__hops = hops if hops else []
+
+    @staticmethod
+    def create_packet(raw, operating_mode):
+        """
+        Override method.
+
+        Returns:
+            :class:`.CreateSourceRoutePacket`.
+
+        Raises:
+            InvalidPacketException: If the bytearray length is less than 18.
+                (start delim. + length (2 bytes) + frame type + frame id +
+                 64-bit addr. + 16-bit addr. + Route command options + num of addrs
+                 + hops 16-bit addrs + checksum = 18 bytes).
+            InvalidPacketException: If the length field of `raw` is different
+                from its real length. (length field: bytes 1 and 3)
+            InvalidPacketException: If the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: If the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: If the frame type is not
+                :attr:`.ApiFrameType.CREATE_SOURCE_ROUTE`.
+            InvalidPacketException: If the number of hops does not match with
+                the number of 16-bit addresses.
+            InvalidOperatingModeException: If ``operating_mode`` is not
+                supported.
+
+        .. seealso::
+           | :meth:`.XBeePacket.create_packet`
+           | :meth:`.XBeeAPIPacket._check_api_packet`
+        """
+        if operating_mode not in [OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE]:
+            raise InvalidOperatingModeException(
+                operating_mode.name + " is not supported.")
+
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=CreateSourceRoutePacket.__MIN_PACKET_LENGTH)
+
+        if raw[3] != ApiFrameType.CREATE_SOURCE_ROUTE.code:
+            raise InvalidPacketException(
+                "This packet is not a Create Source Route packet.")
+
+        hops = [XBee16BitAddress(raw[i:i+2]) for i in range(17, len(raw) - 1, 2)]
+
+        if raw[16] != len(hops):
+            raise InvalidPacketException("Specified number of hops does not"
+                                         "match with the length of addresses.")
+
+        return CreateSourceRoutePacket(raw[4], XBee64BitAddress(raw[5:13]),
+                                       XBee16BitAddress(raw[13:15]), raw[15], hops)
+
+    def needs_id(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.needs_id`
+        """
+        return True
+
+    def _get_api_packet_spec_data(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
+        """
+        ret = self.__x64_addr.address
+        ret += self.__x16_addr.address
+        ret.append(self.__route_options)
+        ret.append(len(self.__hops))
+        for hop in self.__hops:
+            ret += hop.address
+
+        return ret
+
+    def _get_api_packet_spec_data_dict(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
+        """
+        hops_array = [hop.address for hop in self.__hops]
+
+        return {DictKeys.X64BIT_ADDR:       self.__x64_addr.address,
+                DictKeys.X16BIT_ADDR:       self.__x16_addr.address,
+                DictKeys.ROUTE_CMD_OPTIONS: self.__route_options,
+                DictKeys.NUM_OF_HOPS:       len(hops_array),
+                DictKeys.HOPS:              hops_array}
+
+    @property
+    def x64bit_dest_addr(self):
+        """
+        Returns the 64-bit destination address.
+
+        Returns:
+            :class:`.XBee64BitAddress`: The 64-bit destination address.
+
+        .. seealso::
+           | :class:`.XBee64BitAddress`
+        """
+        return self.__x64_addr
+
+    @x64bit_dest_addr.setter
+    def x64bit_dest_addr(self, x64bit_addr):
+        """
+        Sets the 64-bit destination address.
+
+        Args:
+            x64bit_addr (:class:`.XBee64BitAddress`): The new 64-bit destination address.
+
+        .. seealso::
+           | :class:`.XBee64BitAddress`
+        """
+        self.__x64_addr = x64bit_addr
+
+    @property
+    def x16bit_dest_addr(self):
+        """
+        Returns the 16-bit destination address.
+
+        Returns:
+            :class:`.XBee16BitAddress`: The 16-bit destination address.
+
+        .. seealso::
+           | :class:`.XBee16BitAddress`
+        """
+        return self.__x16_addr
+
+    @x16bit_dest_addr.setter
+    def x16bit_dest_addr(self, x16bit_addr):
+        """
+        Sets the 16-bit destination address.
+
+        Args:
+            x16bit_addr (:class:`.XBee16BitAddress`): The new 16-bit destination address.
+
+        .. seealso::
+           | :class:`.XBee16BitAddress`
+        """
+        self.__x16_addr = x16bit_addr
+
+    @property
+    def route_cmd_options(self):
+        """
+        Returns the route command options bitfield.
+
+        Returns:
+            Integer: The route command options bitfield.
+        """
+        return self.__route_options
+
+    @route_cmd_options.setter
+    def route_cmd_options(self, route_options):
+        """
+        Sets the route command options bitfield.
+
+        Args:
+            route_options (Integer): The new route command options bitfield.
+        """
+        self.__route_options = route_options
+
+    @property
+    def number_of_hops(self):
+        """
+        Returns the number of intermediate hops in the source route (excluding
+        source and destination).
+
+        Returns:
+            Integer: The number of intermediate hops.
+        """
+        return len(self.__hops)
+
+    @property
+    def hops(self):
+        """
+        Returns the list of intermediate hops starting from the closest to
+        destination hop and finishing with the closest to the source (excluding
+        source and destination).
+
+        Returns:
+            List: The list of 16-bit addresses of intermediate hops.
+
+        .. seealso::
+           | :class:`.XBee16BitAddress`
+        """
+        return self.__hops
+
+    @hops.setter
+    def hops(self, hops):
+        """
+        Sets the hops of the route (excluding source and destination).
+
+        Args:
+            hops (List): List of `XBee16BitAddress`.
+
+        .. seealso::
+           | :class:`.XBee16BitAddress`
+        """
+        self.__hops = hops if hops else []
