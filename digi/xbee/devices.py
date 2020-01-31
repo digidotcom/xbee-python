@@ -2307,14 +2307,24 @@ class XBeeDevice(AbstractXBeeDevice):
         if self._operating_mode == OperatingMode.UNKNOWN:
             self.close()
             raise InvalidOperatingModeException(message="Could not determine operating mode")
-        if self._operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
-            self.close()
-            raise InvalidOperatingModeException(op_mode=self._operating_mode)
+        elif self._operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+            self._change_operating_mode_to_escaped_api()
 
         # Read the device info (obtain its parameters and protocol).
         self.read_device_info()
 
         self._is_open = True
+
+    def _change_operating_mode_to_escaped_api(self):
+        """
+        Automate change to supported Operating Mode on an XBee running AT Mode.
+        """
+        try:
+            self.set_parameter(ATStringCommand.AP, bytes([OperatingMode.ESCAPED_API_MODE.code]))
+            self._operating_mode = OperatingMode.ESCAPED_API_MODE
+            self._log.warning(f"Changed mode to {OperatingMode.ESCAPED_API_MODE}")
+        except TimeoutException:
+            raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
     def close(self):
         """
