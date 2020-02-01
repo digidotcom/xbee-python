@@ -12,9 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import abc
 import time
-from abc import abstractmethod, ABCMeta
 
 from digi.xbee.comm_interface import XBeeCommunicationInterface
 from digi.xbee.models.atcomm import SpecialByte
