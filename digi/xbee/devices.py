@@ -2115,6 +2115,11 @@ class XBeeDevice(AbstractXBeeDevice):
     Response that will be receive if the attempt to enter in at command mode goes well.
     """
 
+    __COMMAND_ESCAPED_API_MODE = "ATAP=2\r"
+    """
+    Command to change Operating Mode to Escaped API Mode
+    """
+
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
                  _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
@@ -2307,14 +2312,36 @@ class XBeeDevice(AbstractXBeeDevice):
         if self._operating_mode == OperatingMode.UNKNOWN:
             self.close()
             raise InvalidOperatingModeException(message="Could not determine operating mode")
-        if self._operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
-            self.close()
-            raise InvalidOperatingModeException(op_mode=self._operating_mode)
+        elif self._operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+            self._change_operating_mode_to_escaped_api()
 
         # Read the device info (obtain its parameters and protocol).
         self.read_device_info()
 
         self._is_open = True
+
+    def _change_operating_mode_to_escaped_api(self):
+        """
+        Automate change to supported Operating Mode on an XBee running AT Mode.
+        """
+        try:
+            if self._serial_port is not None:
+                command_mode_ok_bytes = bytes(self.__COMMAND_MODE_OK, "utf-8")
+                self._serial_port.reset_output_buffer()
+                size = self._serial_port.write(bytes(self.__COMMAND_MODE_CHAR * 3, "utf-8"))
+                response_cmd_mode = self._serial_port.read(size=size+1)
+                if command_mode_ok_bytes in response_cmd_mode:
+                    response_size = self._serial_port.write(bytes(self.__COMMAND_ESCAPED_API_MODE, "utf-8"))
+                    response_at_command = self.serial_port.read(size=response_size + 1)
+                    if command_mode_ok_bytes in response_at_command:
+                        self._operating_mode = OperatingMode.ESCAPED_API_MODE
+                        self._log.warning(f"Changed mode to {OperatingMode.ESCAPED_API_MODE}")
+                    else:
+                        raise TimeoutException
+                else:
+                    raise TimeoutException
+        except TimeoutException:
+            raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
     def close(self):
         """
