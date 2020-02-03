@@ -7396,7 +7396,7 @@ class XBeeNetwork(object):
     The neighbor discovery process continues until is manually stopped.
     """
 
-    __NT_LIMITS = {
+    NT_LIMITS = {
         XBeeProtocol.RAW_802_15_4: (0x1 / 10, 0xFC / 10),  # 0.1, 25.2 seconds
         XBeeProtocol.ZIGBEE: (0x20 / 10, 0xFF / 10),  # 3.2, 25.5 seconds
         XBeeProtocol.DIGI_MESH: (0x20 / 10, 0x2EE0 / 10)  # 3.2, 5788.8 seconds
@@ -7998,7 +7998,7 @@ class XBeeNetwork(object):
             ValueError: if ``discovery_timeout`` is not between the allowed
                 minimum and maximum values.
         """
-        min_nt, max_nt = self.__get_nt_limits()
+        min_nt, max_nt = self.get_nt_limits(self._local_xbee.get_protocol())
         if discovery_timeout < min_nt or discovery_timeout > max_nt:
             raise ValueError("Value must be between %f and %f seconds"
                              % (min_nt, max_nt))
@@ -8082,7 +8082,7 @@ class XBeeNetwork(object):
             | :meth:`.XBeeNetwork.get_deep_discovery_timeouts`
             | :meth:`.XBeeNetwork.start_discovery_process`
         """
-        min_nt, max_nt = self.__get_nt_limits()
+        min_nt, max_nt = self.get_nt_limits(self._local_xbee.get_protocol())
 
         if node_timeout and (node_timeout < min_nt or node_timeout > max_nt):
             raise ValueError("Node timeout must be between %f and %f seconds"
@@ -8108,7 +8108,8 @@ class XBeeNetwork(object):
         self.__time_bw_scans = time_bw_scans if time_bw_scans is not None \
             else self.__class__.DEFAULT_TIME_BETWEEN_SCANS
 
-    def __get_nt_limits(self):
+    @classmethod
+    def get_nt_limits(cls, protocol):
         """
         Returns a tuple with the minimum and maximum values for the 'NT'
         value depending on the protocol.
@@ -8117,17 +8118,13 @@ class XBeeNetwork(object):
              Tuple (Float, Float): Minimum value in seconds, maximum value in
                 seconds.
         """
-        protocol = self._local_xbee.get_protocol()
         if protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.ZIGBEE,
                         XBeeProtocol.DIGI_MESH]:
-            return self.__class__.__NT_LIMITS[protocol]
+            return cls.NT_LIMITS[protocol]
 
         # Calculate the minimum of the min values and the maximum of max values
-        min_nt = self.__class__.__NT_LIMITS[XBeeProtocol.RAW_802_15_4][0]
-        max_nt = self.__class__.__NT_LIMITS[XBeeProtocol.RAW_802_15_4][1]
-        for protocol in self.__class__.__NT_LIMITS:
-            min_nt = min(min_nt, self.__class__.__NT_LIMITS[protocol][0])
-            max_nt = max(max_nt, self.__class__.__NT_LIMITS[protocol][1])
+        min_nt = min(map(lambda p: p[0], cls.NT_LIMITS.values()))
+        max_nt = max(map(lambda p: p[1], cls.NT_LIMITS.values()))
 
         return min_nt, max_nt
 
