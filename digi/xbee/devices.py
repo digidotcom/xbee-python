@@ -2120,6 +2120,11 @@ class XBeeDevice(AbstractXBeeDevice):
     Command to change Operating Mode to Escaped API Mode
     """
 
+    __COMMAND_CLOSE_COMMAND_MODE = "ATCN\r"
+    """
+    Command to leave COMMAND MODE
+    """
+
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
                  parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
                  _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
