@@ -2331,16 +2331,19 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         try:
             if self._serial_port is not None:
+                self._log.warning(f"Changing Operating Mode to {OperatingMode.ESCAPED_API_MODE}")
                 command_mode_ok_bytes = bytes(self.__COMMAND_MODE_OK, "utf-8")
                 self._serial_port.reset_output_buffer()
                 size = self._serial_port.write(bytes(self.__COMMAND_MODE_CHAR * 3, "utf-8"))
-                response_cmd_mode = self._serial_port.read(size=size+1)
+                response_cmd_mode = self._serial_port.read(size=size+1)  # + 1 to size otherwise communication freezes
                 if command_mode_ok_bytes in response_cmd_mode:
                     response_size = self._serial_port.write(bytes(self.__COMMAND_ESCAPED_API_MODE, "utf-8"))
-                    response_at_command = self.serial_port.read(size=response_size + 1)
+                    response_at_command = self.serial_port.read(size=response_size + 1)  # + 1 to size otherwise communication freezes
                     if command_mode_ok_bytes in response_at_command:
                         self._operating_mode = OperatingMode.ESCAPED_API_MODE
                         self._log.warning(f"Changed mode to {OperatingMode.ESCAPED_API_MODE}")
+                        self._serial_port.write(bytes(self.__COMMAND_CLOSE_COMMAND_MODE, "utf-8"))
+                        self._serial_port.reset_output_buffer()
                     else:
                         raise TimeoutException
                 else:
