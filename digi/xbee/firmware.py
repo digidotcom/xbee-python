@@ -2046,16 +2046,16 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(image_size, 4)))
 
-        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, _PACKET_DEFAULT_SEQ_NUMBER,
+        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, self._seq_number,
                                       _ZDO_COMMAND_ID_QUERY_NEXT_IMG_RESP, payload)
 
-    def _create_image_block_response_frame(self, chunk_index, current_seq_number):
+    def _create_image_block_response_frame(self, chunk_index, seq_number):
         """
         Creates and returns an image block response frame.
 
         Args:
             chunk_index (Integer): the chunk index to send.
-            current_seq_number (Integer): the current protocol sequence number.
+            seq_number (Integer): sequence number to be used for the response.
 
         Returns:
             Bytearray: the image block response frame.
@@ -2063,11 +2063,6 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error generating the image block response frame.
         """
-        # Increment protocol sequence number.
-        next_seq_number = current_seq_number + 1
-        if next_seq_number > 255:
-            next_seq_number = 0
-
         try:
             data = self._ota_file.get_next_data_chunk()
         except _ParsingOTAException as e:
@@ -2084,7 +2079,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         else:
             payload.extend(utils.int_to_bytes(0))
 
-        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, next_seq_number,
+        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, seq_number,
                                       _ZDO_COMMAND_ID_IMG_BLOCK_RESP, payload)
 
     def _create_upgrade_end_response_frame(self):
@@ -2101,7 +2096,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         payload.extend(_reverse_bytearray(utils.int_to_bytes(int(time.time()) - _TIME_SECONDS_1970_TO_2000, 4)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(0, 4)))
 
-        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, _PACKET_DEFAULT_SEQ_NUMBER,
+        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, self._seq_number,
                                       _ZDO_COMMAND_ID_UPGRADE_END_RESP, payload)
 
     @staticmethod
@@ -2150,6 +2145,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 return
             _log.debug("Received 'Query next image' request frame")
             self._img_req_received = True
+            self._seq_number = xbee_frame.rf_data[1] & 0xFF
             # Sometimes the transmit status frame is received after the explicit frame
             # indicator. Notify only if the transmit status frame was also received.
             if self._img_notify_sent:
@@ -2184,7 +2180,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         elif self._is_upgrade_end_request_frame(xbee_frame):
             _log.debug("Received 'Upgrade end request' frame")
             # If the received frame is an 'upgrade end request' frame, set transfer status.
-            self._transfer_status = _XBee3OTAStatus.get(self._parse_upgrade_end_request_frame(xbee_frame))
+            status, sequence_number = self._parse_upgrade_end_request_frame(xbee_frame)
+            self._transfer_status = _XBee3OTAStatus.get(status)
+            self._seq_number = sequence_number
         elif self._is_default_response_frame(xbee_frame):
             _log.debug("Received 'Default response' frame")
             # If the received frame is a 'default response' frame, set the corresponding error.
@@ -2263,7 +2261,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
 
         Returns:
-            Integer: the upgrade end request status, ``None`` if parsing failed.
+            Tuple (Integer, Integer): the upgrade end request status and the sequence number of the block
+                                        request frame, ``None`` if parsing failed.
         """
         payload = xbee_frame.rf_data
         if len(payload) != _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE or \
@@ -2271,9 +2270,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 payload[2] != _ZDO_COMMAND_ID_UPGRADE_END_REQ:
             return None
 
+        sequence_number = payload[1] & 0xFF
         status = payload[3] & 0xFF
 
-        return status
+        return status, sequence_number
 
     def _is_default_response_frame(self, xbee_frame):
         """
