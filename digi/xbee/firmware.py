@@ -223,6 +223,7 @@ class _OTAFile(object):
         self._num_chunks = 0
         self._discard_size = 0
         self._file = None
+        self._last_block = None
 
     def parse_file(self):
         """
@@ -287,8 +288,8 @@ class _OTAFile(object):
             if self._file is None:
                 self._file = open(self._file_path, "rb")
                 self._file.read(self._discard_size)
-
-            return self._file.read(self._chunk_size)
+            self._last_block = self._file.read(self._chunk_size)
+            return self._last_block
         except IOError as e:
             self.close_file()
             raise _ParsingOTAException(str(e))
@@ -299,6 +300,16 @@ class _OTAFile(object):
         """
         if self._file:
             self._file.close()
+
+    @property
+    def last_block(self):
+        """
+        Returns the last data chunk read.
+
+        Returns:
+            Bytearray: the last read data chunk of the file as byte array.
+        """
+        return self._last_block
 
     @property
     def file_path(self):
@@ -2029,13 +2040,14 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, self._seq_number,
                                       _ZDO_COMMAND_ID_QUERY_NEXT_IMG_RESP, payload)
 
-    def _create_image_block_response_frame(self, chunk_index, seq_number):
+    def _create_image_block_response_frame(self, chunk_index, seq_number, use_last_block=False):
         """
         Creates and returns an image block response frame.
 
         Args:
             chunk_index (Integer): the chunk index to send.
             seq_number (Integer): sequence number to be used for the response.
+            use_last_block (Optional, Boolean): use the last block used or ask for the next one.
 
         Returns:
             Bytearray: the image block response frame.
@@ -2044,7 +2056,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             FirmwareUpdateException: if there is any error generating the image block response frame.
         """
         try:
-            data = self._ota_file.get_next_data_chunk()
+            if use_last_block:
+                data = self._ota_file.last_block
+            else:
+                data = self._ota_file.get_next_data_chunk()
         except _ParsingOTAException as e:
             raise FirmwareUpdateException(_ERROR_READ_OTA_FILE % str(e))
         payload = bytearray()
@@ -2317,18 +2332,21 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
 
         raise FirmwareUpdateException(_ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE % "Timeout sending frame")
 
-    def _send_ota_block(self, chunk_index, seq_number):
+    def _send_ota_block(self, chunk_index, seq_number, use_last_block=False):
         """
         Sends the next OTA block frame.
 
         Args:
-            chunk_index (Integer): the
+            chunk_index (Integer): the chunk index to send.
+            seq_number (Integer): the protocol sequence number.
+            use_last_block (Optional, Boolean): use the last block used or ask for the next one.
 
         Raises:
             FirmwareUpdateException: if there is any error sending the next OTA block frame.
         """
         retries = _SEND_BLOCK_RETRIES
-        next_ota_block_frame = self._create_image_block_response_frame(chunk_index, seq_number)
+        next_ota_block_frame = self._create_image_block_response_frame(chunk_index, seq_number,
+                                                                       use_last_block=use_last_block)
         while retries > 0:
             try:
                 _log.debug("Sending 'Image block response' frame for chunk %s" % chunk_index)
@@ -2406,10 +2424,12 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 last_chunk_sent = self._requested_chunk_index
                 previous_seq_number = self._seq_number
                 retries = _SEND_BLOCK_RETRIES
+                use_last_block = False
             else:
                 # Chunk index was not increased, this means chunk was not sent. Decrease retries.
                 _log.debug("Chunk %s not sent, retrying..." % self._requested_chunk_index)
                 retries -= 1
+                use_last_block = True
             # Check that the requested index is valid.
             if self._requested_chunk_index >= self._ota_file.num_chunks:
                 self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
@@ -2421,7 +2441,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 previous_percent = percent
             # Send the data block.
             try:
-                self._send_ota_block(self._requested_chunk_index, previous_seq_number)
+                self._send_ota_block(self._requested_chunk_index, previous_seq_number, use_last_block=use_last_block)
             except FirmwareUpdateException as e:
                 self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
                 self._exit_with_error(str(e))
