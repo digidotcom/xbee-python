@@ -1746,9 +1746,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._ota_firmware_file = ota_firmware_file
         self._otb_firmware_file = otb_firmware_file
         self._updater_was_connected = False
-        self._updater_old_baudrate = None
         self._updater_ao_value = None
-        self._updater_bd_value = None
         self._updater_my_value = None
         self._updater_rr_value = None
         self._ota_file = None
@@ -1879,17 +1877,6 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._updater_ao_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
         if self._updater_ao_value is None:
             self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.AO.command)
-        # Store BD value.
-        self._updater_bd_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.BD.command)
-        if self._updater_bd_value is None:
-            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.BD.command)
-        # Set new BD value.
-        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.BD.command,
-                                                  bytearray([_VALUE_BAUDRATE_230400])):
-            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.BD.command)
-        # Change local port baudrate to 230400.
-        self._updater_old_baudrate = self._local_device.serial_port.get_settings()["baudrate"]
-        self._local_device.serial_port.set_baudrate(230400)
         # Set new AO value.
         if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
                                                   bytearray([_VALUE_API_OUTPUT_MODE_EXPLICIT])):
@@ -1939,13 +1926,6 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             if self._updater_ao_value is not None:
                 _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
                                                    self._updater_ao_value)
-            # Restore BD.
-            if self._updater_bd_value is not None:
-                _set_device_parameter_with_retries(self._local_device, ATStringCommand.BD.command,
-                                                   self._updater_bd_value)
-            # Restore port baudrate.
-            if self._updater_old_baudrate is not None:
-                self._local_device.serial_port.set_baudrate(self._updater_old_baudrate)
             # Specific settings per protocol.
             if self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
                 # Restore RR value.
