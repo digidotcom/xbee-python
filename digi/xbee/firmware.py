@@ -2490,29 +2490,30 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 _log.debug("Received 'Upgrade end response' status frame: %s" %
                            status_frame.transmit_status.description)
 
-                # Workaround for 'No ack' error on XBee 3 DigiMesh remote firmware updates
                 #
-                # After sending the explicit frame with the 'Upgrade end response' command,
-                # the received transmit status always has a 'No acknowledgement received'
-                # error (0x01) instead of a 'Success' (0x00). This happens for 3004 or lower
-                # firmware versions at least.
-                # The workaround considers as valid the 'No ack' error only for DigiMesh firmwares.
+                # Workaround for XBHAWKDM-796
+                #
+                #   - 'No ack' error on XBee 3 DigiMesh remote firmware update
+                #   - 'Address not found' on XBee 3 ZB remote firmware update
+                #
+                # The workaround considers those TX status as valid.
                 #
                 # See https://jira.digi.com/browse/XBHAWKDM-796
+                #
                 dm_ack_error = (status_frame.transmit_status == TransmitStatus.NO_ACK
                                 and self._remote_device.get_protocol() == XBeeProtocol.DIGI_MESH)
+                zb_addr_error = (status_frame.transmit_status == TransmitStatus.ADDRESS_NOT_FOUND
+                                and self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE)
 
-                if status_frame.transmit_status != TransmitStatus.SUCCESS and not dm_ack_error:
-                    retries -= 1
-                    continue
-                try:
-                    self._restore_updater(raise_exception=True)
-                    return
-                except Exception as e:
-                    self._exit_with_error(_ERROR_RESTORE_UPDATER_DEVICE % str(e))
+                if status_frame.transmit_status == TransmitStatus.SUCCESS or dm_ack_error or zb_addr_error:
+                    try:
+                        self._restore_updater(raise_exception=True)
+                        return
+                    except Exception as e:
+                        self._exit_with_error(_ERROR_RESTORE_UPDATER_DEVICE % str(e))
             except XBeeException as e:
-                retries -= 1
                 error_message = str(e)
+            retries -= 1
             time.sleep(1.5)  # Wait some time between timeout retries.
 
         if error_message:
