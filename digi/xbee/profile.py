@@ -1159,7 +1159,7 @@ class _ProfileUpdater(object):
             except XBeeException:
                 raise
 
-        raise XBeeException("Error setting parameter '%s': %s" % parameter, msg)
+        raise XBeeException("Error setting parameter '%s': %s" % (parameter, msg))
 
     def _update_firmware(self):
         """
