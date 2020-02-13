@@ -7371,7 +7371,7 @@ class XBeeNetwork(object):
     Low limit for the time (in seconds) to wait before starting a new scan.
     """
 
-    MAX_TIME_BETWEEN_SCANS = 300  # seconds
+    MAX_TIME_BETWEEN_SCANS = 3 * 24 * 60 * 60  # seconds
     """
     High limit for the time (in seconds) to wait before starting a new scan.
     """
@@ -7386,7 +7386,7 @@ class XBeeNetwork(object):
     Low limit for the time (in seconds) to wait between node neighbors requests.
     """
 
-    MAX_TIME_BETWEEN_REQUESTS = 300  # seconds
+    MAX_TIME_BETWEEN_REQUESTS = 10 * 60  # seconds
     """
     High limit for the time (in seconds) to wait between node neighbors requests.
     """
