@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -1806,12 +1806,14 @@ class XBeeQueue(Queue):
         if xbee_packet.get_frame_type() == ApiFrameType.RECEIVE_PACKET:
             if xbee_packet.x64bit_source_addr == remote_xbee_device.get_64bit_addr():
                 return True
-            return xbee_packet.x16bit_source_addr == remote_xbee_device.get_16bit_addr()
+            return (remote_xbee_device.get_16bit_addr() != XBee16BitAddress.UNKNOWN_ADDRESS
+                    and xbee_packet.x16bit_source_addr == remote_xbee_device.get_16bit_addr())
 
         elif xbee_packet.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
             if xbee_packet.x64bit_source_addr == remote_xbee_device.get_64bit_addr():
                 return True
-            return xbee_packet.x16bit_source_addr == remote_xbee_device.get_16bit_addr()
+            return (remote_xbee_device.get_16bit_addr() != XBee16BitAddress.UNKNOWN_ADDRESS
+                    and xbee_packet.x16bit_source_addr == remote_xbee_device.get_16bit_addr())
 
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_16:
             return xbee_packet.x16bit_source_addr == remote_xbee_device.get_16bit_addr()
