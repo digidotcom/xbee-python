@@ -8153,6 +8153,38 @@ class XBeeNetwork(object):
 
         return min_nt, max_nt
 
+    def is_node_in_network(self, node):
+        """
+        Checks if the provided node is in the network or if it is the local XBee.
+
+        Args:
+            node (:class:`.AbstractXBeeDevice`): The node to check.
+
+        Returns:
+            Boolean: `True` if the node is in the network, `False` otherwise.
+
+        Raises:
+            ValueError: if `node` is `None`.
+        """
+        if not node:
+            raise ValueError("Node cannot be None")
+
+        x64 = node.get_64bit_addr()
+        if x64 not in (None, XBee64BitAddress.UNKNOWN_ADDRESS,
+                       XBee64BitAddress.BROADCAST_ADDRESS):
+            return self.get_device_by_64(x64) is not None
+
+        x16 = node.get_16bit_addr()
+        if x16 not in (None, XBee16BitAddress.UNKNOWN_ADDRESS,
+                       XBee16BitAddress.BROADCAST_ADDRESS):
+            return self.get_device_by_16(x16) is not None
+
+        node_id = node.get_node_id()
+        if node_id:
+            return self.get_device_by_node_id(node_id) is not None
+
+        return False
+
     def get_device_by_64(self, x64bit_addr):
         """
         Returns the XBee in the network whose 64-bit address matches the given one.
