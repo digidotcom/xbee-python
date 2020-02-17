@@ -1429,11 +1429,18 @@ class PacketListener(threading.Thread):
         Extracts the 64 bit-address, the 16 bit-address, node identifier,
         hardware version, and firmware version from ``xbee_packet`` if is possible.
         """
+        # Do not get information from a Remote AT Command response with a
+        # TX failure: it is not possible to know if the remote does not exists or is sleeping
+        if (xbee_packet.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
+                and xbee_packet.status == ATCommandStatus.TX_FAILURE):
+            return None, None, None, None, None
+
         x64bit_addr = None
         x16bit_addr = None
         node_id = None
         hw_version = None
         fw_version = None
+
         if hasattr(xbee_packet, "x64bit_source_addr"):
             x64bit_addr = xbee_packet.x64bit_source_addr
         if hasattr(xbee_packet, "x16bit_source_addr"):
