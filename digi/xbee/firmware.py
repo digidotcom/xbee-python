@@ -2132,7 +2132,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                     self._img_req_received = False
                 # Continue execution, it will exit with error as received flags are not set.
                 self._receive_lock.set()
-        elif xbee_frame.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR:
+        elif (xbee_frame.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR
+              and xbee_frame.source_endpoint == _EXPLICIT_PACKET_ENDPOINT_DATA
+              and xbee_frame.dest_endpoint == _EXPLICIT_PACKET_ENDPOINT_DATA
+              and xbee_frame.cluster_id == _EXPLICIT_PACKET_CLUSTER_ID
+              and xbee_frame.profile_id == _EXPLICIT_PACKET_PROFILE_DIGI):
             if self._img_req_received:
                 return
             if not self._is_img_req_payload_valid(xbee_frame.rf_data):
@@ -2155,7 +2159,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         Args:
             xbee_frame (:class:`.XBeeAPIPacket`): the received packet
         """
-        if xbee_frame.get_frame_type() != ApiFrameType.EXPLICIT_RX_INDICATOR:
+        if (xbee_frame.get_frame_type() != ApiFrameType.EXPLICIT_RX_INDICATOR
+                or xbee_frame.source_endpoint != _EXPLICIT_PACKET_ENDPOINT_DATA
+                or xbee_frame.dest_endpoint != _EXPLICIT_PACKET_ENDPOINT_DATA
+                or xbee_frame.cluster_id != _EXPLICIT_PACKET_CLUSTER_ID
+                or xbee_frame.profile_id != _EXPLICIT_PACKET_PROFILE_DIGI):
             return
 
         # Check the type of frame received.
