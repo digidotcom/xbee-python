@@ -7852,7 +7852,7 @@ class XBeeNetwork(object):
 
     def del_packet_received_from_callback(self, node, callback):
         """
-        Deletes a received packet callback from the provided node..
+        Deletes a received packet callback from the provided node.
 
         Args:
             node (:class:`.RemoteXBeeDevice`): The node to listen for frames.
@@ -7874,10 +7874,27 @@ class XBeeNetwork(object):
             self._local_xbee._packet_listener.del_packet_received_from_callback(
                 self.__received_packet_from_cb)
 
+    def _del_all_packet_received_callbacks(self, node):
+        """
+        Deletes all packet received callbacks for the provided node.
+
+        Args:
+            node (:class:`.RemoteXBeeDevice`): The node to remove callbacks.
+        """
+        cbs = self.__packet_received_from.get(str(node.get_64bit_addr()))
+        if not cbs:
+            return
+
+        cbs.clear()
+
     def clear(self):
         """
         Removes all the remote XBee devices from the network.
         """
+        with self.__lock:
+            for node in self.__devices_list:
+                self._del_all_packet_received_callbacks(node)
+
         with self.__lock:
             self.__devices_list.clear()
 
@@ -8429,6 +8446,8 @@ class XBeeNetwork(object):
 
         # Remove connections with this node as one of its ends
         self.__remove_node_connections(found_node, only_as_node_a=True, force=force)
+
+        self._del_all_packet_received_callbacks(found_node)
 
         if not force:
             # Only for Zigbee, mark non-reachable end devices
