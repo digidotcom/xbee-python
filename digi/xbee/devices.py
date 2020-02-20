@@ -1510,7 +1510,7 @@ class AbstractXBeeDevice(object):
         """
         from digi.xbee import firmware
 
-        if not self._comm_iface.is_open:
+        if not self._comm_iface.is_interface_open:
             raise XBeeException("XBee device's communication interface closed.")
         if self.get_hardware_version() and self.get_hardware_version().code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
             raise OperationNotSupportedException("Firmware update is only supported in XBee3 devices")
@@ -1567,7 +1567,7 @@ class AbstractXBeeDevice(object):
         """
         from digi.xbee import profile
 
-        if not self._comm_iface.is_open:
+        if not self._comm_iface.is_interface_open:
             raise XBeeException("XBee device's communication interface closed.")
         if not self.is_remote() and self._operating_mode != OperatingMode.API_MODE and \
                 self._operating_mode != OperatingMode.ESCAPED_API_MODE:
