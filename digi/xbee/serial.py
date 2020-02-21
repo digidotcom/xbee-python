@@ -195,7 +195,7 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
             # (could be improved using locks in the future)
             time.sleep(self.timeout)
 
-    def wait_for_frame(self, operating_mode=OperatingMode.API_MODE):
+    def wait_for_frame(self, operating_mode):
         """
         Reads the next packet. Starts to read when finds the start delimiter.
         The last byte read is the checksum.
