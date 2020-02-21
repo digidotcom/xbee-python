@@ -60,9 +60,13 @@ _ERROR_PROFILE_XML_PARSE = "Error parsing profile XML file: %s"
 _ERROR_PROFILES_NOT_SUPPORTED = "XBee profiles are only supported in XBee 3 devices"
 _ERROR_READ_REMOTE_PARAMETER = "Error reading remote parameter: %s"
 _ERROR_UPDATE_FILESYSTEM = "Error updating XBee filesystem: %s"
+_ERROR_UPDATE_FILESYSTEM_PROTOCOL_CHANGE = "Cannot update the device filesystem as the device protocol has changed " \
+                                           "and it is no longer reachable"
 _ERROR_UPDATE_FIRMWARE = "Error updating XBee firmware: %s"
 _ERROR_UPDATE_SERIAL_PORT = "Error re-configuring XBee device serial port: %s"
 _ERROR_UPDATE_SETTINGS = "Error updating XBee settings: %s"
+_ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE = "Cannot apply profile settings as the device protocol has changed and it is " \
+                                         "no longer reachable"
 
 _FILESYSTEM_FOLDER = "filesystem"
 
@@ -78,6 +82,15 @@ _PARAMETERS_SERIAL_PORT = [ATStringCommand.BD.command,
                            ATStringCommand.NB.command,
                            ATStringCommand.SB.command,
                            ATStringCommand.D7.command]
+_PARAMETERS_CACHE = [ATStringCommand.NI.command,
+                     ATStringCommand.CE.command,
+                     ATStringCommand.SM.command,
+                     ATStringCommand.MY.command]
+_PARAMETERS_NETWORK = [ATStringCommand.ID.command,
+                       ATStringCommand.CH.command,
+                       ATStringCommand.EE.command,
+                       ATStringCommand.KY.command]
+
 
 _PROFILE_XML_FILE_NAME = "profile.xml"
 
@@ -1060,6 +1073,7 @@ class _ProfileUpdater(object):
         self._device_hardware_version = None
         self._old_port_parameters = None
         self._is_local = True
+        self._protocol_changed = False
         if isinstance(self._xbee_device, RemoteXBeeDevice):
             self._is_local = False
 
@@ -1232,6 +1246,19 @@ class _ProfileUpdater(object):
             except (XBeeException, SerialException) as e:
                 raise UpdateProfileException(_ERROR_UPDATE_SERIAL_PORT % str(e))
 
+    def _check_protocol_changed(self):
+        """
+        Determines whether the XBee protocol will change after the profile is applied or not.
+
+        Returns:
+            Boolean: ``True`` if the protocol will change after the profile is applied, ``False`` otherwise.
+        """
+        orig_protocol = self._xbee_device.get_protocol()
+        new_protocol = XBeeProtocol.determine_protocol(self._xbee_profile.hardware_version,
+                                                       utils.int_to_bytes(int(str(self._xbee_profile.firmware_version),
+                                                                              16)))
+        return (orig_protocol != new_protocol) and (self._xbee_profile.flash_firmware_option.code < 2)
+
     def _update_device_settings(self):
         """
         Updates the device settings using the profile.
@@ -1239,6 +1266,18 @@ class _ProfileUpdater(object):
         Raises:
             UpdateProfileException: if there is any error updating device settings from the profile.
         """
+        # If there are no settings to apply or reset, skip this method.
+        if len(self._xbee_profile.profile_settings) == 0 and not self._xbee_profile.reset_settings:
+            return
+
+        # For remote devices that have changed the protocol, raise an exception if there are
+        # settings to apply or reset as the device is no longer reachable.
+        if self._xbee_device.is_remote() and self._protocol_changed and (len(self._xbee_profile.profile_settings) > 0 or
+                                                                         self._xbee_profile.reset_settings):
+            raise UpdateProfileException(_ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE)
+
+        network_settings_changed = False
+        cache_settings_changed = False
         # Disable apply settings so Queue AT commands are issued instead of AT commands
         old_apply_settings_value = self._xbee_device.is_apply_changes_enabled
         self._xbee_device.enable_apply_changes(False)
@@ -1260,6 +1299,9 @@ class _ProfileUpdater(object):
                 self._set_parameter_with_retries(ATStringCommand.RE.command,
                                                  bytearray(0), _PARAMETER_WRITE_RETRIES)
                 setting_index += 1
+                # Reset settings to defaults implies network and cache settings have changed
+                network_settings_changed = True
+                cache_settings_changed = True
             # Set settings.
             for setting in self._xbee_profile.profile_settings:
                 percent = setting_index * 100 // num_settings
@@ -1268,6 +1310,11 @@ class _ProfileUpdater(object):
                     previous_percent = percent
                 self._set_parameter_with_retries(setting.name, setting.bytearray_value, _PARAMETER_WRITE_RETRIES)
                 setting_index += 1
+                # Check if the setting was sensitive for network or cache information
+                if setting.name in _PARAMETERS_NETWORK:
+                    network_settings_changed = True
+                if setting.name in _PARAMETERS_CACHE:
+                    cache_settings_changed = True
             # Write settings.
             percent = setting_index * 100 // num_settings
             if self._progress_callback is not None and percent != previous_percent:
@@ -1291,6 +1338,21 @@ class _ProfileUpdater(object):
         # Check if port settings have changed on local devices.
         if self._is_local:
             self._check_port_settings_changed()
+        # Check if network or cache settings have changed.
+        if self._is_local:
+            if network_settings_changed or self._protocol_changed:
+                # Clear the full network as it is no longer valid.
+                self._xbee_device.get_network().clear()
+            if cache_settings_changed:
+                # Read cache settings again.
+                self._xbee_device.read_device_info(init=True, fire_event=True)
+        else:
+            if network_settings_changed:
+                # Remove node from the network as it might be no longer part of it.
+                self._xbee_device.get_local_xbee_device().get_network().remove_device(self._xbee_device)
+            elif cache_settings_changed:
+                # Read cache settings again.
+                self._xbee_device.read_device_info(init=True, fire_event=True)
 
     def _update_file_system(self):
         """
@@ -1330,6 +1392,9 @@ class _ProfileUpdater(object):
                     pass
 
         else:
+            # If the protocol of the remote device has changed, it is no longer reachable. Raise exception.
+            if self._protocol_changed:
+                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM_PROTOCOL_CHANGE)
             # TODO: remote filesystem update is not implemented yet.
             _log.info("Remote filesystem update is not yet supported, skipping.")
             pass
@@ -1350,6 +1415,8 @@ class _ProfileUpdater(object):
         # Verify hardware compatibility of the profile.
         if self._device_hardware_version.code != self._xbee_profile.hardware_version:
             raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE)
+        # Determine if protocol will be changed.
+        self._protocol_changed = self._check_protocol_changed()
         # Check flash firmware option.
         flash_firmware = False
         firmware_is_the_same = self._device_firmware_version == self._xbee_profile.firmware_version
