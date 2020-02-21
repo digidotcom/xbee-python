@@ -565,7 +565,9 @@ class PacketListener(threading.Thread):
                     try:
                         read_packet = factory.build_frame(raw_packet, self.__xbee_device.operating_mode)
                     except InvalidPacketException as e:
-                        self._log.error("Error processing packet '%s': %s" % (utils.hex_to_string(raw_packet), str(e)))
+                        if self.__xbee_device.is_open():
+                            self._log.error(
+                                "Error processing packet '%s': %s" % (utils.hex_to_string(raw_packet), str(e)))
                         continue
 
                     self._log.debug(self.__xbee_device.LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
