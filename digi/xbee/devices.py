@@ -2279,6 +2279,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self._packet_listener.add_route_record_received_callback(route_record_cbs)
         self._packet_listener.add_route_info_received_callback(route_info_cbs)
 
+        self._operating_mode = OperatingMode.API_MODE
         self._packet_listener.start()
         self._packet_listener.wait_until_started()
 
@@ -3670,7 +3671,6 @@ class XBeeDevice(AbstractXBeeDevice):
            | :class:`.OperatingMode`
         """
         try:
-            self._operating_mode = OperatingMode.API_MODE
             response = self.get_parameter(ATStringCommand.AP.command)
             return OperatingMode.get(response[0])
         except TimeoutException:
