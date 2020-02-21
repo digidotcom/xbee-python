@@ -2084,12 +2084,14 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         Returns:
             Bytearray: the upgrade end response frame.
         """
+        current_time = utils.int_to_bytes(int(time.time()) - _TIME_SECONDS_1970_TO_2000, 4)
+
         payload = bytearray()
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(int(time.time()) - _TIME_SECONDS_1970_TO_2000, 4)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(0, 4)))
+        payload.extend(_reverse_bytearray(current_time))
+        payload.extend(_reverse_bytearray(current_time))
 
         return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, self._seq_number,
                                       _ZDO_COMMAND_ID_UPGRADE_END_RESP, payload)
