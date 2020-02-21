@@ -41,6 +41,7 @@ class ATStringCommand(Enum):
     C8 = ("C8", "Compatibility mode")
     CC = ("CC", "Command sequence character")
     CE = ("CE", "Device role")
+    CH = ("CH", "Channel")
     CN = ("CN", "Exit command mode")
     DA = ("DA", "Force Disassociation")
     DH = ("DH", "Destination address high")
