@@ -20,7 +20,7 @@ import time
 
 from abc import ABC, abstractmethod
 from digi.xbee.exception import XBeeException, FirmwareUpdateException, TimeoutException
-from digi.xbee.devices import AbstractXBeeDevice, RemoteXBeeDevice
+from digi.xbee.devices import AbstractXBeeDevice, RemoteXBeeDevice, NetworkEventReason
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.protocol import XBeeProtocol
@@ -106,6 +106,8 @@ _ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE = "Error sending 'Query next image respons
 _ERROR_SEND_UPGRADE_END_RESPONSE = "Error sending 'Upgrade end response' frame: %s"
 _ERROR_TARGET_INVALID = "Invalid update target"
 _ERROR_TRANSFER_OTA_FILE = "Error transferring OTA file: %s"
+_ERROR_UPDATE_TARGET_INFORMATION = "Error reading new target information: %s"
+_ERROR_UPDATE_TARGET_TIMEOUT = "Timeout communicating with target device after the firmware update"
 _ERROR_UPDATER_READ_PARAMETER = "Error reading updater '%s' parameter"
 _ERROR_UPDATER_SET_PARAMETER = "Error setting updater '%s' parameter"
 _ERROR_XML_PARSE = "Could not parse XML firmware file %s"
@@ -149,6 +151,7 @@ _PROGRESS_TASK_UPDATE_XBEE = "Updating XBee firmware"
 _REGION_ALL = 0
 
 _REMOTE_FIRMWARE_UPDATE_DEFAULT_TIMEOUT = 20  # Seconds
+_REMOTE_FIRMWARE_UPDATE_RESYNC_TIMEOUT = 60  # Seconds
 
 _SEND_BLOCK_RETRIES = 5
 
@@ -859,12 +862,15 @@ class _XBeeFirmwareUpdater(ABC):
         self._progress_callback = progress_callback
         self._progress_task = None
         self._xml_hardware_version = None
+        self._xml_firmware_version = None
         self._xml_compatibility_number = None
         self._xml_bootloader_version = None
         self._xml_region_lock = None
         self._xml_update_timeout_ms = None
         self._bootloader_update_required = False
         self._timeout = timeout
+        self._protocol_changed = False
+        self._updated = False
 
     def _parse_xml_firmware_file(self):
         """
@@ -1034,6 +1040,9 @@ class _XBeeFirmwareUpdater(ABC):
         # Verify that the binary firmware file exists.
         self._check_firmware_binary_file()
 
+        # Check whether protocol will change or not.
+        self._protocol_changed = self._will_protocol_change()
+
         # Configure the updater device.
         self._configure_updater()
 
@@ -1060,11 +1069,17 @@ class _XBeeFirmwareUpdater(ABC):
         # Wait for target to reset.
         self._wait_for_target_reset()
 
+        # Flag the device as updated.
+        self._updated = True
+
         # Leave updater in its original state.
         try:
             self._restore_updater()
         except Exception as e:
             raise FirmwareUpdateException(_ERROR_RESTORE_TARGET_CONNECTION % str(e))
+
+        # Update target information.
+        self._update_target_information()
 
         _log.info("Update process finished successfully")
 
@@ -1171,6 +1186,23 @@ class _XBeeFirmwareUpdater(ABC):
     def _finish_firmware_update(self):
         """
         Finishes the firmware update process. Called just after the transfer firmware operation.
+        """
+        pass
+
+    @abstractmethod
+    def _update_target_information(self):
+        """
+        Updates the target information after the firmware update.
+        """
+        pass
+
+    @abstractmethod
+    def _will_protocol_change(self):
+        """
+        Determines whether the XBee protocol will change after the update or not.
+
+        Returns:
+            Boolean: ``True`` if the protocol will change after the update, ``False`` otherwise.
         """
         pass
 
@@ -1477,6 +1509,11 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                     self._xbee_serial_port.close()
                 if self._device_port_params is not None:
                     self._xbee_serial_port.apply_settings(self._device_port_params)
+            if self._updated and self._protocol_changed:
+                # Since the protocol has changed, a forced port open is required because all the configured
+                # settings are restored to default values, including the serial communication ones.
+                self._xbee_device.close()
+                self._xbee_device.open(force_settings=True)
             if self._updater_was_connected and not self._xbee_device.is_open():
                 self._xbee_device.open()
             elif not self._updater_was_connected and self._xbee_device.is_open():
@@ -1525,6 +1562,44 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         # Start firmware.
         if not self._run_firmware_operation():
             self._exit_with_error(_ERROR_FIRMWARE_START)
+
+    def _update_target_information(self):
+        """
+        Updates the target information after the firmware update.
+        """
+        _log.debug("Updating target information...")
+        if not self._xbee_device:
+            return
+
+        # If the protocol of the device has changed, clear the network.
+        if self._protocol_changed:
+            self._xbee_device.get_network()._clear(NetworkEventReason.FIRMWARE_UPDATE)
+        # Read device information again.
+        was_open = self._xbee_device.is_open()
+        try:
+            if not was_open:
+                self._xbee_device.open()
+            self._xbee_device._read_device_info(NetworkEventReason.FIRMWARE_UPDATE, init=True, fire_event=True)
+        except XBeeException as e:
+            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFORMATION % str(e))
+        finally:
+            if not was_open:
+                self._xbee_device.close()
+
+    def _will_protocol_change(self):
+        """
+        Determines whether the XBee protocol will change after the update or not.
+
+        Returns:
+            Boolean: ``True`` if the protocol will change after the update, ``False`` otherwise.
+        """
+        if not self._xbee_device:
+            return False  # No matter what we return here, it won't be used.
+
+        orig_protocol = self._xbee_device.get_protocol()
+        new_protocol = XBeeProtocol.determine_protocol(self._xml_hardware_version,
+                                                       utils.int_to_bytes(self._xml_firmware_version))
+        return orig_protocol != new_protocol
 
     def _set_device_in_programming_mode(self):
         """
@@ -2530,6 +2605,51 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             self._exit_with_error(_ERROR_SEND_UPGRADE_END_RESPONSE % error_message)
         else:
             self._exit_with_error(_ERROR_SEND_UPGRADE_END_RESPONSE % "Timeout sending frame")
+
+    def _update_target_information(self):
+        """
+        Updates the target information after the firmware update.
+        """
+        _log.debug("Updating target information...")
+        # If the protocol of the device has changed, just skip this step and remove device from
+        # the network, it is no longer reachable.
+        if self._protocol_changed:
+            self._local_device.get_network()._remove_device(self._remote_device, NetworkEventReason.FIRMWARE_UPDATE)
+            return
+
+        was_open = self._local_device.is_open()
+        try:
+            if not was_open:
+                self._local_device.open()
+            # We need to update target information. Give it some time to be back into the network.
+            deadline = _get_milliseconds() + (_REMOTE_FIRMWARE_UPDATE_RESYNC_TIMEOUT * 1000)
+            initialized = False
+            while _get_milliseconds() < deadline and not initialized:
+                try:
+                    self._remote_device._read_device_info(NetworkEventReason.FIRMWARE_UPDATE,
+                                                          init=True, fire_event=True)
+                    initialized = True
+                except XBeeException:
+                    time.sleep(1)
+            if not initialized:
+                self._exit_with_error(_ERROR_UPDATE_TARGET_TIMEOUT)
+        except XBeeException as e:
+            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFORMATION % str(e))
+        finally:
+            if not was_open:
+                self._local_device.close()
+
+    def _will_protocol_change(self):
+        """
+        Determines whether the XBee protocol will change after the update or not.
+
+        Returns:
+            Boolean: ``True`` if the protocol will change after the update, ``False`` otherwise.
+        """
+        orig_protocol = self._remote_device.get_protocol()
+        new_protocol = XBeeProtocol.determine_protocol(self._xml_hardware_version,
+                                                       utils.int_to_bytes(self._xml_firmware_version))
+        return orig_protocol != new_protocol
 
     def _get_default_reset_timeout(self):
         """
