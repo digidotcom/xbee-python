@@ -119,6 +119,22 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         """
         return None
 
+    def get_local_xbee_info(self):
+        """
+        Returns a tuple with the local XBee information.
+
+        This is used when opening the local XBee device. If this information is provided,
+        it is used as internal XBee data, if not provided, the data is requested to the
+        XBee.
+
+        Returns:
+            Tuple: Tuple with local XBee information: operation mode (int),
+                hardware version (int), firmware version (int),
+                64-bit address (string), 16-bit address (string),
+                node identifier (string), and role (int).
+        """
+        return None
+
     @property
     @abstractmethod
     def timeout(self):

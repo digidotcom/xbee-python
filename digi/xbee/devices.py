@@ -2326,17 +2326,29 @@ class XBeeDevice(AbstractXBeeDevice):
                 method only checks the cached value of the operating mode.
             XBeeException: if the XBee device is already open.
         """
-        # Determine the operating mode of the XBee device.
-        self._operating_mode = self._determine_operating_mode()
-        if self._operating_mode == OperatingMode.UNKNOWN:
-            self.close()
-            raise InvalidOperatingModeException(message="Could not determine operating mode")
-        if self._operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
-            self.close()
-            raise InvalidOperatingModeException(op_mode=self._operating_mode)
+        xbee_info = self._comm_iface.get_local_xbee_info() if self._comm_iface else None
+        if xbee_info:
+            self._operating_mode = OperatingMode.get(xbee_info[0])
+            self._hardware_version = HardwareVersion.get(xbee_info[1])
+            self._firmware_version = utils.int_to_bytes(xbee_info[2])
+            self._protocol = XBeeProtocol.determine_protocol(self._hardware_version.code, self._firmware_version)
+            self._64bit_addr = XBee64BitAddress.from_hex_string(xbee_info[3])
+            self._16bit_addr = XBee16BitAddress.from_hex_string(xbee_info[4])
+            self._node_id = xbee_info[5]
+            self._role = Role.get(xbee_info[6])
 
-        # Read the device info (obtain its parameters and protocol).
-        self.read_device_info()
+        else:
+            # Determine the operating mode of the XBee device.
+            self._operating_mode = self._determine_operating_mode()
+            if self._operating_mode == OperatingMode.UNKNOWN:
+                self.close()
+                raise InvalidOperatingModeException(message="Could not determine operating mode")
+            if self._operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+                self.close()
+                raise InvalidOperatingModeException(op_mode=self._operating_mode)
+
+            # Read the device info (obtain its parameters and protocol).
+            self.read_device_info()
 
         self._is_open = True
 
