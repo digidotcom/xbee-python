@@ -1641,6 +1641,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             Boolean: ``True`` if the run firmware operation was executed, ``False`` otherwise
         """
         try:
+            _log.debug("Sending bootloader run operation...")
             # Display bootloader menu and consume it.
             self._xbee_serial_port.write(str.encode(_BOOTLOADER_TEST_CHARACTER))
             time.sleep(1)
@@ -1735,6 +1736,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                                     progress_cb=self._xmodem_progress_cb, log=_log)
         except XModemCancelException:
             # Retry at least once after resetting device.
+            _log.info("File transfer was cancelled by the remote end, retrying...")
             if not self._run_firmware_operation() and not (self._is_bootloader_active() or
                                                            self._enter_bootloader_mode_with_break()):
                 raise FirmwareUpdateException(_ERROR_XMODEM_RESTART)
