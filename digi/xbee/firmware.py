@@ -40,6 +40,7 @@ from threading import Thread
 from xml.etree import ElementTree
 from xml.etree.ElementTree import ParseError
 
+_BOOTLOADER_INITIALIZATION_TIME = 3  # Seconds
 _BOOTLOADER_OPTION_RUN_FIRMWARE = "2"
 _BOOTLOADER_OPTION_UPLOAD_GBL = "1"
 _BOOTLOADER_PROMPT = "BL >"
@@ -1512,6 +1513,12 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                 self._transfer_firmware_file_xmodem(self._bootloader_firmware_file)
             except FirmwareUpdateException as e:
                 self._exit_with_error(_ERROR_FIRMWARE_UPDATE_BOOTLOADER % str(e))
+            # Wait some time to initialize the bootloader.
+            _log.debug("Setting up bootloader...")
+            time.sleep(_BOOTLOADER_INITIALIZATION_TIME)
+            # Execute the run operation so that new bootloader is applied and executed. Give it some time afterwards.
+            self._run_firmware_operation()
+            time.sleep(_BOOTLOADER_INITIALIZATION_TIME)
 
         # Update the XBee firmware using XModem protocol.
         _log.info("Updating XBee firmware")
