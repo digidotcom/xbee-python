@@ -7825,6 +7825,15 @@ class XBeeNetwork(object):
         """
         Removes all the remote XBee devices from the network.
         """
+        return self._clear(NetworkEventReason.MANUAL)
+
+    def _clear(self, reason):
+        """
+        Removes all the remote XBee devices from the network.
+
+        Args:
+            reason (:class:`.NetworkEventReason`): the reason of the clear event.
+        """
         with self.__lock:
             for node in self.__devices_list:
                 self._del_all_packet_received_callbacks(node)
@@ -7835,7 +7844,7 @@ class XBeeNetwork(object):
         with self.__conn_lock:
             self.__connections.clear()
 
-        self._network_modified(NetworkEventType.CLEAR, NetworkEventReason.MANUAL, None)
+        self._network_modified(NetworkEventType.CLEAR, reason, None)
 
     def get_discovery_options(self):
         """
