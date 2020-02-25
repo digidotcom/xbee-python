@@ -10271,6 +10271,7 @@ class NetworkEventReason(Enum):
     MANUAL = (0x03, "Manual modification")
     ROUTE = (0x04, "Hop of a network route")
     READ_INFO = (0x05, "Read XBee information")
+    FIRMWARE_UPDATE = (0x06, "The firmware of the device was updated")
 
     def __init__(self, code, description):
         self.__code = code
