@@ -89,7 +89,6 @@ _ERROR_FIRMWARE_UPDATE_BOOTLOADER = "Bootloader update error: %s"
 _ERROR_FIRMWARE_UPDATE_XBEE = "XBee firmware update error: %s"
 _ERROR_HARDWARE_VERSION_DIFFER = "Device hardware version (%d) differs from the firmware one (%d)"
 _ERROR_HARDWARE_VERSION_NOT_SUPPORTED = "XBee hardware version (%d) does not support this firmware update process"
-_ERROR_HARDWARE_VERSION_READ = "Could not read device hardware version"
 _ERROR_INVALID_OTA_FILE = "Invalid OTA file: %s"
 _ERROR_INVALID_BLOCK = "Requested block index '%s' does not exits"
 _ERROR_LOCAL_DEVICE_INVALID = "Invalid local XBee device"
@@ -928,8 +927,6 @@ class _XBeeFirmwareUpdater(ABC):
         self._target_firmware_version = self._get_target_firmware_version()
         _log.debug(" - Firmware version: %s", self._target_firmware_version)
         self._target_hardware_version = self._get_target_hardware_version()
-        if self._target_hardware_version is None:
-            self._exit_with_error(_ERROR_HARDWARE_VERSION_READ)
         _log.debug(" - Hardware version: %s", self._target_hardware_version)
         self._target_compatibility_number = self._get_target_compatibility_number()
         _log.debug(" - Compatibility number: %s", self._target_compatibility_number)
@@ -939,11 +936,11 @@ class _XBeeFirmwareUpdater(ABC):
         _log.debug(" - Region lock: %s", self._target_region_lock)
 
         # Check if the hardware version is compatible with the firmware update process.
-        if self._target_hardware_version not in SUPPORTED_HARDWARE_VERSIONS:
+        if self._target_hardware_version and self._target_hardware_version not in SUPPORTED_HARDWARE_VERSIONS:
             self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
 
         # Check if device hardware version is compatible with the firmware.
-        if self._target_hardware_version != self._xml_hardware_version:
+        if self._target_hardware_version and self._target_hardware_version != self._xml_hardware_version:
             self._exit_with_error(_ERROR_HARDWARE_VERSION_DIFFER % (self._target_hardware_version,
                                                                     self._xml_hardware_version))
 
