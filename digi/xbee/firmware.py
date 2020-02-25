@@ -101,7 +101,7 @@ _ERROR_REMOTE_DEVICE_INVALID = "Invalid remote XBee device"
 _ERROR_RESTORE_TARGET_CONNECTION = "Could not restore target connection: %s"
 _ERROR_RESTORE_UPDATER_DEVICE = "Error restoring updater device: %s"
 _ERROR_SEND_IMAGE_NOTIFY = "Error sending 'Image notify' frame: %s"
-_ERROR_SEND_OTA_BLOCK = "Error sending send OTA block '%s' frame: %s"
+_ERROR_SEND_OTA_BLOCK = "Error sending OTA block '%s' frame: %s"
 _ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE = "Error sending 'Query next image response' frame: %s"
 _ERROR_SEND_UPGRADE_END_RESPONSE = "Error sending 'Upgrade end response' frame: %s"
 _ERROR_TARGET_INVALID = "Invalid update target"
@@ -191,6 +191,12 @@ _ZDO_FRAME_CONTROL_SERVER_TO_CLIENT = 0x09
 
 _ZIGBEE_FW_VERSION_LIMIT_FOR_GBL = int("1003", 16)
 
+_FW_VERSION_LIMIT_FOR_CLIENT_RETRIES = {
+    XBeeProtocol.ZIGBEE: 0x1009,
+    XBeeProtocol.DIGI_MESH: 0x3004,  # Guessing next release will include the retries mechanism
+    XBeeProtocol.RAW_802_15_4: 0x2006  # Guessing next release will include the retries mechanism
+}
+
 SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
                                HardwareVersion.XBEE3_SMT.code,
                                HardwareVersion.XBEE3_TH.code)
@@ -221,12 +227,9 @@ class _OTAFile(object):
         self._header_string = None
         self._total_size = None
         self._gbl_size = None
-        self._chunk_size = _OTA_DEFAULT_BLOCK_SIZE
         self._file_size = 0
-        self._num_chunks = 0
         self._discard_size = 0
         self._file = None
-        self._last_block = None
 
     def parse_file(self):
         """
@@ -270,16 +273,16 @@ class _OTAFile(object):
                 _log.debug(" - File size: %d" % self._file_size)
                 self._discard_size = self._header_length + _OTA_GBL_SIZE_BYTE_COUNT
                 _log.debug(" - Discard size: %d" % self._discard_size)
-                self._num_chunks = (self._file_size - self._discard_size) // self._chunk_size
-                if (self._file_size - self._discard_size) % self._chunk_size:
-                    self._num_chunks += 1
-                _log.debug(" - Number of chunks: %d" % self._num_chunks)
         except IOError as e:
             raise _ParsingOTAException(_ERROR_PARSING_OTA_FILE % str(e))
 
-    def get_next_data_chunk(self):
+    def get_next_data_chunk(self, offset, size):
         """
         Returns the next data chunk of this file.
+
+        Args:
+            offset (Integer): Starting offset to read.
+            size (Integer): The number of bytes to read.
 
         Returns:
             Bytearray: the next data chunk of the file as byte array.
@@ -290,9 +293,8 @@ class _OTAFile(object):
         try:
             if self._file is None:
                 self._file = open(self._file_path, "rb")
-                self._file.read(self._discard_size)
-            self._last_block = self._file.read(self._chunk_size)
-            return self._last_block
+            self._file.seek(self._discard_size + offset)
+            return self._file.read(size)
         except IOError as e:
             self.close_file()
             raise _ParsingOTAException(str(e))
@@ -303,16 +305,6 @@ class _OTAFile(object):
         """
         if self._file:
             self._file.close()
-
-    @property
-    def last_block(self):
-        """
-        Returns the last data chunk read.
-
-        Returns:
-            Bytearray: the last read data chunk of the file as byte array.
-        """
-        return self._last_block
 
     @property
     def file_path(self):
@@ -425,37 +417,14 @@ class _OTAFile(object):
         return self._gbl_size
 
     @property
-    def chunk_size(self):
+    def ota_size(self):
         """
-        Returns the chunk size.
+        Returns the number of bytes to transmit over the air.
 
         Returns:
-            Integer: the chunk size.
+            Integer: the number of bytes.
         """
-        return self._chunk_size
-
-    @chunk_size.setter
-    def chunk_size(self, chunk_size):
-        """
-        Sets the chunk size.
-
-        Args:
-            chunk_size (Integer): the new chunk size.
-        """
-        self._chunk_size = chunk_size
-        self._num_chunks = (self._file_size - self._discard_size) // self._chunk_size
-        if (self._file_size - self._discard_size) % self._chunk_size:
-            self._num_chunks += 1
-
-    @property
-    def num_chunks(self):
-        """
-        Returns the total number of data chunks of this file.
-
-        Returns:
-            Integer: the total number of data chunks of this file.
-        """
-        return self._num_chunks
+        return self._file_size - self._discard_size
 
 
 class _ParsingOTAException(Exception):
@@ -1842,7 +1811,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._img_notify_sent = False
         self._transfer_status = None
         self._response_string = None
-        self._requested_chunk_index = -1
+        self._requested_offset = -1
+        self._max_chunk_size = _OTA_DEFAULT_BLOCK_SIZE
         self._seq_number = 0
 
     def _check_firmware_binary_file(self):
@@ -2115,14 +2085,14 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, self._seq_number,
                                       _ZDO_COMMAND_ID_QUERY_NEXT_IMG_RESP, payload)
 
-    def _create_image_block_response_frame(self, chunk_index, seq_number, use_last_block=False):
+    def _create_image_block_response_frame(self, file_offset, size, seq_number):
         """
         Creates and returns an image block response frame.
 
         Args:
-            chunk_index (Integer): the chunk index to send.
+            file_offset (Integer): the file offset to send.
+            size (Integer): The number of bytes to send.
             seq_number (Integer): sequence number to be used for the response.
-            use_last_block (Optional, Boolean): use the last block used or ask for the next one.
 
         Returns:
             Bytearray: the image block response frame.
@@ -2131,10 +2101,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             FirmwareUpdateException: if there is any error generating the image block response frame.
         """
         try:
-            if use_last_block:
-                data = self._ota_file.last_block
-            else:
-                data = self._ota_file.get_next_data_chunk()
+            data = self._ota_file.get_next_data_chunk(file_offset, size)
         except _ParsingOTAException as e:
             raise FirmwareUpdateException(_ERROR_READ_OTA_FILE % str(e))
         payload = bytearray()
@@ -2142,7 +2109,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(chunk_index * self._ota_file.chunk_size, 4)))
+        payload.extend(_reverse_bytearray(utils.int_to_bytes(file_offset, 4)))
         if data:
             payload.append(len(data) & 0xFF)
             payload.extend(data)
@@ -2248,14 +2215,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             # If the received frame is an 'image block request' frame, retrieve the requested index.
             max_data_size, file_offset, sequence_number = self._parse_image_block_request_frame(xbee_frame)
             # Check if OTA file chunk size must be updated.
-            if max_data_size != self._ota_file.chunk_size:
-                self._ota_file.chunk_size = max_data_size
-            self._requested_chunk_index = file_offset // self._ota_file.chunk_size
-            _log.debug("Received 'Image block request' frame for file offset %s - Chunk index: %s - Expected index: %s"
-                       % (file_offset, self._requested_chunk_index, self._expected_chunk_index))
-            if self._requested_chunk_index != self._expected_chunk_index:
-                return
-            self._expected_chunk_index += 1
+            if max_data_size != self._max_chunk_size:
+                self._max_chunk_size = max_data_size
+            self._requested_offset = file_offset
+            _log.debug("Received 'Image block request' frame for file offset %s", file_offset)
             self._seq_number = sequence_number
         elif self._is_upgrade_end_request_frame(xbee_frame):
             _log.debug("Received 'Upgrade end request' frame")
@@ -2417,38 +2380,43 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
 
         raise FirmwareUpdateException(_ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE % "Timeout sending frame")
 
-    def _send_ota_block(self, chunk_index, seq_number, use_last_block=False):
+    def _send_ota_block(self, file_offset, size, seq_number):
         """
         Sends the next OTA block frame.
 
         Args:
-            chunk_index (Integer): the chunk index to send.
+            file_offset (Integer): The file offset to send.
+            size (Integer): The number of bytes to send.
             seq_number (Integer): the protocol sequence number.
-            use_last_block (Optional, Boolean): use the last block used or ask for the next one.
+
+        Returns:
+            Integer: number of bytes sent.
 
         Raises:
             FirmwareUpdateException: if there is any error sending the next OTA block frame.
         """
         retries = _SEND_BLOCK_RETRIES
-        next_ota_block_frame = self._create_image_block_response_frame(chunk_index, seq_number,
-                                                                       use_last_block=use_last_block)
+        next_ota_block_frame = self._create_image_block_response_frame(file_offset, size, seq_number)
         while retries > 0:
             try:
-                _log.debug("Sending 'Image block response' frame for chunk %s" % chunk_index)
+                _log.debug("Sending 'Image block response' frame for offset %s/%s (size %d)",
+                           file_offset, self._ota_file.ota_size, next_ota_block_frame.rf_data[16])
                 status_frame = self._local_device.send_packet_sync_and_get_response(next_ota_block_frame)
                 if not isinstance(status_frame, TransmitStatusPacket):
                     retries -= 1
                     continue
-                _log.debug("Received 'Image block response' status frame for chunk %s: %s" %
-                           (chunk_index, status_frame.transmit_status.description))
+                _log.debug("Received 'Image block response' status frame for offset %s: %s",
+                           file_offset, status_frame.transmit_status.description)
                 if status_frame.transmit_status != TransmitStatus.SUCCESS:
                     retries -= 1
                     continue
-                return
+                # 17 bytes in the explicit frame payload to specify ota
+                # protocol parameters: command, fw version, offset, block size, etc.
+                return len(next_ota_block_frame.rf_data) - 17
             except XBeeException as e:
-                raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK % (chunk_index, str(e)))
+                raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK % (file_offset, str(e)))
 
-        raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK % (chunk_index, "Timeout sending frame"))
+        raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK % (file_offset, "Timeout sending frame"))
 
     def _start_firmware_update(self):
         """
@@ -2481,13 +2449,14 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         """
         self._transfer_status = None
         self._response_string = None
-        self._expected_chunk_index = 0
-        self._requested_chunk_index = -1
+        self._requested_offset = -1
         self._progress_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
-        last_chunk_sent = self._requested_chunk_index
-        previous_seq_number = 0
+        last_offset_sent = self._requested_offset
+        last_size_sent = 0
         previous_percent = None
-        retries = _SEND_BLOCK_RETRIES
+        retries = self._get_block_response_max_retries()
+
+        self._transfer_lock.clear()
 
         # Add a packet listener to wait for block request packets and send them.
         self._local_device.add_packet_received_callback(self._firmware_receive_frame_callback)
@@ -2497,50 +2466,47 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
             self._exit_with_error(str(e))
         # Wait for answer.
-        if self._requested_chunk_index == -1:  # If chunk index is different than -1 it means callback was executed.
-            self._transfer_lock.clear()
+        if self._requested_offset == -1:  # If offset is different than -1 it means callback was executed.
             self._transfer_lock.wait(self._timeout)
-        while self._requested_chunk_index != -1 and \
-                self._transfer_status is None and \
-                self._response_string is None and \
-                retries > 0:
-            if self._requested_chunk_index != last_chunk_sent:
-                # New chunk requested, increase previous values and reset retries.
-                last_chunk_sent = self._requested_chunk_index
-                previous_seq_number = self._seq_number
-                retries = _SEND_BLOCK_RETRIES
-                use_last_block = False
-            else:
-                # Chunk index was not increased, this means chunk was not sent. Decrease retries.
-                _log.debug("Chunk %s not sent, retrying..." % self._requested_chunk_index)
-                retries -= 1
-                use_last_block = True
+
+        while (self._requested_offset != -1 and self._transfer_status is None
+               and self._response_string is None and retries > 0):
+            self._transfer_lock.clear()
+
+            last_offset_sent = self._requested_offset
+            previous_seq_number = self._seq_number
             # Check that the requested index is valid.
-            if self._requested_chunk_index >= self._ota_file.num_chunks:
+            if self._requested_offset >= self._ota_file.ota_size:
                 self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
-                self._exit_with_error(_ERROR_INVALID_BLOCK % self._requested_chunk_index)
+                self._exit_with_error(_ERROR_INVALID_BLOCK % self._requested_offset)
             # Calculate percentage and notify.
-            percent = (self._requested_chunk_index * 100) // self._ota_file.num_chunks
+            percent = (self._requested_offset * 100) // self._ota_file.ota_size
             if percent != previous_percent and self._progress_callback:
                 self._progress_callback(self._progress_task, percent)
                 previous_percent = percent
+
             # Send the data block.
             try:
-                self._send_ota_block(self._requested_chunk_index, previous_seq_number, use_last_block=use_last_block)
+                last_size_sent = self._send_ota_block(self._requested_offset, self._max_chunk_size, previous_seq_number)
             except FirmwareUpdateException as e:
                 self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
                 self._exit_with_error(str(e))
             # Wait for next request.
-            if self._requested_chunk_index == last_chunk_sent:
-                self._transfer_lock.clear()
-                self._transfer_lock.wait(self._timeout)
+            if not self._transfer_lock.wait(max(self._timeout, 120)):
+                retries -= 1
+                if retries > 0:
+                    _log.debug("Chunk %s not sent, retrying... (%d/%d)",
+                               self._requested_offset, _SEND_BLOCK_RETRIES - retries + 1, _SEND_BLOCK_RETRIES)
+            else:
+                retries = self._get_block_response_max_retries()
+
         # Transfer finished, remove callback.
         self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
         # Close OTA file.
         self._ota_file.close_file()
         # Check if there was a transfer timeout.
         if self._transfer_status is None and self._response_string is None:
-            if last_chunk_sent + 1 == self._ota_file.num_chunks:
+            if last_offset_sent + last_size_sent == self._ota_file.ota_size:
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % "Timeout waiting for 'Upgrade end request' frame")
             else:
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % "Timeout waiting for next 'Image block request' frame")
@@ -2588,7 +2554,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 dm_ack_error = (status_frame.transmit_status == TransmitStatus.NO_ACK
                                 and self._remote_device.get_protocol() == XBeeProtocol.DIGI_MESH)
                 zb_addr_error = (status_frame.transmit_status == TransmitStatus.ADDRESS_NOT_FOUND
-                                and self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE)
+                                 and self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE)
 
                 if status_frame.transmit_status == TransmitStatus.SUCCESS or dm_ack_error or zb_addr_error:
                     try:
@@ -2669,6 +2635,16 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         return max([self.__class__.__DEVICE_RESET_TIMEOUT_ZB,
                     self.__class__.__DEVICE_RESET_TIMEOUT_DM,
                     self.__class__.__DEVICE_RESET_TIMEOUT_802])
+
+    def _get_block_response_max_retries(self):
+        """
+        Returns the maximum number of retries for a block response.
+        """
+        protocol = self._remote_device.get_protocol()
+        if self._target_firmware_version < _FW_VERSION_LIMIT_FOR_CLIENT_RETRIES[protocol]:
+            return _SEND_BLOCK_RETRIES
+
+        return 1
 
 
 def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
