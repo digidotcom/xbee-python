@@ -464,11 +464,12 @@ class AbstractXBeeDevice(object):
         """
         pass
 
-    def read_device_info(self, init=True, fire_event=True):
+    def _read_device_info(self, reason, init=True, fire_event=True):
         """
         Updates all instance parameters reading them from the XBee device.
 
         Args:
+            reason (:class:`.NetworkEventReason`): in the case an event is thrown, this parameter specifies the reason.
             init (Boolean, optional, default=`True`): If ``False`` only not initialized parameters
                 are read, all if ``True``.
             fire_event (Boolean, optional, default=`True`): `True` to launch and update
@@ -563,9 +564,30 @@ class AbstractXBeeDevice(object):
                              or network.get_device_by_64(self._64bit_addr)
                              or network.get_device_by_16(self._16bit_addr))):
                     network._network_modified(
-                        NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
+                        NetworkEventType.UPDATE, reason, node=self)
         finally:
             self._initializing = False
+
+    def read_device_info(self, init=True, fire_event=True):
+        """
+        Updates all instance parameters reading them from the XBee device.
+
+        Args:
+            init (Boolean, optional, default=`True`): If ``False`` only not initialized parameters
+                are read, all if ``True``.
+            fire_event (Boolean, optional, default=`True`): `True` to launch and update
+                event if any parameter changed, `False` otherwise.
+        Raises:
+            TimeoutException: if the response is not received before the read timeout expires.
+            XBeeException: if the XBee device's communication interface is closed.
+            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
+                method only checks the cached value of the operating mode.
+            ATCommandException: if the response is not as expected.
+
+        .. seealso::
+           | :meth:`.AbstractXBeeDevice.is_device_info_complete`
+        """
+        self._read_device_info(NetworkEventReason.READ_INFO, init=init, fire_event=fire_event)
 
     def is_device_info_complete(self):
         """
