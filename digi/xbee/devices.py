@@ -2271,7 +2271,7 @@ class XBeeDevice(AbstractXBeeDevice):
             if self._packet_listener else None
 
         self._comm_iface.open()
-        self._log.info("%s port opened" % self._comm_iface)
+        self._log.info("%s port opened", self._comm_iface)
 
         # Initialize the packet listener.
         self._packet_listener = None
@@ -2307,7 +2307,7 @@ class XBeeDevice(AbstractXBeeDevice):
                 self._do_open()
             except XBeeException as e:
                 self.log.debug("Could not open the port with default setting, "
-                               "forcing settings using recovery: %s" % str(e))
+                               "forcing settings using recovery: %s", str(e))
                 if self._serial_port is None:
                     raise XBeeException("Can not open the port by forcing the settings, "
                                         "it is only supported for Serial")
@@ -2355,7 +2355,7 @@ class XBeeDevice(AbstractXBeeDevice):
 
         if self._comm_iface is not None and self._comm_iface.is_interface_open:
             self._comm_iface.close()
-            self._log.info("%s closed" % self._comm_iface)
+            self._log.info("%s closed", self._comm_iface)
 
         self._is_open = False
 
@@ -8320,8 +8320,8 @@ class XBeeNetwork(object):
                     if found:
                         found._64bit_addr = remote_xbee.get_64bit_addr()
                 except XBeeException as e:
-                    self._log.debug("Error while trying to get 64-bit address of XBee (%s): %s"
-                                    % (remote_xbee.get_16bit_addr(), str(e)))
+                    self._log.debug("Error while trying to get 64-bit address of XBee (%s): %s",
+                                    remote_xbee.get_16bit_addr(), str(e))
                 if found:
                     found._initializing = False
 
@@ -8508,32 +8508,32 @@ class XBeeNetwork(object):
                     if remote == self._local_xbee:
                         return
 
-                    self._log.debug("     o Discovered neighbor of %s: %s"
-                                    % (self._local_xbee, remote))
+                    self._log.debug("     o Discovered neighbor of %s: %s",
+                                    self._local_xbee, remote)
 
                     node = self._add_remote(remote, NetworkEventReason.DISCOVERED)
                     if not node:
                         # Node already in network for this scan
                         node = self.get_device_by_64(remote.get_64bit_addr())
                         self._log.debug(
-                            "       - NODE already in network in this scan (scan: %d) %s"
-                            % (self.__scan_counter, node))
+                            "       - NODE already in network in this scan (scan: %d) %s",
+                            self.__scan_counter, node)
                     else:
                         # Do not add the neighbors to the FIFO, because
                         # only the local device performs an 'ND'
-                        self._log.debug("       - Added to network (scan: %d)" % node.scan_counter)
+                        self._log.debug("       - Added to network (scan: %d)", node.scan_counter)
 
                     # Add connection (there is not RSSI info for a 'ND')
                     from digi.xbee.models.zdo import RouteStatus
                     if self._add_connection(Connection(
                             self._local_xbee, node, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
                             RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
-                        self._log.debug("       - Added connection: %s >>> %s"
-                                        % (self._local_xbee, node))
+                        self._log.debug("       - Added connection: %s >>> %s",
+                                        self._local_xbee, node)
                     else:
                         self._log.debug(
-                            "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s"
-                            % (self.__scan_counter, self._local_xbee, node))
+                            "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s",
+                            self.__scan_counter, self._local_xbee, node)
 
                     # Always add the XBee device to the last discovered devices list:
                     self.__last_search_dev_list.append(node)
@@ -8645,8 +8645,8 @@ class XBeeNetwork(object):
 
                 if self.__scan_counter > 0:
                     self._log.debug("")
-                    self._log.debug(" [*] Waiting %f seconds to start next scan"
-                                    % self.__time_bw_scans)
+                    self._log.debug(" [*] Waiting %f seconds to start next scan",
+                                    self.__time_bw_scans)
                     code = self.__wait_checking(self.__time_bw_scans)
                     if code != NetworkDiscoveryStatus.SUCCESS:
                         return code
@@ -8723,7 +8723,7 @@ class XBeeNetwork(object):
         Performs XBee configuration before starting the full network discovery. This saves the
         current NT value and sets it to the ``self._node_timeout``.
         """
-        self._log.debug("[*] Preconfiguring %s" % ATStringCommand.NT.command)
+        self._log.debug("[*] Preconfiguring %s", ATStringCommand.NT.command)
 
         try:
 
@@ -8755,10 +8755,10 @@ class XBeeNetwork(object):
 
         self._log.debug("\n")
         self._log.debug("================================")
-        self._log.debug("  %d network scan" % self.__scan_counter)
-        self._log.debug("       Mode: %s (%d)" % (self.__mode.description, self.__mode.code))
-        self._log.debug("       Stop after scan: %d" % self.__stop_scan)
-        self._log.debug("       Timeout/node: %s" % self._node_timeout
+        self._log.debug("  %d network scan", self.__scan_counter)
+        self._log.debug("       Mode: %s (%d)", self.__mode.description, self.__mode.code)
+        self._log.debug("       Stop after scan: %d", self.__stop_scan)
+        self._log.debug("       Timeout/node: %s", self._node_timeout
                         if self._node_timeout is not None else "-")
         self._log.debug("================================")
 
@@ -8787,9 +8787,9 @@ class XBeeNetwork(object):
             while nodes_queue.empty() and active_processes:
                 self._log.debug("")
                 self._log.debug(
-                    " [*] Waiting for more nodes to request or finishing active processes (%d)\n"
-                    % (len(active_processes)))
-                [self._log.debug("     Waiting for %s" % p) for p in active_processes]
+                    " [*] Waiting for more nodes to request or finishing active processes (%d)\n",
+                    len(active_processes))
+                [self._log.debug("     Waiting for %s", p) for p in active_processes]
 
                 code = self.__wait_checking(self.__class__.__TIME_FOR_NEW_NODES_IN_FIFO)
                 if code == NetworkDiscoveryStatus.CANCEL:
@@ -8850,8 +8850,8 @@ class XBeeNetwork(object):
             if self.__mode != NeighborDiscoveryMode.CASCADE:
                 time_to_wait = self.__time_bw_nodes + (time.time() - self.__last_request_date)
             self._log.debug("")
-            self._log.debug(" [*] Waiting %f before sending next request to %s"
-                            % (time_to_wait if time_to_wait > 0 else 0.0, requester))
+            self._log.debug(" [*] Waiting %f before sending next request to %s",
+                            time_to_wait if time_to_wait > 0 else 0.0, requester)
             code = self.__wait_checking(time_to_wait)
             if code != NetworkDiscoveryStatus.SUCCESS:
                 return code
@@ -8859,12 +8859,12 @@ class XBeeNetwork(object):
         # If the previous request finished, discover node neighbors
         if not requester.get_64bit_addr() in active_processes:
             self._log.debug("")
-            self._log.debug(" [*] Discovering neighbors of %s" % requester)
+            self._log.debug(" [*] Discovering neighbors of %s", requester)
             self.__last_request_date = time.time()
             return self._discover_neighbors(requester, nodes_queue, active_processes, node_timeout)
 
         self._log.debug("")
-        self._log.debug(" [*] Previous request for %s did not finish..." % requester)
+        self._log.debug(" [*] Previous request for %s did not finish...", requester)
         nodes_queue.put(requester)
 
         return code
@@ -8882,8 +8882,8 @@ class XBeeNetwork(object):
         # they are reachable by directly asking them for its NI
         for n in devices_list:
             if n.scan_counter != self.__scan_counter:
-                self._log.debug(" [*] Checking not discovered node %s... (scan %d)"
-                                % (n, self.__scan_counter))
+                self._log.debug(" [*] Checking not discovered node %s... (scan %d)",
+                                n, self.__scan_counter)
                 n._scan_counter = self.__scan_counter
                 try:
                     n.get_parameter(ATStringCommand.NI.command)
@@ -8893,12 +8893,12 @@ class XBeeNetwork(object):
                     if self._add_connection(Connection(
                             self._local_xbee, n, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
                             RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
-                        self._log.debug("     - Added connection: %s >>> %s"
-                                        % (self._local_xbee, n))
+                        self._log.debug("     - Added connection: %s >>> %s",
+                                        self._local_xbee, n)
                 except XBeeException:
                     n._reachable = False
-                self._log.debug("     - Reachable: %s (scan %d)"
-                                % (n._reachable, self.__scan_counter))
+                self._log.debug("     - Reachable: %s (scan %d)",
+                                n._reachable, self.__scan_counter)
 
     def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
         """
@@ -8979,26 +8979,26 @@ class XBeeNetwork(object):
         """
         # Purge the connections of the node
         self._log.debug("")
-        self._log.debug(" [*] Purging node connections of %s" % requester)
+        self._log.debug(" [*] Purging node connections of %s", requester)
         purged = self.__purge_node_connections(requester, force=self.__rm_not_discovered_in_last_scan)
         if self.__rm_not_discovered_in_last_scan:
             for c in purged:
-                self._log.debug("     o Removed connection: %s" % c)
+                self._log.debug("     o Removed connection: %s", c)
 
         # Remove the discovery process from the active processes list
         self.__active_processes.remove(str(requester.get_64bit_addr()))
 
         if code and code not in (NetworkDiscoveryStatus.SUCCESS, NetworkDiscoveryStatus.CANCEL) or error:
-            self._log.debug("[***** ERROR] During neighbors scan of %s" % requester)
+            self._log.debug("[***** ERROR] During neighbors scan of %s", requester)
             if error:
-                self._log.debug("        %s" % error)
+                self._log.debug("        %s", error)
             else:
-                self._log.debug("        %s" % code.description)
+                self._log.debug("        %s", code.description)
 
             self._handle_special_errors(requester, error)
         else:
-            self._log.debug("[!!!] Process finishes for %s  - Remaining: %d"
-                            % (requester, len(self.__active_processes)))
+            self._log.debug("[!!!] Process finishes for %s  - Remaining: %d",
+                            requester, len(self.__active_processes))
 
     def _handle_special_errors(self, requester, error):
         """
@@ -9016,7 +9016,7 @@ class XBeeNetwork(object):
             return
 
         # The node is not found so it is not reachable
-        self._log.debug("     o [***] Non-reachable: %s -> ERROR %s" % (requester, error))
+        self._log.debug("     o [***] Non-reachable: %s -> ERROR %s", requester, error)
 
         # Do not remove any node here, although the preference is configured to so
         # Do it at the end of the scan...
@@ -9075,7 +9075,7 @@ class XBeeNetwork(object):
         if self.__saved_nt is None:
             return
 
-        self._log.debug("[*] Postconfiguring %s" % ATStringCommand.NT.command)
+        self._log.debug("[*] Postconfiguring %s", ATStringCommand.NT.command)
         try:
             self.set_discovery_timeout(self.__saved_nt)
         except XBeeException as e:
@@ -9486,8 +9486,8 @@ class XBeeNetwork(object):
 
         self._log.debug("")
         self._log.debug(" [*] Purging network...")
-        [self._log.debug("     o Removed node: %s" % n) for n in removed_nodes]
-        [self._log.debug("     o Removed connections: %s" % n) for n in removed_connections]
+        [self._log.debug("     o Removed node: %s", n) for n in removed_nodes]
+        [self._log.debug("     o Removed connections: %s", n) for n in removed_connections]
 
     def __purge_network_nodes(self, force=False):
         """
@@ -9641,7 +9641,7 @@ class ZigBeeNetwork(XBeeNetwork):
         .. seealso::
            | :meth:`.XBeeNetwork._prepare_network_discovery`
         """
-        self._log.debug("[*] Preconfiguring %s" % ATStringCommand.AO.command)
+        self._log.debug("[*] Preconfiguring %s", ATStringCommand.AO.command)
         try:
             self.__saved_ao = self._local_xbee.get_api_output_mode_value()
 
@@ -9684,8 +9684,8 @@ class ZigBeeNetwork(XBeeNetwork):
         """
         for n in devices_list:
             if not n.scan_counter or n.scan_counter != self.scan_counter:
-                self._log.debug(" [*] Adding to FIFO not discovered node %s... (scan %d)"
-                                % (n, self.scan_counter))
+                self._log.debug(" [*] Adding to FIFO not discovered node %s... (scan %d)",
+                                n, self.scan_counter)
                 nodes_queue.put(n)
 
     def _discovery_done(self, active_processes):
@@ -9721,7 +9721,7 @@ class ZigBeeNetwork(XBeeNetwork):
         if self.__saved_ao is None:
             return
 
-        self._log.debug("[*] Postconfiguring %s" % ATStringCommand.AO.command)
+        self._log.debug("[*] Postconfiguring %s", ATStringCommand.AO.command)
         try:
             self._local_xbee.set_api_output_mode_value(self.__saved_ao[0])
         except XBeeException as e:
@@ -9764,8 +9764,8 @@ class ZigBeeNetwork(XBeeNetwork):
                 the route table process.
         """
         def __new_route_callback(xbee, route):
-            self._log.debug("     o Discovered route of %s: %s - %s -> %s"
-                            % (xbee, route.destination, route.next_hop, route.status))
+            self._log.debug("     o Discovered route of %s: %s - %s -> %s",
+                            xbee, route.destination, route.next_hop, route.status)
 
             # Requester node is clearly reachable
             self._set_node_reachable(xbee, True)
@@ -9786,7 +9786,7 @@ class ZigBeeNetwork(XBeeNetwork):
                 if cmd:
                     cmd.stop()
 
-        def __route_discover_finished_callback(xbee, routes, error):
+        def __route_discover_finished_callback(xbee, _routes, error):
             zdo_processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
             if zdo_processes:
                 zdo_processes.pop(self.__class__.__ROUTE_TABLE_TYPE)
@@ -9812,7 +9812,7 @@ class ZigBeeNetwork(XBeeNetwork):
                     self._node_discovery_process_finished(
                         xbee, code=NetworkDiscoveryStatus.ERROR_GENERAL, error=error)
 
-        self._log.debug("   [o] Getting ROUTE TABLE of node %s" % requester)
+        self._log.debug("   [o] Getting ROUTE TABLE of node %s", requester)
 
         from digi.xbee.models.zdo import RouteTableReader
         reader = RouteTableReader(requester, configure_ao=False, timeout=node_timeout)
@@ -9872,7 +9872,7 @@ class ZigBeeNetwork(XBeeNetwork):
                 else NetworkDiscoveryStatus.ERROR_GENERAL
             self._node_discovery_process_finished(xbee, code=code, error=error)
 
-        self._log.debug("   [o] Getting NEIGHBOR TABLE of node %s" % requester)
+        self._log.debug("   [o] Getting NEIGHBOR TABLE of node %s", requester)
 
         from digi.xbee.models.zdo import NeighborTableReader
         reader = NeighborTableReader(requester, configure_ao=False, timeout=node_timeout)
@@ -9899,8 +9899,8 @@ class ZigBeeNetwork(XBeeNetwork):
             nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
                 neighbors are stored.
         """
-        self._log.debug("     o Discovered neighbor of %s: %s (%s)"
-                        % (requester, neighbor.node, neighbor.relationship.name))
+        self._log.debug("     o Discovered neighbor of %s: %s (%s)",
+                        requester, neighbor.node, neighbor.relationship.name)
 
         # Requester node is clearly reachable
         self._set_node_reachable(requester, True)
@@ -9910,13 +9910,13 @@ class ZigBeeNetwork(XBeeNetwork):
         if not node:
             # Node already in network for this scan
             node = self.get_device_by_64(neighbor.node.get_64bit_addr())
-            self._log.debug("       - NODE already in network in this scan (scan: %d) %s"
-                            % (node.scan_counter, node))
+            self._log.debug("       - NODE already in network in this scan (scan: %d) %s",
+                            node.scan_counter, node)
         else:
             if neighbor.node.get_role() != Role.END_DEVICE:
                 # Add to the FIFO to ask for its neighbors
                 nodes_queue.put(node)
-                self._log.debug("       - Added to network (scan: %d)" % node.scan_counter)
+                self._log.debug("       - Added to network (scan: %d)", node.scan_counter)
             else:
                 # Not asking to End Devices when found, consider them as reachable
                 self._set_node_reachable(node, True)
@@ -9939,13 +9939,13 @@ class ZigBeeNetwork(XBeeNetwork):
             connection = Connection(requester, node, lq_a2b=neighbor.lq,
                                     lq_b2a=LinkQuality.UNKNOWN, status_a2b=route.status,
                                     status_b2a=RouteStatus.UNKNOWN)
-            self._log.debug("       - Using route for the connection: %d" % route.status.id)
+            self._log.debug("       - Using route for the connection: %d", route.status.id)
         elif neighbor.node.get_role() != Role.UNKNOWN \
                 and neighbor.relationship != NeighborRelationship.PREVIOUS_CHILD \
                 and neighbor.relationship != NeighborRelationship.SIBLING:
             self._log.debug(
-                "       - No route for this node, using relationship for the connection: %s"
-                % neighbor.relationship.name)
+                "       - No route for this node, using relationship for the connection: %s",
+                neighbor.relationship.name)
             if neighbor.relationship == NeighborRelationship.PARENT:
                 connection = Connection(node, requester, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
@@ -9960,13 +9960,13 @@ class ZigBeeNetwork(XBeeNetwork):
             return
 
         if self._add_connection(connection):
-            self._log.debug("       - Added connection (LQI: %d) %s >>> %s"
-                            % (neighbor.lq, requester, node))
+            self._log.debug("       - Added connection (LQI: %d) %s >>> %s",
+                            neighbor.lq, requester, node)
         else:
             self._log.debug(
                 "       - CONNECTION (LQI: %d) already in network in this"
-                " scan (scan: %d) %s >>> %s"
-                % (neighbor.lq, node.scan_counter, requester, node))
+                " scan (scan: %d) %s >>> %s",
+                neighbor.lq, node.scan_counter, requester, node)
 
     def __get_zdo_command(self, xbee, cmd_type):
         """
@@ -10058,7 +10058,7 @@ class DigiMeshNetwork(XBeeNetwork):
         """
         super()._prepare_network_discovery()
 
-        self._log.debug("[*] Preconfiguring %s" % ATStringCommand.NO.command)
+        self._log.debug("[*] Preconfiguring %s", ATStringCommand.NO.command)
         try:
             self.__saved_no = self.get_discovery_options()
 
@@ -10096,7 +10096,7 @@ class DigiMeshNetwork(XBeeNetwork):
                 else NetworkDiscoveryStatus.ERROR_GENERAL
             self._node_discovery_process_finished(xbee, code=code, error=error)
 
-        self._log.debug("   [o] Calling NEIGHBOR FINDER for node %s" % requester)
+        self._log.debug("   [o] Calling NEIGHBOR FINDER for node %s", requester)
 
         from digi.xbee.models.zdo import NeighborFinder
         finder = NeighborFinder(requester, timeout=node_timeout)
@@ -10117,8 +10117,8 @@ class DigiMeshNetwork(XBeeNetwork):
         """
         for n in devices_list:
             if not n.scan_counter or n.scan_counter != self.scan_counter:
-                self._log.debug(" [*] Adding to FIFO not discovered node %s... (scan %d)"
-                                % (n, self.scan_counter))
+                self._log.debug(" [*] Adding to FIFO not discovered node %s... (scan %d)",
+                                n, self.scan_counter)
                 nodes_queue.put(n)
 
     def _discovery_done(self, active_processes):
@@ -10152,7 +10152,7 @@ class DigiMeshNetwork(XBeeNetwork):
         if self.__saved_no is None:
             return
 
-        self._log.debug("[*] Postconfiguring %s" % ATStringCommand.NO.command)
+        self._log.debug("[*] Postconfiguring %s", ATStringCommand.NO.command)
         try:
             self._local_xbee.set_parameter(ATStringCommand.NO.command, self.__saved_no)
         except XBeeException as e:
@@ -10171,8 +10171,8 @@ class DigiMeshNetwork(XBeeNetwork):
             nodes_queue (:class:`queue.Queue`): FIFO where the nodes to discover their
                 neighbors are stored.
         """
-        self._log.debug("     o Discovered neighbor of %s: %s (%s)"
-                        % (requester, neighbor.node, neighbor.relationship.name))
+        self._log.debug("     o Discovered neighbor of %s: %s (%s)",
+                        requester, neighbor.node, neighbor.relationship.name)
 
         # Requester node is clearly reachable
         self._set_node_reachable(requester, True)
@@ -10182,15 +10182,15 @@ class DigiMeshNetwork(XBeeNetwork):
         if not node:
             # Node already in network for this scan
             node = self.get_device_by_64(neighbor.node.get_64bit_addr())
-            self._log.debug("       - NODE already in network in this scan (scan: %d) %s"
-                            % (node.scan_counter, node))
+            self._log.debug("       - NODE already in network in this scan (scan: %d) %s",
+                            node.scan_counter, node)
             # Do not add the connection if the discovered device is itself
             if node.get_64bit_addr() == requester.get_64bit_addr():
                 return
         else:
             # Add to the FIFO to ask for its neighbors
             nodes_queue.put(node)
-            self._log.debug("       - Added to network (scan: %d)" % node.scan_counter)
+            self._log.debug("       - Added to network (scan: %d)", node.scan_counter)
 
             self._device_discovered(node)
 
@@ -10200,13 +10200,13 @@ class DigiMeshNetwork(XBeeNetwork):
                                 status_a2b=RouteStatus.ACTIVE, status_b2a=RouteStatus.ACTIVE)
 
         if self._add_connection(connection):
-            self._log.debug("       - Added connection (RSSI: %s) %s >>> %s"
-                            % (connection.lq_a2b, requester, node))
+            self._log.debug("       - Added connection (RSSI: %s) %s >>> %s",
+                            connection.lq_a2b, requester, node)
         else:
             self._log.debug(
                 "       - CONNECTION (RSSI: %d) already in network in this "
-                "scan (scan: %d) %s >>> %s"
-                % (connection.lq_a2b, node.scan_counter, requester, node))
+                "scan (scan: %d) %s >>> %s",
+                connection.lq_a2b, node.scan_counter, requester, node)
 
         # Found node is clearly reachable, it answered to a FN
         self._set_node_reachable(node, True)

@@ -141,7 +141,7 @@ class _LocalRecoverDevice(object):
                 # The first byte indicates the baudrate
                 if self._xbee_serial_port.in_waiting > 0:
                     read_bytes = self._xbee_serial_port.read(self._xbee_serial_port.in_waiting)
-                    _log.debug("Databytes read from recovery are %s" % repr(utils.hex_to_string(read_bytes)))
+                    _log.debug("Databytes read from recovery are %s", repr(utils.hex_to_string(read_bytes)))
                     if read_bytes[0] in _RECOVERY_CHAR_TO_BAUDRATE.keys():
                         recovery_baudrate = _RECOVERY_CHAR_TO_BAUDRATE[read_bytes[0]]
                     # The valid byte is only the first one, so do not retry the loop
@@ -171,9 +171,9 @@ class _LocalRecoverDevice(object):
         for tries in range(_RECOVERY_DETECTION_TRIES):
             recovery_baudrate = self._enter_in_recovery()
             if recovery_baudrate is None:
-                _log.debug("[try %d] Could not determine the baudrate to get the values in recovery mode" % tries)
+                _log.debug("[try %d] Could not determine the baudrate to get the values in recovery mode", tries)
             else:
-                _log.debug("Recovery baudrate is %d" % recovery_baudrate)
+                _log.debug("Recovery baudrate is %d", recovery_baudrate)
                 break
 
         # If we couldn't enter in recovery mode, assume we are in bootloader and retry
@@ -187,16 +187,16 @@ class _LocalRecoverDevice(object):
             for tries in range(_RECOVERY_DETECTION_TRIES):
                 recovery_baudrate = self._enter_in_recovery()
                 if recovery_baudrate is None:
-                    _log.debug("[try %d] Could not determine the baudrate to get the values in recovery mode" % tries)
+                    _log.debug("[try %d] Could not determine the baudrate to get the values in recovery mode", tries)
                 else:
-                    _log.debug("Recovery baudrate is %d" % recovery_baudrate)
+                    _log.debug("Recovery baudrate is %d", recovery_baudrate)
                     break
 
         if recovery_baudrate is None:
             self._do_exception("Could not determine the baudrate in recovery mode")
 
         # Here we are in recovery mode
-        _log.debug("Reconfiguring the serial port to recovery baudrate of %d" % recovery_baudrate)
+        _log.debug("Reconfiguring the serial port to recovery baudrate of %d", recovery_baudrate)
         self._xbee_serial_port.apply_settings({_BAUDRATE_KEY: recovery_baudrate})
 
         # Set the desired configuration permanently.
@@ -252,7 +252,7 @@ class _LocalRecoverDevice(object):
         try:
             self._restore_target_connection()
         except XBeeException as e:
-            _log.error("Could not restore connection: %s" % e)
+            _log.error("Could not restore connection: %s", e)
         raise RecoveryException(msg)
 
     def _restore_target_connection(self):

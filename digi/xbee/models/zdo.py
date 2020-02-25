@@ -374,8 +374,8 @@ class __ZDOCommand(metaclass=ABCMeta):
             if self._data_parsed and self._received_status:
                 self.stop()
         elif frame.get_frame_type() == ApiFrameType.TRANSMIT_STATUS:
-            self._logger.debug("Received 'ZDO' status frame: %s"
-                               % frame.transmit_status.description)
+            self._logger.debug("Received 'ZDO' status frame: %s",
+                               frame.transmit_status.description)
             # If transaction ID does not match, discard: it is not the frame we are waiting for.
             if frame.frame_id != self._current_transaction_id:
                 return
@@ -1723,9 +1723,9 @@ class NeighborFinder(object):
         if frame_type == ApiFrameType.AT_COMMAND_RESPONSE \
                 or frame_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
 
-            self._logger.debug("Received '%s' frame: %s"
-                               % (frame.get_frame_type().description,
-                                  utils.hex_to_string(frame.output())))
+            self._logger.debug("Received '%s' frame: %s",
+                               frame.get_frame_type().description,
+                               utils.hex_to_string(frame.output()))
 
             # If frame ID does not match, discard: it is not the frame we are waiting for
             if frame.frame_id != self.__current_frame_id:

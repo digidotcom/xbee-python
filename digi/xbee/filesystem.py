@@ -644,7 +644,7 @@ class LocalXBeeFileSystemManager(object):
         # Sanitize path.
         directory = directory.replace('\\', '/')
 
-        _log.info("Navigating to directory '%s'" % directory)
+        _log.info("Navigating to directory '%s'", directory)
         return self._execute_command(_FilesystemFunction.CD, directory).replace("\r", "")
 
     def make_directory(self, directory):
@@ -680,7 +680,7 @@ class LocalXBeeFileSystemManager(object):
                     self.change_directory(temp_path)
                 except FileSystemException:
                     # Directory does not exist, create it.
-                    _log.info("Creating directory '%s'" % temp_path)
+                    _log.info("Creating directory '%s'", temp_path)
                     self._execute_command(_FilesystemFunction.MD, temp_path)
         finally:
             self.change_directory(current_dir)
@@ -705,7 +705,7 @@ class LocalXBeeFileSystemManager(object):
         else:
             # Sanitize path.
             directory = directory.replace('\\', '/')
-            _log.info("Listing directory contents of '%s'" % directory)
+            _log.info("Listing directory contents of '%s'", directory)
             answer = self._execute_command(_FilesystemFunction.LS_DIR, directory)
 
         path = self.get_current_directory() if directory is None else directory
@@ -728,7 +728,7 @@ class LocalXBeeFileSystemManager(object):
                     size = int(result.groups()[0])
                     filesystem_elements.append(FileSystemElement(name, path + name, size=size))
                 else:
-                    _log.warning("Unknown filesystem element entry: %s" % line)
+                    _log.warning("Unknown filesystem element entry: %s", line)
 
         return filesystem_elements
 
@@ -749,7 +749,7 @@ class LocalXBeeFileSystemManager(object):
         # Sanitize path.
         element_path = element_path.replace('\\', '/')
 
-        _log.info("Removing file '%s'" % element_path)
+        _log.info("Removing file '%s'", element_path)
         self._execute_command(_FilesystemFunction.RM, element_path)
 
     def move_element(self, source_path, dest_path):
@@ -771,7 +771,7 @@ class LocalXBeeFileSystemManager(object):
         source_path = source_path.replace('\\', '/')
         dest_path = dest_path.replace('\\', '/')
 
-        _log.info("Moving file '%s' to '%s'" % (source_path, dest_path))
+        _log.info("Moving file '%s' to '%s'", source_path, dest_path)
         self._execute_command(_FilesystemFunction.MV, source_path, dest_path)
 
     def put_file(self, source_path, dest_path, secure=False, progress_callback=None):
@@ -817,7 +817,7 @@ class LocalXBeeFileSystemManager(object):
                     self.remove_element(element.path)
                     break
 
-        _log.info("Uploading file '%s' to '%s'" % (source_path, dest_path))
+        _log.info("Uploading file '%s' to '%s'", source_path, dest_path)
         command = _COMMAND_ATFS % (_FilesystemFunction.XPUT.command % dest_path) if secure else \
             _COMMAND_ATFS % (_FilesystemFunction.PUT.command % dest_path)
         answer = self._execute_command(_FilesystemFunction.XPUT, dest_path) if secure else \
@@ -892,7 +892,7 @@ class LocalXBeeFileSystemManager(object):
         command = _COMMAND_ATFS % (_FilesystemFunction.GET.command % source_path)
         # Sanitize path.
         source_path = source_path.replace('\\', '/')
-        _log.info("Downloading file '%s' to '%s'" % (source_path, dest_path))
+        _log.info("Downloading file '%s' to '%s'", source_path, dest_path)
         self._execute_command(_FilesystemFunction.GET, source_path, wait_for_answer=False)
         try:
             # Consume data until 'NAK' is received.
@@ -977,7 +977,7 @@ class LocalXBeeFileSystemManager(object):
         """
         # Sanitize path.
         file_path = file_path.replace('\\', '/')
-        _log.info("Retrieving SHA256 hash of file '%s'..." % file_path)
+        _log.info("Retrieving SHA256 hash of file '%s'...", file_path)
         answer = self._execute_command(_FilesystemFunction.HASH, file_path)
         parts = answer.split(_ANSWER_SHA256)
         if len(parts) <= 1:

@@ -238,7 +238,7 @@ class _OTAFile(object):
         Raises:
             _ParsingOTAException: if there is any problem parsing the OTA file.
         """
-        _log.debug("Parsing OTA firmware file %s:" % self._file_path)
+        _log.debug("Parsing OTA firmware file %s:", self._file_path)
         if not _file_exists(self._file_path) or (not self._file_path.endswith(_EXTENSION_OTA) and
                                                  not self._file_path.endswith(_EXTENSION_OTB)):
             raise _ParsingOTAException(_ERROR_INVALID_OTA_FILE % self._file_path)
@@ -248,31 +248,31 @@ class _OTAFile(object):
                 identifier = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
                 if identifier != _OTA_FILE_IDENTIFIER:
                     raise _ParsingOTAException(_ERROR_NOT_OTA_FILE % self._file_path)
-                _log.debug(" - Identifier: %d" % identifier)
+                _log.debug(" - Identifier: %d", identifier)
                 self._header_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Header version: %d" % self._header_version)
+                _log.debug(" - Header version: %d", self._header_version)
                 self._header_length = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Header length: %d" % self._header_length)
+                _log.debug(" - Header length: %d", self._header_length)
                 self._header_field_control = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Header field control: %d" % self._header_field_control)
+                _log.debug(" - Header field control: %d", self._header_field_control)
                 self._manufacturer_code = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Manufacturer code: %d" % self._manufacturer_code)
+                _log.debug(" - Manufacturer code: %d", self._manufacturer_code)
                 self._image_type = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Image type: %d" % self._image_type)
+                _log.debug(" - Image type: %d", self._image_type)
                 self._file_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
-                _log.debug(" - File version: %d" % self._file_version)
+                _log.debug(" - File version: %d", self._file_version)
                 self._zigbee_stack_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Zigbee stack version: %d" % self._zigbee_stack_version)
+                _log.debug(" - Zigbee stack version: %d", self._zigbee_stack_version)
                 self._header_string = _reverse_bytearray(file.read(_BUFFER_SIZE_STRING)).decode(encoding="utf-8")
-                _log.debug(" - Header string: %s" % self._header_string)
+                _log.debug(" - Header string: %s", self._header_string)
                 self._total_size = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
-                _log.debug(" - Total size: %d" % self._total_size)
+                _log.debug(" - Total size: %d", self._total_size)
                 self._gbl_size = self._total_size - self._header_length - _OTA_GBL_SIZE_BYTE_COUNT
-                _log.debug(" - GBL size: %d" % self._gbl_size)
+                _log.debug(" - GBL size: %d", self._gbl_size)
                 self._file_size = os.path.getsize(self._file_path)
-                _log.debug(" - File size: %d" % self._file_size)
+                _log.debug(" - File size: %d", self._file_size)
                 self._discard_size = self._header_length + _OTA_GBL_SIZE_BYTE_COUNT
-                _log.debug(" - Discard size: %d" % self._discard_size)
+                _log.debug(" - Discard size: %d", self._discard_size)
         except IOError as e:
             raise _ParsingOTAException(_ERROR_PARSING_OTA_FILE % str(e))
 
@@ -848,7 +848,7 @@ class _XBeeFirmwareUpdater(ABC):
         Raises:
             FirmwareUpdateException: if there is any error parsing the XML firmware file.
         """
-        _log.debug("Parsing XML firmware file %s:" % self._xml_firmware_file)
+        _log.debug("Parsing XML firmware file %s:", self._xml_firmware_file)
         try:
             root = ElementTree.parse(self._xml_firmware_file).getroot()
             # Firmware version, required.
@@ -856,35 +856,35 @@ class _XBeeFirmwareUpdater(ABC):
             if element is None:
                 self._exit_with_error(_ERROR_XML_PARSE % self._xml_firmware_file, restore_updater=False)
             self._xml_firmware_version = int(element.get(_XML_FIRMWARE_VERSION_ATTRIBUTE), 16)
-            _log.debug(" - Firmware version: %d" % self._xml_firmware_version)
+            _log.debug(" - Firmware version: %d", self._xml_firmware_version)
             # Hardware version, required.
             element = root.find(_XML_HARDWARE_VERSION)
             if element is None:
                 self._exit_with_error(_ERROR_XML_PARSE % self._xml_firmware_file, restore_updater=False)
             self._xml_hardware_version = int(element.text, 16)
-            _log.debug(" - Hardware version: %d" % self._xml_hardware_version)
+            _log.debug(" - Hardware version: %d", self._xml_hardware_version)
             # Compatibility number, required.
             element = root.find(_XML_COMPATIBILITY_NUMBER)
             if element is None:
                 self._exit_with_error(_ERROR_XML_PARSE % self._xml_firmware_file, restore_updater=False)
             self._xml_compatibility_number = int(element.text)
-            _log.debug(" - Compatibility number: %d" % self._xml_compatibility_number)
+            _log.debug(" - Compatibility number: %d", self._xml_compatibility_number)
             # Bootloader version, optional.
             element = root.find(_XML_BOOTLOADER_VERSION)
             if element is not None:
                 self._xml_bootloader_version = _bootloader_version_to_bytearray(element.text)
-            _log.debug(" - Bootloader version: %s" % self._xml_bootloader_version)
+            _log.debug(" - Bootloader version: %s", self._xml_bootloader_version)
             # Region lock, required.
             element = root.find(_XML_REGION_LOCK)
             if element is None:
                 self._exit_with_error(_ERROR_XML_PARSE % self._xml_firmware_file, restore_updater=False)
             self._xml_region_lock = int(element.text)
-            _log.debug(" - Region lock: %d" % self._xml_region_lock)
+            _log.debug(" - Region lock: %d", self._xml_region_lock)
             # Update timeout, optional.
             element = root.find(_XML_UPDATE_TIMEOUT)
             if element is not None:
                 self._xml_update_timeout_ms = int(element.text)
-            _log.debug(" - Update timeout: %s" % self._xml_update_timeout_ms)
+            _log.debug(" - Update timeout: %s", self._xml_update_timeout_ms)
         except ParseError as e:
             _log.exception(e)
             self._exit_with_error(_ERROR_XML_PARSE % self._xml_firmware_file, restore_updater=False)
@@ -905,8 +905,8 @@ class _XBeeFirmwareUpdater(ABC):
             try:
                 self._restore_updater()
             except (SerialException, XBeeException) as e:
-                _log.error("ERROR: %s" % (_ERROR_RESTORE_TARGET_CONNECTION % str(e)))
-        _log.error("ERROR: %s" % message)
+                _log.error("ERROR: %s", _ERROR_RESTORE_TARGET_CONNECTION % str(e))
+        _log.error("ERROR: %s", message)
         raise FirmwareUpdateException(message)
 
     def _check_target_compatibility(self):
@@ -926,17 +926,17 @@ class _XBeeFirmwareUpdater(ABC):
         # Read device values required for verification steps prior to firmware update.
         _log.debug("Reading device settings:")
         self._target_firmware_version = self._get_target_firmware_version()
-        _log.debug(" - Firmware version: %s" % self._target_firmware_version)
+        _log.debug(" - Firmware version: %s", self._target_firmware_version)
         self._target_hardware_version = self._get_target_hardware_version()
         if self._target_hardware_version is None:
             self._exit_with_error(_ERROR_HARDWARE_VERSION_READ)
-        _log.debug(" - Hardware version: %s" % self._target_hardware_version)
+        _log.debug(" - Hardware version: %s", self._target_hardware_version)
         self._target_compatibility_number = self._get_target_compatibility_number()
-        _log.debug(" - Compatibility number: %s" % self._target_compatibility_number)
+        _log.debug(" - Compatibility number: %s", self._target_compatibility_number)
         self._target_bootloader_version = self._get_target_bootloader_version()
-        _log.debug(" - Bootloader version: %s" % self._target_bootloader_version)
+        _log.debug(" - Bootloader version: %s", self._target_bootloader_version)
         self._target_region_lock = self._get_target_region_lock()
-        _log.debug(" - Region lock: %s" % self._target_region_lock)
+        _log.debug(" - Region lock: %s", self._target_region_lock)
 
         # Check if the hardware version is compatible with the firmware update process.
         if self._target_hardware_version not in SUPPORTED_HARDWARE_VERSIONS:
@@ -1022,7 +1022,7 @@ class _XBeeFirmwareUpdater(ABC):
         self._check_target_compatibility()
 
         # Check bootloader update file exists if required.
-        _log.debug("Bootloader update required? %s" % self._bootloader_update_required)
+        _log.debug("Bootloader update required? %s", self._bootloader_update_required)
         if self._bootloader_update_required:
             self._check_bootloader_binary_file()
 
@@ -1437,7 +1437,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         if self._xbee_device is None:
             # Configure serial port connection with bootloader parameters.
             try:
-                _log.debug("Opening port '%s'" % self._port)
+                _log.debug("Opening port '%s'", self._port)
                 self._xbee_serial_port = XBeeSerialPort(_BOOTLOADER_PORT_PARAMETERS["baudrate"],
                                                         self._port,
                                                         data_bits=_BOOTLOADER_PORT_PARAMETERS["bytesize"],
@@ -1447,7 +1447,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                                                         timeout=_BOOTLOADER_PORT_PARAMETERS["timeout"])
                 self._xbee_serial_port.open()
             except SerialException as e:
-                _log.error(_ERROR_CONNECT_SERIAL_PORT % str(e))
+                _log.error(_ERROR_CONNECT_SERIAL_PORT, str(e))
                 raise FirmwareUpdateException(_ERROR_CONNECT_SERIAL_PORT % str(e))
 
             # Check if device is in bootloader mode.
@@ -1458,7 +1458,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                     self._exit_with_error(_ERROR_BOOTLOADER_MODE)
         else:
             self._updater_was_connected = self._xbee_device.is_open()
-            _log.debug("Connecting device '%s'" % self._xbee_device)
+            _log.debug("Connecting device '%s'", self._xbee_device)
             if not _connect_device_with_retries(self._xbee_device, _DEVICE_CONNECTION_RETRIES):
                 if not self._set_device_in_programming_mode():
                     self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
@@ -1926,7 +1926,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._local_device.set_sync_ops_timeout(self._timeout)
         # Connect device.
         self._updater_was_connected = self._local_device.is_open()
-        _log.debug("Connecting device '%s'" % self._local_device)
+        _log.debug("Connecting device '%s'", self._local_device)
         if not _connect_device_with_retries(self._local_device, _DEVICE_CONNECTION_RETRIES):
             self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
         # Store AO value.
@@ -2162,7 +2162,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the received packet
         """
         if xbee_frame.get_frame_type() == ApiFrameType.TRANSMIT_STATUS:
-            _log.debug("Received 'Image notify' status frame: %s" % xbee_frame.transmit_status.description)
+            _log.debug("Received 'Image notify' status frame: %s", xbee_frame.transmit_status.description)
             if xbee_frame.transmit_status == TransmitStatus.SUCCESS:
                 self._img_notify_sent = True
                 # Sometimes the transmit status frame is received after the explicit frame
@@ -2369,7 +2369,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 if not isinstance(status_frame, TransmitStatusPacket):
                     retries -= 1
                     continue
-                _log.debug("Received 'Query next image response' status frame: %s" %
+                _log.debug("Received 'Query next image response' status frame: %s",
                            status_frame.transmit_status.description)
                 if status_frame.transmit_status != TransmitStatus.SUCCESS:
                     retries -= 1
@@ -2538,7 +2538,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 if not isinstance(status_frame, TransmitStatusPacket):
                     retries -= 1
                     continue
-                _log.debug("Received 'Upgrade end response' status frame: %s" %
+                _log.debug("Received 'Upgrade end response' status frame: %s",
                            status_frame.transmit_status.description)
 
                 #
@@ -2671,19 +2671,19 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     """
     # Sanity checks.
     if not isinstance(target, str) and not isinstance(target, AbstractXBeeDevice):
-        _log.error("ERROR: %s" % _ERROR_TARGET_INVALID)
+        _log.error("ERROR: %s", _ERROR_TARGET_INVALID)
         raise FirmwareUpdateException(_ERROR_TARGET_INVALID)
     if xml_firmware_file is None:
-        _log.error("ERROR: %s" % _ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
+        _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
     if not _file_exists(xml_firmware_file):
-        _log.error("ERROR: %s" % _ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
+        _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
     if xbee_firmware_file is not None and not _file_exists(xbee_firmware_file):
-        _log.error("ERROR: %s" % _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % xbee_firmware_file)
+        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % xbee_firmware_file)
         raise FirmwareUpdateException(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % xbee_firmware_file)
     if bootloader_firmware_file is not None and not _file_exists(bootloader_firmware_file):
-        _log.error("ERROR: %s" % _ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND)
+        _log.error("ERROR: %s", _ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND)
         raise FirmwareUpdateException(_ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND)
 
     # Launch the update process.
@@ -2720,19 +2720,19 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
     """
     # Sanity checks.
     if not isinstance(remote_device, RemoteXBeeDevice):
-        _log.error("ERROR: %s" % _ERROR_REMOTE_DEVICE_INVALID)
+        _log.error("ERROR: %s", _ERROR_REMOTE_DEVICE_INVALID)
         raise FirmwareUpdateException(_ERROR_TARGET_INVALID)
     if xml_firmware_file is None:
-        _log.error("ERROR: %s" % _ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
+        _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
     if not _file_exists(xml_firmware_file):
-        _log.error("ERROR: %s" % _ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
+        _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
     if ota_firmware_file is not None and not _file_exists(ota_firmware_file):
-        _log.error("ERROR: %s" % _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % ota_firmware_file)
+        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % ota_firmware_file)
         raise FirmwareUpdateException(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % ota_firmware_file)
     if otb_firmware_file is not None and not _file_exists(otb_firmware_file):
-        _log.error("ERROR: %s" % _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % otb_firmware_file)
+        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % otb_firmware_file)
         raise FirmwareUpdateException(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % otb_firmware_file)
 
     # Launch the update process.

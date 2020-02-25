@@ -687,7 +687,7 @@ class XBeeProfile(object):
         Raises:
             ProfileReadException: if there is any error parsing the XML profile file.
         """
-        _log.debug("Parsing XML profile file %s:" % self._profile_xml_file)
+        _log.debug("Parsing XML profile file %s:", self._profile_xml_file)
         try:
             root = ElementTree.parse(zip_file.open(_PROFILE_XML_FILE_NAME)).getroot()
             # XML firmware file. Mandatory.
@@ -696,29 +696,29 @@ class XBeeProfile(object):
                 self._throw_read_exception(_ERROR_PROFILE_XML_INVALID % "missing firmware file element")
             # Store XML firmware file name.
             self._firmware_xml_file_name = _FIRMWARE_FOLDER_NAME + "/" + firmware_xml_file_element.text
-            _log.debug(" - XML firmware file: %s" % self._firmware_xml_file_name)
+            _log.debug(" - XML firmware file: %s", self._firmware_xml_file_name)
             # Version. Optional.
             version_element = root.find(_XML_PROFILE_VERSION)
             if version_element is not None:
                 self._version = int(version_element.text)
-            _log.debug(" - Version: %d" % self._version)
+            _log.debug(" - Version: %d", self._version)
             # Flash firmware option. Required.
             flash_firmware_option_element = root.find(_XML_PROFILE_FLASH_FIRMWARE_OPTION)
             if flash_firmware_option_element is not None:
                 self._flash_firmware_option = FlashFirmwareOption.get(int(flash_firmware_option_element.text))
             if self._flash_firmware_option is None:
                 self._throw_read_exception(_ERROR_PROFILE_XML_INVALID % "invalid flash firmware option")
-            _log.debug(" - Flash firmware option: %s" % self._flash_firmware_option.description)
+            _log.debug(" - Flash firmware option: %s", self._flash_firmware_option.description)
             # Description. Optional.
             description_element = root.find(_XML_PROFILE_DESCRIPTION)
             if description_element is not None:
                 self._description = description_element.text
-            _log.debug(" - Description: %s" % self._description)
+            _log.debug(" - Description: %s", self._description)
             # Reset settings. Optional.
             reset_settings_element = root.find(_XML_PROFILE_RESET_SETTINGS)
             if reset_settings_element is not None:
                 self._reset_settings = reset_settings_element.text in ("True", "true", "1")
-            _log.debug(" - Reset settings: %s" % self._reset_settings)
+            _log.debug(" - Reset settings: %s", self._reset_settings)
             # Read AT settings.
             setting_elements = root.findall(_XML_PROFILE_AT_SETTING)
             if not setting_elements:
@@ -742,7 +742,7 @@ class XBeeProfile(object):
         except (PermissionError, FileExistsError) as e:
             self._throw_read_exception(_ERROR_PROFILE_TEMP_DIR % str(e))
 
-        _log.debug("Un-compressing profile into '%s'" % self._profile_folder)
+        _log.debug("Un-compressing profile into '%s'", self._profile_folder)
         try:
             with zipfile.ZipFile(self._profile_file, "r") as zip_ref:
                 zip_ref.extractall(self._profile_folder)
@@ -820,7 +820,7 @@ class XBeeProfile(object):
         Raises:
             ProfileReadException: if there is any error parsing the XML firmware file.
         """
-        _log.debug("Parsing XML firmware file %s:" % self._firmware_xml_file)
+        _log.debug("Parsing XML firmware file %s:", self._firmware_xml_file)
         try:
             root = ElementTree.parse(zip_file.open(self._firmware_xml_file_name)).getroot()
             # Firmware version.
@@ -830,17 +830,17 @@ class XBeeProfile(object):
             self._firmware_version = int(firmware_element.get(_XML_FIRMWARE_FIRMWARE_VERSION))
             if self._firmware_version is None:
                 self._throw_read_exception(_ERROR_FIRMWARE_XML_INVALID % "missing firmware version")
-            _log.debug(" - Firmware version: %s" % self._firmware_version)
+            _log.debug(" - Firmware version: %s", self._firmware_version)
             # Hardware version.
             hardware_version_element = root.find(_XML_FIRMWARE_HARDWARE_VERSION)
             if hardware_version_element is None:
                 self._throw_read_exception(_ERROR_FIRMWARE_XML_INVALID % "missing hardware version element")
             self._hardware_version = int(hardware_version_element.text, 16)
-            _log.debug(" - Hardware version: %s" % self._hardware_version)
+            _log.debug(" - Hardware version: %s", self._hardware_version)
             # Determine protocol.
             self._protocol = XBeeProtocol.determine_protocol(self._hardware_version,
                                                              utils.hex_string_to_bytes(str(self._firmware_version)))
-            _log.debug(" - Protocol: %s" % self._protocol.description)
+            _log.debug(" - Protocol: %s", self._protocol.description)
             # Parse AT settings.
             _log.debug(" - AT settings:")
             if not self._raw_settings:
@@ -859,9 +859,9 @@ class XBeeProfile(object):
                             setting_format = XBeeSettingFormat.get(setting_format_element.text)
                         profile_setting = XBeeProfileSetting(setting_element, setting_type, setting_format,
                                                              setting_value)
-                        _log.debug("  - Setting '%s' - type: %s - format: %s - value: %s" %
-                                   (profile_setting.name, profile_setting.type.description,
-                                    profile_setting.format.description, profile_setting.value))
+                        _log.debug("  - Setting '%s' - type: %s - format: %s - value: %s",
+                                   profile_setting.name, profile_setting.type.description,
+                                   profile_setting.format.description, profile_setting.value)
                         self._profile_settings.append(profile_setting)
         except ParseError as e:
             self._throw_read_exception(_ERROR_FIRMWARE_XML_PARSE % str(e))
@@ -900,7 +900,7 @@ class XBeeProfile(object):
         Raises:
             ProfileReadException: the exception thrown wit the given message.
         """
-        _log.error("ERROR: %s" % message)
+        _log.error("ERROR: %s", message)
         raise ReadProfileException(message)
 
     @property
@@ -1121,8 +1121,8 @@ class _ProfileUpdater(object):
 
         # Sanitize firmware version.
         self._device_firmware_version = int(utils.hex_to_string(self._device_firmware_version).replace(" ", ""))
-        _log.debug("  - Firmware version: %s" % self._device_firmware_version)
-        _log.debug("  - Hardware version: %s" % self._device_hardware_version.code)
+        _log.debug("  - Firmware version: %s", self._device_firmware_version)
+        _log.debug("  - Hardware version: %s", self._device_hardware_version.code)
 
     def _read_parameter_with_retries(self, parameter, retries):
         """
@@ -1161,7 +1161,7 @@ class _ProfileUpdater(object):
         Raises:
             XBeeException: if there is any error setting the parameter.
         """
-        _log.debug("Setting parameter '%s' to '%s'" % (parameter, value))
+        _log.debug("Setting parameter '%s' to '%s'", parameter, value)
         msg = ""
         while retries > 0:
             try:
@@ -1457,18 +1457,18 @@ def apply_xbee_profile(xbee_device, profile_path, progress_callback=None):
     """
     # Sanity checks.
     if profile_path is None or not isinstance(profile_path, str):
-        _log.error("ERROR: %s" % _ERROR_PROFILE_NOT_VALID)
+        _log.error("ERROR: %s", _ERROR_PROFILE_NOT_VALID)
         raise ValueError(_ERROR_PROFILE_NOT_VALID)
     if xbee_device is None or (not isinstance(xbee_device, XBeeDevice) and
                                not isinstance(xbee_device, RemoteXBeeDevice)):
-        _log.error("ERROR: %s" % _ERROR_DEVICE_NOT_VALID)
+        _log.error("ERROR: %s", _ERROR_DEVICE_NOT_VALID)
         raise ValueError(_ERROR_DEVICE_NOT_VALID)
 
     try:
         xbee_profile = XBeeProfile(profile_path)
     except (ValueError, ReadProfileException) as e:
         error = _ERROR_PROFILE_INVALID % str(e)
-        _log.error("ERROR: %s" % error)
+        _log.error("ERROR: %s", error)
         raise UpdateProfileException(error)
 
     profile_updater = _ProfileUpdater(xbee_device, xbee_profile, progress_callback=progress_callback)
