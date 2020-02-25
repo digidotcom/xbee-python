@@ -582,6 +582,8 @@ class _XModemTransferSession(object):
                 continue
             # Read answer.
             answer = self._read_cb(1, timeout=_XMODEM_READ_DATA_TIMEOUT)
+            if self._log:
+                self._log.debug("EOT answer: %s", answer)
             if not answer:
                 retries -= 1
                 continue
