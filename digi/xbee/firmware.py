@@ -60,6 +60,7 @@ _BOOTLOADER_TIMEOUT = 60  # seconds
 _BOOTLOADER_VERSION_SEPARATOR = "."
 _BOOTLOADER_VERSION_SIZE = 3
 _BOOTLOADER_XBEE3_FILE_PREFIX = "xb3-boot-rf_"
+_BOOTLOADER_XBEE3_RESET_ENV_VERSION = bytearray([1, 6, 6])
 
 _BUFFER_SIZE_INT = 4
 _BUFFER_SIZE_SHORT = 2
@@ -840,6 +841,8 @@ class _XBeeFirmwareUpdater(ABC):
         self._timeout = timeout
         self._protocol_changed = False
         self._updated = False
+        self._bootloader_updated = False
+        self._bootloader_reset_settings = False
 
     def _parse_xml_firmware_file(self):
         """
@@ -960,6 +963,9 @@ class _XBeeFirmwareUpdater(ABC):
         # Check whether bootloader update is required.
         self._bootloader_update_required = self._check_bootloader_update_required()
 
+        # Check whether bootloader reset the device settings.
+        self._bootloader_reset_settings = self._check_bootloader_reset_settings()
+
     def _check_bootloader_update_required(self):
         """
         Checks whether the bootloader needs to be updated or not
@@ -975,11 +981,21 @@ class _XBeeFirmwareUpdater(ABC):
         # Since the bootloader cannot be downgraded, the XML specifies the minimum required bootloader
         # version to update the firmware. Return `True` only if the specified XML bootloader version is
         # greater than the target one.
-        for i in range(len(self._xml_bootloader_version)):
-            if self._xml_bootloader_version[i] != self._target_bootloader_version[i]:
-                return self._xml_bootloader_version[i] > self._target_bootloader_version[i]
+        return self._xml_bootloader_version > self._target_bootloader_version
 
-        return False
+    def _check_bootloader_reset_settings(self):
+        """
+        Checks whether the bootloader performed a reset of the device settings or not
+
+        Returns:
+            Boolean: ``True`` if the bootloader performed a reset of the device settings, ``False`` otherwise
+        """
+        if not self._bootloader_update_required:
+            return False
+
+        # On XBee 3 devices with a bootloader version below 1.6.6, updating the bootloader implies a reset
+        # of the module settings. Return True if the device bootloader version was below 1.6.6.
+        return self._target_bootloader_version < _BOOTLOADER_XBEE3_RESET_ENV_VERSION
 
     @abstractmethod
     def _get_default_reset_timeout(self):
@@ -1476,9 +1492,11 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                     self._xbee_serial_port.close()
                 if self._device_port_params is not None:
                     self._xbee_serial_port.apply_settings(self._device_port_params)
-            if self._updated and self._protocol_changed:
-                # Since the protocol has changed, a forced port open is required because all the configured
-                # settings are restored to default values, including the serial communication ones.
+            if (self._updated and self._protocol_changed) or \
+                    (self._bootloader_updated and self._bootloader_reset_settings):
+                # Since the protocol has changed or an old bootloader was updated, a forced port open is
+                # required because all the configured settings are restored to default values, including
+                # the serial communication ones.
                 self._xbee_device.close()
                 self._xbee_device.open(force_settings=True)
             if self._updater_was_connected and not self._xbee_device.is_open():
@@ -1519,6 +1537,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             # Execute the run operation so that new bootloader is applied and executed. Give it some time afterwards.
             self._run_firmware_operation()
             time.sleep(_BOOTLOADER_INITIALIZATION_TIME)
+            self._bootloader_updated = True
 
         # Update the XBee firmware using XModem protocol.
         _log.info("Updating XBee firmware")
