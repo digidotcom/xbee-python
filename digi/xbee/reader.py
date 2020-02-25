@@ -558,7 +558,7 @@ class PacketListener(threading.Thread):
                 if raw_packet is not None:
                     # If the current protocol is 802.15.4, the packet may have to be discarded.
                     if (self.__xbee_device.get_protocol() == XBeeProtocol.RAW_802_15_4 and
-                       not self.__check_packet_802_15_4(raw_packet)):
+                            not self.__check_packet_802_15_4(raw_packet)):
                         continue
 
                     # Build the packet.

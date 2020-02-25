@@ -3898,7 +3898,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self.__route_received -= callback
 
         if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
-                              XBeeProtocol.SMART_ENERGY]
+                               XBeeProtocol.SMART_ENERGY]
                 and self.__route_record_callback in self._packet_listener.get_route_record_received_callbacks()):
             self._packet_listener.del_route_record_received_callback(self.__route_record_callback)
         elif self.__route_info_callback in self._packet_listener.get_route_info_callbacks():
@@ -8255,7 +8255,7 @@ class XBeeNetwork(object):
             return self._local_xbee
 
         return self._add_remote_from_attr(NetworkEventReason.MANUAL, x64bit_addr=x64bit_addr,
-                                           x16bit_addr=x16bit_addr, node_id=node_id)
+                                          x16bit_addr=x16bit_addr, node_id=node_id)
 
     def add_remote(self, remote_xbee_device):
         """
@@ -8361,7 +8361,7 @@ class XBeeNetwork(object):
         return remote_xbee
 
     def _add_remote_from_attr(self, reason, x64bit_addr=None, x16bit_addr=None, node_id=None,
-                               role=Role.UNKNOWN, hw_version=None, fw_version=None):
+                              role=Role.UNKNOWN, hw_version=None, fw_version=None):
         """
         Creates a new XBee using the provided data and adds it to the network if it is not
         included yet.
@@ -8561,7 +8561,7 @@ class XBeeNetwork(object):
                     self.__get_data_for_remote(xbee_packet.command_value)
                 remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16,
                                               node_id=n_id, role=role,
-                                              parent_addr= x64_parent)
+                                              parent_addr=x64_parent)
                 # if it's the sought XBee device, put it in the proper variable.
                 if self.__sought_device_id == remote.get_node_id():
                     with self.__lock:
@@ -9255,8 +9255,8 @@ class XBeeNetwork(object):
             i += 2
             # role is the next byte
             role = Role.get(utils.bytes_to_int(data[i:i+1]))
-        return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]),\
-               node_id.decode(), role, parent_addr
+        return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]), \
+            node_id.decode(), role, parent_addr
 
     def _set_node_reachable(self, node, reachable):
         """
