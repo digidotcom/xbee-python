@@ -6870,6 +6870,8 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
             self._16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
         self._node_id = node_id
 
+        self._protocol = local_xbee_device.get_protocol()
+
     def get_parameter(self, parameter, parameter_value=None):
         """
         Override.
