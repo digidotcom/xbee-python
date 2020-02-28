@@ -213,6 +213,14 @@ class AbstractXBeeDevice(object):
             self._role = new_role
             updated = True
 
+        new_fw = device.get_firmware_version()
+        if new_fw:
+            self._firmware_version = new_fw
+
+        new_hw = device.get_hardware_version()
+        if new_hw:
+            self._hardware_version = new_hw
+
         return updated
 
     def get_parameter(self, parameter, parameter_value=None):
