@@ -9076,7 +9076,7 @@ class XBeeNetwork(object):
                     time.sleep(0.1)
 
         self.__nd_processes.clear()
-        self.__active_processes.clear()
+        active_processes.clear()
 
         with self.__lock:
             self.__discovering = False
@@ -9818,7 +9818,7 @@ class ZigBeeNetwork(XBeeNetwork):
                     # Remove the discovered routes
                     self.__discovered_routes.pop(str(xbee.get_64bit_addr()), None)
                     self._node_discovery_process_finished(xbee, code=NetworkDiscoveryStatus.CANCEL)
-                    # return
+                    return NetworkDiscoveryStatus.CANCEL
 
                 # Get neighbor table
                 code = self.__get_neighbor_table(xbee, nodes_queue, node_timeout)
