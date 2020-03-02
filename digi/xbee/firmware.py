@@ -159,6 +159,7 @@ _SEND_BLOCK_RETRIES = 5
 _TIME_DAYS_1970TO_2000 = 10957
 _TIME_SECONDS_1970_TO_2000 = _TIME_DAYS_1970TO_2000 * 24 * 60 * 60
 
+_IMAGE_BLOCK_RESPONSE_PAYLOAD_DECREMENT = 1
 _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE = 12
 
 _VALUE_API_OUTPUT_MODE_EXPLICIT = 0x01
@@ -2421,8 +2422,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             FirmwareUpdateException: if there is any error sending the next OTA block frame.
         """
         retries = _SEND_BLOCK_RETRIES
-        next_ota_block_frame = self._create_image_block_response_frame(file_offset, size, seq_number)
         while retries > 0:
+            next_ota_block_frame = self._create_image_block_response_frame(file_offset, size, seq_number)
             try:
                 _log.debug("Sending 'Image block response' frame for offset %s/%s (size %d)",
                            file_offset, self._ota_file.ota_size, next_ota_block_frame.rf_data[16])
@@ -2432,12 +2433,13 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                     continue
                 _log.debug("Received 'Image block response' status frame for offset %s: %s",
                            file_offset, status_frame.transmit_status.description)
+                if status_frame.transmit_status == TransmitStatus.PAYLOAD_TOO_LARGE:
+                    size -= _IMAGE_BLOCK_RESPONSE_PAYLOAD_DECREMENT
+                    continue
                 if status_frame.transmit_status != TransmitStatus.SUCCESS:
                     retries -= 1
                     continue
-                # 17 bytes in the explicit frame payload to specify ota
-                # protocol parameters: command, fw version, offset, block size, etc.
-                return len(next_ota_block_frame.rf_data) - 17
+                return size
             except XBeeException as e:
                 raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK % (file_offset, str(e)))
 
@@ -2477,7 +2479,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._requested_offset = -1
         self._progress_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
         last_offset_sent = self._requested_offset
-        last_size_sent = 0
+        # Dictionary to store block size used for each provided maximum size
+        last_size_sent = {self._max_chunk_size: self._max_chunk_size}
         previous_percent = None
         retries = self._get_block_response_max_retries()
 
@@ -2500,7 +2503,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
 
             last_offset_sent = self._requested_offset
             previous_seq_number = self._seq_number
-            # Check that the requested index is valid.
+            # Check that the requested offset is valid.
             if self._requested_offset >= self._ota_file.ota_size:
                 self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
                 self._exit_with_error(_ERROR_INVALID_BLOCK % self._requested_offset)
@@ -2512,7 +2515,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
 
             # Send the data block.
             try:
-                last_size_sent = self._send_ota_block(self._requested_offset, self._max_chunk_size, previous_seq_number)
+                size_sent = self._send_ota_block(
+                    self._requested_offset, min(last_size_sent.get(self._max_chunk_size, self._max_chunk_size), self._max_chunk_size),
+                    previous_seq_number)
+                last_size_sent[self._max_chunk_size] = size_sent
             except FirmwareUpdateException as e:
                 self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
                 self._exit_with_error(str(e))
@@ -2531,7 +2537,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._ota_file.close_file()
         # Check if there was a transfer timeout.
         if self._transfer_status is None and self._response_string is None:
-            if last_offset_sent + last_size_sent == self._ota_file.ota_size:
+            if last_offset_sent + last_size_sent[self._max_chunk_size] == self._ota_file.ota_size:
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % "Timeout waiting for 'Upgrade end request' frame")
             else:
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % "Timeout waiting for next 'Image block request' frame")
