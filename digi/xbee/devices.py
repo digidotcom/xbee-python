@@ -4271,6 +4271,7 @@ class Raw802Device(XBeeDevice):
         """
         super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.RAW_802_15_4:
+            self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.RAW_802_15_4))
 
     def _init_network(self):
@@ -4377,6 +4378,7 @@ class DigiMeshDevice(XBeeDevice):
         """
         super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.DIGI_MESH:
+            self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.DIGI_MESH))
 
     def _init_network(self):
@@ -4564,6 +4566,7 @@ class DigiPointDevice(XBeeDevice):
         """
         super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.DIGI_POINT:
+            self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.DIGI_POINT))
 
     def _init_network(self):
@@ -4695,6 +4698,7 @@ class ZigBeeDevice(XBeeDevice):
         """
         super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.ZIGBEE:
+            self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.ZIGBEE))
 
     def _init_network(self):
@@ -5799,6 +5803,7 @@ class CellularDevice(IPDevice):
         """
         super().open(force_settings=force_settings)
         if self.get_protocol() not in [XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT]:
+            self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.CELLULAR))
 
     def read_device_info(self, init=True, fire_event=True):
@@ -6247,6 +6252,7 @@ class NBIoTDevice(LPWANDevice):
         """
         super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.CELLULAR_NBIOT:
+            self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.CELLULAR_NBIOT))
 
 
@@ -6305,6 +6311,7 @@ class WiFiDevice(IPDevice):
         """
         super().open(force_settings=force_settings)
         if self.get_protocol() != XBeeProtocol.XBEE_WIFI:
+            self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.XBEE_WIFI))
 
     def get_wifi_ai_status(self):
