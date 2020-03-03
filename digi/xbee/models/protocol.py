@@ -235,7 +235,8 @@ class XBeeProtocol(Enum):
                                   HardwareVersion.CELLULAR_LTE_VERIZON.code,
                                   HardwareVersion.CELLULAR_3_CAT1_LTE_ATT.code,
                                   HardwareVersion.CELLULAR_3_LTE_M_VERIZON.code,
-                                  HardwareVersion.CELLULAR_3_LTE_M_ATT.code]:
+                                  HardwareVersion.CELLULAR_3_LTE_M_ATT.code,
+                                  HardwareVersion.CELLULAR_3_CAT1_LTE_VERIZON.code]:
             return XBeeProtocol.CELLULAR
 
         elif hardware_version == HardwareVersion.CELLULAR_NBIOT_EUROPE.code:

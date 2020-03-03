@@ -92,6 +92,7 @@ class HardwareVersion(Enum):
     CELLULAR_3_CAT1_LTE_ATT = (0x49, "XBee Cellular 3 Cat 1 LTE AT&T")
     CELLULAR_3_LTE_M_VERIZON = (0x4A, "XBee Cellular 3 LTE-M Verizon")
     CELLULAR_3_LTE_M_ATT = (0x4B, "XBee Cellular 3 LTE-M AT&T")
+    CELLULAR_3_CAT1_LTE_VERIZON = (0x4D, "XBee Cellular 3 Cat 1 LTE Verizon")
 
     def __init__(self, code, description):
         self.__code = code
