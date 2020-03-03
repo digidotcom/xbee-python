@@ -1097,7 +1097,7 @@ class _ProfileUpdater(object):
         """
         _log.debug("Reading device parameters:")
         if self._progress_callback is not None:
-            self._progress_callback(_TASK_READING_DEVICE_PARAMETERS, None)
+            self._progress_callback(_TASK_READING_DEVICE_PARAMETERS, 0)
         if self._is_local:
             # Connect the device.
             if not self._xbee_device.is_open():
