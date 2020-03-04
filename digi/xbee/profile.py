@@ -1052,13 +1052,14 @@ class _ProfileUpdater(object):
     Helper class used to handle the update XBee profile process.
     """
 
-    def __init__(self, xbee_device, xbee_profile, progress_callback=None):
+    def __init__(self, xbee_device, xbee_profile, timeout=None, progress_callback=None):
         """
         Class constructor. Instantiates a new :class:`._ProfileUpdater` with the given parameters.
 
         Args:
             xbee_device (:class:`.XBeeDevice` or :class:`.RemoteXBeeDevice`): The XBee device to apply profile to.
             xbee_profile (:class:`.XBeeProfile`): The XBee profile to apply.
+            timeout (Integer, optional): the maximum time to wait for target read operations during the apply profile.
             progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                     arguments:
 
@@ -1067,6 +1068,7 @@ class _ProfileUpdater(object):
         """
         self._xbee_profile = xbee_profile
         self._xbee_device = xbee_device
+        self._timeout = timeout
         self._progress_callback = progress_callback
         self._was_connected = True
         self._device_firmware_version = None
@@ -1185,6 +1187,7 @@ class _ProfileUpdater(object):
         try:
             self._xbee_device.update_firmware(self._xbee_profile.firmware_description_file,
                                               bootloader_firmware_file=self._xbee_profile.bootloader_file,
+                                              timeout=self._timeout,
                                               progress_callback=self._firmware_progress_callback)
         except FirmwareUpdateException as e:
             raise UpdateProfileException(_ERROR_UPDATE_FIRMWARE % str(e))
@@ -1406,45 +1409,54 @@ class _ProfileUpdater(object):
         Raises:
             UpdateProfileException: if there is any error during the update XBee profile operation.
         """
-        # Retrieve device parameters.
-        self._read_device_parameters()
-        # Check if device supports profiles.
-        # TODO: reduce limitations when more hardware is supported.
-        if self._device_hardware_version.code not in SUPPORTED_HARDWARE_VERSIONS:
-            raise UpdateProfileException(_ERROR_PROFILES_NOT_SUPPORTED)
-        # Verify hardware compatibility of the profile.
-        if self._device_hardware_version.code != self._xbee_profile.hardware_version:
-            raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE)
-        # Determine if protocol will be changed.
-        self._protocol_changed = self._check_protocol_changed()
-        # Check flash firmware option.
-        flash_firmware = False
-        firmware_is_the_same = self._device_firmware_version == self._xbee_profile.firmware_version
-        if self._xbee_profile.flash_firmware_option == FlashFirmwareOption.FLASH_ALWAYS:
-            flash_firmware = True
-        elif self._xbee_profile.flash_firmware_option == FlashFirmwareOption.FLASH_DIFFERENT:
-            flash_firmware = not firmware_is_the_same
-        elif self._xbee_profile.flash_firmware_option == FlashFirmwareOption.DONT_FLASH and not firmware_is_the_same:
-            raise UpdateProfileException(_ERROR_FIRMWARE_NOT_COMPATIBLE)
-        # Update firmware if required.
-        if flash_firmware:
-            if self._device_hardware_version.code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
-                raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE_XBEE3)
-            self._update_firmware()
-        # Update the settings.
-        self._update_device_settings()
-        # Update the file system if required.
-        if self._xbee_profile.has_filesystem:
-            self._update_file_system()
+        # Change sync ops timeout
+        old_sync_ops_timeout = self._xbee_device.get_sync_ops_timeout()
+        self._xbee_device.set_sync_ops_timeout(self._timeout)
+
+        try:
+            # Retrieve device parameters.
+            self._read_device_parameters()
+            # Check if device supports profiles.
+            # TODO: reduce limitations when more hardware is supported.
+            if self._device_hardware_version.code not in SUPPORTED_HARDWARE_VERSIONS:
+                raise UpdateProfileException(_ERROR_PROFILES_NOT_SUPPORTED)
+            # Verify hardware compatibility of the profile.
+            if self._device_hardware_version.code != self._xbee_profile.hardware_version:
+                raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE)
+            # Determine if protocol will be changed.
+            self._protocol_changed = self._check_protocol_changed()
+            # Check flash firmware option.
+            flash_firmware = False
+            firmware_is_the_same = self._device_firmware_version == self._xbee_profile.firmware_version
+            if self._xbee_profile.flash_firmware_option == FlashFirmwareOption.FLASH_ALWAYS:
+                flash_firmware = True
+            elif self._xbee_profile.flash_firmware_option == FlashFirmwareOption.FLASH_DIFFERENT:
+                flash_firmware = not firmware_is_the_same
+            elif self._xbee_profile.flash_firmware_option == FlashFirmwareOption.DONT_FLASH and not firmware_is_the_same:
+                raise UpdateProfileException(_ERROR_FIRMWARE_NOT_COMPATIBLE)
+            # Update firmware if required.
+            if flash_firmware:
+                if self._device_hardware_version.code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
+                    raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE_XBEE3)
+                self._update_firmware()
+            # Update the settings.
+            self._update_device_settings()
+            # Update the file system if required.
+            if self._xbee_profile.has_filesystem:
+                self._update_file_system()
+        finally:
+            # Restore sync ops timeout
+            self._xbee_device.set_sync_ops_timeout(old_sync_ops_timeout)
 
 
-def apply_xbee_profile(xbee_device, profile_path, progress_callback=None):
+def apply_xbee_profile(xbee_device, profile_path, timeout=None, progress_callback=None):
     """
     Applies the given XBee profile into the given XBee device.
 
     Args:
         xbee_device (:class:`.XBeeDevice` or :class:`.RemoteXBeeDevice`): the XBee device to apply profile to.
         profile_path (String): path of the XBee profile file to apply.
+        timeout (Integer, optional): the maximum time to wait for target read operations during the apply profile.
         progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                 arguments:
 
@@ -1471,5 +1483,5 @@ def apply_xbee_profile(xbee_device, profile_path, progress_callback=None):
         _log.error("ERROR: %s", error)
         raise UpdateProfileException(error)
 
-    profile_updater = _ProfileUpdater(xbee_device, xbee_profile, progress_callback=progress_callback)
+    profile_updater = _ProfileUpdater(xbee_device, xbee_profile, timeout=timeout, progress_callback=progress_callback)
     profile_updater.update_profile()
