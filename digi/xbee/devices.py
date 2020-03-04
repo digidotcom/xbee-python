@@ -1574,12 +1574,13 @@ class AbstractXBeeDevice(object):
             raise OperationNotSupportedException("Autodetection is only supported in XBee3 devices")
         recovery.recover_device(self)
 
-    def apply_profile(self, profile_path, progress_callback=None):
+    def apply_profile(self, profile_path, timeout=None, progress_callback=None):
         """
         Applies the given XBee profile to the XBee device.
 
         Args:
             profile_path (String): path of the XBee profile file to apply.
+            timeout (Integer, optional): the maximum time to wait for target read operations during the apply profile.
             progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                     arguments:
 
@@ -1602,7 +1603,7 @@ class AbstractXBeeDevice(object):
         if self.get_hardware_version() and self.get_hardware_version().code not in profile.SUPPORTED_HARDWARE_VERSIONS:
             raise OperationNotSupportedException("XBee profiles are only supported in XBee3 devices")
 
-        profile.apply_xbee_profile(self, profile_path, progress_callback=progress_callback)
+        profile.apply_xbee_profile(self, profile_path, timeout=timeout, progress_callback=progress_callback)
 
     def _get_ai_status(self):
         """
