@@ -87,6 +87,7 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
             Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits, parity=parity, timeout=timeout)
         self.__port_to_open = port
+        self.timeout = timeout
         self._isReading = False
 
     def __str__(self):
