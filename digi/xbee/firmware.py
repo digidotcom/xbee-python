@@ -1800,7 +1800,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
     __DEVICE_RESET_TIMEOUT_802 = 28  # seconds
 
     def __init__(self, remote_device, xml_firmware_file, ota_firmware_file=None, otb_firmware_file=None,
-                 timeout=_READ_DATA_TIMEOUT, progress_callback=None):
+                 timeout=_READ_DATA_TIMEOUT, max_block_size=0, progress_callback=None):
         """
         Class constructor. Instantiates a new :class:`._RemoteFirmwareUpdater` with the given parameters.
 
@@ -1810,6 +1810,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             ota_firmware_file (String, optional): path of the OTA firmware file to upload.
             otb_firmware_file (String, optional): path of the OTB firmware file to upload (bootloader bundle).
             timeout (Integer, optional): the timeout to wait for remote frame requests.
+            max_block_size (Integer, optional): Maximum size in bytes of the ota block to send.
             progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                     arguments:
 
@@ -1840,6 +1841,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._requested_offset = -1
         self._max_chunk_size = _OTA_DEFAULT_BLOCK_SIZE
         self._seq_number = 0
+        self._cfg_max_block_size = max_block_size
+        if not self._cfg_max_block_size:
+            self._cfg_max_block_size = 0xFFFFFFFF
 
     def _check_firmware_binary_file(self):
         """
@@ -2242,7 +2246,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             max_data_size, file_offset, sequence_number = self._parse_image_block_request_frame(xbee_frame)
             # Check if OTA file chunk size must be updated.
             if max_data_size != self._max_chunk_size:
-                self._max_chunk_size = max_data_size
+                self._max_chunk_size = min(max_data_size, self._cfg_max_block_size)
             self._requested_offset = file_offset
             _log.debug("Received 'Image block request' frame for file offset %s", file_offset)
             self._seq_number = sequence_number
@@ -2730,7 +2734,7 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
 
 
 def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=None, otb_firmware_file=None,
-                           timeout=None, progress_callback=None):
+                           max_block_size=0, timeout=None, progress_callback=None):
     """
     Performs a local firmware update operation in the given target.
 
@@ -2739,6 +2743,7 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
         xml_firmware_file (String): path of the XML file that describes the firmware to upload.
         ota_firmware_file (String, optional): path of the OTA firmware file to upload.
         otb_firmware_file (String, optional): path of the OTB firmware file to upload (bootloader bundle).
+        max_block_size (Integer, optional): Maximum size of the ota block to send.
         timeout (Integer, optional): the timeout to wait for remote frame requests.
         progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                 arguments:
@@ -2765,6 +2770,10 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
     if otb_firmware_file is not None and not _file_exists(otb_firmware_file):
         _log.error("ERROR: %s", _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % otb_firmware_file)
         raise FirmwareUpdateException(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % otb_firmware_file)
+    if not isinstance(max_block_size, int):
+        raise ValueError("Maximum block size must be an integer")
+    if max_block_size < 0 or max_block_size > 255:
+        raise ValueError("Maximum block size must be between 0 and 255")
 
     # Launch the update process.
     if not timeout:
@@ -2774,6 +2783,7 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
                                             ota_firmware_file=ota_firmware_file,
                                             otb_firmware_file=otb_firmware_file,
                                             timeout=timeout,
+                                            max_block_size=max_block_size,
                                             progress_callback=progress_callback)
     update_process.update_firmware()
 

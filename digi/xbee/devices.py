@@ -140,6 +140,8 @@ class AbstractXBeeDevice(object):
 
         self.__generic_lock = threading.Lock()
 
+        self._fw_update_max_block_size = 0
+
     def __eq__(self, other):
         """
         Operator '=='. Compares two :class:`.AbstractXBeeDevice` instances.
@@ -1546,6 +1548,7 @@ class AbstractXBeeDevice(object):
                                             ota_firmware_file=xbee_firmware_file,
                                             otb_firmware_file=bootloader_firmware_file,
                                             timeout=timeout,
+                                            max_block_size=self._fw_update_max_block_size,
                                             progress_callback=progress_callback)
         else:
             if self._operating_mode != OperatingMode.API_MODE and \
@@ -6983,6 +6986,23 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
            | :class:`XBeeCommunicationInterface`
         """
         return self._local_xbee_device.comm_iface
+
+    def set_fw_update_max_block_size(self, size):
+        """
+        Sets the maximum size in bytes of the ota block to send.
+
+        Args:
+            size (Integer, optional): Maximum size of the ota block to send.
+
+        Raises:
+            ValueError: If size is not between 0 and 255.
+        """
+        if not isinstance(size, int):
+            raise ValueError("Maximum block size must be an integer")
+        if size < 0 or size > 255:
+            raise ValueError("Maximum block size must be between 0 and 255")
+
+        self._fw_update_max_block_size = size
 
 
 class RemoteRaw802Device(RemoteXBeeDevice):
