@@ -5173,14 +5173,16 @@ class ZigBeeDevice(XBeeDevice):
             raise ValueError("Invalid protocol of destination node")
 
         x64 = dest_node.get_64bit_addr()
-        if (not x64 or x64 == XBee64BitAddress.UNKNOWN_ADDRESS
-                or x64 == XBee64BitAddress.BROADCAST_ADDRESS):
+        if (x64 == XBee64BitAddress.BROADCAST_ADDRESS):
             raise ValueError("Invalid 64-bit address of destination node: %s" % x64)
 
         x16 = dest_node.get_16bit_addr()
-        if (not x16 or x16 == XBee16BitAddress.UNKNOWN_ADDRESS
-                or x16 == XBee16BitAddress.BROADCAST_ADDRESS):
+        if (x16 == XBee16BitAddress.BROADCAST_ADDRESS):
             raise ValueError("Invalid 16-bit address of destination node: %s" % x16)
+
+        if (x64 in [None, XBee64BitAddress.UNKNOWN_ADDRESS]
+                and x16 in [None, XBee16BitAddress.UNKNOWN_ADDRESS]):
+            raise ValueError("64-bit and 16-bit addresses of destination node cannot be unknown")
 
         if hops is None:
             hops = []
