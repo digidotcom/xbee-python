@@ -1452,11 +1452,11 @@ class PacketListener(threading.Thread):
         if (xbee_packet.get_frame_type() in
                 [ApiFrameType.AT_COMMAND_RESPONSE, ApiFrameType.REMOTE_AT_COMMAND_RESPONSE]
                 and xbee_packet.status == ATCommandStatus.OK):
-            if xbee_packet.command == ATStringCommand.NI.command:
+            if xbee_packet.command.upper() == ATStringCommand.NI.command:
                 node_id = xbee_packet.command_value.decode()
-            elif xbee_packet.command == ATStringCommand.HV.command:
+            elif xbee_packet.command.upper() == ATStringCommand.HV.command:
                 hw_version = HardwareVersion.get(xbee_packet.command_value[0])
-            elif xbee_packet.command == ATStringCommand.VR.command:
+            elif xbee_packet.command.upper() == ATStringCommand.VR.command:
                 fw_version = xbee_packet.command_value
 
         return x64bit_addr, x16bit_addr, node_id, hw_version, fw_version

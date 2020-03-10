@@ -1205,17 +1205,17 @@ class _ProfileUpdater(object):
         stop_bits_changed = False
         cts_flow_control_changed = False
         for setting in self._xbee_profile.profile_settings:
-            if setting.name in _PARAMETERS_SERIAL_PORT:
-                if setting.name == ATStringCommand.BD.command:
+            if setting.name.upper() in _PARAMETERS_SERIAL_PORT:
+                if setting.name.upper() == ATStringCommand.BD.command:
                     baudrate_changed = True
                     port_parameters["baudrate"] = FirmwareBaudrate.get(int(setting.value, 16)).baudrate
-                elif setting.name == ATStringCommand.NB.command:
+                elif setting.name.upper() == ATStringCommand.NB.command:
                     parity_changed = True
                     port_parameters["parity"] = FirmwareParity.get(int(setting.value, 16)).parity
-                elif setting.name == ATStringCommand.SB.command:
+                elif setting.name.upper() == ATStringCommand.SB.command:
                     stop_bits_changed = True
                     port_parameters["stopbits"] = FirmwareStopbits.get(int(setting.value, 16)).stop_bits
-                elif setting.name == ATStringCommand.D7.command:
+                elif setting.name.upper() == ATStringCommand.D7.command:
                     cts_flow_control_changed = True
                     if setting.value == _VALUE_CTS_ON:
                         port_parameters["rtscts"] = True
@@ -1314,9 +1314,9 @@ class _ProfileUpdater(object):
                 self._set_parameter_with_retries(setting.name, setting.bytearray_value, _PARAMETER_WRITE_RETRIES)
                 setting_index += 1
                 # Check if the setting was sensitive for network or cache information
-                if setting.name in _PARAMETERS_NETWORK:
+                if setting.name.upper() in _PARAMETERS_NETWORK:
                     network_settings_changed = True
-                if setting.name in _PARAMETERS_CACHE:
+                if setting.name.upper() in _PARAMETERS_CACHE:
                     cache_settings_changed = True
             # Write settings.
             percent = setting_index * 100 // num_settings

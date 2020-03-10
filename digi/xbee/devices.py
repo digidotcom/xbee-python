@@ -338,7 +338,7 @@ class AbstractXBeeDevice(object):
         # Check if the parameter matches the apply changes or write settings command
         # and we have the operation mode pending to update.
         if not self.is_remote() \
-                and (parameter in (ATStringCommand.AC.command, ATStringCommand.WR.command)) \
+                and (parameter.upper() in (ATStringCommand.AC.command, ATStringCommand.WR.command)) \
                 and self._future_operating_mode is not None:
             self._operating_mode = self._future_operating_mode
             self._future_operating_mode = None
@@ -1657,17 +1657,17 @@ class AbstractXBeeDevice(object):
         updated = False
 
         # Node identifier
-        if parameter == ATStringCommand.NI.command:
+        if parameter.upper() == ATStringCommand.NI.command:
             node_id = value.decode()
             updated = self._node_id != node_id
             self._node_id = node_id
         # 16-bit address
-        elif parameter == ATStringCommand.MY.command:
+        elif parameter.upper() == ATStringCommand.MY.command:
             x16bit_addr = XBee16BitAddress(value)
             updated = self._16bit_addr != x16bit_addr
             self._16bit_addr = x16bit_addr
         # Operating mode
-        elif parameter == ATStringCommand.AP.command:
+        elif parameter.upper() == ATStringCommand.AP.command:
             # Only update the cached operating mode if the setting has been written. If not,
             # just store the new value and update it after applying or writing settings.
             if self.is_apply_changes_enabled():
@@ -1859,13 +1859,13 @@ class AbstractXBeeDevice(object):
                 # the command matches in both packets.
                 if packet_to_send.get_frame_type() == ApiFrameType.AT_COMMAND \
                         and (received_packet.get_frame_type() != ApiFrameType.AT_COMMAND_RESPONSE
-                             or packet_to_send.command != received_packet.command):
+                             or packet_to_send.command.upper() != received_packet.command.upper()):
                     return
                 # If the packet sent is a remote AT command, verify that the received one is a remote AT command
                 # response and the command matches in both packets.
                 if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST \
                         and (received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
-                             or packet_to_send.command != received_packet.command
+                             or packet_to_send.command.upper() != received_packet.command.upper()
                              or (packet_to_send.x64bit_dest_addr != XBee64BitAddress.BROADCAST_ADDRESS
                                  and packet_to_send.x64bit_dest_addr != XBee64BitAddress.UNKNOWN_ADDRESS
                                  and packet_to_send.x64bit_dest_addr != received_packet.x64bit_source_addr)
@@ -6394,7 +6394,7 @@ class WiFiDevice(IPDevice):
                 return
             if xbee_packet.get_frame_type() != ApiFrameType.AT_COMMAND_RESPONSE:
                 return
-            if xbee_packet.command != ATStringCommand.AS.command:
+            if xbee_packet.command.upper() != ATStringCommand.AS.command:
                 return
 
             # Check for error.
@@ -8648,7 +8648,7 @@ class XBeeNetwork(object):
                  * :attr:`.XBeeNetwork.ND_PACKET_REMOTE`: if ``xbee_packet`` has info about a remote XBee device.
         """
         if (xbee_packet.get_frame_type() == ApiFrameType.AT_COMMAND_RESPONSE and
-           xbee_packet.command == ATStringCommand.ND.command):
+           xbee_packet.command.upper() == ATStringCommand.ND.command):
             if xbee_packet.command_value is None or len(xbee_packet.command_value) == 0:
                 return XBeeNetwork.ND_PACKET_FINISH
             else:

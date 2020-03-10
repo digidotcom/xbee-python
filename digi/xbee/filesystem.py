@@ -401,7 +401,7 @@ class LocalXBeeFileSystemManager(object):
         try:
             self._serial_port.write(str.encode(_COMMAND_FILE_SYSTEM, encoding='utf-8'))
             answer = self._read_data()
-            if answer and _ANSWER_ATFS in answer:
+            if answer and _ANSWER_ATFS in answer.upper():
                 self._parse_filesystem_functions(answer.replace("\r", ""))
                 return True
 
