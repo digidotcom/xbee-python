@@ -1,4 +1,4 @@
-# Copyright 2019, Digi International Inc.
+# Copyright 2019, 2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -2428,24 +2428,48 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         retries = _SEND_BLOCK_RETRIES
         while retries > 0:
             next_ota_block_frame = self._create_image_block_response_frame(file_offset, size, seq_number)
+            _log.debug("Sending 'Image block response' frame for offset %s/%s (size %d)",
+                       file_offset, self._ota_file.ota_size, next_ota_block_frame.rf_data[16])
+            # Use 15 seconds as a maximum value to wait for transmit status frames
+            # If 'self._timeout' is too big we can lose any optimization waiting for a transmit
+            # status, that could be received but corrupted
+            self._local_device.set_sync_ops_timeout(min(self._timeout, 15))
             try:
-                _log.debug("Sending 'Image block response' frame for offset %s/%s (size %d)",
-                           file_offset, self._ota_file.ota_size, next_ota_block_frame.rf_data[16])
                 status_frame = self._local_device.send_packet_sync_and_get_response(next_ota_block_frame)
                 if not isinstance(status_frame, TransmitStatusPacket):
                     retries -= 1
                     continue
+                if status_frame.transmit_status == TransmitStatus.PAYLOAD_TOO_LARGE:
+                    # Do not decrease 'retries' here, as we are calculating the maximum payload
+                    size -= _IMAGE_BLOCK_RESPONSE_PAYLOAD_DECREMENT
+                    _log.debug("'Image block response' status for offset %s: size too large, retrying with size %d",
+                               file_offset, size)
+                    continue
+                if status_frame.transmit_status not in [TransmitStatus.SUCCESS,
+                                                        TransmitStatus.SELF_ADDRESSED]:
+                    retries -= 1
+                    _log.debug("Received 'Image block response' status frame for offset %s: %s, retrying (%d/%d)",
+                               file_offset, status_frame.transmit_status.description,
+                               _SEND_BLOCK_RETRIES - retries - 1, _SEND_BLOCK_RETRIES)
+                    continue
                 _log.debug("Received 'Image block response' status frame for offset %s: %s",
                            file_offset, status_frame.transmit_status.description)
-                if status_frame.transmit_status == TransmitStatus.PAYLOAD_TOO_LARGE:
-                    size -= _IMAGE_BLOCK_RESPONSE_PAYLOAD_DECREMENT
-                    continue
-                if status_frame.transmit_status != TransmitStatus.SUCCESS:
-                    retries -= 1
-                    continue
                 return size
+            except TimeoutException:
+                # If the transmit status is not received, let's try again
+                retries -= 1
+                _log.debug("Not received 'Image block response' status frame for offset %s%s", file_offset,
+                           " aborting" if retries > 0 else
+                           ", retrying (%d/%d)" % (_SEND_BLOCK_RETRIES - retries - 1, _SEND_BLOCK_RETRIES))
+                if not retries:
+                    return size
             except XBeeException as e:
-                raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK % (file_offset, str(e)))
+                retries -= 1
+                if not retries:
+                    raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK % (file_offset, str(e)))
+            finally:
+                # Restore the configured timeout
+                self._local_device.set_sync_ops_timeout(self._timeout)
 
         raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK % (file_offset, "Timeout sending frame"))
 
