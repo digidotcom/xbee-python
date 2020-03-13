@@ -4274,9 +4274,21 @@ class Raw802Device(XBeeDevice):
            | :meth:`.XBeeDevice.open`
         """
         super().open(force_settings=force_settings)
-        if self.get_protocol() != XBeeProtocol.RAW_802_15_4:
+        if self._protocol != XBeeProtocol.RAW_802_15_4:
             self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.RAW_802_15_4))
+
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.RAW_802_15_4
+
+        return self._protocol
 
     def _init_network(self):
         """
@@ -4381,9 +4393,21 @@ class DigiMeshDevice(XBeeDevice):
            | :meth:`.XBeeDevice.open`
         """
         super().open(force_settings=force_settings)
-        if self.get_protocol() != XBeeProtocol.DIGI_MESH:
+        if self._protocol != XBeeProtocol.DIGI_MESH:
             self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.DIGI_MESH))
+
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.DIGI_MESH
+
+        return self._protocol
 
     def _init_network(self):
         """
@@ -4569,9 +4593,21 @@ class DigiPointDevice(XBeeDevice):
            | :meth:`.XBeeDevice.open`
         """
         super().open(force_settings=force_settings)
-        if self.get_protocol() != XBeeProtocol.DIGI_POINT:
+        if self._protocol != XBeeProtocol.DIGI_POINT:
             self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.DIGI_POINT))
+
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.DIGI_POINT
+
+        return self._protocol
 
     def _init_network(self):
         """
@@ -4701,9 +4737,21 @@ class ZigBeeDevice(XBeeDevice):
            | :meth:`.XBeeDevice.open`
         """
         super().open(force_settings=force_settings)
-        if self.get_protocol() != XBeeProtocol.ZIGBEE:
+        if self._protocol != XBeeProtocol.ZIGBEE:
             self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.ZIGBEE))
+
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.ZIGBEE
+
+        return self._protocol
 
     def _init_network(self):
         """
@@ -5808,9 +5856,21 @@ class CellularDevice(IPDevice):
            | :meth:`.XBeeDevice.open`
         """
         super().open(force_settings=force_settings)
-        if self.get_protocol() not in [XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT]:
+        if self._protocol not in [XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT]:
             self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.CELLULAR))
+
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.CELLULAR
+
+        return self._protocol
 
     def read_device_info(self, init=True, fire_event=True):
         """
@@ -6257,10 +6317,21 @@ class NBIoTDevice(LPWANDevice):
            | :meth:`.XBeeDevice.open`
         """
         super().open(force_settings=force_settings)
-        if self.get_protocol() != XBeeProtocol.CELLULAR_NBIOT:
+        if self._protocol != XBeeProtocol.CELLULAR_NBIOT:
             self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.CELLULAR_NBIOT))
 
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.CELLULAR_NBIOT
+
+        return self._protocol
 
 class WiFiDevice(IPDevice):
     """
@@ -6316,9 +6387,21 @@ class WiFiDevice(IPDevice):
            | :meth:`.XBeeDevice.open`
         """
         super().open(force_settings=force_settings)
-        if self.get_protocol() != XBeeProtocol.XBEE_WIFI:
+        if self._protocol != XBeeProtocol.XBEE_WIFI:
             self.close()
             raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.XBEE_WIFI))
+
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.XBEE_WIFI
+
+        return self._protocol
 
     def get_wifi_ai_status(self):
         """
