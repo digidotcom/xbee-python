@@ -2213,12 +2213,25 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
               and xbee_frame.profile_id == _EXPLICIT_PACKET_PROFILE_DIGI):
             if self._img_req_received:
                 return
-            if not self._is_img_req_payload_valid(xbee_frame.rf_data):
+            if self._is_img_req_payload_valid(xbee_frame.rf_data):
+                _log.debug("Received 'Query next image' request frame")
+                self._img_req_received = True
+                self._seq_number = xbee_frame.rf_data[1] & 0xFF
+            elif self._is_default_response_frame(xbee_frame):
+                _log.debug("Received 'Default response' frame")
+                # If the received frame is a 'default response' frame, set the corresponding error.
+                ota_command, status = self._parse_default_response_frame(xbee_frame)
+                response_status = None
+                if ota_command == _ZDO_COMMAND_ID_IMG_NOTIFY_REQ:
+                    response_status = _NextImageMessageStatus.get(status)
+                elif self._local_device.get_protocol() == XBeeProtocol.ZIGBEE:
+                    response_status = _XBeeZigbee3OTAStatus.get(status)
+                self._response_string = response_status.description if response_status is not None \
+                    else _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR
+            else:
                 # This is not the explicit frame we were expecting, keep on listening.
                 return
-            _log.debug("Received 'Query next image' request frame")
-            self._img_req_received = True
-            self._seq_number = xbee_frame.rf_data[1] & 0xFF
+
             # Sometimes the transmit status frame is received after the explicit frame
             # indicator. Notify only if the transmit status frame was also received.
             if self._img_notify_sent:
@@ -2488,6 +2501,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             self._receive_lock.wait(self._timeout)
             if not self._img_notify_sent:
                 self._exit_with_error(_ERROR_SEND_IMAGE_NOTIFY % "Transmit status not received")
+            elif self._response_string:
+                self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % self._response_string)
             elif not self._img_req_received:
                 self._exit_with_error(_ERROR_SEND_IMAGE_NOTIFY % "Timeout waiting for response")
         except XBeeException as e:
