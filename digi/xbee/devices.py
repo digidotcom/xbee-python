@@ -9601,7 +9601,7 @@ class XBeeNetwork(object):
             c_removed[:] = node_conn[:]
             for c in node_conn:
                 if force:
-                    self.__del_connection(c)
+                    self.__connections.remove(c)
                 else:
                     c.lq_a2b = LinkQuality.UNKNOWN
 
