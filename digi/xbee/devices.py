@@ -291,12 +291,13 @@ class AbstractXBeeDevice(object):
         # Refresh cached parameters if this method modifies some of them.
         self._refresh_if_cached(parameter, value)
 
-    def execute_command(self, parameter):
+    def execute_command(self, parameter, value=None):
         """
         Executes the provided command.
 
         Args:
             parameter (String): The name of the AT command to be executed.
+            value (bytearray, optional): The value of the parameter to set (if any).
 
         Raises:
             TimeoutException: if the response is not received before the read timeout expires.
@@ -305,7 +306,7 @@ class AbstractXBeeDevice(object):
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
         """
-        self.__send_parameter(parameter, parameter_value=None)
+        self.__send_parameter(parameter, parameter_value=value)
 
     def __send_parameter(self, parameter, parameter_value=None):
         """
