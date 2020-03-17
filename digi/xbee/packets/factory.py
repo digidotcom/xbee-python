@@ -116,6 +116,10 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     .. seealso::
        | :class:`.OperatingMode`
     """
+    if len(packet_bytearray) < 5:
+        raise InvalidPacketException(message="Bytearray must have, at least, 5 bytes (header, length, "
+                                             "frameType, checksum)")
+
     frame_type = ApiFrameType.get(packet_bytearray[3])
 
     if frame_type == ApiFrameType.GENERIC:
