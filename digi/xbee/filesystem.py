@@ -961,6 +961,36 @@ class LocalXBeeFileSystemManager(object):
         return str.strip(parts[1])
 
 
+def update_remote_filesystem_image(remote_device, ota_filesystem_file, max_block_size=0, timeout=None,
+                                   progress_callback=None):
+    """
+    Performs a remote filesystem update operation in the given target.
+
+    Args:
+        remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to update its filesystem image.
+        ota_filesystem_file (String): path of the OTA filesystem file to upload.
+        max_block_size (Integer, optional): Maximum size of the ota block to send.
+        timeout (Integer, optional): the timeout to wait for remote frame requests.
+        progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+    Raises:
+        FileSystemException: if there is any error updating the remote filesystem image.
+    """
+    # Import required firmware update components.
+    from digi.xbee.firmware import FirmwareUpdateException, update_remote_filesystem
+
+    try:
+        update_remote_filesystem(remote_device, ota_filesystem_file, max_block_size=max_block_size,
+                                 timeout=timeout, progress_callback=progress_callback)
+    except FirmwareUpdateException as e:
+        _log.error("ERROR: %s", str(e))
+        raise FileSystemException(str(e))
+
+
 def _get_milliseconds():
     """
     Returns the current time in milliseconds.

@@ -82,6 +82,8 @@ _ERROR_CONNECT_DEVICE = "Could not connect with XBee device after %s retries"
 _ERROR_CONNECT_SERIAL_PORT = "Could not connect with serial port: %s"
 _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR = "Unknown error"
 _ERROR_DEVICE_PROGRAMMING_MODE = "Could not put XBee device into programming mode"
+_ERROR_FILE_OTA_FILESYSTEM_NOT_FOUND = "OTA filesystem image file does not exist"
+_ERROR_FILE_OTA_FILESYSTEM_NOT_SPECIFIED = "OTA filesystem image file must be specified"
 _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND = "Could not find XBee binary firmware file '%s'"
 _ERROR_FILE_XML_FIRMWARE_NOT_FOUND = "XML firmware file does not exist"
 _ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED = "XML firmware file must be specified"
@@ -147,6 +149,7 @@ _PATTERN_GECKO_BOOTLOADER_VERSION = "^.*Gecko Bootloader v([0-9a-fA-F]{1}\\.[0-9
 
 _PROGRESS_TASK_UPDATE_BOOTLOADER = "Updating bootloader"
 _PROGRESS_TASK_UPDATE_REMOTE_XBEE = "Updating remote XBee firmware"
+_PROGRESS_TASK_UPDATE_REMOTE_FILESYSTEM = "Updating remote XBee filesystem"
 _PROGRESS_TASK_UPDATE_XBEE = "Updating XBee firmware"
 
 _REGION_ALL = 0
@@ -1842,6 +1845,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._max_chunk_size = _OTA_DEFAULT_BLOCK_SIZE
         self._seq_number = 0
         self._cfg_max_block_size = max_block_size
+        self._update_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
         if not self._cfg_max_block_size:
             self._cfg_max_block_size = 0xFFFFFFFF
 
@@ -2520,7 +2524,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._transfer_status = None
         self._response_string = None
         self._requested_offset = -1
-        self._progress_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
+        self._progress_task = self._update_task
         last_offset_sent = self._requested_offset
         # Dictionary to store block size used for each provided maximum size
         last_size_sent = {self._max_chunk_size: self._max_chunk_size}
@@ -2721,6 +2725,95 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         return 1
 
 
+class _RemoteFilesystemUpdater(_RemoteFirmwareUpdater):
+    """
+    Helper class used to handle the remote filesystem update process.
+    """
+
+    def __init__(self, remote_device, filesystem_ota_file, timeout=_READ_DATA_TIMEOUT, max_block_size=0,
+                 progress_callback=None):
+        """
+        Class constructor. Instantiates a new :class:`._RemoteFilesystemUpdater` with the given parameters.
+
+        Args:
+            remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to update its filesystem.
+            filesystem_ota_file (String): path of the filesystem OTA file.
+            timeout (Integer, optional): the timeout to wait for remote frame requests.
+            max_block_size (Integer, optional): Maximum size in bytes of the ota block to send.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+        Raises:
+            FirmwareUpdateException: if there is any error performing the remote filesystem update.
+        """
+        super(_RemoteFilesystemUpdater, self).__init__(remote_device, None, timeout=timeout,
+                                                       max_block_size=max_block_size,
+                                                       progress_callback=progress_callback)
+        self._filesystem_ota_file = filesystem_ota_file
+        self._update_task = _PROGRESS_TASK_UPDATE_REMOTE_FILESYSTEM
+
+    def _parse_xml_firmware_file(self):
+        """
+        Override method.
+        .. seealso::
+           | :meth:`._RemoteFirmwareUpdater._parse_xml_firmware_file`
+        """
+        # Filesystem update process does not require to parse any XML file.
+        pass
+
+    def _check_firmware_binary_file(self):
+        """
+        Override method.
+        .. seealso::
+           | :meth:`._RemoteFirmwareUpdater._check_firmware_binary_file`
+        """
+        # Verify the filesystem OTA image file.
+        if not _file_exists(self._filesystem_ota_file):
+            self._exit_with_error(_ERROR_FILE_OTA_FILESYSTEM_NOT_FOUND, restore_updater=False)
+
+        self._ota_file = _OTAFile(self._filesystem_ota_file)
+        try:
+            self._ota_file.parse_file()
+        except _ParsingOTAException as e:
+            self._exit_with_error(str(e))
+
+    def _will_protocol_change(self):
+        """
+        Override method.
+        .. seealso::
+           | :meth:`._RemoteFirmwareUpdater._will_protocol_change`
+        """
+        # Updating the filesystem image does not imply any protocol change.
+        return False
+
+    def _check_target_compatibility(self):
+        """
+        Override method.
+        .. seealso::
+           | :meth:`._RemoteFirmwareUpdater._check_target_compatibility`
+        """
+        # Read device values required for verification steps prior to filesystem update.
+        _log.debug("Reading device settings:")
+        self._target_hardware_version = self._get_target_hardware_version()
+        _log.debug(" - Hardware version: %s", self._target_hardware_version)
+
+        # Check if the hardware version is compatible with the filesystem update process.
+        if self._target_hardware_version and self._target_hardware_version not in SUPPORTED_HARDWARE_VERSIONS:
+            self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
+
+    def _update_target_information(self):
+        """
+        Override method.
+        .. seealso::
+           | :meth:`._RemoteFirmwareUpdater._update_target_information`
+        """
+        # Remote filesystem update does not require to update target information after the update.
+        pass
+
+
 def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
                           timeout=None, progress_callback=None):
     """
@@ -2775,7 +2868,7 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
 def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=None, otb_firmware_file=None,
                            max_block_size=0, timeout=None, progress_callback=None):
     """
-    Performs a local firmware update operation in the given target.
+    Performs a remote firmware update operation in the given target.
 
     Args:
         remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to upload its firmware.
@@ -2824,6 +2917,51 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
                                             timeout=timeout,
                                             max_block_size=max_block_size,
                                             progress_callback=progress_callback)
+    update_process.update_firmware()
+
+
+def update_remote_filesystem(remote_device, ota_filesystem_file, max_block_size=0, timeout=None,
+                             progress_callback=None):
+    """
+    Performs a remote filesystem update operation in the given target.
+
+    Args:
+        remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to update its filesystem image.
+        ota_filesystem_file (String): path of the OTA filesystem image file to update.
+        max_block_size (Integer, optional): Maximum size of the ota block to send.
+        timeout (Integer, optional): the timeout to wait for remote frame requests.
+        progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+    Raises:
+        FirmwareUpdateException: if there is any error updating the remote filesystem image.
+    """
+    # Sanity checks.
+    if not isinstance(remote_device, RemoteXBeeDevice):
+        _log.error("ERROR: %s", _ERROR_REMOTE_DEVICE_INVALID)
+        raise FirmwareUpdateException(_ERROR_REMOTE_DEVICE_INVALID)
+    if ota_filesystem_file is None:
+        _log.error("ERROR: %s", _ERROR_FILE_OTA_FILESYSTEM_NOT_SPECIFIED)
+        raise FirmwareUpdateException(_ERROR_FILE_OTA_FILESYSTEM_NOT_SPECIFIED)
+    if not _file_exists(ota_filesystem_file):
+        _log.error("ERROR: %s", _ERROR_FILE_OTA_FILESYSTEM_NOT_FOUND)
+        raise FirmwareUpdateException(_ERROR_FILE_OTA_FILESYSTEM_NOT_FOUND)
+    if not isinstance(max_block_size, int):
+        raise ValueError("Maximum block size must be an integer")
+    if max_block_size < 0 or max_block_size > 255:
+        raise ValueError("Maximum block size must be between 0 and 255")
+
+    # Launch the update process.
+    if not timeout:
+        timeout = _REMOTE_FIRMWARE_UPDATE_DEFAULT_TIMEOUT
+    update_process = _RemoteFilesystemUpdater(remote_device,
+                                              ota_filesystem_file,
+                                              timeout=timeout,
+                                              max_block_size=max_block_size,
+                                              progress_callback=progress_callback)
     update_process.update_firmware()
 
 
