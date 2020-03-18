@@ -9818,6 +9818,27 @@ class ZigBeeNetwork(XBeeNetwork):
 
         return code
 
+    def _node_discovery_process_finished(self, requester, code=None, error=None):
+        """
+        Override.
+
+                .. seealso::
+           | :meth:`.XBeeNetwork._node_discovery_process_finished`
+        """
+        super()._node_discovery_process_finished(requester, code=code, error=error)
+
+        # An "address not found" error may occur when the 16-bit address
+        # in the cache is not the right one. Try to read the new value and,
+        # if it is different from the old one, add the node to the FIFO again
+        if error and TransmitStatus.ADDRESS_NOT_FOUND.description in error:
+            x16_orig = requester.get_16bit_addr()
+            try:
+                x16 = XBee16BitAddress(requester.get_parameter(ATStringCommand.MY.command))
+                if x16_orig != x16:
+                    self._nodes_queue.put(requester)
+            except XBeeException:
+                pass
+
     def _check_not_discovered_nodes(self, devices_list, nodes_queue):
         """
         Override.
