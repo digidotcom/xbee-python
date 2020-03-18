@@ -7088,6 +7088,38 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
 
         self._fw_update_max_block_size = size
 
+    def update_filesystem_image(self, ota_filesystem_file, timeout=None, progress_callback=None):
+        """
+        Performs a filesystem image update operation of the device.
+
+        Args:
+            ota_filesystem_file (String): location of the OTA filesystem image file.
+            timeout (Integer, optional): the maximum time to wait for target read operations during the update process.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+        Raises:
+            XBeeException: if the device is not open.
+            InvalidOperatingModeException: if the device operating mode is invalid.
+            OperationNotSupportedException: if the filesystem update is not supported in the XBee device.
+            FileSystemException: if there is any error performing the filesystem update.
+        """
+        from digi.xbee.filesystem import update_remote_filesystem_image
+        from digi.xbee.firmware import SUPPORTED_HARDWARE_VERSIONS
+
+        if not self._comm_iface.is_interface_open:
+            raise XBeeException("XBee device's communication interface closed.")
+        if self.get_hardware_version() and self.get_hardware_version().code not in SUPPORTED_HARDWARE_VERSIONS:
+            raise OperationNotSupportedException("Remote filesystem update is only supported in XBee3 devices")
+
+        update_remote_filesystem_image(self, ota_filesystem_file,
+                                       timeout=timeout,
+                                       max_block_size=self._fw_update_max_block_size,
+                                       progress_callback=progress_callback)
+
 
 class RemoteRaw802Device(RemoteXBeeDevice):
     """
