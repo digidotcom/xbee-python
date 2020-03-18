@@ -241,33 +241,6 @@ class FileSystemNotSupportedException(FileSystemException):
     pass
 
 
-class _LocalFileSystemUpdater(object):
-    """
-    Helper class used to handle the local XBee file system update process.
-    """
-
-    def __init__(self, xbee_device, filesystem_path, progress_callback=None):
-        """
-
-        Args:
-            xbee_device (:class:`.XBeeDevice`): the local XBee device to update its file system.
-            filesystem_path (String): local path of the folder containing the filesystem structure to transfer.
-            progress_callback (Function, optional): function to execute to receive progress information. Receives two
-                                                    arguments:
-
-                * The current update task as a String
-                * The current update task percentage as an Integer
-
-        Raises:
-            UpdateFileSystemException: if there is any error updating the XBee file system.
-        """
-        self._xbee_device = xbee_device
-        self._serial_port = xbee_device.serial_port
-        self._filesystem_path = filesystem_path
-        self._progress_callback = progress_callback
-        self._supported_functions = []
-
-
 class LocalXBeeFileSystemManager(object):
     """
     Helper class used to manage the local XBee file system.
