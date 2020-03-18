@@ -68,7 +68,8 @@ _ERROR_UPDATE_SETTINGS = "Error updating XBee settings: %s"
 _ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE = "Cannot apply profile settings as the device protocol has changed and it is " \
                                          "no longer reachable"
 
-_FILESYSTEM_FOLDER = "filesystem"
+_LOCAL_FILESYSTEM_FOLDER = "filesystem"
+_REMOTE_FILESYSTEM_FOLDER = "remote_filesystem"
 
 _FIRMWARE_FOLDER_NAME = "radio_fw"
 _FIRMWARE_XML_FILE_NAME = "radio_fw.xml"
@@ -661,11 +662,13 @@ class XBeeProfile(object):
         self._profile_settings = []
         self._firmware_binary_files = []
         self._file_system_path = None
+        self._remote_file_system_image = None
         self._cellular_firmware_files = []
         self._cellular_bootloader_files = []
         self._firmware_version = None
         self._hardware_version = None
-        self._has_filesystem = False
+        self._has_local_filesystem = False
+        self._has_remote_filesystem = False
         self._protocol = XBeeProtocol.UNKNOWN
 
         self._initialize_profile()
@@ -754,9 +757,14 @@ class XBeeProfile(object):
         self._firmware_xml_file = os.path.join(self._profile_folder, self._firmware_xml_file_name)
         # Profile XML file.
         self._profile_xml_file = os.path.join(self._profile_folder, _PROFILE_XML_FILE_NAME)
-        # Filesystem folder.
-        if os.path.isdir(os.path.join(self._profile_folder, _FILESYSTEM_FOLDER)):
-            self._file_system_path = os.path.join(self._profile_folder, _FILESYSTEM_FOLDER)
+        # Local filesystem folder.
+        if self._has_local_filesystem:
+            self._file_system_path = os.path.join(self._profile_folder, _LOCAL_FILESYSTEM_FOLDER)
+        # Remote filesystem OTA file.
+        if self._has_remote_filesystem:
+            self._remote_file_system_image = os.path.join(self._profile_folder, _REMOTE_FILESYSTEM_FOLDER,
+                                                          os.listdir(os.path.join(self._profile_folder,
+                                                                     _REMOTE_FILESYSTEM_FOLDER))[0])
         # Bootloader file.
         if len(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))) is not 0:
             self._bootloader_file = str(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))[0])
@@ -807,8 +815,10 @@ class XBeeProfile(object):
         # Firmware XML file.
         if len(fnmatch.filter(files, _FIRMWARE_FOLDER_NAME + _WILDCARD_XML)) == 0:
             self._throw_read_exception(_ERROR_FIRMWARE_XML_NOT_EXIST)
-        # Check file system.
-        self._has_filesystem = any(f.startswith(_FILESYSTEM_FOLDER) for f in files)
+        # Check local file system.
+        self._has_local_filesystem = any(f.startswith(_LOCAL_FILESYSTEM_FOLDER) for f in files)
+        # Check remote file system.
+        self._has_remote_filesystem = any(f.startswith(_REMOTE_FILESYSTEM_FOLDER) for f in files)
 
     def _parse_xml_firmware_file(self, zip_file):
         """
@@ -958,14 +968,34 @@ class XBeeProfile(object):
         return self._reset_settings
 
     @property
-    def has_filesystem(self):
+    def has_local_filesystem(self):
         """
-        Returns whether the profile has filesystem information or not.
+        Returns whether the profile has local filesystem information or not.
 
         Returns:
-            Boolean: ``True`` if the profile has filesystem information, ``False`` otherwise.
+            Boolean: ``True`` if the profile has local filesystem information, ``False`` otherwise.
          """
-        return self._has_filesystem
+        return self._has_local_filesystem
+
+    @property
+    def has_remote_filesystem(self):
+        """
+        Returns whether the profile has remote filesystem information or not.
+
+        Returns:
+            Boolean: ``True`` if the profile has remote filesystem information, ``False`` otherwise.
+         """
+        return self._has_remote_filesystem
+
+    @property
+    def has_filesystem(self):
+        """
+        Returns whether the profile has filesystem information (local or remote) or not.
+
+        Returns:
+            Boolean: ``True`` if the profile has filesystem information (local or remote), ``False`` otherwise.
+         """
+        return self._has_local_filesystem or self._has_remote_filesystem
 
     @property
     def profile_settings(self):
@@ -1024,6 +1054,19 @@ class XBeeProfile(object):
         return self._file_system_path
 
     @property
+    def remote_file_system_image(self):
+        """
+        Returns the path of the remote OTA file system image.
+
+        Returns:
+            String: the path of the remote OTA file system image.
+        """
+        if self._profile_folder is None:
+            self._uncompress_profile()
+
+        return self._remote_file_system_image
+
+    @property
     def bootloader_file(self):
         """
         Returns the profile bootloader file path.
@@ -1079,13 +1122,13 @@ class _ProfileUpdater(object):
         if isinstance(self._xbee_device, RemoteXBeeDevice):
             self._is_local = False
 
-    def _firmware_progress_callback(self, task, percent):
+    def _progress_callback(self, task, percent):
         """
-        Receives firmware update progress information
+        Receives update progress information
 
         Args:
-            task (String): the current firmware update task.
-            percent (Integer): the current firmware update progress percent.
+            task (String): the current update task.
+            percent (Integer): the current update progress percent.
         """
         if self._progress_callback is not None:
             self._progress_callback(task, percent)
@@ -1188,7 +1231,7 @@ class _ProfileUpdater(object):
             self._xbee_device.update_firmware(self._xbee_profile.firmware_description_file,
                                               bootloader_firmware_file=self._xbee_profile.bootloader_file,
                                               timeout=self._timeout,
-                                              progress_callback=self._firmware_progress_callback)
+                                              progress_callback=self._progress_callback)
         except FirmwareUpdateException as e:
             raise UpdateProfileException(_ERROR_UPDATE_FIRMWARE % str(e))
 
@@ -1365,7 +1408,7 @@ class _ProfileUpdater(object):
             UpdateProfileException: if there is any error during updating the device file system.
         """
         _log.info("Updating device file system")
-        if self._is_local:
+        if self._is_local and self._xbee_profile.has_local_filesystem:
             filesystem_manager = LocalXBeeFileSystemManager(self._xbee_device)
             try:
                 if self._progress_callback is not None:
@@ -1394,13 +1437,16 @@ class _ProfileUpdater(object):
                     # or '4'. Just ignore it, profile has been successfully applied.
                     pass
 
-        else:
+        elif not self._is_local and self._xbee_profile.has_remote_filesystem:
             # If the protocol of the remote device has changed, it is no longer reachable. Raise exception.
             if self._protocol_changed:
                 raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM_PROTOCOL_CHANGE)
-            # TODO: remote filesystem update is not implemented yet.
-            _log.info("Remote filesystem update is not yet supported, skipping.")
-            pass
+            try:
+                self._xbee_device.update_filesystem_image(self._xbee_profile.remote_file_system_image,
+                                                          timeout=self._timeout,
+                                                          progress_callback=self._progress_callback)
+            except FileSystemException as e:
+                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(e))
 
     def update_profile(self):
         """
