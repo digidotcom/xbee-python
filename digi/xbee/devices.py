@@ -8424,6 +8424,9 @@ class XBeeNetwork(object):
             :class:`.AbstractXBeeDevice`: the provided XBee with the updated parameters. If the
                 XBee was not in the list yet, this method returns it without changes.
         """
+        if not remote_xbee:
+            return remote_xbee
+
         found = None
 
         # Check if it is the local device
@@ -9324,7 +9327,11 @@ class XBeeNetwork(object):
             | :class:`digi.xbee.models.hw.HardwareVersion`
             | :class:`digi.xbee.models.protocol.Role`
         """
-        if not x64bit_addr and not x16bit_addr:
+        if x64bit_addr == "local":
+            x64bit_addr = self._local_xbee.get_64bit_addr()
+
+        if (x64bit_addr in (None, XBee64BitAddress.UNKNOWN_ADDRESS, XBee64BitAddress.BROADCAST_ADDRESS)
+                and x16bit_addr in (None, XBee16BitAddress.UNKNOWN_ADDRESS, XBee16BitAddress.BROADCAST_ADDRESS)):
             return None
 
         p = self._local_xbee.get_protocol()
