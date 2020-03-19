@@ -827,7 +827,7 @@ class XBeeProfile(object):
             firmware_element = root.find(_XML_FIRMWARE_FIRMWARE)
             if firmware_element is None:
                 self._throw_read_exception(_ERROR_FIRMWARE_XML_INVALID % "missing firmware element")
-            self._firmware_version = int(firmware_element.get(_XML_FIRMWARE_FIRMWARE_VERSION))
+            self._firmware_version = int(firmware_element.get(_XML_FIRMWARE_FIRMWARE_VERSION), 16)
             if self._firmware_version is None:
                 self._throw_read_exception(_ERROR_FIRMWARE_XML_INVALID % "missing firmware version")
             _log.debug(" - Firmware version: %s", self._firmware_version)
@@ -1122,7 +1122,7 @@ class _ProfileUpdater(object):
                 raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(e))
 
         # Sanitize firmware version.
-        self._device_firmware_version = int(utils.hex_to_string(self._device_firmware_version).replace(" ", ""))
+        self._device_firmware_version = int(utils.hex_to_string(self._device_firmware_version).replace(" ", ""), 16)
         _log.debug("  - Firmware version: %s", self._device_firmware_version)
         _log.debug("  - Hardware version: %s", self._device_hardware_version.code)
 
