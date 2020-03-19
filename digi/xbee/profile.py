@@ -1535,5 +1535,10 @@ def apply_xbee_profile(xbee_device, profile_path, timeout=None, progress_callbac
     if not timeout:
         timeout = _REMOTE_DEFAULT_TIMEOUT if xbee_device.is_remote() else _LOCAL_DEFAULT_TIMEOUT
 
+    if xbee_device._comm_iface and xbee_device._comm_iface.supports_apply_profile():
+        xbee_device._comm_iface.apply_profile(xbee_device, profile_path, timeout=timeout,
+                                              progress_callback=progress_callback)
+        return
+
     profile_updater = _ProfileUpdater(xbee_device, xbee_profile, timeout=timeout, progress_callback=progress_callback)
     profile_updater.update_profile()

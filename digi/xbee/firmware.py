@@ -2856,6 +2856,15 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     # Launch the update process.
     if not timeout:
         timeout = _READ_DATA_TIMEOUT
+
+    if target._comm_iface and target._comm_iface.supports_update_firmware():
+        target._comm_iface.update_firmware(target, xml_firmware_file,
+                                           xbee_fw_file=xbee_firmware_file,
+                                           bootloader_fw_file=bootloader_firmware_file,
+                                           timeout=timeout,
+                                           progress_callback=progress_callback)
+        return
+
     update_process = _LocalFirmwareUpdater(target,
                                            xml_firmware_file,
                                            xbee_firmware_file=xbee_firmware_file,
@@ -2910,6 +2919,15 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
     # Launch the update process.
     if not timeout:
         timeout = _REMOTE_FIRMWARE_UPDATE_DEFAULT_TIMEOUT
+
+    if remote_device._comm_iface and remote_device._comm_iface.supports_update_firmware():
+        remote_device._comm_iface.update_firmware(remote_device, xml_firmware_file,
+                                                  xbee_fw_file=ota_firmware_file,
+                                                  bootloader_fw_file=otb_firmware_file,
+                                                  timeout=timeout,
+                                                  progress_callback=progress_callback)
+        return
+
     update_process = _RemoteFirmwareUpdater(remote_device,
                                             xml_firmware_file,
                                             ota_firmware_file=ota_firmware_file,

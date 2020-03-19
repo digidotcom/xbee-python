@@ -135,6 +135,71 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         """
         return None
 
+    def supports_update_firmware(self):
+        """
+        Returns if the interface supports the firmware update feature.
+
+        Returns:
+             Boolean: `True` if it is supported, `False` otherwise.
+        """
+        return False
+
+    def update_firmware(self, xbee, xml_fw_file, xbee_fw_file=None, bootloader_fw_file=None,
+                        timeout=None, progress_callback=None):
+        """
+        Performs a firmware update operation of the provided XBee.
+
+        Args:
+            xbee (:class:`.AbstractXBeeDevice`): Local or remote XBee node to be updated.
+            xml_fw_file (String): path of the XML file that describes the firmware to upload.
+            xbee_fw_file (String, optional): location of the XBee binary firmware file.
+            bootloader_fw_file (String, optional): location of the bootloader binary firmware file.
+            timeout (Integer, optional): the maximum time to wait for target read operations
+                during the update process.
+            progress_callback (Function, optional): function to execute to receive progress information.
+                Receives two arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+        Raises:
+            XBeeException: if the device is not open.
+            InvalidOperatingModeException: if the device operating mode is invalid.
+            OperationNotSupportedException: if the firmware update is not supported in the XBee.
+            FirmwareUpdateException: if there is any error performing the firmware update.
+        """
+
+    def supports_apply_profile(self):
+        """
+        Returns if the interface supports the apply profile feature.
+
+        Returns:
+             Boolean: `True` if it is supported, `False` otherwise.
+        """
+        return False
+
+    def apply_profile(self, xbee, profile_path, timeout=None, progress_callback=None):
+        """
+        Applies the given XBee profile to the XBee device.
+
+        Args:
+            xbee (:class:`.AbstractXBeeDevice`): Local or remote XBee node to be updated.
+            profile_path (String): path of the XBee profile file to apply.
+            timeout (Integer, optional): the maximum time to wait for target read operations during
+                the apply profile.
+            progress_callback (Function, optional): function to execute to receive progress information.
+                Receives two arguments:
+
+                * The current apply profile task as a String
+                * The current apply profile task percentage as an Integer
+
+        Raises:
+            XBeeException: if the device is not open.
+            InvalidOperatingModeException: if the device operating mode is invalid.
+            UpdateProfileException: if there is any error applying the XBee profile.
+            OperationNotSupportedException: if XBee profiles are not supported in the XBee.
+        """
+
     @property
     @abstractmethod
     def timeout(self):
