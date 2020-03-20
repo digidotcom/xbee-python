@@ -68,6 +68,9 @@ _ERROR_UPDATE_SETTINGS = "Error updating XBee settings: %s"
 _ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE = "Cannot apply profile settings as the device protocol has changed and it is " \
                                          "no longer reachable"
 
+_REMOTE_DEFAULT_TIMEOUT = 20  # Seconds
+_LOCAL_DEFAULT_TIMEOUT = 3  # Seconds.
+
 _LOCAL_FILESYSTEM_FOLDER = "filesystem"
 _REMOTE_FILESYSTEM_FOLDER = "remote_filesystem"
 
@@ -1528,6 +1531,9 @@ def apply_xbee_profile(xbee_device, profile_path, timeout=None, progress_callbac
         error = _ERROR_PROFILE_INVALID % str(e)
         _log.error("ERROR: %s", error)
         raise UpdateProfileException(error)
+
+    if not timeout:
+        timeout = _REMOTE_DEFAULT_TIMEOUT if xbee_device.is_remote() else _LOCAL_DEFAULT_TIMEOUT
 
     profile_updater = _ProfileUpdater(xbee_device, xbee_profile, timeout=timeout, progress_callback=progress_callback)
     profile_updater.update_profile()
