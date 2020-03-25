@@ -216,6 +216,7 @@ class DiscoveryProcessFinished(XBeeEvent):
 
     The callbacks that handle this event will receive the following arguments:
         1. status (:class:`.NetworkDiscoveryStatus`): the network discovery status.
+        2. description (String, optional): A description of the discovery status.
 
     .. seealso::
        | :class:`.NetworkDiscoveryStatus`

@@ -7851,9 +7851,10 @@ class XBeeNetwork(object):
         Adds a callback for the event :class:`.DiscoveryProcessFinished`.
 
         Args:
-            callback (Function): the callback. Receives one argument.
+            callback (Function): the callback. Receives two argument.
 
-                * The event code as an :class:`.Integer`
+                * The event code as an :class:`.NetworkDiscoveryStatus`
+                * (Optional) A description of the discovery process as a String
 
         .. seealso::
            | :meth:`.XBeeNetwork.del_discovery_process_finished_callback`
