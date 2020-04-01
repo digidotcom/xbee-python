@@ -28,6 +28,7 @@ from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateE
 from digi.xbee.filesystem import LocalXBeeFileSystemManager, FileSystemException, FileSystemNotSupportedException
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
+from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.util import utils
 from enum import Enum, unique
@@ -1250,7 +1251,12 @@ class _ProfileUpdater(object):
         parity_changed = False
         stop_bits_changed = False
         cts_flow_control_changed = False
+        operating_mode = OperatingMode.API_MODE
         for setting in self._xbee_profile.profile_settings:
+            if setting.name.upper() == ATStringCommand.AP.command:
+                new_operating_mode = OperatingMode.get(int(setting.value))
+                if new_operating_mode != OperatingMode.UNKNOWN:
+                    operating_mode = new_operating_mode
             if setting.name.upper() in _PARAMETERS_SERIAL_PORT:
                 if setting.name.upper() == ATStringCommand.BD.command:
                     baudrate_changed = True
@@ -1291,7 +1297,7 @@ class _ProfileUpdater(object):
             try:
                 self._xbee_device.close()  # This is necessary to stop the frames read thread.
                 self._xbee_device.serial_port.apply_settings(port_parameters)
-                self._xbee_device.open()
+                self._xbee_device.open(operating_mode=operating_mode)
             except (XBeeException, SerialException) as e:
                 raise UpdateProfileException(_ERROR_UPDATE_SERIAL_PORT % str(e))
 
