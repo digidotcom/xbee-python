@@ -2857,7 +2857,7 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     if not timeout:
         timeout = _READ_DATA_TIMEOUT
 
-    if target._comm_iface and target._comm_iface.supports_update_firmware():
+    if not isinstance(target, str) and target._comm_iface and target._comm_iface.supports_update_firmware():
         target._comm_iface.update_firmware(target, xml_firmware_file,
                                            xbee_fw_file=xbee_firmware_file,
                                            bootloader_fw_file=bootloader_firmware_file,
