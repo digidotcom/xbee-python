@@ -1452,7 +1452,8 @@ class PacketListener(threading.Thread):
         # Check if NI, HV, VR, MY values are included in the response
         if (xbee_packet.get_frame_type() in
                 [ApiFrameType.AT_COMMAND_RESPONSE, ApiFrameType.REMOTE_AT_COMMAND_RESPONSE]
-                and xbee_packet.status == ATCommandStatus.OK):
+                and xbee_packet.status == ATCommandStatus.OK
+                and xbee_packet.command_value):
             # Mark data is comming from the local XBee
             if xbee_packet.get_frame_type() == ApiFrameType.AT_COMMAND_RESPONSE:
                 x64bit_addr = "local"

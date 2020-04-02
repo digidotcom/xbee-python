@@ -288,9 +288,6 @@ class AbstractXBeeDevice(object):
 
         self.__send_parameter(parameter, parameter_value=value)
 
-        # Refresh cached parameters if this method modifies some of them.
-        self._refresh_if_cached(parameter, value)
-
     def execute_command(self, parameter, value=None):
         """
         Executes the provided command.
@@ -3759,7 +3756,22 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.AbstractXBeeDevice._send_packet`
         """
-        return super()._send_packet(packet, sync=sync)
+        to_return = super()._send_packet(packet, sync=sync)
+
+        # Refresh cached parameters if this method modifies some of them.
+        if packet.get_frame_type() in [ApiFrameType.AT_COMMAND,
+                                       ApiFrameType.AT_COMMAND_QUEUE,
+                                       ApiFrameType.REMOTE_AT_COMMAND_REQUEST]:
+            xbee_node = self
+            if packet.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
+                xbee_node = self.get_network().get_device_by_64(packet.x64bit_dest_addr)
+
+            if (xbee_node and packet.parameter
+                    and packet.command.upper() in [ATStringCommand.NI.command,
+                                                   ATStringCommand.MY.command]):
+                xbee_node._refresh_if_cached(packet.command.upper(), packet.parameter)
+
+        return to_return
 
     def __build_xbee_message(self, packet, explicit=False):
         """
