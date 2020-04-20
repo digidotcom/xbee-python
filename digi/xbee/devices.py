@@ -7487,12 +7487,10 @@ class XBeeNetwork(object):
 
     # Default timeout for discovering process in case of
     # the real timeout can't be determined.
-    __DEFAULT_DISCOVERY_TIMEOUT = 20
+    _DEFAULT_DISCOVERY_TIMEOUT = 20
 
     # Correction values for the timeout for determined devices.
     # It has been tested and work 'fine'
-    __DIGI_MESH_TIMEOUT_CORRECTION = 3
-    __DIGI_MESH_SLEEP_TIMEOUT_CORRECTION = 0.1  # DigiMesh with sleep support.
     __DIGI_POINT_TIMEOUT_CORRECTION = 8
 
     __TIME_FOR_NEW_NODES_IN_FIFO = 1  # seconds
@@ -8910,7 +8908,6 @@ class XBeeNetwork(object):
         self._log.debug("[*] Preconfiguring %s", ATStringCommand.NT.command)
 
         try:
-
             self.__saved_nt = self.get_discovery_timeout()
 
             if self._node_timeout is None:
@@ -9125,7 +9122,7 @@ class XBeeNetwork(object):
         self.__active_processes.append(str(self._local_xbee.get_64bit_addr()))
 
         try:
-            timeout = self.__calculate_timeout()
+            timeout = self._calculate_timeout(default_timeout=XBeeNetwork._DEFAULT_DISCOVERY_TIMEOUT)
             # send "ND" async
             self._local_xbee.send_packet(ATCommPacket(self._local_xbee.get_next_frame_id(),
                                                       ATStringCommand.ND.command,
@@ -9267,7 +9264,7 @@ class XBeeNetwork(object):
 
         self.__saved_nt = None
 
-    def __is_802_compatible(self):
+    def _is_802_compatible(self):
         """
         Checks if the device performing the node discovery is a legacy 
         802.15.4 device or a S1B device working in compatibility mode.
@@ -9288,7 +9285,7 @@ class XBeeNetwork(object):
             return True
         return False
 
-    def __calculate_timeout(self):
+    def _calculate_timeout(self, default_timeout=_DEFAULT_DISCOVERY_TIMEOUT):
         """
         Determines the discovery timeout.
         
@@ -9297,45 +9294,45 @@ class XBeeNetwork(object):
         
         If the timeout cannot be determined getting it from the device, this
         method returns the default timeout for discovery operations.
+
+        Args:
+            default_timeout (Float): Default value to use in case of error.
         
         Returns:
             Float: discovery timeout in seconds.
         """
+        self._log.debug("[*] Calculating network discovery timeout...")
+
+        if not default_timeout or default_timeout < 0:
+            default_timeout = XBeeNetwork._DEFAULT_DISCOVERY_TIMEOUT
+
         # Read the maximum discovery timeout (N?)
         try:
-            discovery_timeout = utils.bytes_to_int(self._local_xbee.get_parameter(ATStringCommand.N_QUESTION.command)) / 1000
+            discovery_timeout = utils.bytes_to_int(
+                self._local_xbee.get_parameter(ATStringCommand.N_QUESTION.command)) / 1000
         except XBeeException:
-            discovery_timeout = None
-
-        # If N? does not exist, read the NT parameter.
-        if discovery_timeout is None:
-            # Read the XBee device timeout (NT).
+            # If N? does not exist, read the NT parameter.
+            self._log.debug("Could not calculate network discovery timeout: "
+                            "'%s' does not exist, trying with '%s'"
+                            % (ATStringCommand.N_QUESTION.command,
+                               ATStringCommand.NT.command))
+            # Read the network timeout (NT)
             try:
-                discovery_timeout = utils.bytes_to_int(self._local_xbee.get_parameter(ATStringCommand.NT.command)) / 10
+                discovery_timeout = self.get_discovery_timeout()
             except XBeeException as xe:
-                discovery_timeout = XBeeNetwork.__DEFAULT_DISCOVERY_TIMEOUT
+                discovery_timeout = default_timeout
+                self._log.warning("Could not calculate network discovery timeout: "
+                                  "Error reading '%s'"
+                                  % ATStringCommand.NT.command)
                 self._local_xbee.log.exception(xe)
-                self.__device_discovery_finished(NetworkDiscoveryStatus.ERROR_READ_TIMEOUT)
 
-            # In DigiMesh/DigiPoint the network discovery timeout is NT + the
+            # In DigiPoint the network discovery timeout is NT + the
             # network propagation time. It means that if the user sends an AT
             # command just after NT ms, s/he will receive a timeout exception.
-            if self._local_xbee.get_protocol() == XBeeProtocol.DIGI_MESH:
-                discovery_timeout += XBeeNetwork.__DIGI_MESH_TIMEOUT_CORRECTION
-            elif self._local_xbee.get_protocol() == XBeeProtocol.DIGI_POINT:
+            if self._local_xbee.get_protocol() == XBeeProtocol.DIGI_POINT:
                 discovery_timeout += XBeeNetwork.__DIGI_POINT_TIMEOUT_CORRECTION
 
-        if self._local_xbee.get_protocol() == XBeeProtocol.DIGI_MESH:
-            # If the module is 'Sleep support', wait another discovery cycle.
-            try:
-                if utils.bytes_to_int(self._local_xbee.get_parameter(
-                        ATStringCommand.SM.command)) == 7:
-                    discovery_timeout += discovery_timeout + \
-                                        (discovery_timeout * XBeeNetwork.__DIGI_MESH_SLEEP_TIMEOUT_CORRECTION)
-            except XBeeException as xe:
-                self._local_xbee.log.exception(xe)
-        elif self.__is_802_compatible():
-            discovery_timeout += 2  # Give some time to receive the ND finish packet
+        self._log.debug("     Network discovery timeout: %f s" % discovery_timeout)
 
         return discovery_timeout
 
@@ -10230,6 +10227,22 @@ class Raw802Network(XBeeNetwork):
         """
         super().__init__(device)
 
+    def _calculate_timeout(self, default_timeout=XBeeNetwork._DEFAULT_DISCOVERY_TIMEOUT):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._calculate_timeout`
+        """
+        discovery_timeout = super()._calculate_timeout(default_timeout=default_timeout)
+
+        if self._is_802_compatible():
+            discovery_timeout += 2  # Give some time to receive the ND finish packet
+
+        self._log.debug("     802.15.4 network discovery timeout: %f s", discovery_timeout)
+
+        return discovery_timeout
+
 
 class DigiMeshNetwork(XBeeNetwork):
     """
@@ -10257,6 +10270,37 @@ class DigiMeshNetwork(XBeeNetwork):
         # stop when required.
         # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
         self.__neighbor_finders = {}
+
+    def _calculate_timeout(self, default_timeout=XBeeNetwork._DEFAULT_DISCOVERY_TIMEOUT):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork._calculate_timeout`
+        """
+        discovery_timeout = super()._calculate_timeout(default_timeout=default_timeout)
+
+        # If the module is 'Synchronous Cyclic Sleep Support' (SM=7) or
+        # 'Synchronous Cyclic Sleep' (SM=8), we need to calculate the total
+        # number of inactivity seconds.
+        try:
+            sm_value = utils.bytes_to_int(
+                self._local_xbee.get_parameter(ATStringCommand.SM.command))
+            if sm_value in (7, 8):
+                os_val = utils.bytes_to_int(  # Operating sleep time
+                    self._local_xbee.get_parameter(ATStringCommand.OS.command)) / 100
+                ow_val = utils.bytes_to_int(  # Operating wake time
+                    self._local_xbee.get_parameter(ATStringCommand.OW.command)) / 1000
+                discovery_timeout = \
+                    discovery_timeout * (os_val + ow_val) / ow_val
+        except XBeeException:
+            self._log.warning("Could not calculate network discovery timeout: "
+                              "unable to read sleep parameters ('%s', '%s')",
+                              ATStringCommand.OS.command, ATStringCommand.OW.command)
+
+        self._log.debug("     DigiMesh network discovery timeout: %f s", discovery_timeout)
+
+        return discovery_timeout
 
     def _prepare_network_discovery(self):
         """
