@@ -527,17 +527,23 @@ class _XBee3OTAStatus(Enum):
     |     **value** (Integer): The ID of this _XBee3OTAStatus.
     """
     SUCCESS = (0x00, "Success")
+    OUT_OF_SEQUENCE = (0x01, "ZCL OTA message out of sequence")
     ERASE_FAILED = (0x05, "Storage erase failed")
-    NOT_AUTHORIZED = (0x7E, "Not authorized")
-    MALFORMED_CMD = (0x80, "Malformed command")
-    UNSUPPORTED_CMD = (0x81, "Unsupported cluster command")
-    CONTACT_SUPPORT = (0x87, "Contact tech support")
-    TIMED_OUT = (0x94, "Client timed out")
-    ABORT = (0x95, "Client aborted upgrade")
-    INVALID_IMG = (0x96, "Invalid OTA image")
-    WAIT_FOR_DATA = (0x97, "Wait for data")
-    NO_IMG_AVAILABLE = (0x98, "No image available")
-    REQUIRE_MORE_IMG = (0x99, "Require more image")
+    REQUEST_DENIED = (0x70, "OTA updates have been disabled on the remote")
+    NOT_AUTHORIZED = (0x7E, "Server is not authorized to update the client")
+    MALFORMED_COMMAND = (0x80, "Received is badly formatted or has incorrect parameters")
+    UNSUP_CLUSTER_COMMAND = (0x81, "Unsupported cluster command")
+    INVALID_FIELD = (0x85, "Attempting to update to incompatible firmware")
+    INVALID_VALUE = (0x87, "Upgrade File Mismatch")
+    INSUFFICIENT_SPACE = (0x89, "Image size is too big")
+    DUPLICATE_EXISTS = (0x8A, "Please ensure that the image you are attempting to "
+                              "update has a different version than the current version")
+    TIMEOUT = (0x94, "Client timed out")
+    ABORT = (0x95, "Client or server aborted the update")
+    INVALID_IMAGE = (0x96, "Invalid OTA update image")
+    WAIT_FOR_DATA = (0x97, "Server does not have data block available yet")
+    NO_IMAGE_AVAILABLE = (0x98, "No OTA update image available")
+    REQUIRE_MORE_IMAGE = (0x99, "Client requires more image files to successfully update")
 
     def __init__(self, identifier, description):
         self.__identifier = identifier
@@ -578,254 +584,6 @@ class _XBee3OTAStatus(Enum):
 
         Returns:
             String: the command of the _XBee3OTAStatus element.
-        """
-        return self.__description
-
-
-@unique
-class _XBeeZigbee3OTAStatus(Enum):
-    """
-    This class lists the available XBee3 Zigbee OTA status codes.
-
-    | Inherited properties:
-    |     **name** (String): The name of this _XBeeZigbee3OTAStatus.
-    |     **value** (Integer): The ID of this _XBeeZigbee3OTAStatus.
-    """
-    SUCCESS = (0x00, "Success")
-    ZCL_FAILURE = (0x01, "ZCL failure")
-    NOT_AUTHORIZED = (0x7E, "Server is not authorized to upgrade the client")
-    INVALID_FIRMWARE = (0x80, "Attempting to upgrade to invalid firmware (Bad Image Type, Wrong Mfg ID, Wrong HW/SW "
-                              "compatibility)")
-    UNSUPPORTED_CMD_CLUSTER = (0x81, "Such command is not supported on the device cluster")
-    UNSUPPORTED_CMD_GENERAL = (0x82, "Such command is not a supported general command")
-    UNSUPPORTED_CMD_MFG_CLUSTER = (0x83, "Such command is not a manufacturer cluster supported command")
-    UNSUPPORTED_CMD_MFG_GENERAL = (0x84, "Such command is not a manufacturer general supported command")
-    INVALID_FIELD = (0x85, "Invalid field")
-    UNSUPPORTED_ATTRIBUTE = (0x86, "Unsupported attribute")
-    INVALID_VALUE = (0x87, "Invalid value")
-    READ_ONLY_CMD = (0x88, "Read only command")
-    INSUFFICIENT_SPACE = (0x89, "Insufficient space")
-    DUPLICATE_EXISTS = (0x8A, "Duplicate exists")
-    NOT_FOUND = (0x8B, "Not found")
-    UNREPORTABLE_ATTRIBUTE = (0x8C, "Unreportable attribute")
-    INVALID_DATA_TYPE = (0x8D, "Invalid data type")
-    ABORT = (0x95, "Client aborted upgrade")
-    INVALID_IMG = (0x96, "Invalid OTA image")
-    NO_DATA_AVAILABLE = (0x97, "Server does not have data block available yet")
-    NO_IMG_AVAILABLE = (0x98, "No OTA upgrade image available for a particular client")
-    REQUIRE_MORE_IMG = (0x99, "The client still requires more OTA upgrade image files in order to successfully upgrade")
-    HARDWARE_FAILURE = (0xC0, "Hardware failure")
-    SOFTWARE_FAILURE = (0xC1, "Software failure")
-    CALIBRATION_ERROR = (0xC2, "Calibration error")
-
-    def __init__(self, identifier, description):
-        self.__identifier = identifier
-        self.__description = description
-
-    @classmethod
-    def get(cls, identifier):
-        """
-        Returns the _XBeeZigbee3OTAStatus for the given identifier.
-
-        Args:
-            identifier (Integer): the identifier of the _XBeeZigbee3OTAStatus to get.
-
-        Returns:
-            :class:`._XBeeZigbee3OTAStatus`: the _XBeeZigbee3OTAStatus with the given identifier, ``None`` if
-                                             there is not a _XBeeZigbee3OTAStatus with that name.
-        """
-        for value in _XBeeZigbee3OTAStatus:
-            if value.identifier == identifier:
-                return value
-
-        return None
-
-    @property
-    def identifier(self):
-        """
-        Returns the identifier of the _XBee3OTAStatus element.
-
-        Returns:
-            Integer: the identifier of the _XBee3OTAStatus element.
-        """
-        return self.__identifier
-
-    @property
-    def description(self):
-        """
-        Returns the command of the _XBee3OTAStatus element.
-
-        Returns:
-            String: the command of the _XBee3OTAStatus element.
-        """
-        return self.__description
-
-
-@unique
-class _NextImageMessageStatus(Enum):
-    """
-    This class lists the available XBee3 OTA next image message status codes.
-
-    | Inherited properties:
-    |     **name** (String): The name of this _NextImageMessageStatus.
-    |     **value** (Integer): The ID of this _NextImageMessageStatus.
-    """
-    OUT_OF_SEQUENCE = (0x01, "ZCL OTA Message Out of Sequence")
-    INCORRECT_FORMAT = (0x80, "Incorrect Query Next Image Response Format")
-    INVALID_FIRMWARE = (0x85, "Attempting to upgrade to invalid firmware")
-    FILE_TOO_BIG = (0x89, "Image size is too big")
-    SAME_FILE = (0x8A, "Please ensure that the image you are attempting to upgrade has a different version than the "
-                       "current version")
-
-    def __init__(self, identifier, description):
-        self.__identifier = identifier
-        self.__description = description
-
-    @classmethod
-    def get(cls, identifier):
-        """
-        Returns the _NextImageMessageStatus for the given identifier.
-
-        Args:
-            identifier (Integer): the identifier of the _NextImageMessageStatus to get.
-
-        Returns:
-            :class:`._NextImageMessageStatus`: the _NextImageMessageStatus with the given identifier, ``None`` if
-                                               there is not a _NextImageMessageStatus with that name.
-        """
-        for value in _NextImageMessageStatus:
-            if value.identifier == identifier:
-                return value
-
-        return None
-
-    @property
-    def identifier(self):
-        """
-        Returns the identifier of the _NextImageMessageStatus element.
-
-        Returns:
-            Integer: the identifier of the _NextImageMessageStatus element.
-        """
-        return self.__identifier
-
-    @property
-    def description(self):
-        """
-        Returns the command of the _NextImageMessageStatus element.
-
-        Returns:
-            String: the command of the _NextImageMessageStatus element.
-        """
-        return self.__description
-
-
-@unique
-class _ImageBlockMessageStatus(Enum):
-    """
-    This class lists the available XBee3 OTA image block message status codes.
-
-    | Inherited properties:
-    |     **name** (String): The name of this _ImageBlockMessageStatus.
-    |     **value** (Integer): The ID of this _ImageBlockMessageStatus.
-    """
-    OUT_OF_SEQUENCE = (0x01, "ZCL OTA Message Out of Sequence")
-    INCORRECT_FORMAT = (0x80, "Incorrect Image Block Response Format")
-    FILE_MISMATCH = (0x87, "Upgrade File Mismatch")
-
-    def __init__(self, identifier, description):
-        self.__identifier = identifier
-        self.__description = description
-
-    @classmethod
-    def get(cls, identifier):
-        """
-        Returns the _ImageBlockMessageStatus for the given identifier.
-
-        Args:
-            identifier (Integer): the identifier of the _ImageBlockMessageStatus to get.
-
-        Returns:
-            :class:`._ImageBlockMessageStatus`: the _ImageBlockMessageStatus with the given identifier, ``None`` if
-                                                there is not a _ImageBlockMessageStatus with that name.
-        """
-        for value in _ImageBlockMessageStatus:
-            if value.identifier == identifier:
-                return value
-
-        return None
-
-    @property
-    def identifier(self):
-        """
-        Returns the identifier of the _ImageBlockMessageStatus element.
-
-        Returns:
-            Integer: the identifier of the _ImageBlockMessageStatus element.
-        """
-        return self.__identifier
-
-    @property
-    def description(self):
-        """
-        Returns the command of the _ImageBlockMessageStatus element.
-
-        Returns:
-            String: the command of the _ImageBlockMessageStatus element.
-        """
-        return self.__description
-
-
-@unique
-class _UpgradeEndMessageStatus(Enum):
-    """
-    This class lists the available XBee3 OTA upgrade end message status codes.
-
-    | Inherited properties:
-    |     **name** (String): The name of this _UpgradeEndMessageStatus.
-    |     **value** (Integer): The ID of this _UpgradeEndMessageStatus.
-    """
-    WRONG_FILE = (0x87, "Wrong upgrade file")
-
-    def __init__(self, identifier, description):
-        self.__identifier = identifier
-        self.__description = description
-
-    @classmethod
-    def get(cls, identifier):
-        """
-        Returns the _UpgradeEndMessageStatus for the given identifier.
-
-        Args:
-            identifier (Integer): the identifier of the _UpgradeEndMessageStatus to get.
-
-        Returns:
-            :class:`._UpgradeEndMessageStatus`: the _UpgradeEndMessageStatus with the given identifier, ``None`` if
-                                                there is not a _UpgradeEndMessageStatus with that name.
-        """
-        for value in _UpgradeEndMessageStatus:
-            if value.identifier == identifier:
-                return value
-
-        return None
-
-    @property
-    def identifier(self):
-        """
-        Returns the identifier of the _UpgradeEndMessageStatus element.
-
-        Returns:
-            Integer: the identifier of the _UpgradeEndMessageStatus element.
-        """
-        return self.__identifier
-
-    @property
-    def description(self):
-        """
-        Returns the command of the _UpgradeEndMessageStatus element.
-
-        Returns:
-            String: the command of the _UpgradeEndMessageStatus element.
         """
         return self.__description
 
@@ -2395,12 +2153,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 _log.debug("Received 'Default response' frame")
                 # If the received frame is a 'default response' frame, set the corresponding error.
                 ota_command, status = self._parse_default_response_frame(xbee_frame)
-                response_status = None
-                if ota_command == _ZDO_COMMAND_ID_IMG_NOTIFY_REQ:
-                    response_status = _NextImageMessageStatus.get(status)
-                elif self._local_device.get_protocol() == XBeeProtocol.ZIGBEE:
-                    response_status = _XBeeZigbee3OTAStatus.get(status)
-                self._response_string = response_status.description if response_status is not None \
+                self._response_string = status.description if status is not None \
                     else _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR
             else:
                 # This is not the explicit frame we were expecting, keep on listening.
@@ -2440,24 +2193,12 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         elif self._is_upgrade_end_request_frame(xbee_frame):
             _log.debug("Received 'Upgrade end request' frame")
             # If the received frame is an 'upgrade end request' frame, set transfer status.
-            status, sequence_number = self._parse_upgrade_end_request_frame(xbee_frame)
-            self._transfer_status = _XBee3OTAStatus.get(status)
-            self._seq_number = sequence_number
+            self._transfer_status, self._seq_number = self._parse_upgrade_end_request_frame(xbee_frame)
         elif self._is_default_response_frame(xbee_frame):
             _log.debug("Received 'Default response' frame")
             # If the received frame is a 'default response' frame, set the corresponding error.
             ota_command, status = self._parse_default_response_frame(xbee_frame)
-            response_status = None
-            if self._local_device.get_protocol() == XBeeProtocol.ZIGBEE:
-                response_status = _XBeeZigbee3OTAStatus.get(status)
-            else:
-                if ota_command == _ZDO_COMMAND_ID_QUERY_NEXT_IMG_RESP:
-                    response_status = _NextImageMessageStatus.get(status)
-                elif ota_command == _ZDO_COMMAND_ID_IMG_BLOCK_RESP:
-                    response_status = _ImageBlockMessageStatus.get(status)
-                elif ota_command == _ZDO_COMMAND_ID_UPGRADE_END_RESP:
-                    response_status = _UpgradeEndMessageStatus.get(status)
-            self._response_string = response_status.description if response_status is not None \
+            self._response_string = status.description if status is not None \
                 else _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR
         else:
             return
@@ -2521,8 +2262,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
 
         Returns:
-            Tuple (Integer, Integer): the upgrade end request status and the sequence number of the block
-                                        request frame, ``None`` if parsing failed.
+            Tuple (Integer, :class:`._XBee3OTAStatus`): the upgrade end request
+                status and the sequence number of the block request frame,
+                `None` if parsing failed.
         """
         payload = xbee_frame.rf_data
         if len(payload) != _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE or \
@@ -2531,7 +2273,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             return None
 
         sequence_number = payload[1] & 0xFF
-        status = payload[3] & 0xFF
+        status = _XBee3OTAStatus.get(payload[3] & 0xFF)
 
         return status, sequence_number
 
@@ -2556,8 +2298,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
 
         Returns:
-            Tuple (Integer, Integer): the OTA command and the status of the default response frame.
-                                      `None` if parsing failed.
+            Tuple (Integer, :class:`._XBee3OTAStatus`): the OTA command and the
+                status of the default response frame. `None` if parsing failed.
         """
         payload = xbee_frame.rf_data
         disable_def_resp = _RemoteFirmwareUpdater._calculate_frame_control(frame_type=0,
@@ -2574,7 +2316,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             return None
 
         ota_command = payload[3] & 0xFF
-        status = payload[4] & 0xFF
+        status = _XBee3OTAStatus.get(payload[4] & 0xFF)
 
         return ota_command, status
 
