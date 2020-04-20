@@ -194,12 +194,23 @@ _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER = 0x01
 _ZDO_FRAME_CONTROL_GLOBAL = 0x00
 _ZDO_FRAME_CONTROL_SERVER_TO_CLIENT = 0x09
 
-_ZIGBEE_FW_VERSION_LIMIT_FOR_GBL = int("1003", 16)
+_XB3_ZIGBEE_FW_VERSION_LIMIT_FOR_GBL = 0x1003
 
-_FW_VERSION_LIMIT_FOR_CLIENT_RETRIES = {
+# Since the following versions (they included), the XBee firmware includes
+# client retries for the same block offset if, for any reason, the block is not
+# received (or it is corrupted)
+_XB3_FW_VERSION_LIMIT_FOR_CLIENT_RETRIES = {
     XBeeProtocol.ZIGBEE: 0x1009,
-    XBeeProtocol.DIGI_MESH: 0x3004,  # Guessing next release will include the retries mechanism
-    XBeeProtocol.RAW_802_15_4: 0x2006  # Guessing next release will include the retries mechanism
+    XBeeProtocol.DIGI_MESH: 0x300A,
+    XBeeProtocol.RAW_802_15_4: 0x200A
+}
+
+# Since the following versions (they included) the complete OTA file (including
+# the header) must be sent to the client when blocks are requested.
+_XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER = {
+    XBeeProtocol.ZIGBEE: 0x100A,
+    XBeeProtocol.DIGI_MESH: 0x300A,
+    XBeeProtocol.RAW_802_15_4: 0x200A
 }
 
 SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
@@ -231,8 +242,8 @@ class _OTAFile(object):
         self._zigbee_stack_version = None
         self._header_string = None
         self._total_size = None
+        self._ota_size = None
         self._gbl_size = None
-        self._file_size = 0
         self._discard_size = 0
         self._file = None
 
@@ -270,12 +281,12 @@ class _OTAFile(object):
                 _log.debug(" - Zigbee stack version: %d", self._zigbee_stack_version)
                 self._header_string = _reverse_bytearray(file.read(_BUFFER_SIZE_STRING)).decode(encoding="utf-8")
                 _log.debug(" - Header string: %s", self._header_string)
-                self._total_size = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
-                _log.debug(" - Total size: %d", self._total_size)
-                self._gbl_size = self._total_size - self._header_length - _OTA_GBL_SIZE_BYTE_COUNT
+                self._ota_size = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
+                _log.debug(" - OTA size: %d", self._ota_size)
+                self._gbl_size = self._ota_size - self._header_length - _OTA_GBL_SIZE_BYTE_COUNT
                 _log.debug(" - GBL size: %d", self._gbl_size)
-                self._file_size = os.path.getsize(self._file_path)
-                _log.debug(" - File size: %d", self._file_size)
+                self._total_size = os.path.getsize(self._file_path)
+                _log.debug(" - File size: %d", self._total_size)
                 self._discard_size = self._header_length + _OTA_GBL_SIZE_BYTE_COUNT
                 _log.debug(" - Discard size: %d", self._discard_size)
         except IOError as e:
@@ -298,7 +309,7 @@ class _OTAFile(object):
         try:
             if self._file is None:
                 self._file = open(self._file_path, "rb")
-            self._file.seek(self._discard_size + offset)
+            self._file.seek(offset)
             return self._file.read(size)
         except IOError as e:
             self.close_file()
@@ -422,6 +433,16 @@ class _OTAFile(object):
         return self._gbl_size
 
     @property
+    def discard_size(self):
+        """
+        Returns the number of bytes to discard of the OTA file.
+
+        Returns:
+            Integer: the number of bytes.
+        """
+        return self._discard_size
+
+    @property
     def ota_size(self):
         """
         Returns the number of bytes to transmit over the air.
@@ -429,7 +450,7 @@ class _OTAFile(object):
         Returns:
             Integer: the number of bytes.
         """
-        return self._file_size - self._discard_size
+        return self._ota_size
 
 
 class _ParsingOTAException(Exception):
@@ -2100,13 +2121,12 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         Returns:
             Bytearray: the query next image response frame.
         """
-        image_size = self._ota_file.total_size
-
+        image_size = self._get_ota_size()
         # If the remote module is an XBee3 using ZigBee protocol and the firmware version
         # is 1003 or lower, use the OTA GBL size instead of total size (exclude header size).
         if self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE and \
                 self._target_hardware_version in SUPPORTED_HARDWARE_VERSIONS and \
-                self._target_firmware_version < _ZIGBEE_FW_VERSION_LIMIT_FOR_GBL:
+                self._target_firmware_version < _XB3_ZIGBEE_FW_VERSION_LIMIT_FOR_GBL:
             image_size = self._ota_file.gbl_size
 
         payload = bytearray()
@@ -2135,7 +2155,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             FirmwareUpdateException: if there is any error generating the image block response frame.
         """
         try:
-            data = self._ota_file.get_next_data_chunk(file_offset, size)
+            data = self._ota_file.get_next_data_chunk(self._get_ota_offset(file_offset), size)
         except _ParsingOTAException as e:
             raise FirmwareUpdateException(_ERROR_READ_OTA_FILE % str(e))
         payload = bytearray()
@@ -2446,7 +2466,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         while retries > 0:
             next_ota_block_frame = self._create_image_block_response_frame(file_offset, size, seq_number)
             _log.debug("Sending 'Image block response' frame for offset %s/%s (size %d)",
-                       file_offset, self._ota_file.ota_size, next_ota_block_frame.rf_data[16])
+                       file_offset, self._get_ota_size(), next_ota_block_frame.rf_data[16])
             # Use 15 seconds as a maximum value to wait for transmit status frames
             # If 'self._timeout' is too big we can lose any optimization waiting for a transmit
             # status, that could be received but corrupted
@@ -2551,11 +2571,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             last_offset_sent = self._requested_offset
             previous_seq_number = self._seq_number
             # Check that the requested offset is valid.
-            if self._requested_offset >= self._ota_file.ota_size:
+            if self._requested_offset >= self._get_ota_size():
                 self._local_device.del_packet_received_callback(self._firmware_receive_frame_callback)
                 self._exit_with_error(_ERROR_INVALID_BLOCK % self._requested_offset)
             # Calculate percentage and notify.
-            percent = (self._requested_offset * 100) // self._ota_file.ota_size
+            percent = (self._requested_offset * 100) // self._get_ota_size()
             if percent != previous_percent and self._progress_callback:
                 self._progress_callback(self._progress_task, percent)
                 previous_percent = percent
@@ -2563,7 +2583,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             # Send the data block.
             try:
                 size_sent = self._send_ota_block(
-                    self._requested_offset, min(last_size_sent.get(self._max_chunk_size, self._max_chunk_size), self._max_chunk_size),
+                    self._requested_offset,
+                    min(last_size_sent.get(self._max_chunk_size, self._max_chunk_size), self._max_chunk_size),
                     previous_seq_number)
                 last_size_sent[self._max_chunk_size] = size_sent
             except FirmwareUpdateException as e:
@@ -2584,7 +2605,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._ota_file.close_file()
         # Check if there was a transfer timeout.
         if self._transfer_status is None and self._response_string is None:
-            if last_offset_sent + last_size_sent[self._max_chunk_size] == self._ota_file.ota_size:
+            if last_offset_sent + last_size_sent[self._max_chunk_size] == self._get_ota_size():
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % "Timeout waiting for 'Upgrade end request' frame")
             else:
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % "Timeout waiting for next 'Image block request' frame")
@@ -2717,12 +2738,51 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
     def _get_block_response_max_retries(self):
         """
         Returns the maximum number of retries for a block response.
+
+        Returns:
+            Integer: The maximum number of retries for a block response.
         """
         protocol = self._remote_device.get_protocol()
-        if self._target_firmware_version < _FW_VERSION_LIMIT_FOR_CLIENT_RETRIES[protocol]:
+        if self._target_firmware_version < _XB3_FW_VERSION_LIMIT_FOR_CLIENT_RETRIES[protocol]:
             return _SEND_BLOCK_RETRIES
 
         return 1
+
+    def _get_ota_size(self):
+        """
+        Returns the ota file size to transmit. This value depends on the remote
+        firmware version.
+
+        Returns:
+            Integer: The ota file size.
+        """
+        # For firmware version x00A or higher, OTA header must be also sent for
+        # the firmware/file system update, not just the image in the OTA file.
+        # (although firmware update is compatible backwards)
+        return (self._ota_file.ota_size
+                if (self._target_firmware_version <
+                    _XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER[self._remote_device.get_protocol()])
+                else self._ota_file.total_size)
+
+    def _get_ota_offset(self, offset):
+        """
+        Returns the offset to read from the ota file. This value depends on the
+        remote firmware version.
+
+        Args:
+            offset (Integer): Received offset to get from the ota file.
+
+        Returns:
+            Integer: The real offset of the ota file based on the remote
+                firmware version.
+        """
+        # For firmware version x00A or higher, OTA header must be also sent for
+        # the firmware/file system update, not just the image in the OTA file.
+        # (although firmware update is compatible backwards)
+        return (offset + self._ota_file.discard_size
+                if (self._target_firmware_version <
+                    _XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER[self._remote_device.get_protocol()])
+                else offset)
 
 
 class _RemoteFilesystemUpdater(_RemoteFirmwareUpdater):
@@ -2797,6 +2857,8 @@ class _RemoteFilesystemUpdater(_RemoteFirmwareUpdater):
         """
         # Read device values required for verification steps prior to filesystem update.
         _log.debug("Reading device settings:")
+        self._target_firmware_version = self._get_target_firmware_version()
+        _log.debug(" - Firmware version: %s", self._target_firmware_version)
         self._target_hardware_version = self._get_target_hardware_version()
         _log.debug(" - Hardware version: %s", self._target_hardware_version)
 
