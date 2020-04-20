@@ -192,8 +192,6 @@ _ZDO_COMMAND_ID_UPGRADE_END_RESP = 0x07
 _ZDO_COMMAND_ID_DEFAULT_RESP = 0x0B
 
 _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER = 0x01
-_ZDO_FRAME_CONTROL_GLOBAL = 0x00
-_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT = 0x09
 
 _XB3_ZIGBEE_FW_VERSION_LIMIT_FOR_GBL = 0x1003
 
@@ -2148,6 +2146,57 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
 
         return self._create_explicit_frame(zdo_payload)
 
+    @staticmethod
+    def _calculate_frame_control(frame_type=1, manufac_specific=False,
+                                 dir_srv_to_cli=True, disable_def_resp=True):
+        """
+        Calculates the value of the frame control field based on the provided parameters.
+
+        Args:
+            frame_type (Integer, optional, default=1): 1 if command is global for all
+                clusters, 0 if it is specific or local to a cluster.
+            manufac_specific (Boolean, optional, default=`False`): `True` if
+                manufacturer code is present in the ZCL header (does not refer
+                to the code in the ZCL payload). `False` otherwise.
+            dir_srv_to_cli (Boolean, optional, default=`True`): `True` if the command
+                is sent from the server to the client. `False` if sent from the
+                client to the server.
+            disable_def_resp (Boolean, optional, default=`True`): `True` to disable
+                default response.
+
+        Returns:
+            Integer: The value of the frame control field.
+        """
+        # Frame control field format:
+        #    * Bits 0-1: Frame type
+        #    * Bit 2: Manufacturer specific
+        #    * Bit 3: Direction
+        #    * Bit 4: Disable default response
+        #    * Bits 5-7: Reserved
+
+        # Frame type:
+        #    * 00: Command is global for all clusters, including manufacturer specific clusters
+        #    * 01: Command is specific or local to a cluster
+        #    * Other values: Reserved
+        frame_control = frame_type
+        # Manufacturer specific:
+        #    * False (0): manufacturer code is not present in the ZCL header (does not refer to the ZCL payload)
+        #    * True (1): manufacturer code is present in the ZCL header (does not refer to the ZCL payload)
+        if manufac_specific:
+            frame_control |= 0x04
+        # Direction:
+        #    * False (0): sent from client to server
+        #    * True (1): sent from server to client
+        if dir_srv_to_cli:
+            frame_control |= 0x08
+        # Disable default response:
+        #    * False (0): Default response is enabled
+        #    * True (1): Default response is disabled
+        if disable_def_resp:
+            frame_control |= 0x10
+
+        return frame_control
+
     def _create_image_notify_request_frame(self):
         """
         Creates and returns an image notify request frame for the firmware to transfer.
@@ -2162,8 +2211,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
 
-        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, _PACKET_DEFAULT_SEQ_NUMBER,
-                                      _ZDO_COMMAND_ID_IMG_NOTIFY_REQ, payload)
+        return self._create_zdo_frame(
+            self._calculate_frame_control(frame_type=1, manufac_specific=False,
+                                          dir_srv_to_cli=True, disable_def_resp=False),
+            _PACKET_DEFAULT_SEQ_NUMBER, _ZDO_COMMAND_ID_IMG_NOTIFY_REQ, payload)
 
     def _create_query_next_image_response_frame(self):
         """
@@ -2187,8 +2238,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(image_size, 4)))
 
-        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, self._seq_number,
-                                      _ZDO_COMMAND_ID_QUERY_NEXT_IMG_RESP, payload)
+        return self._create_zdo_frame(
+            self._calculate_frame_control(frame_type=1, manufac_specific=False,
+                                          dir_srv_to_cli=True, disable_def_resp=True),
+            self._seq_number, _ZDO_COMMAND_ID_QUERY_NEXT_IMG_RESP, payload)
 
     def _create_image_block_response_frame(self, file_offset, size, seq_number):
         """
@@ -2221,8 +2274,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         else:
             payload.extend(utils.int_to_bytes(0))
 
-        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, seq_number,
-                                      _ZDO_COMMAND_ID_IMG_BLOCK_RESP, payload)
+        return self._create_zdo_frame(
+            self._calculate_frame_control(frame_type=1, manufac_specific=False,
+                                          dir_srv_to_cli=True, disable_def_resp=True),
+            seq_number, _ZDO_COMMAND_ID_IMG_BLOCK_RESP, payload)
 
     def _create_upgrade_end_response_frame(self):
         """
@@ -2240,8 +2295,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         payload.extend(_reverse_bytearray(current_time))
         payload.extend(_reverse_bytearray(current_time))
 
-        return self._create_zdo_frame(_ZDO_FRAME_CONTROL_SERVER_TO_CLIENT, self._seq_number,
-                                      _ZDO_COMMAND_ID_UPGRADE_END_RESP, payload)
+        return self._create_zdo_frame(
+            self._calculate_frame_control(frame_type=1, manufac_specific=False,
+                                          dir_srv_to_cli=True, disable_def_resp=True),
+            self._seq_number, _ZDO_COMMAND_ID_UPGRADE_END_RESP, payload)
 
     @staticmethod
     def _is_img_req_payload_valid(payload):
@@ -2457,12 +2514,20 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
 
         Returns:
-            Tuple (Integer, Integer): the OTA command and the sstatus of the default response frame.
-                                      ``None`` if parsing failed.
+            Tuple (Integer, Integer): the OTA command and the status of the default response frame.
+                                      `None` if parsing failed.
         """
         payload = xbee_frame.rf_data
+        disable_def_resp = _RemoteFirmwareUpdater._calculate_frame_control(frame_type=0,
+                                                                           manufac_specific=False,
+                                                                           dir_srv_to_cli=False,
+                                                                           disable_def_resp=True)
+        enable_def_resp = _RemoteFirmwareUpdater._calculate_frame_control(frame_type=0,
+                                                                          manufac_specific=False,
+                                                                          dir_srv_to_cli=False,
+                                                                          disable_def_resp=False)
         if len(payload) != _DEFAULT_RESPONSE_PACKET_PAYLOAD_SIZE or \
-                payload[0] != _ZDO_FRAME_CONTROL_GLOBAL or \
+                (payload[0] not in [disable_def_resp, enable_def_resp]) or \
                 payload[2] != _ZDO_COMMAND_ID_DEFAULT_RESP:
             return None
 
