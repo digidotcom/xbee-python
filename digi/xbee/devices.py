@@ -10265,6 +10265,13 @@ class DigiMeshNetwork(XBeeNetwork):
         super().__init__(device)
 
         self.__saved_no = None
+        self.__saved_so = None
+
+        self.__sync_sleep_enabled = False
+
+        # Calculated timeout based on the 'N?' value of the local XBee and the
+        # sleep configuration of the network.
+        self.__real_node_timeout = None
 
         # Dictionary to store the neighbor find processes per node, so they can be
         # stop when required.
@@ -10286,7 +10293,8 @@ class DigiMeshNetwork(XBeeNetwork):
         try:
             sm_value = utils.bytes_to_int(
                 self._local_xbee.get_parameter(ATStringCommand.SM.command))
-            if sm_value in (7, 8):
+            self.__sync_sleep_enabled = sm_value in (7, 8)
+            if self.__sync_sleep_enabled:
                 os_val = utils.bytes_to_int(  # Operating sleep time
                     self._local_xbee.get_parameter(ATStringCommand.OS.command)) / 100
                 ow_val = utils.bytes_to_int(  # Operating wake time
@@ -10318,13 +10326,31 @@ class DigiMeshNetwork(XBeeNetwork):
             # Do not configure NO if it is already
             if utils.is_bit_enabled(self.__saved_no[0], 2):
                 self.__saved_no = None
+            else:
+                self.set_discovery_options({DiscoveryOptions.APPEND_RSSI})
 
-                return
+            self._log.debug("[*] Preconfiguring %s", ATStringCommand.SO.command)
+            self.__saved_so = self._local_xbee.get_parameter(ATStringCommand.SO.command)
 
-            self.set_discovery_options({DiscoveryOptions.APPEND_RSSI})
+            # Enable bit 2 of SO: Enable API sleep status messages
+            # Useful for synchronous sleep networks to know when the network is sleeping or awake
+            if utils.is_bit_enabled(self.__saved_so[1], 2):
+                self.__saved_so = None
+            else:
+                value = utils.int_to_bytes(utils.bytes_to_int(self.__saved_so), 2)
+                value[1] = value[1] | 0x04 if not (value[1] & 0x04 == 4) else value[1]
+
+                self._local_xbee.set_parameter(ATStringCommand.SO.command, value)
 
         except XBeeException as e:
             raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
+
+        # Calculate the real timeout to wait for responses, based on 'N?' and
+        # the cyclic sleep times, if the node is configured for that.
+        # This is calculated for the local node and applied also for remote
+        # nodes (that is, it is considering 'NT', 'NN', 'NH' of all nodes are
+        # configured with the same values in each module)
+        self.__real_node_timeout = self._calculate_timeout(default_timeout=self._node_timeout)
 
     def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
         """
@@ -10351,8 +10377,23 @@ class DigiMeshNetwork(XBeeNetwork):
 
         self._log.debug("   [o] Calling NEIGHBOR FINDER for node %s", requester)
 
+        if requester.is_remote() and self.__sync_sleep_enabled:
+            self._log.debug("     - Ensure network is awaken ...")
+            awake = threading.Event()
+
+            # Register a callback to check if the local XBee is configured to
+            # 'Enable API sleep status messages' (bit 2 of 'SO')
+            def modem_st_cb(modem_status):
+                if modem_status == ModemStatus.NETWORK_WOKE_UP:
+                    self._local_xbee.del_modem_status_received_callback(modem_st_cb)
+                    awake.set()
+
+            self._local_xbee.add_modem_status_received_callback(modem_st_cb)
+            while not awake.wait(timeout=node_timeout):
+                pass
+
         from digi.xbee.models.zdo import NeighborFinder
-        finder = NeighborFinder(requester, timeout=node_timeout)
+        finder = NeighborFinder(requester, timeout=self.__real_node_timeout)
         finder.get_neighbors(neighbor_callback=__new_neighbor_callback,
                              process_finished_callback=__neighbor_discover_finished_callback)
 
@@ -10401,17 +10442,30 @@ class DigiMeshNetwork(XBeeNetwork):
            | :meth:`.XBeeNetwork._restore_network`
         """
         super()._restore_network()
+        error = ""
 
-        if self.__saved_no is None:
-            return
+        if self.__saved_no is not None:
+            self._log.debug("[*] Postconfiguring %s", ATStringCommand.NO.command)
+            try:
+                self._local_xbee.set_parameter(ATStringCommand.NO.command, self.__saved_no)
+            except XBeeException as e:
+                error = str(e)
 
-        self._log.debug("[*] Postconfiguring %s", ATStringCommand.NO.command)
-        try:
-            self._local_xbee.set_parameter(ATStringCommand.NO.command, self.__saved_no)
-        except XBeeException as e:
-            self._error = "Could not restore XBee after network discovery: " + str(e)
+            self.__saved_no = None
 
-        self.__saved_no = None
+        if self.__saved_so is not None:
+            self._log.debug("[*] Postconfiguring %s", ATStringCommand.SO.command)
+            try:
+                self._local_xbee.set_parameter(ATStringCommand.SO.command, self.__saved_so)
+            except XBeeException as e:
+                if error:
+                    error += ". "
+                error += str(e)
+
+            self.__saved_so = None
+
+        if error:
+            self._error = "Could not restore XBee after network discovery: " + error
 
     def __process_discovered_neighbor_data(self, requester, neighbor, nodes_queue):
         """
