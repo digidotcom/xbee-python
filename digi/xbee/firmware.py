@@ -62,8 +62,9 @@ _BOOTLOADER_VERSION_SIZE = 3
 _BOOTLOADER_XBEE3_FILE_PREFIX = "xb3-boot-rf_"
 _BOOTLOADER_XBEE3_RESET_ENV_VERSION = bytearray([1, 6, 6])
 
-_BUFFER_SIZE_INT = 4
 _BUFFER_SIZE_SHORT = 2
+_BUFFER_SIZE_INT = 4
+_BUFFER_SIZE_IEEE_ADDR = 8
 _BUFFER_SIZE_STRING = 32
 
 _COMMAND_EXECUTE_RETRIES = 3
@@ -181,14 +182,14 @@ _XML_UPDATE_TIMEOUT = "firmware/update_timeout_ms"
 _XMODEM_READY_TO_RECEIVE_CHAR = "C"
 _XMODEM_START_TIMEOUT = 3  # seconds
 
-_ZDO_COMMAND_ID_DEFAULT_RESP = 0x0B
-_ZDO_COMMAND_ID_IMG_BLOCK_REQ = 0x03
-_ZDO_COMMAND_ID_IMG_BLOCK_RESP = 0x05
 _ZDO_COMMAND_ID_IMG_NOTIFY_REQ = 0x00
 _ZDO_COMMAND_ID_QUERY_NEXT_IMG_REQ = 0x01
 _ZDO_COMMAND_ID_QUERY_NEXT_IMG_RESP = 0x02
+_ZDO_COMMAND_ID_IMG_BLOCK_REQ = 0x03
+_ZDO_COMMAND_ID_IMG_BLOCK_RESP = 0x05
 _ZDO_COMMAND_ID_UPGRADE_END_REQ = 0x06
 _ZDO_COMMAND_ID_UPGRADE_END_RESP = 0x07
+_ZDO_COMMAND_ID_DEFAULT_RESP = 0x0B
 
 _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER = 0x01
 _ZDO_FRAME_CONTROL_GLOBAL = 0x00
@@ -211,6 +212,12 @@ _XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER = {
     XBeeProtocol.ZIGBEE: 0x100A,
     XBeeProtocol.DIGI_MESH: 0x300A,
     XBeeProtocol.RAW_802_15_4: 0x200A
+}
+
+_XB3_PROTOCOL_FROM_FW_VERSION = {
+     0x1: XBeeProtocol.ZIGBEE,
+     0x2: XBeeProtocol.RAW_802_15_4,
+     0x3: XBeeProtocol.DIGI_MESH
 }
 
 SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
@@ -246,6 +253,8 @@ class _OTAFile(object):
         self._gbl_size = None
         self._discard_size = 0
         self._file = None
+        self._min_hw_version = 0
+        self._max_hw_version = 0xFFFF
 
     def parse_file(self):
         """
@@ -264,25 +273,47 @@ class _OTAFile(object):
                 identifier = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
                 if identifier != _OTA_FILE_IDENTIFIER:
                     raise _ParsingOTAException(_ERROR_NOT_OTA_FILE % self._file_path)
-                _log.debug(" - Identifier: %d", identifier)
-                self._header_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Header version: %d", self._header_version)
+                _log.debug(" - Identifier: %04X (%d)", identifier, identifier)
+                h_version = _reverse_bytearray(file.read(_BUFFER_SIZE_SHORT))
+                self._header_version = utils.bytes_to_int(h_version)
+                _log.debug(" - Header version: %d.%d (%04X - %d)", h_version[0], h_version[1],
+                           self._header_version, self._header_version)
                 self._header_length = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
                 _log.debug(" - Header length: %d", self._header_length)
+                # Bit mask to indicate whether additional information are included in the OTA image:
+                #    * Bit 0: Security credential version present
+                #    * Bit 1: Device specific file
+                #    * Bit 2: Hardware versions presents
                 self._header_field_control = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
                 _log.debug(" - Header field control: %d", self._header_field_control)
                 self._manufacturer_code = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Manufacturer code: %d", self._manufacturer_code)
+                _log.debug(" - Manufacturer code: %04X (%d)", self._manufacturer_code, self._manufacturer_code)
                 self._image_type = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
-                _log.debug(" - Image type: %d", self._image_type)
-                self._file_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
-                _log.debug(" - File version: %d", self._file_version)
+                _log.debug(" - Image type: %s (%d)", "Firmware" if not self._image_type else "File system", self._image_type)
+                f_version = _reverse_bytearray(file.read(_BUFFER_SIZE_INT))
+                self._file_version = utils.bytes_to_int(f_version)
+                _log.debug(" - File version: %s (%d)", utils.hex_to_string(f_version), self._file_version)
+                _log.debug("    - Compatibility: %d", f_version[0])
+                _log.debug("    - Firmware version: %s", utils.hex_to_string(f_version[1:], pretty=False))
                 self._zigbee_stack_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
                 _log.debug(" - Zigbee stack version: %d", self._zigbee_stack_version)
-                self._header_string = _reverse_bytearray(file.read(_BUFFER_SIZE_STRING)).decode(encoding="utf-8")
+                if utils.bytes_to_int(f_version[1:]) < _XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER[_XB3_PROTOCOL_FROM_FW_VERSION[f_version[2] >> 4]]:
+                    self._header_string = _reverse_bytearray(file.read(_BUFFER_SIZE_STRING)).decode(encoding="utf-8")
+                else:
+                    self._header_string = file.read(_BUFFER_SIZE_STRING).decode(encoding="utf-8")
                 _log.debug(" - Header string: %s", self._header_string)
                 self._ota_size = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
                 _log.debug(" - OTA size: %d", self._ota_size)
+                if self._header_field_control & 0x01:
+                    _log.debug(" - Security credential version: %d", utils.bytes_to_int(file.read(1)))
+                if self._header_field_control & 0x02:
+                    _log.debug(" - Upgrade file destination: %s", utils.hex_to_string(
+                        _reverse_bytearray(file.read(_BUFFER_SIZE_IEEE_ADDR))))
+                if self._header_field_control & 0x04:
+                    self._min_hw_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
+                    self._max_hw_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
+                    _log.debug(" - Minimum hardware version: %02X (%d)", self._min_hw_version, self._min_hw_version)
+                    _log.debug(" - Maximum hardware version: %02X (%d)", self._max_hw_version, self._max_hw_version)
                 self._gbl_size = self._ota_size - self._header_length - _OTA_GBL_SIZE_BYTE_COUNT
                 _log.debug(" - GBL size: %d", self._gbl_size)
                 self._total_size = os.path.getsize(self._file_path)
@@ -375,7 +406,7 @@ class _OTAFile(object):
     @property
     def image_type(self):
         """
-        Returns the OTA file image type.
+        Returns the OTA file image type: 0x0000 for firmware, 0x0100 for file system
 
         Returns:
             Integer: the OTA file image type.
@@ -451,6 +482,26 @@ class _OTAFile(object):
             Integer: the number of bytes.
         """
         return self._ota_size
+
+    @property
+    def min_hw_version(self):
+        """
+        Returns the minimum hardware version this file is for.
+
+        Returns:
+             Integer: The minimum firmware version.
+        """
+        return self._min_hw_version
+
+    @property
+    def max_hw_version(self):
+        """
+        Returns the maximum hardware version this file is for.
+
+        Returns:
+             Integer: The maximum firmware version.
+        """
+        return self._max_hw_version
 
 
 class _ParsingOTAException(Exception):
