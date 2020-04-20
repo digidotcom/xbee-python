@@ -131,9 +131,16 @@ _EXTENSION_OTB = ".otb"
 
 _IMAGE_BLOCK_REQUEST_PACKET_PAYLOAD_SIZE = 17
 
-_NOTIFY_PACKET_DEFAULT_QUERY_JITTER = 0x64
 _NOTIFY_PACKET_PAYLOAD_SIZE = 12
+# Payload type indicates which fields are present:
+#    * 0: No optional fields (Query Jitter only)
+#    * 1: Query Jitter, Manufacturer Code
+#    * 2: Query Jitter, Manufacturer Code, Image Type
+#    * 3: Query Jitter, Manufacturer Code, Image Type, File Version
 _NOTIFY_PACKET_PAYLOAD_TYPE = 0x03
+# A number between 0-100.
+# 100 to ensure all the XBees receiving the notify replies.
+_NOTIFY_PACKET_DEFAULT_QUERY_JITTER = 0x64
 
 _OTA_FILE_IDENTIFIER = 0x0BEEF11E
 _OTA_DEFAULT_BLOCK_SIZE = 64
@@ -2205,7 +2212,17 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             Bytearray: the image notify request frame.
         """
         payload = bytearray()
+        # Indicate which fields are present: Query Jitter, Manufacturer Code, Image Type, File Version
         payload.append(_NOTIFY_PACKET_PAYLOAD_TYPE & 0xFF)
+        # Query jitter: 0-100. If the parameters in the received notify command (manufacturer
+        # and image type) matches with the client owns values, it determines whether query
+        # the server by randomly choosing a number between 1 and 100 and comparing with the
+        # received query jitter:
+        #   * If client number <= query jitter then it continues the process
+        #   * If client number > query jitter then it discards the command and don not continue
+        # For unicast (the only one we currently support) we choose the maximum value 100, although
+        # the client shall always send a Query Next Image request to the server on receip of a
+        # unicast Image Notify command.
         payload.append(_NOTIFY_PACKET_DEFAULT_QUERY_JITTER & 0xFF)
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
@@ -2216,9 +2233,14 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                                           dir_srv_to_cli=True, disable_def_resp=False),
             _PACKET_DEFAULT_SEQ_NUMBER, _ZDO_COMMAND_ID_IMG_NOTIFY_REQ, payload)
 
-    def _create_query_next_image_response_frame(self):
+    def _create_query_next_image_response_frame(self, status=_XBee3OTAStatus.SUCCESS):
         """
         Creates and returns a query next image response frame.
+
+        Args:
+            status (:class:`._XBee3OTAStatus`, optional, default=`_XBee3OTAStatus.SUCCESS`): The
+                status to send. It can be: `_XBee3OTAStatus.SUCCESS`,
+                `_XBee3OTAStatus.NOT_AUTHORIZED`, `_XBee3OTAStatus.NO_IMG_AVAILABLE`
 
         Returns:
             Bytearray: the query next image response frame.
@@ -2232,18 +2254,24 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             image_size = self._ota_file.gbl_size
 
         payload = bytearray()
-        payload.append(_XBee3OTAStatus.SUCCESS.identifier & 0xFF)
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(image_size, 4)))
+        # The status could be:
+        #    * _XBee3OTAStatus.SUCCESS (0x00): An image is available
+        #    * _XBee3OTAStatus.NOT_AUTHORIZED (0x7E): This server isn't authorized to perform an upgrade
+        #    * _XBee3OTAStatus.NO_IMG_AVAILABLE (0x98): No upgrade image is available
+        payload.append(status.identifier & 0xFF)
+        # Following fields only for _XBee3OTAStatus.SUCCESS
+        if status == _XBee3OTAStatus.SUCCESS:
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(image_size, 4)))
 
         return self._create_zdo_frame(
             self._calculate_frame_control(frame_type=1, manufac_specific=False,
                                           dir_srv_to_cli=True, disable_def_resp=True),
             self._seq_number, _ZDO_COMMAND_ID_QUERY_NEXT_IMG_RESP, payload)
 
-    def _create_image_block_response_frame(self, file_offset, size, seq_number):
+    def _create_image_block_response_frame(self, file_offset, size, seq_number, status=_XBee3OTAStatus.SUCCESS):
         """
         Creates and returns an image block response frame.
 
@@ -2251,6 +2279,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             file_offset (Integer): the file offset to send.
             size (Integer): The number of bytes to send.
             seq_number (Integer): sequence number to be used for the response.
+            status (:class:`._XBee3OTAStatus`, optional, default=`_XBee3OTAStatus.SUCCESS`): The
+                status to send. It can be: `_XBee3OTAStatus.SUCCESS`, `_XBee3OTAStatus.ABORT`,
+                `_XBee3OTAStatus.WAIT_FOR_DATA` (this last is not supported)
 
         Returns:
             Bytearray: the image block response frame.
@@ -2259,20 +2290,31 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             FirmwareUpdateException: if there is any error generating the image block response frame.
         """
         try:
-            data = self._ota_file.get_next_data_chunk(self._get_ota_offset(file_offset), size)
+            data_block = self._ota_file.get_next_data_chunk(self._get_ota_offset(file_offset), size)
         except _ParsingOTAException as e:
             raise FirmwareUpdateException(_ERROR_READ_OTA_FILE % str(e))
         payload = bytearray()
-        payload.append(_XBee3OTAStatus.SUCCESS.identifier & 0xFF)
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
-        payload.extend(_reverse_bytearray(utils.int_to_bytes(file_offset, 4)))
-        if data:
-            payload.append(len(data) & 0xFF)
-            payload.extend(data)
+        # This status could be:
+        #    * _XBee3OTAStatus.SUCCESS (0x00): Image data is available
+        #    * _XBee3OTAStatus.ABORT (0x95): Instructs the client to abort the download
+        #    * _XBee3OTAStatus.WAIT_FOR_DATA (0x97) is not supported (see ZCL Spec §11.13.8.1)
+        payload.append(status.identifier & 0xFF)
+        # Following fields only if status is not _XBee3OTAStatus.ABORT
+        if status != _XBee3OTAStatus.ABORT:
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(file_offset, 4)))
+            if data_block:
+                payload.append(len(data_block) & 0xFF)
+                payload.extend(data_block)
+            else:
+                payload.extend(utils.int_to_bytes(0))
+            _log.debug("Sending 'Image block response' frame for offset %s/%s (size %d)",
+                       file_offset, self._get_ota_size(), len(data_block))
         else:
-            payload.extend(utils.int_to_bytes(0))
+            _log.debug("Sending 'Image block response' frame for with status %d (%s)",
+                       status.identifier, status.description)
 
         return self._create_zdo_frame(
             self._calculate_frame_control(frame_type=1, manufac_specific=False,
@@ -2292,7 +2334,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
         payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
+        # The current time, used for scheduled upgrades
         payload.extend(_reverse_bytearray(current_time))
+        # The scheduled upgrade time, used for scheduled upgrades
         payload.extend(_reverse_bytearray(current_time))
 
         return self._create_zdo_frame(
@@ -2536,15 +2580,19 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
 
         return ota_command, status
 
-    def _send_query_next_img_response(self):
+    def _send_query_next_img_response(self, status=_XBee3OTAStatus.SUCCESS):
         """
         Sends the query next image response frame.
+
+        Args:
+            status (:class:`._XBee3OTAStatus`, optional, default=`_XBee3OTAStatus.SUCCESS`): The
+                status to send.
 
         Raises:
             FirmwareUpdateException: if there is any error sending the next image response frame.
         """
         retries = _SEND_BLOCK_RETRIES
-        query_next_image_response_frame = self._create_query_next_image_response_frame()
+        query_next_image_response_frame = self._create_query_next_image_response_frame(status=status)
         while retries > 0:
             try:
                 _log.debug("Sending 'Query next image response' frame")
@@ -2581,8 +2629,6 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         retries = _SEND_BLOCK_RETRIES
         while retries > 0:
             next_ota_block_frame = self._create_image_block_response_frame(file_offset, size, seq_number)
-            _log.debug("Sending 'Image block response' frame for offset %s/%s (size %d)",
-                       file_offset, self._get_ota_size(), next_ota_block_frame.rf_data[16])
             # Use 15 seconds as a maximum value to wait for transmit status frames
             # If 'self._timeout' is too big we can lose any optimization waiting for a transmit
             # status, that could be received but corrupted
