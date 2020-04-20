@@ -104,10 +104,8 @@ _ERROR_REGION_LOCK = "Device region (%d) differs from the firmware one (%d)"
 _ERROR_REMOTE_DEVICE_INVALID = "Invalid remote XBee device"
 _ERROR_RESTORE_TARGET_CONNECTION = "Could not restore target connection: %s"
 _ERROR_RESTORE_UPDATER_DEVICE = "Error restoring updater device: %s"
-_ERROR_SEND_IMAGE_NOTIFY = "Error sending 'Image notify' frame: %s"
 _ERROR_SEND_OTA_BLOCK = "Error sending OTA block '%s' frame: %s"
-_ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE = "Error sending 'Query next image response' frame: %s"
-_ERROR_SEND_UPGRADE_END_RESPONSE = "Error sending 'Upgrade end response' frame: %s"
+_ERROR_SEND_FRAME_RESPONSE = "Error sending '%s' frame: %s"
 _ERROR_TARGET_INVALID = "Invalid update target"
 _ERROR_TRANSFER_OTA_FILE = "Error transferring OTA file: %s"
 _ERROR_UPDATE_TARGET_INFORMATION = "Error reading new target information: %s"
@@ -2607,9 +2605,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                     continue
                 return
             except XBeeException as e:
-                raise FirmwareUpdateException(_ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE % str(e))
+                raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE % ("Query next image response", str(e)))
 
-        raise FirmwareUpdateException(_ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE % "Timeout sending frame")
+        raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE % ("Query next image response", "Timeout sending frame"))
 
     def _send_ota_block(self, file_offset, size, seq_number):
         """
@@ -2686,13 +2684,13 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             self._local_device.send_packet(image_notify_request_frame)
             self._receive_lock.wait(self._timeout)
             if not self._img_notify_sent:
-                self._exit_with_error(_ERROR_SEND_IMAGE_NOTIFY % "Transmit status not received")
+                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Image Notify", "Transmit status not received"))
             elif self._response_string:
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % self._response_string)
             elif not self._img_req_received:
-                self._exit_with_error(_ERROR_SEND_IMAGE_NOTIFY % "Timeout waiting for response")
+                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Image Notify", "Timeout waiting for response"))
         except XBeeException as e:
-            self._exit_with_error(_ERROR_SEND_IMAGE_NOTIFY % str(e))
+            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Image Notify", str(e)))
         finally:
             self._local_device.del_packet_received_callback(self._image_request_frame_callback)
 
@@ -2829,9 +2827,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             time.sleep(1.5)  # Wait some time between timeout retries.
 
         if error_message:
-            self._exit_with_error(_ERROR_SEND_UPGRADE_END_RESPONSE % error_message)
+            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Upgrade end response", error_message))
         else:
-            self._exit_with_error(_ERROR_SEND_UPGRADE_END_RESPONSE % "Timeout sending frame")
+            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Upgrade end response", "Timeout sending frame"))
 
     def _update_target_information(self):
         """
