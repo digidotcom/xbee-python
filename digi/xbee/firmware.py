@@ -1676,7 +1676,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._response_string = None
         self._requested_offset = -1
         self._max_chunk_size = _OTA_DEFAULT_BLOCK_SIZE
-        self._seq_number = 0
+        self._seq_number = 1
         self._cfg_max_block_size = max_block_size
         self._update_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
         if not self._cfg_max_block_size:
@@ -2100,21 +2100,6 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                                           dir_srv_to_cli=True, disable_def_resp=True),
             self._seq_number, _ZDO_COMMAND_ID_UPGRADE_END_RESP, payload)
 
-    @staticmethod
-    def _is_img_req_payload_valid(payload):
-        """
-        Returns whether the given payload is valid for an image request received frame.
-
-        Args:
-            payload (Bytearray): the payload to check.
-
-        Returns:
-            Boolean: ``True`` if the given payload is valid for an image request received frame, ``False`` otherwise.
-        """
-        return (len(payload) == _NOTIFY_PACKET_PAYLOAD_SIZE and
-                payload[0] == _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER and
-                payload[2] == _ZDO_COMMAND_ID_QUERY_NEXT_IMG_REQ)
-
     def _image_request_frame_callback(self, xbee_frame):
         """
         Callback used to be notified when the image request frame is received by
@@ -2142,17 +2127,18 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
               and xbee_frame.source_endpoint == _EXPLICIT_PACKET_ENDPOINT_DATA
               and xbee_frame.dest_endpoint == _EXPLICIT_PACKET_ENDPOINT_DATA
               and xbee_frame.cluster_id == _EXPLICIT_PACKET_CLUSTER_ID
-              and xbee_frame.profile_id == _EXPLICIT_PACKET_PROFILE_DIGI):
+              and xbee_frame.profile_id == _EXPLICIT_PACKET_PROFILE_DIGI
+              and xbee_frame.x64bit_source_addr == self._remote_device.get_64bit_addr()):
             if self._img_req_received:
                 return
-            if self._is_img_req_payload_valid(xbee_frame.rf_data):
+            if self._is_next_img_req_frame(xbee_frame):
                 _log.debug("Received 'Query next image' request frame")
                 self._img_req_received = True
-                self._seq_number = xbee_frame.rf_data[1] & 0xFF
-            elif self._is_default_response_frame(xbee_frame):
+                server_status, self._seq_number = self._parse_next_img_req_frame(xbee_frame)
+            elif self._is_default_response_frame(xbee_frame, self._seq_number):
                 _log.debug("Received 'Default response' frame")
                 # If the received frame is a 'default response' frame, set the corresponding error.
-                ota_command, status = self._parse_default_response_frame(xbee_frame)
+                ota_command, status = self._parse_default_response_frame(xbee_frame, self._seq_number)
                 self._response_string = status.description if status is not None \
                     else _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR
             else:
@@ -2177,27 +2163,36 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 or xbee_frame.source_endpoint != _EXPLICIT_PACKET_ENDPOINT_DATA
                 or xbee_frame.dest_endpoint != _EXPLICIT_PACKET_ENDPOINT_DATA
                 or xbee_frame.cluster_id != _EXPLICIT_PACKET_CLUSTER_ID
-                or xbee_frame.profile_id != _EXPLICIT_PACKET_PROFILE_DIGI):
+                or xbee_frame.profile_id != _EXPLICIT_PACKET_PROFILE_DIGI
+                or xbee_frame.x64bit_source_addr != self._remote_device.get_64bit_addr()):
             return
 
         # Check the type of frame received.
         if self._is_image_block_request_frame(xbee_frame):
             # If the received frame is an 'image block request' frame, retrieve the requested index.
-            max_data_size, file_offset, sequence_number = self._parse_image_block_request_frame(xbee_frame)
-            # Check if OTA file chunk size must be updated.
-            if max_data_size != self._max_chunk_size:
-                self._max_chunk_size = min(max_data_size, self._cfg_max_block_size)
-            self._requested_offset = file_offset
-            _log.debug("Received 'Image block request' frame for file offset %s", file_offset)
-            self._seq_number = sequence_number
+            server_status, max_data_size, f_offset, self._seq_number = self._parse_image_block_request_frame(xbee_frame)
+            if server_status == _XBee3OTAStatus.SUCCESS:
+                # Check if OTA file chunk size must be updated.
+                if max_data_size != self._max_chunk_size:
+                    self._max_chunk_size = min(max_data_size, self._cfg_max_block_size)
+                self._requested_offset = f_offset
+                _log.debug("Received 'Image block request' frame for file offset %s", f_offset)
+            else:
+                _log.debug("Received bad 'Image block request' frame, status to send: %s (%d)",
+                           server_status.description, server_status.identifier)
         elif self._is_upgrade_end_request_frame(xbee_frame):
             _log.debug("Received 'Upgrade end request' frame")
             # If the received frame is an 'upgrade end request' frame, set transfer status.
-            self._transfer_status, self._seq_number = self._parse_upgrade_end_request_frame(xbee_frame)
-        elif self._is_default_response_frame(xbee_frame):
+            server_status, status, self._seq_number = self._parse_upgrade_end_request_frame(xbee_frame)
+            if server_status == _XBee3OTAStatus.SUCCESS:
+                self._transfer_status = status
+            else:
+                _log.debug("Received bad 'Upgrade end request' frame, status to send: %s (%d)",
+                           server_status.description, server_status.identifier)
+        elif self._is_default_response_frame(xbee_frame, self._seq_number):
             _log.debug("Received 'Default response' frame")
             # If the received frame is a 'default response' frame, set the corresponding error.
-            ota_command, status = self._parse_default_response_frame(xbee_frame)
+            ota_command, status = self._parse_default_response_frame(xbee_frame, self._seq_number)
             self._response_string = status.description if status is not None \
                 else _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR
         else:
@@ -2205,7 +2200,87 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         # Notify transfer thread to continue.
         self._transfer_lock.set()
 
-    def _is_image_block_request_frame(self, xbee_frame):
+    def _check_img_data(self, payload):
+        """
+        Checks if the manufacturer code, image type, and firmware version in the
+        provided payload are valid.
+
+        Args:
+            payload (Bytearray): The payload to check.
+
+        Returns:
+             :class:`_XBee3OTAStatus`: The status after parsing the values.
+        """
+        server_status = _XBee3OTAStatus.SUCCESS
+        man_code = utils.bytes_to_int(_reverse_bytearray(payload[4:6]))
+        img_type = utils.bytes_to_int(_reverse_bytearray(payload[6:8]))
+        fw_version = utils.bytes_to_int(_reverse_bytearray(payload[8:11]))
+        compatibility_number = payload[11] & 0xFF
+
+        # Check manufacturer:
+        if man_code != self._ota_file.manufacturer_code:
+            server_status = _XBee3OTAStatus.NO_IMAGE_AVAILABLE
+        # Check image type:
+        #    0x0000: firmware upgrade
+        #    0x0100: file system upgrade
+        elif img_type != self._ota_file.image_type:
+            server_status = _XBee3OTAStatus.NO_IMAGE_AVAILABLE
+        # Check compatibility number
+        elif compatibility_number > utils.int_to_bytes(self._ota_file.file_version, _BUFFER_SIZE_INT)[0]:
+            server_status = _XBee3OTAStatus.NO_IMAGE_AVAILABLE
+
+        return server_status
+
+    @staticmethod
+    def _is_next_img_req_frame(xbee_frame):
+        """
+        Returns whether the given payload is valid for an image request received frame.
+
+        Args:
+            xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to check.
+
+        Returns:
+            Boolean: `True` if the frame is a next image request frame, `False` otherwise.
+        """
+        payload = xbee_frame.rf_data
+        return (len(payload) > 2 and payload[0] == _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER
+                and payload[2] == _ZDO_COMMAND_ID_QUERY_NEXT_IMG_REQ)
+
+    def _parse_next_img_req_frame(self, xbee_frame):
+        """
+        Parses the given next image request frame and returns the frame values.
+
+        Args:
+            xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
+
+        Returns:
+            Tuple (:class:`_XBee3OTAStatus`, Integer): The status after parsing the values
+                and the sequence number of the block request frame. `None` if parsing failed.
+        """
+        if not self._is_next_img_req_frame(xbee_frame):
+            return None
+
+        payload = xbee_frame.rf_data
+        sequence_number = payload[1] & 0xFF
+
+        if (len(payload) < _NOTIFY_PACKET_PAYLOAD_SIZE
+                # Includes the hardware version
+                or (payload[3] & 0xFF == 1 and len(payload) != _NOTIFY_PACKET_PAYLOAD_SIZE + 2)
+                # Does not include the hardware version
+                or (payload[3] & 0xFF == 0 and len(payload) != _NOTIFY_PACKET_PAYLOAD_SIZE)):
+            return _XBee3OTAStatus.MALFORMED_COMMAND, sequence_number
+
+        server_status = self._check_img_data(payload)
+        # Field control: indicates if hardware version is available
+        if server_status == _XBee3OTAStatus.SUCCESS and payload[3] & 0xFF:
+            hw_version = utils.bytes_to_int(_reverse_bytearray(payload[12:14]))
+            if hw_version < self._ota_file.min_hw_version or hw_version > self._ota_file.max_hw_version:
+                server_status = _XBee3OTAStatus.NO_IMAGE_AVAILABLE
+
+        return server_status, sequence_number
+
+    @staticmethod
+    def _is_image_block_request_frame(xbee_frame):
         """
         Returns whether the given frame is an image block request frame or not.
 
@@ -2213,12 +2288,13 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to check.
 
         Returns:
-            Boolean: ``True`` if the frame is an image block request frame, ``False`` otherwise.
+            Boolean: `True` if the frame is an image block request frame, `False` otherwise.
         """
-        return self._parse_image_block_request_frame(xbee_frame) is not None
+        payload = xbee_frame.rf_data
+        return (len(payload) > 2 and payload[0] == _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER
+                and payload[2] == _ZDO_COMMAND_ID_IMG_BLOCK_REQ)
 
-    @staticmethod
-    def _parse_image_block_request_frame(xbee_frame):
+    def _parse_image_block_request_frame(self, xbee_frame):
         """
         Parses the given image block request frame and returns the frame values.
 
@@ -2226,22 +2302,36 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
 
         Returns:
-            Tuple (Integer, Integer, Integer): the max data size, the file offset and the sequence number of the block
-                                               request frame. ``None`` if parsing failed.
+            Tuple (:class:`_XBee3OTAStatus`, Integer, Integer, Integer): The status
+                after parsing the values, the max data size, the file offset and
+                the sequence number of the block request frame. `None` if parsing failed.
         """
-        payload = xbee_frame.rf_data
-        if len(payload) != _IMAGE_BLOCK_REQUEST_PACKET_PAYLOAD_SIZE or \
-                payload[0] != _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER or \
-                payload[2] != _ZDO_COMMAND_ID_IMG_BLOCK_REQ:
+        if not self._is_image_block_request_frame(xbee_frame):
             return None
 
+        payload = xbee_frame.rf_data
         sequence_number = payload[1] & 0xFF
+
+        # The frame control indicates if there are additional optional fields
+        # Currently XBee 3 does not use any of those fields
+        if len(payload) != _IMAGE_BLOCK_REQUEST_PACKET_PAYLOAD_SIZE:
+            server_status = _XBee3OTAStatus.MALFORMED_COMMAND
+            server_status.cmd = _ZDO_COMMAND_ID_IMG_BLOCK_REQ
+            return server_status, 0, 0, sequence_number
+
+        server_status = self._check_img_data(payload)
+
         file_offset = utils.bytes_to_int(_reverse_bytearray(payload[12:16]))
+        if server_status == _XBee3OTAStatus.SUCCESS and file_offset >= self._get_ota_size():
+            server_status = _XBee3OTAStatus.MALFORMED_COMMAND
+            server_status.cmd = _ZDO_COMMAND_ID_IMG_BLOCK_REQ
+
         max_data_size = payload[16] & 0xFF
 
-        return max_data_size, file_offset, sequence_number
+        return server_status, max_data_size, file_offset, sequence_number
 
-    def _is_upgrade_end_request_frame(self, xbee_frame):
+    @staticmethod
+    def _is_upgrade_end_request_frame(xbee_frame):
         """
         Returns whether the given frame is an upgrade end request frame or not.
 
@@ -2249,12 +2339,14 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to check.
 
         Returns:
-            Boolean: ``True`` if the frame is an upgrade end request frame, ``False`` otherwise.
+            Boolean: `True` if the frame is an upgrade end request frame, `False` otherwise.
         """
-        return self._parse_upgrade_end_request_frame(xbee_frame) is not None
+        payload = xbee_frame.rf_data
+        return (len(payload) > 2
+                and payload[0] == _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER
+                and payload[2] == _ZDO_COMMAND_ID_UPGRADE_END_REQ)
 
-    @staticmethod
-    def _parse_upgrade_end_request_frame(xbee_frame):
+    def _parse_upgrade_end_request_frame(self, xbee_frame):
         """
         Parses the given upgrade end request frame and returns the frame values.
 
@@ -2262,44 +2354,43 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
 
         Returns:
-            Tuple (Integer, :class:`._XBee3OTAStatus`): the upgrade end request
-                status and the sequence number of the block request frame,
-                `None` if parsing failed.
+            Tuple (:class:`_XBee3OTAStatus`, :class:`_XBee3OTAStatus`, Integer): The status after
+                parsing the values, the upgrade end request status and the sequence
+                number of the block request frame, `None` if parsing failed.
         """
-        payload = xbee_frame.rf_data
-        if len(payload) != _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE or \
-                payload[0] != _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER or \
-                payload[2] != _ZDO_COMMAND_ID_UPGRADE_END_REQ:
+        if not self._is_upgrade_end_request_frame(xbee_frame):
             return None
 
+        payload = xbee_frame.rf_data
         sequence_number = payload[1] & 0xFF
+
+        if len(payload) != _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE:
+            server_status = _XBee3OTAStatus.MALFORMED_COMMAND
+            server_status.cmd = _ZDO_COMMAND_ID_UPGRADE_END_REQ
+            return _XBee3OTAStatus.MALFORMED_COMMAND, 0, sequence_number
+
+        server_status = self._check_img_data(payload)
+
         status = _XBee3OTAStatus.get(payload[3] & 0xFF)
+        if not status:
+            server_status = _XBee3OTAStatus.MALFORMED_COMMAND
+            server_status.cmd = _ZDO_COMMAND_ID_UPGRADE_END_REQ
+        else:
+            status.cmd = _ZDO_COMMAND_ID_UPGRADE_END_REQ
 
-        return status, sequence_number
+        return server_status, status, sequence_number
 
-    def _is_default_response_frame(self, xbee_frame):
+    @staticmethod
+    def _is_default_response_frame(xbee_frame, seq_number):
         """
         Returns whether the given frame is a default response frame or not.
 
         Args:
             xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to check.
+            seq_number (Integer): The sequence number of the last frame sent.
 
         Returns:
-            Boolean: ``True`` if the frame is a default response frame, ``False`` otherwise.
-        """
-        return self._parse_default_response_frame(xbee_frame) is not None
-
-    @staticmethod
-    def _parse_default_response_frame(xbee_frame):
-        """
-        Parses the given image block request frame and returns the frame values.
-
-        Args:
-            xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
-
-        Returns:
-            Tuple (Integer, :class:`._XBee3OTAStatus`): the OTA command and the
-                status of the default response frame. `None` if parsing failed.
+            Boolean: `True` if the frame is a default response frame, `False` otherwise.
         """
         payload = xbee_frame.rf_data
         disable_def_resp = _RemoteFirmwareUpdater._calculate_frame_control(frame_type=0,
@@ -2310,11 +2401,27 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                                                                           manufac_specific=False,
                                                                           dir_srv_to_cli=False,
                                                                           disable_def_resp=False)
-        if len(payload) != _DEFAULT_RESPONSE_PACKET_PAYLOAD_SIZE or \
-                (payload[0] not in [disable_def_resp, enable_def_resp]) or \
-                payload[2] != _ZDO_COMMAND_ID_DEFAULT_RESP:
+        return (len(payload) > 2
+                and (payload[0] in [disable_def_resp, enable_def_resp])
+                and payload[1] == seq_number
+                and payload[2] == _ZDO_COMMAND_ID_DEFAULT_RESP)
+
+    def _parse_default_response_frame(self, xbee_frame, seq_number):
+        """
+        Parses the given image block request frame and returns the frame values.
+
+        Args:
+            xbee_frame (:class:`.XBeeAPIPacket`): the XBee frame to parse.
+            seq_number (Integer): The sequence number of the last frame sent.
+
+        Returns:
+            Tuple (Integer, :class:`._XBee3OTAStatus`): The OTA command and the
+                status of the default response frame. `None` if parsing failed.
+        """
+        if not self._is_default_response_frame(xbee_frame, seq_number):
             return None
 
+        payload = xbee_frame.rf_data
         ota_command = payload[3] & 0xFF
         status = _XBee3OTAStatus.get(payload[4] & 0xFF)
 
@@ -2389,7 +2496,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                     retries -= 1
                     _log.debug("Received 'Image block response' status frame for offset %s: %s, retrying (%d/%d)",
                                file_offset, status_frame.transmit_status.description,
-                               _SEND_BLOCK_RETRIES - retries - 1, _SEND_BLOCK_RETRIES)
+                               _SEND_BLOCK_RETRIES - retries + 1, _SEND_BLOCK_RETRIES)
                     continue
                 _log.debug("Received 'Image block response' status frame for offset %s: %s",
                            file_offset, status_frame.transmit_status.description)
@@ -2397,9 +2504,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             except TimeoutException:
                 # If the transmit status is not received, let's try again
                 retries -= 1
-                _log.debug("Not received 'Image block response' status frame for offset %s%s", file_offset,
-                           " aborting" if retries > 0 else
-                           ", retrying (%d/%d)" % (_SEND_BLOCK_RETRIES - retries - 1, _SEND_BLOCK_RETRIES))
+                _log.debug("Not received 'Image block response' status frame for offset %s, %s", file_offset,
+                           "aborting" if retries == 0 else
+                           "retrying (%d/%d)" % (_SEND_BLOCK_RETRIES - retries + 1, _SEND_BLOCK_RETRIES))
                 if not retries:
                     return size
             except XBeeException as e:
