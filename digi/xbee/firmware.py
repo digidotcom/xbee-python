@@ -226,9 +226,15 @@ _XB3_PROTOCOL_FROM_FW_VERSION = {
      0x3: XBeeProtocol.DIGI_MESH
 }
 
-SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
-                               HardwareVersion.XBEE3_SMT.code,
-                               HardwareVersion.XBEE3_TH.code)
+SX_HARDWARE_VERSIONS = (HardwareVersion.SX.code,
+                        HardwareVersion.SX_PRO.code,
+                        HardwareVersion.XB8X.code)
+
+XBEE3_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
+                           HardwareVersion.XBEE3_SMT.code,
+                           HardwareVersion.XBEE3_TH.code)
+
+SUPPORTED_HARDWARE_VERSIONS = SX_HARDWARE_VERSIONS + XBEE3_HARDWARE_VERSIONS
 
 _log = logging.getLogger(__name__)
 
@@ -648,6 +654,80 @@ class _BreakThread(Thread):
             Boolean: ``True`` if the break thread is running, ``False`` otherwise.
         """
         return _BreakThread._break_running
+
+
+@unique
+class _BootloaderType(Enum):
+    """
+    This class lists the available bootloader types
+
+    | Inherited properties:
+    |     **name** (String): The name of this _BootloaderType.
+    |     **value** (Integer): The ID of this _BootloaderType.
+    """
+    GEN3_BOOTLOADER = (0x01, "Generation 3 bootloader")
+    GECKO_BOOTLOADER = (0x02, "Gecko bootloader")
+
+    def __init__(self, identifier, description):
+        self.__identifier = identifier
+        self.__description = description
+
+    @classmethod
+    def get(cls, identifier):
+        """
+        Returns the _BootloaderType for the given identifier.
+
+        Args:
+            identifier (Integer): the identifier of the _BootloaderType to get.
+
+        Returns:
+            :class:`._BootloaderType`: the _BootloaderType with the given identifier, ``None`` if
+                                       there is not a _BootloaderType with that name.
+        """
+        for value in _BootloaderType:
+            if value.identifier == identifier:
+                return value
+
+        return None
+
+    @classmethod
+    def determine_bootloader_type(cls, hardware_version):
+        """
+        Determines the _BootloaderType for the given hardware version.
+
+        Args:
+            hardware_version (Integer): the hardware version to retrieve its bootloader type.
+
+        Returns:
+            :class:`._BootloaderType`: the _BootloaderType of the given hardware version, ``None`` if
+                                       there is not a _BootloaderType for that hardware version.
+        """
+        if hardware_version in SX_HARDWARE_VERSIONS:
+            return _BootloaderType.GEN3_BOOTLOADER
+        elif hardware_version in XBEE3_HARDWARE_VERSIONS:
+            return _BootloaderType.GECKO_BOOTLOADER
+        else:
+            return None
+
+    @property
+    def identifier(self):
+        """
+        Returns the identifier of the _BootloaderType element.
+
+        Returns:
+            Integer: the identifier of the _BootloaderType element.
+        """
+        return self.__identifier
+
+    @property
+    def description(self):
+        """
+        Returns the description of the _BootloaderType element.
+
+        Returns:
+            String: the description of the _BootloaderType element.
+        """
+        return self.__description
 
 
 class _XBeeFirmwareUpdater(ABC):
@@ -2141,7 +2221,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         # If the remote module is an XBee3 using ZigBee protocol and the firmware version
         # is 1003 or lower, use the OTA GBL size instead of total size (exclude header size).
         if self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE and \
-                self._target_hardware_version in SUPPORTED_HARDWARE_VERSIONS and \
+                self._target_hardware_version in XBEE3_HARDWARE_VERSIONS and \
                 self._target_firmware_version < _XB3_ZIGBEE_FW_VERSION_LIMIT_FOR_GBL:
             image_size = self._ota_file.gbl_size
 
@@ -3010,7 +3090,7 @@ class _RemoteFilesystemUpdater(_RemoteFirmwareUpdater):
         _log.debug(" - Hardware version: %s", self._target_hardware_version)
 
         # Check if the hardware version is compatible with the filesystem update process.
-        if self._target_hardware_version and self._target_hardware_version not in SUPPORTED_HARDWARE_VERSIONS:
+        if self._target_hardware_version and self._target_hardware_version not in XBEE3_HARDWARE_VERSIONS:
             self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
 
     def _update_target_information(self):
