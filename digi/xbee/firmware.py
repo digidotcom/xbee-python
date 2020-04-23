@@ -40,27 +40,32 @@ from threading import Thread
 from xml.etree import ElementTree
 from xml.etree.ElementTree import ParseError
 
-_BOOTLOADER_INITIALIZATION_TIME = 3  # Seconds
-_BOOTLOADER_OPTION_RUN_FIRMWARE = "2"
-_BOOTLOADER_OPTION_UPLOAD_GBL = "1"
-_BOOTLOADER_PROMPT = "BL >"
-_BOOTLOADER_PORT_PARAMETERS = {"baudrate": 115200,
-                               "bytesize": serial.EIGHTBITS,
-                               "parity": serial.PARITY_NONE,
-                               "stopbits": serial.STOPBITS_ONE,
-                               "xonxoff": False,
-                               "dsrdtr": False,
-                               "rtscts": False,
-                               "timeout": 0.1,
-                               "write_timeout": None,
-                               "inter_byte_timeout": None
-                               }
-_BOOTLOADER_TEST_CHARACTER = "\n"
 _BOOTLOADER_TIMEOUT = 60  # seconds
 _BOOTLOADER_VERSION_SEPARATOR = "."
 _BOOTLOADER_VERSION_SIZE = 3
-_BOOTLOADER_XBEE3_FILE_PREFIX = "xb3-boot-rf_"
 _BOOTLOADER_XBEE3_RESET_ENV_VERSION = bytearray([1, 6, 6])
+
+_GECKO_BOOTLOADER_INITIALIZATION_TIME = 3  # Seconds
+_GECKO_BOOTLOADER_OPTION_RUN_FIRMWARE = "2"
+_GECKO_BOOTLOADER_OPTION_UPLOAD_GBL = "1"
+_GECKO_BOOTLOADER_PORT_PARAMETERS = {"baudrate": 115200,
+                                     "bytesize": serial.EIGHTBITS,
+                                     "parity": serial.PARITY_NONE,
+                                     "stopbits": serial.STOPBITS_ONE,
+                                     "xonxoff": False,
+                                     "dsrdtr": False,
+                                     "rtscts": False,
+                                     "timeout": 0.1,
+                                     "write_timeout": None,
+                                     "inter_byte_timeout": None
+                                     }
+_GECKO_BOOTLOADER_PROMPT = "BL >"
+_GECKO_BOOTLOADER_TEST_CHARACTER = "\n"
+
+_PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL = "^.*Gecko Bootloader.*\\(([0-9a-fA-F]{4})-([0-9a-fA-F]{2})(.*)\\).*$"
+_PATTERN_GECKO_BOOTLOADER_VERSION = "^.*Gecko Bootloader v([0-9a-fA-F]{1}\\.[0-9a-fA-F]{1}\\.[0-9a-fA-F]{1}).*$"
+
+_XBEE3_BOOTLOADER_FILE_PREFIX = "xb3-boot-rf_"
 
 _BUFFER_SIZE_SHORT = 2
 _BUFFER_SIZE_INT = 4
@@ -149,9 +154,6 @@ _PACKET_DEFAULT_SEQ_NUMBER = 0x01
 _PARAMETER_BOOTLOADER_VERSION = ATStringCommand.VH.command  # Answer examples: 01 81 -> 1.8.1  -  0F 3E -> 15.3.14
 _PARAMETER_READ_RETRIES = 3
 _PARAMETER_SET_RETRIES = 3
-
-_PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL = "^.*Gecko Bootloader.*\\(([0-9a-fA-F]{4})-([0-9a-fA-F]{2})(.*)\\).*$"
-_PATTERN_GECKO_BOOTLOADER_VERSION = "^.*Gecko Bootloader v([0-9a-fA-F]{1}\\.[0-9a-fA-F]{1}\\.[0-9a-fA-F]{1}).*$"
 
 _PROGRESS_TASK_UPDATE_BOOTLOADER = "Updating bootloader"
 _PROGRESS_TASK_UPDATE_REMOTE_XBEE = "Updating remote XBee firmware"
@@ -1041,8 +1043,8 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
 
     __DEVICE_RESET_TIMEOUT = 3  # seconds
 
-    def __init__(self, target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
-                 timeout=_READ_DATA_TIMEOUT, progress_callback=None):
+    def __init__(self, target, xml_firmware_file, xbee_firmware_file=None, timeout=_READ_DATA_TIMEOUT,
+                 progress_callback=None):
         """
         Class constructor. Instantiates a new :class:`._LocalFirmwareUpdater` with the given parameters.
 
@@ -1052,7 +1054,6 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                 :class:`.XBeeDevice`: the XBee device to upload its firmware.
             xml_firmware_file (String): location of the XML firmware file.
             xbee_firmware_file (String, optional): location of the XBee binary firmware file.
-            bootloader_firmware_file (String, optional): location of the bootloader binary firmware file.
             timeout (Integer, optional): the serial port read data operation timeout.
             progress_callback (Function, optional): function to execute to receive progress information. Receives two
                                                     arguments:
@@ -1064,7 +1065,6 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                                                     progress_callback=progress_callback)
 
         self._xbee_firmware_file = xbee_firmware_file
-        self._bootloader_firmware_file = bootloader_firmware_file
         self._xbee_serial_port = None
         self._device_port_params = None
         self._updater_was_connected = False
@@ -1085,71 +1085,11 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         # If not already specified, the binary firmware file is usually in the same folder as the XML firmware file.
         if self._xbee_firmware_file is None:
             path = Path(self._xml_firmware_file)
-            self._xbee_firmware_file = str(Path(path.parent).joinpath(path.stem + _EXTENSION_GBL))
+            self._xbee_firmware_file = str(Path(path.parent).joinpath(path.stem +
+                                                                      self._get_firmware_binary_file_extension()))
 
         if not _file_exists(self._xbee_firmware_file):
             self._exit_with_error(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % self._xbee_firmware_file, restore_updater=False)
-
-    def _check_bootloader_binary_file(self):
-        """
-        Verifies that the bootloader binary file exists.
-
-        Raises:
-            FirmwareUpdateException: if the bootloader binary file does not exist or is invalid.
-        """
-        # If not already specified, the bootloader firmware file is usually in the same folder as the XML firmware file.
-        # The file filename starts with a fixed prefix and includes the bootloader version to update to.
-        if self._bootloader_firmware_file is None:
-            path = Path(self._xml_firmware_file)
-            self._bootloader_firmware_file = str(Path(path.parent).joinpath(_BOOTLOADER_XBEE3_FILE_PREFIX +
-                                                                            str(self._xml_bootloader_version[0]) +
-                                                                            _BOOTLOADER_VERSION_SEPARATOR +
-                                                                            str(self._xml_bootloader_version[1]) +
-                                                                            _BOOTLOADER_VERSION_SEPARATOR +
-                                                                            str(self._xml_bootloader_version[2]) +
-                                                                            _EXTENSION_GBL))
-
-        if not _file_exists(self._bootloader_firmware_file):
-            self._exit_with_error(_ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND % self._bootloader_firmware_file)
-
-    def _is_bootloader_active(self):
-        """
-        Returns whether the device is in bootloader mode or not.
-
-        Returns:
-            Boolean: ``True`` if the device is in bootloader mode, ``False`` otherwise.
-        """
-        for i in range(3):
-            bootloader_header = self._read_bootloader_header()
-            # Look for the Ember/Gecko bootloader prompt.
-            if bootloader_header is not None and _BOOTLOADER_PROMPT in bootloader_header:
-                return True
-            time.sleep(0.2)
-
-        return False
-
-    def _read_bootloader_header(self):
-        """
-        Attempts to read the bootloader header.
-
-        Returns:
-            String: the bootloader header, ``None`` if it could not be read.
-        """
-        try:
-            self._xbee_serial_port.purge_port()
-            self._xbee_serial_port.write(str.encode(_BOOTLOADER_TEST_CHARACTER))
-            read_bytes = self._xbee_serial_port.read(_READ_BUFFER_LEN)
-        except SerialException as e:
-            _log.exception(e)
-            return None
-
-        if len(read_bytes) > 0:
-            try:
-                return bytes.decode(read_bytes)
-            except UnicodeDecodeError:
-                pass
-
-        return None
 
     def _enter_bootloader_mode_with_break(self):
         """
@@ -1191,14 +1131,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             Bytearray: the update target bootloader version as byte array, ``None`` if it could not be read.
         """
         if self._xbee_serial_port is not None:
-            bootloader_header = self._read_bootloader_header()
-            if bootloader_header is None:
-                return None
-            result = re.match(_PATTERN_GECKO_BOOTLOADER_VERSION, bootloader_header, flags=re.M | re.DOTALL)
-            if result is None or result.string is not result.group(0) or len(result.groups()) < 1:
-                return None
-
-            return _bootloader_version_to_bytearray(result.groups()[0])
+            return self._get_target_bootloader_version_bootloader()
         else:
             return _read_device_bootloader_version(self._xbee_device)
 
@@ -1210,15 +1143,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             Integer: the update target compatibility number as integer, ``None`` if it could not be read.
         """
         if self._xbee_serial_port is not None:
-            # Assume the device is already in bootloader mode.
-            bootloader_header = self._read_bootloader_header()
-            if bootloader_header is None:
-                return None
-            result = re.match(_PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL, bootloader_header, flags=re.M | re.DOTALL)
-            if result is None or result.string is not result.group(0) or len(result.groups()) < 2:
-                return None
-
-            return int(result.groups()[1])
+            return self._get_target_compatibility_number_bootloader()
         else:
             return _read_device_compatibility_number(self._xbee_device)
 
@@ -1230,8 +1155,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             Integer: the update target region lock number as integer, ``None`` if it could not be read.
         """
         if self._xbee_serial_port is not None:
-            # There is no way to retrieve this number from bootloader.
-            return None
+            return self._get_target_region_lock_bootloader()
         else:
             return _read_device_region_lock(self._xbee_device)
 
@@ -1243,15 +1167,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             Integer: the update target hardware version as integer, ``None`` if it could not be read.
         """
         if self._xbee_serial_port is not None:
-            # Assume the device is already in bootloader mode.
-            bootloader_header = self._read_bootloader_header()
-            if bootloader_header is None:
-                return None
-            result = re.match(_PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL, bootloader_header, flags=re.M | re.DOTALL)
-            if result is None or result.string is not result.group(0) or len(result.groups()) < 1:
-                return None
-
-            return int(result.groups()[0][:2], 16)
+            return self._get_target_hardware_version_bootloader()
         else:
             return _read_device_hardware_version(self._xbee_device)
 
@@ -1263,15 +1179,8 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             Integer: the update target firmware version as integer, ``None`` if it could not be read.
         """
         if self._xbee_serial_port is not None:
-            # Assume the device is already in bootloader mode.
-            bootloader_header = self._read_bootloader_header()
-            if bootloader_header is None:
-                return None
-            result = re.match(_PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL, bootloader_header, flags=re.M | re.DOTALL)
-            if result is None or result.string is not result.group(0) or len(result.groups()) < 1:
-                return None
-
-            return int(result.groups()[0][:2], 16)
+            # Firmware version cannot be read from bootloader.
+            return None
         else:
             return _read_device_firmware_version(self._xbee_device)
 
@@ -1296,13 +1205,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             # Configure serial port connection with bootloader parameters.
             try:
                 _log.debug("Opening port '%s'", self._port)
-                self._xbee_serial_port = XBeeSerialPort(_BOOTLOADER_PORT_PARAMETERS["baudrate"],
-                                                        self._port,
-                                                        data_bits=_BOOTLOADER_PORT_PARAMETERS["bytesize"],
-                                                        stop_bits=_BOOTLOADER_PORT_PARAMETERS["stopbits"],
-                                                        parity=_BOOTLOADER_PORT_PARAMETERS["parity"],
-                                                        flow_control=FlowControl.NONE,
-                                                        timeout=_BOOTLOADER_PORT_PARAMETERS["timeout"])
+                self._xbee_serial_port = _create_serial_port(self._port, self._get_bootloader_serial_parameters())
                 self._xbee_serial_port.open()
             except SerialException as e:
                 _log.error(_ERROR_CONNECT_SERIAL_PORT, str(e))
@@ -1359,45 +1262,6 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         """
         if self._xbee_device is not None and not self._set_device_in_programming_mode():
             self._exit_with_error(_ERROR_DEVICE_PROGRAMMING_MODE)
-
-    def _transfer_firmware(self):
-        """
-        Transfers the firmware file(s) to the target.
-
-        Raises:
-            FirmwareUpdateException: if there is any error transferring the firmware to the target device.
-        """
-        # Update the bootloader using XModem protocol if required.
-        if self._bootloader_update_required:
-            _log.info("Updating bootloader")
-            self._progress_task = _PROGRESS_TASK_UPDATE_BOOTLOADER
-            try:
-                self._transfer_firmware_file_xmodem(self._bootloader_firmware_file)
-            except FirmwareUpdateException as e:
-                self._exit_with_error(_ERROR_FIRMWARE_UPDATE_BOOTLOADER % str(e))
-            # Wait some time to initialize the bootloader.
-            _log.debug("Setting up bootloader...")
-            time.sleep(_BOOTLOADER_INITIALIZATION_TIME)
-            # Execute the run operation so that new bootloader is applied and executed. Give it some time afterwards.
-            self._run_firmware_operation()
-            time.sleep(_BOOTLOADER_INITIALIZATION_TIME)
-            self._bootloader_updated = True
-
-        # Update the XBee firmware using XModem protocol.
-        _log.info("Updating XBee firmware")
-        self._progress_task = _PROGRESS_TASK_UPDATE_XBEE
-        try:
-            self._transfer_firmware_file_xmodem(self._xbee_firmware_file)
-        except FirmwareUpdateException as e:
-            self._exit_with_error(_ERROR_FIRMWARE_UPDATE_XBEE % str(e))
-
-    def _finish_firmware_update(self):
-        """
-        Finishes the firmware update process. Called just after the transfer firmware operation.
-        """
-        # Start firmware.
-        if not self._run_firmware_operation():
-            self._exit_with_error(_ERROR_FIRMWARE_START)
 
     def _update_target_information(self):
         """
@@ -1461,7 +1325,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         self._xbee_serial_port = self._xbee_device.serial_port
         self._device_port_params = self._xbee_serial_port.get_settings()
         try:
-            self._xbee_serial_port.apply_settings(_BOOTLOADER_PORT_PARAMETERS)
+            self._xbee_serial_port.apply_settings(self._get_bootloader_serial_parameters())
             self._xbee_serial_port.open()
         except SerialException as e:
             _log.exception(e)
@@ -1472,6 +1336,280 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
 
         return True
 
+    def _get_default_reset_timeout(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._get_default_reset_timeout`
+        """
+        return self.__class__.__DEVICE_RESET_TIMEOUT
+
+    @abstractmethod
+    def _get_bootloader_serial_parameters(self):
+        """
+        Returns a dictionary with the serial port parameters required to communicate with the bootloader.
+
+        Returns:
+            Dictionary: dictionary with the serial port parameters required to communicate with the bootloader.
+        """
+        pass
+
+    @abstractmethod
+    def _is_bootloader_active(self):
+        """
+        Returns whether the device is in bootloader mode or not.
+
+        Returns:
+            Boolean: ``True`` if the device is in bootloader mode, ``False`` otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def _get_target_bootloader_version_bootloader(self):
+        """
+        Returns the update target bootloader version from bootloader.
+
+        Returns:
+            Bytearray: the update target bootloader version as byte array from bootloader, ``None`` if it
+                       could not be read.
+        """
+        pass
+
+    @abstractmethod
+    def _get_target_compatibility_number_bootloader(self):
+        """
+        Returns the update target compatibility number from bootloader.
+
+        Returns:
+            Integer: the update target compatibility number as integer from bootloader, ``None`` if it
+                     could not be read.
+        """
+        pass
+
+    @abstractmethod
+    def _get_target_region_lock_bootloader(self):
+        """
+        Returns the update target region lock number from the bootloader.
+
+        Returns:
+            Integer: the update target region lock number as integer fronm the bootloader, ``None`` if it
+                     could not be read.
+        """
+        pass
+
+    @abstractmethod
+    def _get_target_hardware_version_bootloader(self):
+        """
+        Returns the update target hardware version from bootloader.
+
+        Returns:
+            Integer: the update target hardware version as integer from bootloader, ``None`` if it could not be read.
+        """
+        pass
+
+    @abstractmethod
+    def _get_firmware_binary_file_extension(self):
+        """
+        Returns the firmware binary file extension.
+
+        Returns:
+            String: the firmware binary file extension.
+        """
+        pass
+
+
+class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
+    """
+    Helper class used to handle the local firmware update process of XBee 3 devices.
+    """
+
+    def __init__(self, target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
+                 timeout=_READ_DATA_TIMEOUT, progress_callback=None):
+        """
+        Class constructor. Instantiates a new :class:`._LocalXBee3FirmwareUpdater` with the given parameters.
+
+        Args:
+            target (String or :class:`.XBeeDevice`): target of the firmware upload operation.
+                String: serial port identifier.
+                :class:`.XBeeDevice`: the XBee device to upload its firmware.
+            xml_firmware_file (String): location of the XML firmware file.
+            xbee_firmware_file (String, optional): location of the XBee binary firmware file.
+            bootloader_firmware_file (String, optional): location of the bootloader binary firmware file.
+            timeout (Integer, optional): the serial port read data operation timeout.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+        """
+        super(_LocalXBee3FirmwareUpdater, self).__init__(target, xml_firmware_file,
+                                                         xbee_firmware_file=xbee_firmware_file, timeout=timeout,
+                                                         progress_callback=progress_callback)
+
+        self._bootloader_firmware_file = bootloader_firmware_file
+
+    def _is_bootloader_active(self):
+        """
+        Returns whether the device is in bootloader mode or not.
+
+        Returns:
+            Boolean: ``True`` if the device is in bootloader mode, ``False`` otherwise.
+        """
+        return _is_bootloader_active_generic(self._xbee_serial_port, _GECKO_BOOTLOADER_TEST_CHARACTER,
+                                             _GECKO_BOOTLOADER_PROMPT)
+
+    def _read_bootloader_header(self):
+        """
+        Attempts to read the bootloader header.
+
+        Returns:
+            String: the bootloader header, ``None`` if it could not be read.
+        """
+        return _read_bootloader_header_generic(self._xbee_serial_port, _GECKO_BOOTLOADER_TEST_CHARACTER)
+
+    def _get_bootloader_serial_parameters(self):
+        """
+        Returns a dictionary with the serial port parameters required to communicate with the bootloader.
+
+        Returns:
+            Dictionary: dictionary with the serial port parameters required to communicate with the bootloader.
+        """
+        return _GECKO_BOOTLOADER_PORT_PARAMETERS
+
+    def _get_target_bootloader_version_bootloader(self):
+        """
+        Returns the update target bootloader version from bootloader.
+
+        Returns:
+            Bytearray: the update target bootloader version as byte array from bootloader, ``None`` if it
+                       could not be read.
+        """
+        bootloader_header = self._read_bootloader_header()
+        if bootloader_header is None:
+            return None
+        result = re.match(_PATTERN_GECKO_BOOTLOADER_VERSION, bootloader_header, flags=re.M | re.DOTALL)
+        if result is None or result.string is not result.group(0) or len(result.groups()) < 1:
+            return None
+
+        return _bootloader_version_to_bytearray(result.groups()[0])
+
+    def _get_target_compatibility_number_bootloader(self):
+        """
+        Returns the update target compatibility number from bootloader.
+
+        Returns:
+            Integer: the update target compatibility number as integer from bootloader, ``None`` if it
+                     could not be read.
+        """
+        # Assume the device is already in bootloader mode.
+        bootloader_header = self._read_bootloader_header()
+        if bootloader_header is None:
+            return None
+        result = re.match(_PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL, bootloader_header, flags=re.M | re.DOTALL)
+        if result is None or result.string is not result.group(0) or len(result.groups()) < 2:
+            return None
+
+        return int(result.groups()[1])
+
+    def _get_target_region_lock_bootloader(self):
+        """
+        Returns the update target region lock number from the bootloader.
+
+        Returns:
+            Integer: the update target region lock number as integer fronm the bootloader, ``None`` if it
+                     could not be read.
+        """
+        # There is no way to retrieve this number from bootloader.
+        return None
+
+    def _get_target_hardware_version_bootloader(self):
+        """
+        Returns the update target hardware version from bootloader.
+
+        Returns:
+            Integer: the update target hardware version as integer from bootloader, ``None`` if it could not be read.
+        """
+        # Assume the device is already in bootloader mode.
+        bootloader_header = self._read_bootloader_header()
+        if bootloader_header is None:
+            return None
+        result = re.match(_PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL, bootloader_header, flags=re.M | re.DOTALL)
+        if result is None or result.string is not result.group(0) or len(result.groups()) < 1:
+            return None
+
+        return int(result.groups()[0][:2], 16)
+
+    def _get_firmware_binary_file_extension(self):
+        """
+        Returns the firmware binary file extension.
+
+        Returns:
+            String: the firmware binary file extension.
+        """
+        return _EXTENSION_GBL
+
+    def _check_bootloader_binary_file(self):
+        """
+        Verifies that the bootloader binary file exists.
+
+        Raises:
+            FirmwareUpdateException: if the bootloader binary file does not exist or is invalid.
+        """
+        # If not already specified, the bootloader firmware file is usually in the same folder as the XML firmware file.
+        # The file filename starts with a fixed prefix and includes the bootloader version to update to.
+        if self._bootloader_firmware_file is None:
+            path = Path(self._xml_firmware_file)
+            self._bootloader_firmware_file = str(Path(path.parent).joinpath(_XBEE3_BOOTLOADER_FILE_PREFIX +
+                                                                            str(self._xml_bootloader_version[0]) +
+                                                                            _BOOTLOADER_VERSION_SEPARATOR +
+                                                                            str(self._xml_bootloader_version[1]) +
+                                                                            _BOOTLOADER_VERSION_SEPARATOR +
+                                                                            str(self._xml_bootloader_version[2]) +
+                                                                            _EXTENSION_GBL))
+
+        if not _file_exists(self._bootloader_firmware_file):
+            self._exit_with_error(_ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND % self._bootloader_firmware_file)
+
+    def _transfer_firmware(self):
+        """
+        Transfers the firmware file(s) to the target.
+
+        Raises:
+            FirmwareUpdateException: if there is any error transferring the firmware to the target device.
+        """
+        # Update the bootloader using XModem protocol if required.
+        if self._bootloader_update_required:
+            _log.info("Updating bootloader")
+            self._progress_task = _PROGRESS_TASK_UPDATE_BOOTLOADER
+            try:
+                self._transfer_firmware_file_xmodem(self._bootloader_firmware_file)
+            except FirmwareUpdateException as e:
+                self._exit_with_error(_ERROR_FIRMWARE_UPDATE_BOOTLOADER % str(e))
+            # Wait some time to initialize the bootloader.
+            _log.debug("Setting up bootloader...")
+            time.sleep(_GECKO_BOOTLOADER_INITIALIZATION_TIME)
+            # Execute the run operation so that new bootloader is applied and executed. Give it some time afterwards.
+            self._run_firmware_operation()
+            time.sleep(_GECKO_BOOTLOADER_INITIALIZATION_TIME)
+            self._bootloader_updated = True
+
+        # Update the XBee firmware using XModem protocol.
+        _log.info("Updating XBee firmware")
+        self._progress_task = _PROGRESS_TASK_UPDATE_XBEE
+        try:
+            self._transfer_firmware_file_xmodem(self._xbee_firmware_file)
+        except FirmwareUpdateException as e:
+            self._exit_with_error(_ERROR_FIRMWARE_UPDATE_XBEE % str(e))
+
+    def _finish_firmware_update(self):
+        """
+        Finishes the firmware update process. Called just after the transfer firmware operation.
+        """
+        # Start firmware.
+        if not self._run_firmware_operation():
+            self._exit_with_error(_ERROR_FIRMWARE_START)
+
     def _start_firmware_upload_operation(self):
         """
         Starts the firmware upload operation by selecting option '1' of the bootloader.
@@ -1481,11 +1619,11 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         """
         try:
             # Display bootloader menu and consume it.
-            self._xbee_serial_port.write(str.encode(_BOOTLOADER_TEST_CHARACTER))
+            self._xbee_serial_port.write(str.encode(_GECKO_BOOTLOADER_TEST_CHARACTER))
             time.sleep(1)
             self._xbee_serial_port.purge_port()
             # Write '1' to execute bootloader option '1': Upload gbl and consume answer.
-            self._xbee_serial_port.write(str.encode(_BOOTLOADER_OPTION_UPLOAD_GBL))
+            self._xbee_serial_port.write(str.encode(_GECKO_BOOTLOADER_OPTION_UPLOAD_GBL))
             time.sleep(0.5)
             self._xbee_serial_port.purge_port()
             # Look for the 'C' character during some time, it indicates device is ready to receive firmware pages.
@@ -1513,15 +1651,15 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         try:
             _log.debug("Sending bootloader run operation...")
             # Display bootloader menu and consume it.
-            self._xbee_serial_port.write(str.encode(_BOOTLOADER_TEST_CHARACTER))
+            self._xbee_serial_port.write(str.encode(_GECKO_BOOTLOADER_TEST_CHARACTER))
             time.sleep(1)
             self._xbee_serial_port.purge_port()
             # Write '2' to execute bootloader option '2': Run.
-            self._xbee_serial_port.write(str.encode(_BOOTLOADER_OPTION_RUN_FIRMWARE))
+            self._xbee_serial_port.write(str.encode(_GECKO_BOOTLOADER_OPTION_RUN_FIRMWARE))
 
             # Look for the '2' character during some time, it indicates firmware was executed.
             read_bytes = self._xbee_serial_port.read(1)
-            while len(read_bytes) > 0 and not read_bytes[0] == ord(_BOOTLOADER_OPTION_RUN_FIRMWARE):
+            while len(read_bytes) > 0 and not read_bytes[0] == ord(_GECKO_BOOTLOADER_OPTION_RUN_FIRMWARE):
                 read_bytes = self._xbee_serial_port.read(1)
             return True
         except SerialException as e:
@@ -1622,15 +1760,6 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                 raise
         except XModemException as e:
             raise FirmwareUpdateException(str(e))
-
-    def _get_default_reset_timeout(self):
-        """
-        Override.
-
-        .. seealso::
-           | :meth:`._XBeeFirmwareUpdater._get_default_reset_timeout`
-        """
-        return self.__class__.__DEVICE_RESET_TIMEOUT
 
 
 class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
@@ -2945,12 +3074,12 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
                                            progress_callback=progress_callback)
         return
 
-    update_process = _LocalFirmwareUpdater(target,
-                                           xml_firmware_file,
-                                           xbee_firmware_file=xbee_firmware_file,
-                                           bootloader_firmware_file=bootloader_firmware_file,
-                                           timeout=timeout,
-                                           progress_callback=progress_callback)
+    update_process = _LocalXBee3FirmwareUpdater(target,
+                                                xml_firmware_file,
+                                                xbee_firmware_file=xbee_firmware_file,
+                                                bootloader_firmware_file=bootloader_firmware_file,
+                                                timeout=timeout,
+                                                progress_callback=progress_callback)
     update_process.update_firmware()
 
 
@@ -3310,3 +3439,75 @@ def _reverse_bytearray(byte_array):
         Bytearray: the reversed byte array.
     """
     return bytearray(list(reversed(byte_array)))
+
+
+def _create_serial_port(port_name, serial_params):
+    """
+    Creates a serial port object with the given parameters.
+
+    Args:
+        port_name (String): name of the serial port.
+        serial_params (Dictionary): the serial port parameters as a dictionary.
+
+    Returns:
+        :class:`.XBeeSerialPort`: the serial port created with the given parameters.
+    """
+    return XBeeSerialPort(serial_params["baudrate"],
+                          port_name,
+                          data_bits=serial_params["bytesize"],
+                          stop_bits=serial_params["stopbits"],
+                          parity=serial_params["parity"],
+                          flow_control=FlowControl.NONE if not serial_params["rtscts"] else
+                          FlowControl.HARDWARE_RTS_CTS,
+                          timeout=serial_params["timeout"])
+
+
+def _read_bootloader_header_generic(serial_port, test_character):
+    """
+    Attempts to read the bootloader header.
+
+    Args:
+        serial_port (:class:`.XBeeSerialPort`): The serial port to communicate with.
+        test_character (String): The test character to send and check bootloader is active.
+
+    Returns:
+        String: the bootloader header, ``None`` if it could not be read.
+    """
+    try:
+        serial_port.purge_port()
+        serial_port.write(str.encode(test_character))
+        read_bytes = serial_port.read(_READ_BUFFER_LEN)
+    except SerialException as e:
+        _log.exception(e)
+        return None
+
+    if len(read_bytes) > 0:
+        try:
+            return bytes.decode(read_bytes)
+        except UnicodeDecodeError:
+            pass
+
+    return None
+
+
+def _is_bootloader_active_generic(serial_port, test_character, bootloader_prompt):
+    """
+    Returns whether the device is in bootloader mode or not.
+
+    Args:
+        serial_port (:class:`.XBeeSerialPort`): The serial port to communicate with.
+        test_character (String): The test character to send and check bootloader is active.
+        bootloader_prompt (String): The expected bootloader prompt.
+
+    Returns:
+        Boolean: ``True`` if the device is in bootloader mode, ``False`` otherwise.
+    """
+    for i in range(3):
+        bootloader_header = _read_bootloader_header_generic(serial_port, test_character)
+        # Look for the Ember/Gecko bootloader prompt.
+        if bootloader_header is not None and bootloader_prompt in bootloader_header:
+            return True
+        time.sleep(0.2)
+
+    return False
+
