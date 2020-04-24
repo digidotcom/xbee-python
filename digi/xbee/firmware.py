@@ -2660,9 +2660,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 # See https://jira.digi.com/browse/XBHAWKDM-796
                 #
                 dm_ack_error = (status_frame.transmit_status == TransmitStatus.NO_ACK
-                                and self._remote_device.get_protocol() == XBeeProtocol.DIGI_MESH)
+                                and self._remote_device.get_protocol() == XBeeProtocol.DIGI_MESH
+                                and self._target_firmware_version <= 0x3004)
                 zb_addr_error = (status_frame.transmit_status == TransmitStatus.ADDRESS_NOT_FOUND
-                                 and self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE)
+                                 and self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE
+                                 and self._target_firmware_version <= 0x1009)
 
                 if status_frame.transmit_status == TransmitStatus.SUCCESS or dm_ack_error or zb_addr_error:
                     try:
