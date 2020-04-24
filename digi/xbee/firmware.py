@@ -67,6 +67,20 @@ _PATTERN_GECKO_BOOTLOADER_VERSION = "^.*Gecko Bootloader v([0-9a-fA-F]{1}\\.[0-9
 
 _XBEE3_BOOTLOADER_FILE_PREFIX = "xb3-boot-rf_"
 
+_GEN3_BOOTLOADER_PORT_PARAMETERS = {"baudrate": 38400,
+                                    "bytesize": serial.EIGHTBITS,
+                                    "parity": serial.PARITY_NONE,
+                                    "stopbits": serial.STOPBITS_ONE,
+                                    "xonxoff": False,
+                                    "dsrdtr": False,
+                                    "rtscts": False,
+                                    "timeout": 0.1,
+                                    "write_timeout": None,
+                                    "inter_byte_timeout": None
+                                    }
+_GEN3_BOOTLOADER_PROMPT = "U"
+_GEN3_BOOTLOADER_TEST_CHARACTER = "B"
+
 _BUFFER_SIZE_SHORT = 2
 _BUFFER_SIZE_INT = 4
 _BUFFER_SIZE_IEEE_ADDR = 8
@@ -83,10 +97,12 @@ _DEVICE_BREAK_RESET_TIMEOUT = 10  # seconds
 _DEVICE_CONNECTION_RETRIES = 3
 
 _ERROR_BOOTLOADER_MODE = "Could not enter in bootloader mode"
+_ERROR_BOOTLOADER_NOT_SUPPORTED = "XBee does not support firmware update process"
 _ERROR_COMPATIBILITY_NUMBER = "Device compatibility number (%d) is greater than the firmware one (%d)"
 _ERROR_CONNECT_DEVICE = "Could not connect with XBee device after %s retries"
 _ERROR_CONNECT_SERIAL_PORT = "Could not connect with serial port: %s"
 _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR = "Unknown error"
+_ERROR_DETERMINE_BOOTLOADER_TYPE = "Could not determine the bootloader type: %s"
 _ERROR_DEVICE_PROGRAMMING_MODE = "Could not put XBee device into programming mode"
 _ERROR_FILE_OTA_FILESYSTEM_NOT_FOUND = "OTA filesystem image file does not exist"
 _ERROR_FILE_OTA_FILESYSTEM_NOT_SPECIFIED = "OTA filesystem image file must be specified"
@@ -3154,12 +3170,18 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
                                            progress_callback=progress_callback)
         return
 
-    update_process = _LocalXBee3FirmwareUpdater(target,
-                                                xml_firmware_file,
-                                                xbee_firmware_file=xbee_firmware_file,
-                                                bootloader_firmware_file=bootloader_firmware_file,
-                                                timeout=timeout,
-                                                progress_callback=progress_callback)
+    bootloader_type = _determine_bootloader_type(target)
+    if bootloader_type == _BootloaderType.GECKO_BOOTLOADER:
+        update_process = _LocalXBee3FirmwareUpdater(target,
+                                                    xml_firmware_file,
+                                                    xbee_firmware_file=xbee_firmware_file,
+                                                    bootloader_firmware_file=bootloader_firmware_file,
+                                                    timeout=timeout,
+                                                    progress_callback=progress_callback)
+    else:
+        # Bootloader not supported.
+        _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
+        raise FirmwareUpdateException(_ERROR_BOOTLOADER_NOT_SUPPORTED)
     update_process.update_firmware()
 
 
@@ -3591,3 +3613,80 @@ def _is_bootloader_active_generic(serial_port, test_character, bootloader_prompt
 
     return False
 
+
+def _determine_bootloader_type(target):
+    """
+    Determines the bootloader type of the given update target.
+
+    Update process varies depending on the bootloader. This method determines the
+    bootloader type of the connected device so that a specific update method is used.
+
+    Args:
+        target (String or :class:`.AbstractXBeeDevice`): target of the firmware upload operation.
+            String: serial port identifier.
+            :class:`.AbstractXBeeDevice`: the XBee device to upload its firmware.
+
+    Return:
+        :class:`._BootloaderType`: the bootloader type of the connected target.
+    """
+    if not isinstance(target, str):
+        # An XBee device was given. Bootloader type is determined using the device hardware version.
+        try:
+            was_connected = True
+            if not target.is_open():
+                target.open()
+                was_connected = False
+            hardware_version = _read_device_hardware_version(target)
+            if not was_connected:
+                target.close()
+            return _BootloaderType.determine_bootloader_type(hardware_version)
+        except XBeeException as e:
+            raise FirmwareUpdateException(_ERROR_DETERMINE_BOOTLOADER_TYPE % str(e))
+    else:
+        # A serial port was given, determine the bootloader by testing prompts and baud rates.
+        # -- 1 -- Check if bootloader is active.
+        # Create a serial port object. Start with 38400 bps for GEN3 bootloaders.
+        try:
+            serial_port = _create_serial_port(target, _GEN3_BOOTLOADER_PORT_PARAMETERS)
+            serial_port.open()
+        except SerialException as e:
+            _log.error(_ERROR_CONNECT_SERIAL_PORT, str(e))
+            raise FirmwareUpdateException(_ERROR_DETERMINE_BOOTLOADER_TYPE % str(e))
+        # Check if GEN3 bootloader is active.
+        if _is_bootloader_active_generic(serial_port, _GEN3_BOOTLOADER_TEST_CHARACTER, _GEN3_BOOTLOADER_PROMPT):
+            serial_port.close()
+            return _BootloaderType.GEN3_BOOTLOADER
+        # Check if GECKO bootloader is active.
+        serial_port.apply_settings(_GECKO_BOOTLOADER_PORT_PARAMETERS)
+        if _is_bootloader_active_generic(serial_port, _GECKO_BOOTLOADER_TEST_CHARACTER, _GECKO_BOOTLOADER_PROMPT):
+            serial_port.close()
+            return _BootloaderType.GECKO_BOOTLOADER
+
+        # -- 2 -- Bootloader is not active, force bootloader mode.
+        break_thread = _BreakThread(serial_port, _DEVICE_BREAK_RESET_TIMEOUT)
+        break_thread.start()
+        # Loop during some time looking for the bootloader prompt.
+        deadline = _get_milliseconds() + (_BOOTLOADER_TIMEOUT * 1000)
+        bootloader_type = None
+        while _get_milliseconds() < deadline:
+            # Check GEN3 bootloader prompt.
+            serial_port.apply_settings(_GEN3_BOOTLOADER_PORT_PARAMETERS)
+            if _is_bootloader_active_generic(serial_port, _GEN3_BOOTLOADER_TEST_CHARACTER, _GEN3_BOOTLOADER_PROMPT):
+                bootloader_type = _BootloaderType.GEN3_BOOTLOADER
+                break
+            # Check GECKO bootloader prompt.
+            serial_port.apply_settings(_GECKO_BOOTLOADER_PORT_PARAMETERS)
+            if _is_bootloader_active_generic(serial_port, _GECKO_BOOTLOADER_TEST_CHARACTER, _GECKO_BOOTLOADER_PROMPT):
+                bootloader_type = _BootloaderType.GECKO_BOOTLOADER
+                break
+            # Re-assert lines to try break process again until timeout expires.
+            if not break_thread.is_running():
+                serial_port.rts = 0
+                break_thread = _BreakThread(serial_port, _DEVICE_BREAK_RESET_TIMEOUT)
+                break_thread.start()
+        # Restore break condition.
+        if break_thread.is_running():
+            break_thread.stop_break()
+
+        serial_port.close()
+        return bootloader_type
