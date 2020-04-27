@@ -33,6 +33,7 @@ from digi.xbee.util import utils
 from digi.xbee.util import xmodem
 from digi.xbee.util.xmodem import XModemException, XModemCancelException
 from enum import Enum, unique
+from itertools import repeat
 from pathlib import Path
 from serial.serialutil import SerialException
 from threading import Event
@@ -67,6 +68,10 @@ _PATTERN_GECKO_BOOTLOADER_VERSION = "^.*Gecko Bootloader v([0-9a-fA-F]{1}\\.[0-9
 
 _XBEE3_BOOTLOADER_FILE_PREFIX = "xb3-boot-rf_"
 
+_GEN3_BOOTLOADER_ERROR_CHECKSUM = 0x12
+_GEN3_BOOTLOADER_ERROR_VERIFY = 0x13
+_GEN3_BOOTLOADER_FLASH_CHECKSUM_RETRIES = 3
+_GEN3_BOOTLOADER_FLASH_VERIFY_RETRIES = 3
 _GEN3_BOOTLOADER_PORT_PARAMETERS = {"baudrate": 38400,
                                     "bytesize": serial.EIGHTBITS,
                                     "parity": serial.PARITY_NONE,
@@ -79,7 +84,9 @@ _GEN3_BOOTLOADER_PORT_PARAMETERS = {"baudrate": 38400,
                                     "inter_byte_timeout": None
                                     }
 _GEN3_BOOTLOADER_PROMPT = "U"
-_GEN3_BOOTLOADER_TEST_CHARACTER = "B"
+_GEN3_BOOTLOADER_PROTOCOL_VERSION_0 = 0
+_GEN3_BOOTLOADER_TEST_CHARACTER = "\n"
+_GEN3_BOOTLOADER_TRANSFER_ACK = 0x55
 
 _BUFFER_SIZE_SHORT = 2
 _BUFFER_SIZE_INT = 4
@@ -99,6 +106,7 @@ _DEVICE_CONNECTION_RETRIES = 3
 _ERROR_BOOTLOADER_MODE = "Could not enter in bootloader mode"
 _ERROR_BOOTLOADER_NOT_SUPPORTED = "XBee does not support firmware update process"
 _ERROR_COMPATIBILITY_NUMBER = "Device compatibility number (%d) is greater than the firmware one (%d)"
+_ERROR_COMMUNICATION_LOST = "Communication with the device was lost"
 _ERROR_CONNECT_DEVICE = "Could not connect with XBee device after %s retries"
 _ERROR_CONNECT_SERIAL_PORT = "Could not connect with serial port: %s"
 _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR = "Unknown error"
@@ -110,23 +118,31 @@ _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND = "Could not find XBee binary firmware file 
 _ERROR_FILE_XML_FIRMWARE_NOT_FOUND = "XML firmware file does not exist"
 _ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED = "XML firmware file must be specified"
 _ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND = "Could not find bootloader binary firmware file '%s'"
+_ERROR_FINISH_PROCESS = "Could not finish firmware update process"
 _ERROR_FIRMWARE_START = "Could not start the new firmware"
 _ERROR_FIRMWARE_UPDATE_BOOTLOADER = "Bootloader update error: %s"
 _ERROR_FIRMWARE_UPDATE_XBEE = "XBee firmware update error: %s"
 _ERROR_HARDWARE_VERSION_DIFFER = "Device hardware version (%d) differs from the firmware one (%d)"
 _ERROR_HARDWARE_VERSION_NOT_SUPPORTED = "XBee hardware version (%d) does not support this firmware update process"
+_ERROR_IMAGE_VERIFICATION = "Image verification error"
+_ERROR_INITIALIZE_PROCESS = "Could not initialize firmware update process"
 _ERROR_INVALID_OTA_FILE = "Invalid OTA file: %s"
 _ERROR_INVALID_BLOCK = "Requested block index '%s' does not exits"
 _ERROR_LOCAL_DEVICE_INVALID = "Invalid local XBee device"
 _ERROR_NOT_OTA_FILE = "File '%s' is not an OTA file"
+_ERROR_PAGE_CHECKSUM = "Checksum error for page %d"
+_ERROR_PAGE_VERIFICATION = "Verification error for page %d"
 _ERROR_PARSING_OTA_FILE = "Error parsing OTA file: %s"
 _ERROR_READ_OTA_FILE = "Error reading OTA file: %s"
 _ERROR_REGION_LOCK = "Device region (%d) differs from the firmware one (%d)"
 _ERROR_REMOTE_DEVICE_INVALID = "Invalid remote XBee device"
 _ERROR_RESTORE_TARGET_CONNECTION = "Could not restore target connection: %s"
 _ERROR_RESTORE_UPDATER_DEVICE = "Error restoring updater device: %s"
-_ERROR_SEND_OTA_BLOCK = "Error sending OTA block '%s' frame: %s"
 _ERROR_SEND_FRAME_RESPONSE = "Error sending '%s' frame: %s"
+_ERROR_SEND_OTA_BLOCK = "Error sending OTA block '%s' frame: %s"
+_ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE = "Error sending 'Query next image response' frame: %s"
+_ERROR_SEND_UPGRADE_END_RESPONSE = "Error sending 'Upgrade end response' frame: %s"
+_ERROR_SERIAL_COMMUNICATION = "Serial port communication error: %s"
 _ERROR_TARGET_INVALID = "Invalid update target"
 _ERROR_TRANSFER_OTA_FILE = "Error transferring OTA file: %s"
 _ERROR_UPDATE_TARGET_INFORMATION = "Error reading new target information: %s"
@@ -144,6 +160,7 @@ _EXPLICIT_PACKET_ENDPOINT_DATA = 0xE8
 _EXPLICIT_PACKET_PROFILE_DIGI = 0xC105
 _EXPLICIT_PACKET_EXTENDED_TIMEOUT = 0x40
 
+_EXTENSION_EBIN = ".ebin"
 _EXTENSION_GBL = ".gbl"
 _EXTENSION_OTA = ".ota"
 _EXTENSION_OTB = ".otb"
@@ -242,6 +259,8 @@ _XB3_PROTOCOL_FROM_FW_VERSION = {
      0x3: XBeeProtocol.DIGI_MESH
 }
 
+_POLYNOMINAL_DIGI_BL = 0x8005
+
 SX_HARDWARE_VERSIONS = (HardwareVersion.SX.code,
                         HardwareVersion.SX_PRO.code,
                         HardwareVersion.XB8X.code)
@@ -253,6 +272,86 @@ XBEE3_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
 SUPPORTED_HARDWARE_VERSIONS = SX_HARDWARE_VERSIONS + XBEE3_HARDWARE_VERSIONS
 
 _log = logging.getLogger(__name__)
+
+
+class _EbinFile(object):
+    """
+    Helper class that represents a local firmware file in 'ebin' format.
+    """
+
+    def __init__(self, file_path, page_size):
+        """
+        Class constructor. Instantiates a new :class:`._EbinFile` with the given parameters.
+
+        Args:
+            file_path (String): the path of the ebin file.
+            page_size (Integer): the size of the memory pages of the file.
+        """
+        self._file_path = file_path
+        self._page_size = page_size
+        self._page_index = 0
+        self._num_pages = os.path.getsize(file_path) // self._page_size
+        if os.path.getsize(file_path) % self._page_size != 0:
+            self._num_pages += 1
+
+    def get_next_mem_page(self):
+        """
+        Returns the next memory page of this file.
+
+        Returns:
+            Bytearray: the next memory page of the file as byte array.
+        """
+        with open(self._file_path, "rb") as file:
+            while True:
+                read_bytes = file.read(self._page_size)
+                if not read_bytes:
+                    break
+                # Protocol states that empty pages (pages filled with 0xFF) must not be sent.
+                # Check if this page is empty.
+                page_is_empty = True
+                for byte in read_bytes:
+                    if byte != 0xFF:
+                        page_is_empty = False
+                        break
+                # Skip empty page. Still increase page index.
+                if not page_is_empty:
+                    # Page must have always full size. If not, extend with 0xFF until it is complete.
+                    if len(read_bytes) < self._page_size:
+                        padded_array = bytearray(read_bytes)
+                        padded_array.extend(repeat(0xFF, self._page_size - len(read_bytes)))
+                        read_bytes = bytes(padded_array)
+                    yield read_bytes
+                self._page_index += 1
+
+    @property
+    def num_pages(self):
+        """
+        Returns the total number of memory pages of this file.
+
+        Returns:
+            Integer: the total number of data chunks of this file.
+        """
+        return self._num_pages
+
+    @property
+    def page_index(self):
+        """
+        Returns the current memory page index.
+
+        Returns:
+            Integer: the current memory page index.
+        """
+        return self._page_index
+
+    @property
+    def percent(self):
+        """
+        Returns the transfer progress percent.
+
+        Returns:
+            Integer: the transfer progress percent.
+        """
+        return ((self._page_index + 1) * 100) // self._num_pages
 
 
 class _OTAFile(object):
@@ -744,6 +843,101 @@ class _BootloaderType(Enum):
             String: the description of the _BootloaderType element.
         """
         return self.__description
+
+
+@unique
+class _Gen3BootloaderCommand(Enum):
+    """
+    This class lists the available Gen3 bootloader commands.
+
+    | Inherited properties:
+    |     **name** (String): The name of this _Gen3BootloaderCommand.
+    |     **value** (Integer): The ID of this _Gen3BootloaderCommand.
+    """
+    BOOTLOADER_VERSION = (0x01, "Retrieve the bootloader version", "B", 6, 200)
+    HARDWARE_VERSION = (0x02, "Retrieve hardware version", "V", 17, 1000)
+    REGION_LOCK = (0x03, "Retrieve region lock number", "N", 1, 300)
+    PROTOCOL_VERSION = (0x04, "Retrieve firmware update protocol version", "L", 1, 500)
+    INITIALIZE_UPDATE = (0x05, "Initialize firmware update process", "I", 1, 4000)
+    FINISH_UPDATE = (0x06, "Finish firmware update process", "F", 1, 100)
+    CHANGE_BAUDRATE = (0x07, "Change serial baudrate", "R", 6, 300)
+    PROGRAM_PAGE = (0x08, "Program firmware memory page", "P", 1, -1)  # Negative timeout means do not wait for answer.
+    VERIFY = (0x09, "Verify the transferred image", "C", 1, 30000)
+
+    def __init__(self, identifier, description, command, answer_length, timeout):
+        self.__identifier = identifier
+        self.__description = description
+        self.__command = command
+        self.__answer_length = answer_length
+        self.__timeout = timeout
+
+    @classmethod
+    def get(cls, identifier):
+        """
+        Returns the _Gen3BootloaderCommand for the given identifier.
+
+        Args:
+            identifier (Integer): the identifier of the _Gen3BootloaderCommand to get.
+
+        Returns:
+            :class:`._Gen3BootloaderCommand`: the _Gen3BootloaderCommand with the given identifier, ``None`` if
+                                              there is not a _Gen3BootloaderCommand with that identifier.
+        """
+        for value in _BootloaderType:
+            if value.identifier == identifier:
+                return value
+
+        return None
+
+    @property
+    def identifier(self):
+        """
+        Returns the identifier of the _Gen3BootloaderCommand element.
+
+        Returns:
+            Integer: the identifier of the _Gen3BootloaderCommand element.
+        """
+        return self.__identifier
+
+    @property
+    def description(self):
+        """
+        Returns the description of the _Gen3BootloaderCommand element.
+
+        Returns:
+            String: the description of the _Gen3BootloaderCommand element.
+        """
+        return self.__description
+
+    @property
+    def command(self):
+        """
+        Returns the command of the _Gen3BootloaderCommand element.
+
+        Returns:
+            String: the command of the _Gen3BootloaderCommand element.
+        """
+        return self.__command
+
+    @property
+    def answer_length(self):
+        """
+        Returns the answer length of the _Gen3BootloaderCommand element.
+
+        Returns:
+            Integer: the answer length of the _Gen3BootloaderCommand element.
+        """
+        return self.__answer_length
+
+    @property
+    def timeout(self):
+        """
+        Returns the timeout of the _Gen3BootloaderCommand element.
+
+        Returns:
+            Integer: the timeout of the _Gen3BootloaderCommand element (milliseconds).
+        """
+        return self.__timeout
 
 
 class _XBeeFirmwareUpdater(ABC):
@@ -1856,6 +2050,370 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
                 raise
         except XModemException as e:
             raise FirmwareUpdateException(str(e))
+
+
+class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
+    """
+    Helper class used to handle the local firmware update process of GEN3 XBee devices.
+    """
+
+    def __init__(self, target, xml_firmware_file, xbee_firmware_file=None, timeout=_READ_DATA_TIMEOUT,
+                 progress_callback=None):
+        """
+        Class constructor. Instantiates a new :class:`._LocalXBeeGEN3FirmwareUpdater` with the given parameters.
+
+        Args:
+            target (String or :class:`.XBeeDevice`): target of the firmware upload operation.
+                String: serial port identifier.
+                :class:`.XBeeDevice`: the XBee device to upload its firmware.
+            xml_firmware_file (String): location of the XML firmware file.
+            xbee_firmware_file (String, optional): location of the XBee binary firmware file.
+            timeout (Integer, optional): the serial port read data operation timeout.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+        """
+        super(_LocalXBeeGEN3FirmwareUpdater, self).__init__(target, xml_firmware_file,
+                                                            xbee_firmware_file=xbee_firmware_file, timeout=timeout,
+                                                            progress_callback=progress_callback)
+
+    def _is_bootloader_active(self):
+        """
+        Returns whether the device is in bootloader mode or not.
+
+        Returns:
+            Boolean: ``True`` if the device is in bootloader mode, ``False`` otherwise.
+        """
+        return _is_bootloader_active_generic(self._xbee_serial_port, _GEN3_BOOTLOADER_TEST_CHARACTER,
+                                             _GEN3_BOOTLOADER_PROMPT)
+
+    def _read_bootloader_header(self):
+        """
+        Attempts to read the bootloader header.
+
+        Returns:
+            String: the bootloader header, ``None`` if it could not be read.
+        """
+        return _read_bootloader_header_generic(self._xbee_serial_port, _GEN3_BOOTLOADER_TEST_CHARACTER)
+
+    def _get_bootloader_serial_parameters(self):
+        """
+        Returns a dictionary with the serial port parameters required to communicate with the bootloader.
+
+        Returns:
+            Dictionary: dictionary with the serial port parameters required to communicate with the bootloader.
+        """
+        return _GEN3_BOOTLOADER_PORT_PARAMETERS
+
+    def _get_firmware_binary_file_extension(self):
+        """
+        Returns the firmware binary file extension.
+
+        Returns:
+            String: the firmware binary file extension.
+        """
+        return _EXTENSION_EBIN
+
+    def _check_bootloader_binary_file(self):
+        """
+        Verifies that the bootloader binary file exists.
+
+        Raises:
+            FirmwareUpdateException: if the bootloader binary file does not exist or is invalid.
+        """
+        # SX XBee family does not support bootloader update.
+        pass
+
+    def _execute_bootloader_command(self, command):
+        """
+        Attempts to execute the given bootloader command and read a number of bytes.
+
+        Args:
+            command (:class:`._Gen3BootloaderCommand`:): the bootloader command to execute.
+
+        Returns:
+            Bytearray: the bootloader command execution answer, ``None`` if it could not be read.
+        """
+        deadline = _get_milliseconds() + command.timeout
+        data = bytearray()
+        try:
+            self._xbee_serial_port.purge_port()
+            self._xbee_serial_port.write(str.encode(command.command))
+            while len(data) < command.answer_length and _get_milliseconds() < deadline:
+                read_bytes = self._xbee_serial_port.read(command.answer_length - len(data))
+                if len(read_bytes) > 0:
+                    data.extend(read_bytes)
+            return data
+        except SerialException as e:
+            _log.exception(e)
+            return None
+
+    def _get_target_bootloader_version_bootloader(self):
+        """
+        Returns the update target bootloader version from bootloader.
+
+        Returns:
+            Bytearray: the update target bootloader version as byte array from bootloader, ``None`` if it
+                       could not be read.
+        """
+        # GEN3 bootloader does not support retrieving its version.
+        version = self._execute_bootloader_command(_Gen3BootloaderCommand.BOOTLOADER_VERSION)
+        if not version or len(version) < 1:
+            return None
+        version_byte_array = bytearray()
+        for byte in version:
+            try:
+                if _GEN3_BOOTLOADER_PROMPT == bytes.decode(bytes([byte])):
+                    break
+                version_byte_array.append(byte)
+            except TypeError:
+                pass
+        return version_byte_array
+
+    def _get_target_compatibility_number_bootloader(self):
+        """
+        Returns the update target compatibility number from bootloader.
+
+        Returns:
+            Integer: the update target compatibility number as integer from bootloader, ``None`` if it
+                     could not be read.
+        """
+        # Assume the device is already in bootloader mode.
+        version_information = self._execute_bootloader_command(_Gen3BootloaderCommand.HARDWARE_VERSION)
+        if not version_information or len(version_information) < 5:
+            return 0
+
+        return version_information[4]
+
+    def _get_target_region_lock_bootloader(self):
+        """
+        Returns the update target region lock number from the bootloader.
+
+        Returns:
+            Integer: the update target region lock number as integer fronm the bootloader, ``None`` if it
+                     could not be read.
+        """
+        # Assume the device is already in bootloader mode.
+        region_information = self._execute_bootloader_command(_Gen3BootloaderCommand.REGION_LOCK)
+        if not region_information or len(region_information) < 1:
+            return _REGION_ALL
+
+        return region_information[0]
+
+    def _get_target_hardware_version_bootloader(self):
+        """
+        Returns the update target hardware version from bootloader.
+
+        Returns:
+            Integer: the update target hardware version as integer from bootloader, ``None`` if it could not be read.
+        """
+        # Assume the device is already in bootloader mode.
+        version_information = self._execute_bootloader_command(_Gen3BootloaderCommand.HARDWARE_VERSION)
+        if not version_information or len(version_information) < 2:
+            return None
+
+        return version_information[1]
+
+    def _get_bootloader_protocol_version(self):
+        """
+        Returns the bootloader protocol version.
+
+        Returns:
+            Integer: the bootloader protocol version.
+        """
+        # Assume the device is already in bootloader mode.
+        protocol_answer = self._execute_bootloader_command(_Gen3BootloaderCommand.PROTOCOL_VERSION)
+        try:
+            if not protocol_answer or len(protocol_answer) < 1 or _GEN3_BOOTLOADER_PROMPT in \
+                    bytes.decode(bytes(protocol_answer)):
+                return _GEN3_BOOTLOADER_PROTOCOL_VERSION_0
+            return int(bytes.decode(protocol_answer))
+        except TypeError:
+            return _GEN3_BOOTLOADER_PROTOCOL_VERSION_0
+
+    def _send_change_baudrate_command(self):
+        """
+        Sends the "R" command to attempt a baudrate change of the serial port in order to improve the
+        firmware transfer speed.
+        """
+        answer = self._execute_bootloader_command(_Gen3BootloaderCommand.CHANGE_BAUDRATE)
+        try:
+            # Change baudrate only if a new value was given and it is different than the current one.
+            if answer and _GEN3_BOOTLOADER_PROMPT not in bytes.decode(bytes(answer)):
+                new_baudrate = int(bytes.decode(bytes(answer)))
+                if new_baudrate != _GEN3_BOOTLOADER_PORT_PARAMETERS["baudrate"]:
+                    self._xbee_serial_port.set_baudrate(new_baudrate)
+                    _log.debug("Changed port baudrate to %s", new_baudrate)
+        except TypeError:
+            # Do nothing, device didn't change its baudrate if an invalid value is read.
+            pass
+
+    def _send_initialize_command(self):
+        """
+        Initializes the firmware update operation by sending the command "I" to erase the current firmware.
+
+        Raises:
+            FirmwareUpdateException: if the initialization command could not be sent.
+        """
+        _log.debug("Sending Initialize command...")
+        answer = self._execute_bootloader_command(_Gen3BootloaderCommand.INITIALIZE_UPDATE)
+        try:
+            if not answer or _GEN3_BOOTLOADER_PROMPT not in bytes.decode(bytes(answer)):
+                raise FirmwareUpdateException(_ERROR_INITIALIZE_PROCESS)
+        except TypeError:
+            raise FirmwareUpdateException(_ERROR_INITIALIZE_PROCESS)
+
+    def _send_finish_command(self):
+        """
+        Finishes the firmware update operation by sending the command "F".
+
+        Raises:
+            FirmwareUpdateException: if the finish command could not be sent.
+        """
+        _log.debug("Sending finish command...")
+        answer = self._execute_bootloader_command(_Gen3BootloaderCommand.FINISH_UPDATE)
+        try:
+            if not answer or _GEN3_BOOTLOADER_PROMPT not in bytes.decode(bytes(answer)):
+                raise FirmwareUpdateException(_ERROR_FINISH_PROCESS)
+        except TypeError:
+            raise FirmwareUpdateException(_ERROR_FINISH_PROCESS)
+
+    def _send_verify_command(self):
+        """
+        Verifies the firmware image sent by sending the command "C".
+
+        Raises:
+            FirmwareUpdateException: if the verify command fails.
+        """
+        _log.debug("Sending verify command...")
+        answer = self._execute_bootloader_command(_Gen3BootloaderCommand.VERIFY)
+        if not answer:
+            raise FirmwareUpdateException(_ERROR_COMMUNICATION_LOST)
+        if answer[0] != _GEN3_BOOTLOADER_TRANSFER_ACK:
+            raise FirmwareUpdateException(_ERROR_IMAGE_VERIFICATION)
+
+    def _transfer_firmware(self):
+        """
+        Transfers the firmware file(s) to the target.
+
+        Raises:
+            FirmwareUpdateException: if there is any error transferring the firmware to the target device.
+        """
+        # Read bootloader protocol version.
+        self._protocol_version = self._get_bootloader_protocol_version()
+        _log.debug("Bootloader protocol version: %s", self._protocol_version)
+        # Try to improve serial speed.
+        self._send_change_baudrate_command()
+        # Initialize firmware update process.
+        self._send_initialize_command()
+        _log.info("Updating XBee firmware")
+        self._progress_task = _PROGRESS_TASK_UPDATE_XBEE
+        # Perform file transfer.
+        self._ebin_file = _EbinFile(self._xbee_firmware_file, self._xml_flash_page_size)
+        previous_percent = None
+        for memory_page in self._ebin_file.get_next_mem_page():
+            if self._progress_callback is not None and self._ebin_file.percent != previous_percent:
+                self._progress_callback(self._progress_task, self._ebin_file.percent)
+                previous_percent = self._ebin_file.percent
+            self._send_memory_page(memory_page)
+
+    def _send_memory_page(self, memory_page):
+        """
+        Sends the given memory page to the target device during the firmware update.
+
+        Args:
+            memory_page (Bytearray): the memory page to send.
+
+        Raises:
+            FirmwareUpdateException: if there is any error sending the memory page.
+        """
+        page_flashed = False
+        checksum_retries = _GEN3_BOOTLOADER_FLASH_CHECKSUM_RETRIES
+        verify_retries = _GEN3_BOOTLOADER_FLASH_VERIFY_RETRIES
+        retry = 1
+        while not page_flashed and checksum_retries > 0 and verify_retries > 0:
+            _log.debug("Sending page %d/%d %d%% - retry %d" % (self._ebin_file.page_index + 1,
+                                                               self._ebin_file.num_pages,
+                                                               self._ebin_file.percent,
+                                                               retry))
+            try:
+                # Send program page command.
+                self._xbee_serial_port.write(str.encode(_Gen3BootloaderCommand.PROGRAM_PAGE.command))
+                # Write page index. This depends on the protocol version.
+                if self._protocol_version == _GEN3_BOOTLOADER_PROTOCOL_VERSION_0:
+                    self._xbee_serial_port.write(bytes([self._ebin_file.page_index & 0xFF]))  # Truncate to one byte.
+                else:
+                    page_index = self._ebin_file.page_index & 0xFFFF  # Truncate to two bytes.
+                    page_index_bytes = utils.int_to_bytes(page_index, num_bytes=2)
+                    page_index_bytes = bytearray(reversed(page_index_bytes))  # Swap the array order.
+                    self._xbee_serial_port.write(page_index_bytes)
+                # Write the page data.
+                self._xbee_serial_port.write(memory_page)
+                # Write the page verification. This depends on the protocol version.
+                self._xbee_serial_port.write(self._calculate_page_verification(memory_page))
+                # Read the programming answer.
+                deadline = _get_milliseconds() + 500
+                answer = None
+                while not answer and _get_milliseconds() < deadline:
+                    answer = self._xbee_serial_port.read(1)
+                if not answer:
+                    raise FirmwareUpdateException(_ERROR_COMMUNICATION_LOST)
+                elif answer == _GEN3_BOOTLOADER_ERROR_CHECKSUM:
+                    checksum_retries -= 1
+                    retry += 1
+                    if checksum_retries == 0:
+                        raise FirmwareUpdateException(_ERROR_PAGE_CHECKSUM % self._ebin_file.page_index)
+                elif answer == _GEN3_BOOTLOADER_ERROR_VERIFY:
+                    verify_retries -= 1
+                    retry += 1
+                    if verify_retries == 0:
+                        raise FirmwareUpdateException(_ERROR_PAGE_VERIFICATION % self._ebin_file.page_index)
+                else:
+                    page_flashed = True
+            except SerialException as e:
+                raise FirmwareUpdateException(_ERROR_SERIAL_COMMUNICATION % str(e))
+
+    def _calculate_page_verification(self, memory_page):
+        """
+        Calculates and returns the verification sequence for the given memory page.
+
+        Args:
+            memory_page (Bytearray): memory page to calculate its verification sequence.
+
+        Returns
+            Bytearray: the calculated verification sequence for the given memory page.
+        """
+        if self._protocol_version == _GEN3_BOOTLOADER_PROTOCOL_VERSION_0:
+            value = 0x00
+            for byte in memory_page:
+                value += byte
+            value = value & 0xFF
+            return bytearray([((~value & 0xFF) - len(memory_page)) & 0xFF])
+        else:
+            crc = 0x0000
+            for i in range(0, len(memory_page)):
+                crc ^= memory_page[i] << 8
+                for j in range(0, 8):
+                    if (crc & 0x8000) > 0:
+                        crc = (crc << 1) ^ _POLYNOMINAL_DIGI_BL
+                    else:
+                        crc = crc << 1
+                    crc &= 0xFFFF
+            return (crc & 0xFFFF).to_bytes(2, byteorder='little')
+
+    def _finish_firmware_update(self):
+        """
+        Finishes the firmware update process. Called just after the transfer firmware operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error finishing the firmware update process.
+        """
+        # Send the finish command.
+        self._send_finish_command()
+        # Verify the transferred image.
+        self._send_verify_command()
 
 
 class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
@@ -3178,6 +3736,12 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
                                                     bootloader_firmware_file=bootloader_firmware_file,
                                                     timeout=timeout,
                                                     progress_callback=progress_callback)
+    elif bootloader_type == _BootloaderType.GEN3_BOOTLOADER:
+        update_process = _LocalXBeeGEN3FirmwareUpdater(target,
+                                                       xml_firmware_file,
+                                                       xbee_firmware_file=xbee_firmware_file,
+                                                       timeout=timeout,
+                                                       progress_callback=progress_callback)
     else:
         # Bootloader not supported.
         _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
