@@ -180,6 +180,7 @@ _XML_BOOTLOADER_VERSION = "firmware/bootloader_version"
 _XML_COMPATIBILITY_NUMBER = "firmware/compatibility_number"
 _XML_FIRMWARE = "firmware"
 _XML_FIRMWARE_VERSION_ATTRIBUTE = "fw_version"
+_XML_FLASH_PAGE_SIZE = "firmware/flash_page_size"
 _XML_HARDWARE_VERSION = "firmware/hw_version"
 _XML_REGION_LOCK = "firmware/region"
 _XML_UPDATE_TIMEOUT = "firmware/update_timeout_ms"
@@ -674,6 +675,7 @@ class _XBeeFirmwareUpdater(ABC):
         self._xml_bootloader_version = None
         self._xml_region_lock = None
         self._xml_update_timeout_ms = None
+        self._xml_flash_page_size = None
         self._bootloader_update_required = False
         self._timeout = timeout
         self._protocol_changed = False
@@ -725,6 +727,11 @@ class _XBeeFirmwareUpdater(ABC):
             if element is not None:
                 self._xml_update_timeout_ms = int(element.text)
             _log.debug(" - Update timeout: %s", self._xml_update_timeout_ms)
+            # Flash page size, optional.
+            element = root.find(_XML_FLASH_PAGE_SIZE)
+            if element is not None:
+                self._xml_flash_page_size = int(element.text, 16)
+            _log.debug(" - Flash page size: %s bytes", self._xml_flash_page_size)
         except ParseError as e:
             _log.exception(e)
             self._exit_with_error(_ERROR_XML_PARSE % self._xml_firmware_file, restore_updater=False)
