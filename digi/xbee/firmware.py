@@ -1605,17 +1605,31 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             return True
 
         _log.debug("Setting device in programming mode")
+        force_reset_sent = False
         try:
             self._xbee_device.execute_command(ATStringCommand.PERCENT_P.command)
         except XBeeException:
-            # We can ignore this error as at last instance we will attempt a Break method.
-            pass
+            # If the command failed, try with 'FR' command
+            try:
+                self._xbee_device.execute_command(ATStringCommand.FR.command)
+                force_reset_sent = True
+            except XBeeException:
+                # We can ignore this error as at last instance we will attempt a Break method.
+                pass
 
-        self._xbee_device.close()
         self._xbee_serial_port = self._xbee_device.serial_port
         self._device_port_params = self._xbee_serial_port.get_settings()
         try:
             self._xbee_serial_port.apply_settings(self._get_bootloader_serial_parameters())
+            if force_reset_sent:
+                # If we sent a force reset command, play with the serial lines so that device boots in bootloader.
+                self._xbee_serial_port.rts = 0
+                self._xbee_serial_port.dtr = 1
+                self._xbee_serial_port.break_condition = True
+                time.sleep(2)
+                self._xbee_serial_port.break_condition = False
+                self._xbee_serial_port.rts = 0
+            self._xbee_device.close()
             self._xbee_serial_port.open()
         except SerialException as e:
             _log.exception(e)
