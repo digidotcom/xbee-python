@@ -19,7 +19,7 @@ import serial
 import time
 
 from abc import ABC, abstractmethod
-from digi.xbee.exception import XBeeException, FirmwareUpdateException, TimeoutException
+from digi.xbee.exception import XBeeException, FirmwareUpdateException, TimeoutException, ATCommandException
 from digi.xbee.devices import AbstractXBeeDevice, RemoteXBeeDevice, NetworkEventReason
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
@@ -3973,8 +3973,11 @@ def _read_device_parameter_with_retries(xbee_device, parameter, retries=_PARAMET
             retries -= 1
             if retries != 0:
                 time.sleep(1)
+        except ATCommandException as e:
+            _log.warning("Could not read setting '%s': %s (%s)" % (parameter, str(e), e.status.description))
+            return None
         except XBeeException as e:
-            _log.exception(e)
+            _log.warning("Could not read setting '%s': %s" % (parameter, str(e)))
             return None
 
     return None
@@ -4005,8 +4008,11 @@ def _set_device_parameter_with_retries(xbee_device, parameter, value, retries=_P
             retries -= 1
             if retries != 0:
                 time.sleep(1)
+        except ATCommandException as e:
+            _log.warning("Could not configure setting '%s': %s (%s)" % (parameter, str(e), e.status.description))
+            return False
         except XBeeException as e:
-            _log.exception(e)
+            _log.warning("Could not configure setting '%s': %s" % (parameter, str(e)))
             return False
 
     return False
