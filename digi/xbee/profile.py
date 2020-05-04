@@ -21,7 +21,7 @@ import serial
 import time
 import zipfile
 
-from digi.xbee import firmware
+from digi.xbee import firmware, filesystem
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
 from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateException, ATCommandException, \
     InvalidOperatingModeException
@@ -46,7 +46,6 @@ _ERROR_FIRMWARE_XML_INVALID = "Invalid firmware XML file contents: %s"
 _ERROR_FIRMWARE_XML_NOT_EXIST = "Firmware XML file does not exist"
 _ERROR_FIRMWARE_XML_PARSE = "Error parsing firmware XML file: %s"
 _ERROR_HARDWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with the device hardware"
-_ERROR_HARDWARE_NOT_COMPATIBLE_XBEE3 = "Only XBee 3 devices support firmware update in the XBee profile"
 _ERROR_OPEN_DEVICE = "Error opening XBee device: %s"
 _ERROR_PROFILE_NOT_VALID = "The XBee profile is not valid"
 _ERROR_PROFILE_INVALID = "Invalid XBee profile: %s"
@@ -97,10 +96,6 @@ _PARAMETERS_NETWORK = [ATStringCommand.ID.command,
 
 
 _PROFILE_XML_FILE_NAME = "profile.xml"
-
-SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
-                               HardwareVersion.XBEE3_SMT.code,
-                               HardwareVersion.XBEE3_TH.code)
 
 _TASK_CONNECT_FILESYSTEM = "Connecting with device filesystem"
 _TASK_FORMAT_FILESYSTEM = "Formatting filesystem"
@@ -1465,10 +1460,6 @@ class _ProfileUpdater(object):
         try:
             # Retrieve device parameters.
             self._read_device_parameters()
-            # Check if device supports profiles.
-            # TODO: reduce limitations when more hardware is supported.
-            if self._device_hardware_version.code not in SUPPORTED_HARDWARE_VERSIONS:
-                raise UpdateProfileException(_ERROR_PROFILES_NOT_SUPPORTED)
             # Verify hardware compatibility of the profile.
             if self._device_hardware_version.code != self._xbee_profile.hardware_version:
                 raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE)
@@ -1486,12 +1477,15 @@ class _ProfileUpdater(object):
             # Update firmware if required.
             if flash_firmware:
                 if self._device_hardware_version.code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
-                    raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE_XBEE3)
+                    raise UpdateProfileException(firmware.ERROR_HARDWARE_VERSION_NOT_SUPPORTED %
+                                                 self._device_hardware_version.code)
                 self._update_firmware()
             # Update the settings.
             self._update_device_settings()
             # Update the file system if required.
             if self._xbee_profile.has_filesystem:
+                if self._device_hardware_version.code not in filesystem.SUPPORTED_HARDWARE_VERSIONS:
+                    raise UpdateProfileException(filesystem.ERROR_FILESYSTEM_NOT_SUPPORTED)
                 self._update_file_system()
         finally:
             # Restore sync ops timeout

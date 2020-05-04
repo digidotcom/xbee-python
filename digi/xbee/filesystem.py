@@ -21,6 +21,7 @@ import time
 
 from digi.xbee.exception import XBeeException, OperationNotSupportedException
 from digi.xbee.models.atcomm import ATStringCommand
+from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.util import xmodem
 from digi.xbee.util.xmodem import XModemException
 from enum import Enum, unique
@@ -42,9 +43,9 @@ _COMMAND_MODE_TIMEOUT = 2
 _ERROR_CONNECT_FILESYSTEM = "Error connecting file system manager: %s"
 _ERROR_ENTER_CMD_MODE = "Could not enter AT command mode"
 _ERROR_EXECUTE_COMMAND = "Error executing command '%s': %s"
-_ERROR_FILESYSTEM_NOT_SUPPORTED = "The device does not support file system feature"
 _ERROR_FUNCTION_NOT_SUPPORTED = "Function not supported: %s"
 _ERROR_TIMEOUT = "Timeout executing command"
+ERROR_FILESYSTEM_NOT_SUPPORTED = "The device does not support file system feature"
 
 _FORMAT_TIMEOUT = 10  # Seconds.
 
@@ -68,6 +69,10 @@ _READ_EMPTY_DATA_RETRIES_DEFAULT = 1
 _READ_PORT_TIMEOUT = 0.05  # Seconds.
 
 _SECURE_ELEMENT_SUFFIX = "#"
+
+SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
+                               HardwareVersion.XBEE3_SMT.code,
+                               HardwareVersion.XBEE3_TH.code)
 
 _TRANSFER_TIMEOUT = 5  # Seconds.
 
@@ -544,7 +549,7 @@ class LocalXBeeFileSystemManager(object):
             self._serial_port.open()
             self._is_connected = True
             if not self._supports_filesystem():
-                raise FileSystemNotSupportedException(_ERROR_FILESYSTEM_NOT_SUPPORTED)
+                raise FileSystemNotSupportedException(ERROR_FILESYSTEM_NOT_SUPPORTED)
         except (SerialException, FileSystemNotSupportedException) as e:
             # Close port if it is open.
             if self._serial_port.isOpen():
@@ -978,10 +983,16 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file, max_block
                 * The current update task percentage as an Integer
 
     Raises:
+        FileSystemNotSupportedException: if the target does not support filesystem update.
         FileSystemException: if there is any error updating the remote filesystem image.
     """
     # Import required firmware update components.
     from digi.xbee.firmware import FirmwareUpdateException, update_remote_filesystem
+
+    # Check target compatibility.
+    if remote_device and remote_device.get_hardware_version() and remote_device.get_hardware_version().code not in \
+            SUPPORTED_HARDWARE_VERSIONS:
+        raise FileSystemNotSupportedException(ERROR_FILESYSTEM_NOT_SUPPORTED)
 
     try:
         update_remote_filesystem(remote_device, ota_filesystem_file, max_block_size=max_block_size,

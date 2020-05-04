@@ -1592,7 +1592,6 @@ class AbstractXBeeDevice(object):
             XBeeException: if the device is not open.
             InvalidOperatingModeException: if the device operating mode is invalid.
             UpdateProfileException: if there is any error applying the XBee profile.
-            OperationNotSupportedException: if XBee profiles are not supported in the XBee device.
         """
         from digi.xbee import profile
 
@@ -1601,8 +1600,6 @@ class AbstractXBeeDevice(object):
         if not self.is_remote() and self._operating_mode != OperatingMode.API_MODE and \
                 self._operating_mode != OperatingMode.ESCAPED_API_MODE:
             raise InvalidOperatingModeException(op_mode=self._operating_mode)
-        if self.get_hardware_version() and self.get_hardware_version().code not in profile.SUPPORTED_HARDWARE_VERSIONS:
-            raise OperationNotSupportedException("XBee profiles are only supported in XBee3 devices")
 
         profile.apply_xbee_profile(self, profile_path, timeout=timeout, progress_callback=progress_callback)
 
