@@ -2430,9 +2430,9 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         self._send_verify_command()
 
 
-class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
+class _RemoteXBee3FirmwareUpdater(_XBeeFirmwareUpdater):
     """
-    Helper class used to handle the remote firmware update process.
+    Helper class used to handle the remote firmware update process on XBee 3 devices.
     """
 
     __DEVICE_RESET_TIMEOUT_ZB = 3  # seconds
@@ -2442,7 +2442,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
     def __init__(self, remote_device, xml_firmware_file, ota_firmware_file=None, otb_firmware_file=None,
                  timeout=_READ_DATA_TIMEOUT, max_block_size=0, progress_callback=None):
         """
-        Class constructor. Instantiates a new :class:`._RemoteFirmwareUpdater` with the given parameters.
+        Class constructor. Instantiates a new :class:`._RemoteXBee3FirmwareUpdater` with the given parameters.
 
         Args:
             remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to upload its firmware.
@@ -2460,8 +2460,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error performing the remote firmware update.
         """
-        super(_RemoteFirmwareUpdater, self).__init__(xml_firmware_file, timeout=timeout,
-                                                     progress_callback=progress_callback)
+        super(_RemoteXBee3FirmwareUpdater, self).__init__(xml_firmware_file, timeout=timeout,
+                                                          progress_callback=progress_callback)
 
         self._remote_device = remote_device
         self._local_device = remote_device.get_local_xbee_device()
@@ -3197,14 +3197,14 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             Boolean: `True` if the frame is a default response frame, `False` otherwise.
         """
         payload = xbee_frame.rf_data
-        disable_def_resp = _RemoteFirmwareUpdater._calculate_frame_control(frame_type=0,
-                                                                           manufac_specific=False,
-                                                                           dir_srv_to_cli=False,
-                                                                           disable_def_resp=True)
-        enable_def_resp = _RemoteFirmwareUpdater._calculate_frame_control(frame_type=0,
-                                                                          manufac_specific=False,
-                                                                          dir_srv_to_cli=False,
-                                                                          disable_def_resp=False)
+        disable_def_resp = _RemoteXBee3FirmwareUpdater._calculate_frame_control(frame_type=0,
+                                                                                manufac_specific=False,
+                                                                                dir_srv_to_cli=False,
+                                                                                disable_def_resp=True)
+        enable_def_resp = _RemoteXBee3FirmwareUpdater._calculate_frame_control(frame_type=0,
+                                                                               manufac_specific=False,
+                                                                               dir_srv_to_cli=False,
+                                                                               disable_def_resp=False)
         return (len(payload) > 2
                 and (payload[0] in [disable_def_resp, enable_def_resp])
                 and payload[1] == seq_number
@@ -3600,7 +3600,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                 else offset)
 
 
-class _RemoteFilesystemUpdater(_RemoteFirmwareUpdater):
+class _RemoteFilesystemUpdater(_RemoteXBee3FirmwareUpdater):
     """
     Helper class used to handle the remote filesystem update process.
     """
@@ -3817,13 +3817,13 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
                                                   progress_callback=progress_callback)
         return
 
-    update_process = _RemoteFirmwareUpdater(remote_device,
-                                            xml_firmware_file,
-                                            ota_firmware_file=ota_firmware_file,
-                                            otb_firmware_file=otb_firmware_file,
-                                            timeout=timeout,
-                                            max_block_size=max_block_size,
-                                            progress_callback=progress_callback)
+    update_process = _RemoteXBee3FirmwareUpdater(remote_device,
+                                                 xml_firmware_file,
+                                                 ota_firmware_file=ota_firmware_file,
+                                                 otb_firmware_file=otb_firmware_file,
+                                                 timeout=timeout,
+                                                 max_block_size=max_block_size,
+                                                 progress_callback=progress_callback)
     update_process.update_firmware()
 
 
