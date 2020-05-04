@@ -123,7 +123,6 @@ _ERROR_FIRMWARE_START = "Could not start the new firmware"
 _ERROR_FIRMWARE_UPDATE_BOOTLOADER = "Bootloader update error: %s"
 _ERROR_FIRMWARE_UPDATE_XBEE = "XBee firmware update error: %s"
 _ERROR_HARDWARE_VERSION_DIFFER = "Device hardware version (%d) differs from the firmware one (%d)"
-_ERROR_HARDWARE_VERSION_NOT_SUPPORTED = "XBee hardware version (%d) does not support this firmware update process"
 _ERROR_IMAGE_VERIFICATION = "Image verification error"
 _ERROR_INITIALIZE_PROCESS = "Could not initialize firmware update process"
 _ERROR_INVALID_OTA_FILE = "Invalid OTA file: %s"
@@ -153,6 +152,7 @@ _ERROR_XML_PARSE = "Could not parse XML firmware file %s"
 _ERROR_XMODEM_COMMUNICATION = "XModem serial port communication error: %s"
 _ERROR_XMODEM_RESTART = "Could not restart firmware transfer sequence"
 _ERROR_XMODEM_START = "Could not start XModem firmware upload process"
+ERROR_HARDWARE_VERSION_NOT_SUPPORTED = "XBee hardware version (%d) does not support firmware update process"
 
 _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX = 0x00
 _EXPLICIT_PACKET_CLUSTER_ID = 0x0019
@@ -1077,7 +1077,7 @@ class _XBeeFirmwareUpdater(ABC):
 
         # Check if the hardware version is compatible with the firmware update process.
         if self._target_hardware_version and self._target_hardware_version not in SUPPORTED_HARDWARE_VERSIONS:
-            self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
+            self._exit_with_error(ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
 
         # Check if device hardware version is compatible with the firmware.
         if self._target_hardware_version and self._target_hardware_version != self._xml_hardware_version:
@@ -2580,7 +2580,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         """
         # At the moment only XBee3 devices are supported as updater devices for remote updates.
         if self._local_device.get_hardware_version().code not in SUPPORTED_HARDWARE_VERSIONS:
-            self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
+            self._exit_with_error(ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
 
     def _configure_updater(self):
         """
@@ -3679,7 +3679,7 @@ class _RemoteFilesystemUpdater(_RemoteFirmwareUpdater):
 
         # Check if the hardware version is compatible with the filesystem update process.
         if self._target_hardware_version and self._target_hardware_version not in XBEE3_HARDWARE_VERSIONS:
-            self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
+            self._exit_with_error(ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
 
     def _update_target_information(self):
         """
