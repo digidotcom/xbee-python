@@ -1723,6 +1723,206 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         pass
 
 
+class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
+    """
+    Helper class used to handle the remote firmware update process.
+    """
+
+    def __init__(self, remote_device, xml_firmware_file, timeout=_READ_DATA_TIMEOUT, progress_callback=None):
+        """
+        Class constructor. Instantiates a new :class:`._RemoteFirmwareUpdater` with the given parameters.
+
+        Args:
+            remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to upload its firmware.
+            xml_firmware_file (String): location of the XML firmware file.
+            timeout (Integer, optional): the timeout to wait for remote frame requests.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+        """
+        super(_RemoteFirmwareUpdater, self).__init__(xml_firmware_file, timeout=timeout,
+                                                     progress_callback=progress_callback)
+
+        self._remote_device = remote_device
+        self._local_device = remote_device.get_local_xbee_device()
+        self._receive_lock = Event()
+
+    def _get_target_bootloader_version(self):
+        """
+        Returns the update target bootloader version.
+
+        Returns:
+            Bytearray: the update target bootloader version as byte array, ``None`` if it could not be read.
+        """
+        return _read_device_bootloader_version(self._remote_device)
+
+    def _get_target_compatibility_number(self):
+        """
+        Returns the update target compatibility number.
+
+        Returns:
+            Integer: the update target compatibility number as integer, ``None`` if it could not be read.
+        """
+        return _read_device_compatibility_number(self._remote_device)
+
+    def _get_target_region_lock(self):
+        """
+        Returns the update target region lock number.
+
+        Returns:
+            Integer: the update target region lock number as integer, ``None`` if it could not be read.
+        """
+        return _read_device_region_lock(self._remote_device)
+
+    def _get_target_hardware_version(self):
+        """
+        Returns the update target hardware version.
+
+        Returns:
+            Integer: the update target hardware version as integer, ``None`` if it could not be read.
+        """
+        return _read_device_hardware_version(self._remote_device)
+
+    def _get_target_firmware_version(self):
+        """
+        Returns the update target firmware version.
+
+        Returns:
+            Integer: the update target firmware version as integer, ``None`` if it could not be read.
+        """
+        return _read_device_firmware_version(self._remote_device)
+
+    def _configure_updater(self):
+        """
+        Configures the updater device before performing the firmware update operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error configuring the updater device.
+        """
+        # Change sync ops timeout.
+        self._old_sync_ops_timeout = self._local_device.get_sync_ops_timeout()
+        self._local_device.set_sync_ops_timeout(self._timeout)
+        # Connect device.
+        self._updater_was_connected = self._local_device.is_open()
+        _log.debug("Connecting device '%s'", self._local_device)
+        if not _connect_device_with_retries(self._local_device, _DEVICE_CONNECTION_RETRIES):
+            self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
+        # Store AO value.
+        self._updater_ao_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
+        if self._updater_ao_value is None:
+            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.AO.command)
+        # Set new AO value.
+        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
+                                                  bytearray([_VALUE_API_OUTPUT_MODE_EXPLICIT])):
+            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.AO.command)
+        # Perform extra configuration.
+        self._configure_updater_extra()
+
+    def _restore_updater(self, raise_exception=False):
+        """
+        Leaves the updater device to its original state before the update operation.
+
+        Args:
+            raise_exception (Boolean, optional): ``True`` to raise exceptions if they occur, ``False`` otherwise.
+
+        Raises:
+            XBeeException: if there is any error restoring the device connection.
+        """
+        # Restore sync ops timeout.
+        self._local_device.set_sync_ops_timeout(self._old_sync_ops_timeout)
+        # Restore updater params.
+        try:
+            if not self._local_device.is_open():
+                self._local_device.open()
+            # Restore AO.
+            if self._updater_ao_value is not None:
+                _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
+                                                   self._updater_ao_value)
+            # Restore extra configuration.
+            self._restore_updater_extra()
+        except XBeeException as e:
+            if raise_exception:
+                raise e
+        if self._updater_was_connected and not self._local_device.is_open():
+            self._local_device.open()
+        elif not self._updater_was_connected and self._local_device.is_open():
+            self._local_device.close()
+
+    def _check_updater_compatibility(self):
+        """
+        Verifies whether the updater device is compatible with firmware update or not.
+        """
+        if self._local_device.get_hardware_version().code not in SUPPORTED_HARDWARE_VERSIONS:
+            self._exit_with_error(ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
+
+    def _update_target_information(self):
+        """
+        Updates the target information after the firmware update.
+        """
+        _log.debug("Updating target information...")
+        # If the protocol of the device has changed, just skip this step and remove device from
+        # the network, it is no longer reachable.
+        if self._protocol_changed:
+            self._local_device.get_network()._remove_device(self._remote_device, NetworkEventReason.FIRMWARE_UPDATE)
+            return
+
+        was_open = self._local_device.is_open()
+        try:
+            if not was_open:
+                self._local_device.open()
+            # We need to update target information. Give it some time to be back into the network.
+            deadline = _get_milliseconds() + (_REMOTE_FIRMWARE_UPDATE_RESYNC_TIMEOUT * 1000)
+            initialized = False
+            while _get_milliseconds() < deadline and not initialized:
+                try:
+                    self._remote_device._read_device_info(NetworkEventReason.FIRMWARE_UPDATE,
+                                                          init=True, fire_event=True)
+                    initialized = True
+                except XBeeException:
+                    time.sleep(1)
+            if not initialized:
+                self._exit_with_error(_ERROR_UPDATE_TARGET_TIMEOUT)
+        except XBeeException as e:
+            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFORMATION % str(e))
+        finally:
+            if not was_open:
+                self._local_device.close()
+
+    def _will_protocol_change(self):
+        """
+        Determines whether the XBee protocol will change after the update or not.
+
+        Returns:
+            Boolean: ``True`` if the protocol will change after the update, ``False`` otherwise.
+        """
+        orig_protocol = self._remote_device.get_protocol()
+        new_protocol = XBeeProtocol.determine_protocol(self._xml_hardware_version,
+                                                       utils.int_to_bytes(self._xml_firmware_version))
+        return orig_protocol != new_protocol
+
+    @abstractmethod
+    def _configure_updater_extra(self):
+        """
+        Performs extra updater device configuration before the firmware update operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error configuring the updater device.
+        """
+        pass
+
+    @abstractmethod
+    def _restore_updater_extra(self):
+        """
+        Performs extra updater configuration to leave it in its original state as it was before the update operation.
+
+        Raises:
+            XBeeException: if there is any error restoring the device connection.
+        """
+        pass
+
+
 class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
     """
     Helper class used to handle the local firmware update process of XBee 3 devices.
@@ -2430,7 +2630,7 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         self._send_verify_command()
 
 
-class _RemoteXBee3FirmwareUpdater(_XBeeFirmwareUpdater):
+class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
     """
     Helper class used to handle the remote firmware update process on XBee 3 devices.
     """
@@ -2460,11 +2660,9 @@ class _RemoteXBee3FirmwareUpdater(_XBeeFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error performing the remote firmware update.
         """
-        super(_RemoteXBee3FirmwareUpdater, self).__init__(xml_firmware_file, timeout=timeout,
+        super(_RemoteXBee3FirmwareUpdater, self).__init__(remote_device, xml_firmware_file, timeout=timeout,
                                                           progress_callback=progress_callback)
 
-        self._remote_device = remote_device
-        self._local_device = remote_device.get_local_xbee_device()
         self._ota_firmware_file = ota_firmware_file
         self._otb_firmware_file = otb_firmware_file
         self._updater_was_connected = False
@@ -2472,7 +2670,6 @@ class _RemoteXBee3FirmwareUpdater(_XBeeFirmwareUpdater):
         self._updater_my_value = None
         self._updater_rr_value = None
         self._ota_file = None
-        self._receive_lock = Event()
         self._transfer_lock = Event()
         self._img_req_received = False
         self._img_notify_sent = False
@@ -2529,85 +2726,13 @@ class _RemoteXBee3FirmwareUpdater(_XBeeFirmwareUpdater):
         except _ParsingOTAException as e:
             self._exit_with_error(str(e))
 
-    def _get_target_bootloader_version(self):
+    def _configure_updater_extra(self):
         """
-        Returns the update target bootloader version.
-
-        Returns:
-            Bytearray: the update target bootloader version as byte array, ``None`` if it could not be read.
-        """
-        return _read_device_bootloader_version(self._remote_device)
-
-    def _get_target_compatibility_number(self):
-        """
-        Returns the update target compatibility number.
-
-        Returns:
-            Integer: the update target compatibility number as integer, ``None`` if it could not be read.
-        """
-        return _read_device_compatibility_number(self._remote_device)
-
-    def _get_target_region_lock(self):
-        """
-        Returns the update target region lock number.
-
-        Returns:
-            Integer: the update target region lock number as integer, ``None`` if it could not be read.
-        """
-        return _read_device_region_lock(self._remote_device)
-
-    def _get_target_hardware_version(self):
-        """
-        Returns the update target hardware version.
-
-        Returns:
-            Integer: the update target hardware version as integer, ``None`` if it could not be read.
-        """
-        return _read_device_hardware_version(self._remote_device)
-
-    def _get_target_firmware_version(self):
-        """
-        Returns the update target firmware version.
-
-        Returns:
-            Integer: the update target firmware version as integer, ``None`` if it could not be read.
-        """
-        return _read_device_firmware_version(self._remote_device)
-
-    def _check_updater_compatibility(self):
-        """
-        Verifies whether the updater device is compatible with firmware update or not.
-        """
-        # At the moment only XBee3 devices are supported as updater devices for remote updates.
-        if self._local_device.get_hardware_version().code not in SUPPORTED_HARDWARE_VERSIONS:
-            self._exit_with_error(ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
-
-    def _configure_updater(self):
-        """
-        Configures the updater device before performing the firmware update operation.
+        Performs extra updater device configuration before the firmware update operation.
 
         Raises:
             FirmwareUpdateException: if there is any error configuring the updater device.
         """
-        # These configuration steps are specific for XBee3 devices. Since no other hardware is supported
-        # yet, it is not a problem. If new hardware is supported in a future, this will need to be changed.
-
-        # Change sync ops timeout.
-        self._old_sync_ops_timeout = self._local_device.get_sync_ops_timeout()
-        self._local_device.set_sync_ops_timeout(self._timeout)
-        # Connect device.
-        self._updater_was_connected = self._local_device.is_open()
-        _log.debug("Connecting device '%s'", self._local_device)
-        if not _connect_device_with_retries(self._local_device, _DEVICE_CONNECTION_RETRIES):
-            self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
-        # Store AO value.
-        self._updater_ao_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
-        if self._updater_ao_value is None:
-            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.AO.command)
-        # Set new AO value.
-        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
-                                                  bytearray([_VALUE_API_OUTPUT_MODE_EXPLICIT])):
-            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.AO.command)
         # Specific settings per protocol.
         if self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
             # Store RR value.
@@ -2630,12 +2755,9 @@ class _RemoteXBee3FirmwareUpdater(_XBeeFirmwareUpdater):
                                                       _VALUE_BROADCAST_ADDRESS):
                 self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.MY.command)
 
-    def _restore_updater(self, raise_exception=False):
+    def _restore_updater_extra(self):
         """
-        Leaves the updater device to its original state before the update operation.
-
-        Args:
-            raise_exception (Boolean, optional): ``True`` to raise exceptions if they occur, ``False`` otherwise.
+        Performs extra updater configuration to leave it in its original state as it was before the update operation.
 
         Raises:
             XBeeException: if there is any error restoring the device connection.
@@ -2643,32 +2765,15 @@ class _RemoteXBee3FirmwareUpdater(_XBeeFirmwareUpdater):
         # Close OTA file.
         if self._ota_file:
             self._ota_file.close_file()
-        # Restore sync ops timeout.
-        self._local_device.set_sync_ops_timeout(self._old_sync_ops_timeout)
-        # Restore updater params.
-        try:
-            if not self._local_device.is_open():
-                self._local_device.open()
-            # Restore AO.
-            if self._updater_ao_value is not None:
-                _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
-                                                   self._updater_ao_value)
-            # Specific settings per protocol.
-            if self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
-                # Restore RR value.
-                _set_device_parameter_with_retries(self._local_device, ATStringCommand.RR.command,
-                                                   self._updater_rr_value)
-            elif self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
-                # Restore MY value.
-                _set_device_parameter_with_retries(self._local_device, ATStringCommand.MY.command,
-                                                   self._updater_my_value)
-        except XBeeException as e:
-            if raise_exception:
-                raise e
-        if self._updater_was_connected and not self._local_device.is_open():
-            self._local_device.open()
-        elif not self._updater_was_connected and self._local_device.is_open():
-            self._local_device.close()
+        # Specific settings per protocol.
+        if self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
+            # Restore RR value.
+            _set_device_parameter_with_retries(self._local_device, ATStringCommand.RR.command,
+                                               self._updater_rr_value)
+        elif self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
+            # Restore MY value.
+            _set_device_parameter_with_retries(self._local_device, ATStringCommand.MY.command,
+                                               self._updater_my_value)
 
     def _create_explicit_frame(self, payload):
         """
@@ -3485,51 +3590,6 @@ class _RemoteXBee3FirmwareUpdater(_XBeeFirmwareUpdater):
             self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Upgrade end response", error_message))
         else:
             self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Upgrade end response", "Timeout sending frame"))
-
-    def _update_target_information(self):
-        """
-        Updates the target information after the firmware update.
-        """
-        _log.debug("Updating target information...")
-        # If the protocol of the device has changed, just skip this step and remove device from
-        # the network, it is no longer reachable.
-        if self._protocol_changed:
-            self._local_device.get_network()._remove_device(self._remote_device, NetworkEventReason.FIRMWARE_UPDATE)
-            return
-
-        was_open = self._local_device.is_open()
-        try:
-            if not was_open:
-                self._local_device.open()
-            # We need to update target information. Give it some time to be back into the network.
-            deadline = _get_milliseconds() + (_REMOTE_FIRMWARE_UPDATE_RESYNC_TIMEOUT * 1000)
-            initialized = False
-            while _get_milliseconds() < deadline and not initialized:
-                try:
-                    self._remote_device._read_device_info(NetworkEventReason.FIRMWARE_UPDATE,
-                                                          init=True, fire_event=True)
-                    initialized = True
-                except XBeeException:
-                    time.sleep(1)
-            if not initialized:
-                self._exit_with_error(_ERROR_UPDATE_TARGET_TIMEOUT)
-        except XBeeException as e:
-            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFORMATION % str(e))
-        finally:
-            if not was_open:
-                self._local_device.close()
-
-    def _will_protocol_change(self):
-        """
-        Determines whether the XBee protocol will change after the update or not.
-
-        Returns:
-            Boolean: ``True`` if the protocol will change after the update, ``False`` otherwise.
-        """
-        orig_protocol = self._remote_device.get_protocol()
-        new_protocol = XBeeProtocol.determine_protocol(self._xml_hardware_version,
-                                                       utils.int_to_bytes(self._xml_firmware_version))
-        return orig_protocol != new_protocol
 
     def _get_default_reset_timeout(self):
         """
