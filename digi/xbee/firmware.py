@@ -122,21 +122,29 @@ _ERROR_FINISH_PROCESS = "Could not finish firmware update process"
 _ERROR_FIRMWARE_START = "Could not start the new firmware"
 _ERROR_FIRMWARE_UPDATE_BOOTLOADER = "Bootloader update error: %s"
 _ERROR_FIRMWARE_UPDATE_XBEE = "XBee firmware update error: %s"
+_ERROR_GPM_ERASE_COMMAND = "An error occurred erasing the device flash"
+_ERROR_GPM_INFO_COMMAND = "An error occurred getting the platform information"
+_ERROR_GPM_VERIFY_AND_INSTALL_COMMAND = "An error occurred while installing the new firmware in the device"
+_ERROR_GPM_VERIFY_COMMAND = "An error occurred while verifying firmware image in the device"
+_ERROR_GPM_WRITE_COMMAND = "An error occurred while writing data in the device"
 _ERROR_HARDWARE_VERSION_DIFFER = "Device hardware version (%d) differs from the firmware one (%d)"
 _ERROR_IMAGE_VERIFICATION = "Image verification error"
 _ERROR_INITIALIZE_PROCESS = "Could not initialize firmware update process"
 _ERROR_INVALID_OTA_FILE = "Invalid OTA file: %s"
 _ERROR_INVALID_BLOCK = "Requested block index '%s' does not exits"
+_ERROR_INVALID_GPM_ANSWER = "Invalid GPM frame answer"
 _ERROR_LOCAL_DEVICE_INVALID = "Invalid local XBee device"
 _ERROR_NOT_OTA_FILE = "File '%s' is not an OTA file"
 _ERROR_PAGE_CHECKSUM = "Checksum error for page %d"
 _ERROR_PAGE_VERIFICATION = "Verification error for page %d"
 _ERROR_PARSING_OTA_FILE = "Error parsing OTA file: %s"
+_ERROR_RECEIVE_FRAME_TIMEOUT = "Timeout waiting for response"
 _ERROR_READ_OTA_FILE = "Error reading OTA file: %s"
 _ERROR_REGION_LOCK = "Device region (%d) differs from the firmware one (%d)"
 _ERROR_REMOTE_DEVICE_INVALID = "Invalid remote XBee device"
 _ERROR_RESTORE_TARGET_CONNECTION = "Could not restore target connection: %s"
 _ERROR_RESTORE_UPDATER_DEVICE = "Error restoring updater device: %s"
+_ERROR_SEND_FRAME = "Error sending frame: transmit status not received or invalid"
 _ERROR_SEND_FRAME_RESPONSE = "Error sending '%s' frame: %s"
 _ERROR_SEND_OTA_BLOCK = "Error sending OTA block '%s' frame: %s"
 _ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE = "Error sending 'Query next image response' frame: %s"
@@ -156,7 +164,9 @@ ERROR_HARDWARE_VERSION_NOT_SUPPORTED = "XBee hardware version (%d) does not supp
 
 _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX = 0x00
 _EXPLICIT_PACKET_CLUSTER_ID = 0x0019
+_EXPLICIT_PACKET_CLUSTER_GPM = 0x0023
 _EXPLICIT_PACKET_ENDPOINT_DATA = 0xE8
+_EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE = 0xE6
 _EXPLICIT_PACKET_PROFILE_DIGI = 0xC105
 _EXPLICIT_PACKET_EXTENDED_TIMEOUT = 0x40
 
@@ -938,6 +948,98 @@ class _Gen3BootloaderCommand(Enum):
             Integer: the timeout of the _Gen3BootloaderCommand element (milliseconds).
         """
         return self.__timeout
+
+
+@unique
+class _GPMCommand(Enum):
+    """
+    This class lists the available GPM (General Purpose Memory) commands.
+
+    | Inherited properties:
+    |     **name** (String): The name of this _GPMCommand.
+    |     **value** (Integer): The ID of this _GPMCommand.
+    """
+    GET_PLATFORM_INFO = (0x01, "Reads the device information", 0x00, 0x80, _ERROR_GPM_INFO_COMMAND)
+    ERASE_FLASH = (0x02, "Erases the device flash", 0x01, 0x81, _ERROR_GPM_ERASE_COMMAND)
+    WRITE_DATA = (0x03, "Writes data in the device", 0x02, 0x82, _ERROR_GPM_WRITE_COMMAND)
+    VERIFY_IMAGE = (0x04, "Verifies the firmware image in the device", 0x05, 0x85, _ERROR_GPM_VERIFY_COMMAND)
+    VERIFY_AND_INSTALL = (0x05, "Verifies and installs the firmware image in the device", 0x06, 0x86,
+                          _ERROR_GPM_VERIFY_AND_INSTALL_COMMAND)
+
+    def __init__(self, identifier, description, command_id, answer_id, execution_error):
+        self.__identifier = identifier
+        self.__description = description
+        self.__command_id = command_id
+        self.__answer_id = answer_id
+        self.__execution_error = execution_error
+
+    @classmethod
+    def get(cls, identifier):
+        """
+        Returns the _GPMCommand for the given identifier.
+
+        Args:
+            identifier (Integer): the identifier of the _GPMCommand to get.
+
+        Returns:
+            :class:`._GPMCommand`: the _GPMCommand with the given identifier, ``None`` if
+                                   there is not a _GPMCommand with that identifier.
+        """
+        for value in _GPMCommand:
+            if value.identifier == identifier:
+                return value
+
+        return None
+
+    @property
+    def identifier(self):
+        """
+        Returns the identifier of the _GPMCommand element.
+
+        Returns:
+            Integer: the identifier of the _GPMCommand element.
+        """
+        return self.__identifier
+
+    @property
+    def description(self):
+        """
+        Returns the description of the _GPMCommand element.
+
+        Returns:
+            String: the description of the _GPMCommand element.
+        """
+        return self.__description
+
+    @property
+    def command_id(self):
+        """
+        Returns the command identifier of the _GPMCommand element.
+
+        Returns:
+            Integer: the command identifier of the _GPMCommand element.
+        """
+        return self.__command_id
+
+    @property
+    def answer_id(self):
+        """
+        Returns the answer identifier of the _GPMCommand element.
+
+        Returns:
+            Integer: the answer identifier of the _GPMCommand element.
+        """
+        return self.__answer_id
+
+    @property
+    def execution_error(self):
+        """
+        Returns the execution error message of the _GPMCommand element.
+
+        Returns:
+            String: the execution error message of the _GPMCommand element.
+        """
+        return self.__execution_error
 
 
 class _XBeeFirmwareUpdater(ABC):
@@ -3751,6 +3853,375 @@ class _RemoteFilesystemUpdater(_RemoteXBee3FirmwareUpdater):
         pass
 
 
+class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
+    """
+    Helper class used to handle the remote firmware update process of general purpose memory (GPM) devices.
+    """
+
+    __DEVICE_RESET_TIMEOUT = 10  # seconds
+    __DEFAULT_PAGE_SIZE = 128
+    __DEFAULT_TIMEOUT = 20  # Seconds.
+
+    def __init__(self, remote_device, xml_firmware_file, xbee_firmware_file=None, timeout=__DEFAULT_TIMEOUT,
+                 progress_callback=None):
+        """
+        Class constructor. Instantiates a new :class:`._RemoteGPMFirmwareUpdater` with the given parameters.
+
+        Args:
+            remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to upload its firmware.
+            xml_firmware_file (String): path of the XML file that describes the firmware to upload.
+            xbee_firmware_file (String, optional): path of the binary firmware file to upload.
+            timeout (Integer, optional): the timeout to wait for remote frame answers.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+        Raises:
+            FirmwareUpdateException: if there is any error performing the remote firmware update.
+        """
+        super(_RemoteGPMFirmwareUpdater, self).__init__(remote_device, xml_firmware_file, timeout=timeout,
+                                                        progress_callback=progress_callback)
+
+        self._xbee_firmware_file = xbee_firmware_file
+
+    def _get_default_reset_timeout(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._get_default_reset_timeout`
+        """
+        return self.__class__.__DEVICE_RESET_TIMEOUT
+
+    def _check_firmware_binary_file(self):
+        """
+        Verifies that the firmware binary file exists.
+
+        Raises:
+            FirmwareUpdateException: if the firmware binary file does not exist or is invalid.
+        """
+        # If not already specified, the binary firmware file is usually in the same folder as the XML firmware file.
+        if self._xbee_firmware_file is None:
+            path = Path(self._xml_firmware_file)
+            self._xbee_firmware_file = str(Path(path.parent).joinpath(path.stem + _EXTENSION_EBIN))
+
+        if not _file_exists(self._xbee_firmware_file):
+            self._exit_with_error(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % self._xbee_firmware_file, restore_updater=False)
+
+    def _check_bootloader_binary_file(self):
+        """
+        Verifies that the bootloader binary file exists.
+
+        Raises:
+            FirmwareUpdateException: if the bootloader binary file does not exist.
+        """
+        # General Purpose Memory devices do not have bootloader update file.
+        pass
+
+    def _configure_updater_extra(self):
+        """
+        Performs extra updater device configuration before the firmware update operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error configuring the updater device.
+        """
+        # GPM devices do not require extra configuration prior to firmware update process.
+        pass
+
+    def _restore_updater_extra(self):
+        """
+        Performs extra updater configuration to leave it in its original state as it was before the update operation.
+
+        Raises:
+            XBeeException: if there is any error restoring the device configuration.
+        """
+        # GPM devices do not require extra configuration to restore it to its original state.
+        pass
+
+    def _create_explicit_frame(self, payload):
+        """
+        Creates and returns an explicit addressing GPM frame using the given payload.
+
+        Args:
+            payload (Bytearray): the payload for the explicit addressing GPM frame.
+
+        Returns:
+            :class:`.ExplicitAddressingPacket`: the explicit addressing GPM frame with the given payload.
+        """
+        packet = ExplicitAddressingPacket(self._local_device.get_next_frame_id(),
+                                          self._remote_device.get_64bit_addr(),
+                                          self._remote_device.get_16bit_addr(),
+                                          _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE,
+                                          _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE,
+                                          _EXPLICIT_PACKET_CLUSTER_GPM,
+                                          _EXPLICIT_PACKET_PROFILE_DIGI,
+                                          _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX,
+                                          0x00,
+                                          payload)
+        return packet
+
+    def _create_gpm_command_frame(self, command, options=0, block_index=0, byte_index=0, gpm_data=None):
+        """
+        Creates and returns a GPM command frame with the given parameters.
+
+        Args:
+            command (:class:`.GPMCommand`): the GPM command to create the frame for.
+            options (Integer, optional): command options byte, defaults to 0.
+            block_index (Integer, optional): the block number addressed in the GPM command, defaults to 0.
+            byte_index (Integer, optional): the byte index within the addressed GPM command, defaults to 0.
+            gpm_data (Bytearray, optional): the command GPM data. Defaults to None.
+
+        Returns:
+            :class:`.ExplicitAddressingPacket`: the GPM command frame.
+        """
+        payload = bytearray()
+        payload.append(command.command_id)  # Command ID.
+        payload.append(options & 0xFF)  # Command options
+        payload.extend(utils.int_to_bytes(block_index & 0xFFFF, 2))  # Block index
+        payload.extend(utils.int_to_bytes(byte_index & 0xFFFF, 2))  # Byte index
+        if gpm_data:
+            payload.extend(utils.int_to_bytes(len(gpm_data) & 0xFFFF, 2))  # Data length
+            payload.extend(gpm_data)  # Data
+        else:
+            payload.extend(bytearray([0x00, 0x00]))  # Data length
+        return self._create_explicit_frame(payload)
+
+    def _gpm_receive_frame_callback(self, xbee_frame):
+        """
+        Callback used to be notified on GPM frame reception.
+
+        Args:
+            xbee_frame (:class:`.XBeeAPIPacket`): the received frame
+        """
+        if xbee_frame.get_frame_type() == ApiFrameType.TRANSMIT_STATUS:
+            if xbee_frame.transmit_status == TransmitStatus.SUCCESS:
+                self._gpm_frame_sent = True
+                # Sometimes the transmit status frame is received after the explicit frame
+                # indicator. Notify only if the transmit status frame was also received.
+                if self._gpm_frame_received:
+                    # Continue execution.
+                    self._receive_lock.set()
+            else:
+                # Remove explicit frame indicator received flag if it was set.
+                if self._gpm_frame_received:
+                    self._gpm_frame_received = False
+                # Continue execution, it will exit with error as received flags are not set.
+                self._receive_lock.set()
+        elif (xbee_frame.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR
+              and xbee_frame.source_endpoint == _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE
+              and xbee_frame.dest_endpoint == _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE
+              and xbee_frame.cluster_id == _EXPLICIT_PACKET_CLUSTER_GPM
+              and xbee_frame.profile_id == _EXPLICIT_PACKET_PROFILE_DIGI
+              and xbee_frame.x64bit_source_addr == self._remote_device.get_64bit_addr()):
+            # If GPM frame was already received, ignore this frame.
+            if self._gpm_frame_received:
+                return
+            # Store GPM answer payload.
+            self._gpm_answer_payload = xbee_frame.rf_data
+            # Flag frame as received.
+            self._gpm_frame_received = True
+            # Sometimes the transmit status frame is received after the explicit frame
+            # indicator. Notify only if the transmit status frame was also received.
+            if self._gpm_frame_sent:
+                # Continue execution.
+                self._receive_lock.set()
+
+    def _send_explicit_gpm_frame(self, frame, expect_answer=True):
+        """
+        Sends the given explicit GPM frame to the remote device.
+
+        Args:
+            frame (:class:`.ExplicitAddressingPacket`): the explicit GPM frame to send.
+            expect_answer (Boolean, optional): ``True`` if after sending the frame an answer is expected,
+                                               ``False`` otherwise. Optional, defaults to ``True``.
+
+        Raises:
+            FirmwareUpdateException: if there is any error sending the explicit GPM frame.
+        """
+        # Clear vars.
+        self._receive_lock.clear()
+        self._gpm_answer_payload = None
+        self._gpm_frame_sent = False
+        self._gpm_frame_received = False
+
+        # Add a frame listener to wait for answer.
+        self._local_device.add_packet_received_callback(self._gpm_receive_frame_callback)
+        try:
+            # Send frame.
+            self._local_device.send_packet(frame)
+            # Wait for answer.
+            self._receive_lock.wait(self._timeout)
+        except XBeeException as e:
+            self._exit_with_error(_ERROR_SERIAL_COMMUNICATION % str(e))
+        finally:
+            # Remove frame listener.
+            self._local_device.del_packet_received_callback(self._gpm_receive_frame_callback)
+
+        # Check if packet was correctly sent.
+        if not self._gpm_frame_sent:
+            raise FirmwareUpdateException(_ERROR_SEND_FRAME)
+        if not self._gpm_frame_received and expect_answer:
+            raise FirmwareUpdateException(_ERROR_RECEIVE_FRAME_TIMEOUT)
+
+    def _execute_gpm_command(self, command, options=0, block_index=0, byte_index=0, gpm_data=None, retries=1,
+                             expect_answer=True):
+        """
+        Executes the given GPM command.
+
+        Args:
+            command (:class:`.GPMCommand`): the GPM command to execute.
+            options (Integer, optional): command options byte, defaults to 0.
+            block_index (Integer, optional): the block number addressed in the GPM command, defaults to 0.
+            byte_index (Integer, optional): the byte index within the addressed GPM command, defaults to 0.
+            gpm_data (Bytearray, optional): the command GPM data, defaults to None.
+            retries (Integer, optional): the number of retries to execute the command. Defaults to 1.
+            expect_answer (Boolean, optional): ``True`` if the command execution should expect an answer,
+                                               ``False`` otherwise. Optional, defaults to ``True``.
+
+        Raises:
+            FirmwareUpdateException: if there is any error executing the GPM command.
+        """
+        error = None
+        while retries > 0:
+            error = None
+            try:
+                self._send_explicit_gpm_frame(self._create_gpm_command_frame(command, options=options,
+                                                                             block_index=block_index,
+                                                                             byte_index=byte_index,
+                                                                             gpm_data=gpm_data),
+                                              expect_answer=expect_answer)
+                if not expect_answer:
+                    break
+                # Check for communication error.
+                if not self._gpm_answer_payload or len(self._gpm_answer_payload) < 8 or \
+                        self._gpm_answer_payload[0] != command.answer_id:
+                    error = _ERROR_INVALID_GPM_ANSWER
+                    retries -= 1
+                elif (self._gpm_answer_payload[1] & 0x1) == 1:  # Check for command error.
+                    error = command.execution_error
+                    retries -= 1
+                else:
+                    break
+            except FirmwareUpdateException as e:
+                error = str(e)
+                retries -= 1
+        if error:
+            self._exit_with_error(error)
+
+    def _read_device_gpm_info(self):
+        """
+        Reads specific GPM device information required to perform the remote firmware update.
+
+        The relevant information to retrieve is the number of blocks and bytes per block of the flash.
+
+        Raises:
+            FirmwareUpdateException: if there is any error reading the GPM device flash information.
+        """
+        _log.debug("Reading GPM device info")
+        self._execute_gpm_command(_GPMCommand.GET_PLATFORM_INFO)
+        # Store relevant values.
+        self._num_gpm_blocks = utils.bytes_to_int(self._gpm_answer_payload[2:4])
+        _log.debug(" - Number of memory blocks: %s", self._num_gpm_blocks)
+        self._num_bytes_per_blocks = utils.bytes_to_int(self._gpm_answer_payload[4:6])
+        _log.debug(" - Number of bytes per block: %s", self._num_bytes_per_blocks)
+
+    def _erase_flash(self):
+        """
+        Erases the device flash.
+
+        Raises:
+            FirmwareUpdateException: if there is any error erasing the device flash.
+        """
+        _log.debug("Erasing device flash")
+        self._execute_gpm_command(_GPMCommand.ERASE_FLASH)
+
+    def _write_data(self, block_index, byte_index, data, retries):
+        """
+        Writes data to the device.
+
+        Args:
+            block_index (Integer): the block index to write data to.
+            byte_index (Integer): the byte index in the block to write data to.
+            data (Bytearray): the data to write.
+            retries (Integer): number of retries to write data.
+
+        Raises:
+            FirmwareUpdateException: if there is any error writing the given data.
+        """
+        self._execute_gpm_command(_GPMCommand.WRITE_DATA, block_index=block_index, byte_index=byte_index,
+                                  gpm_data=data, retries=retries)
+
+    def _verify_firmware(self):
+        """
+        Verifies the firmware image in the device.
+
+        Raises:
+            FirmwareUpdateException: if there is any error verifying the firmware in the device.
+        """
+        _log.debug("Verifying firmware")
+        self._execute_gpm_command(_GPMCommand.VERIFY_IMAGE)
+
+    def _install_firmware(self):
+        """
+        Installs the firmware in the device.
+
+        Raises:
+            FirmwareUpdateException: if there is any error installing the firmware in the device.
+        """
+        _log.debug("Installing firmware")
+        self._execute_gpm_command(_GPMCommand.VERIFY_AND_INSTALL, expect_answer=False)
+
+    def _start_firmware_update(self):
+        """
+        Starts the firmware update process. Called just before the transfer firmware operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error starting the remote firmware update process.
+        """
+        self._read_device_gpm_info()
+        self._erase_flash()
+
+    def _transfer_firmware(self):
+        """
+        Transfers the firmware to the target.
+
+        Raises:
+            FirmwareUpdateException: if there is any error transferring the firmware to the target device.
+        """
+        _log.info("Updating remote XBee firmware")
+        self._progress_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
+        # Perform file transfer.
+        self._ebin_file = _EbinFile(self._xbee_firmware_file, self.__DEFAULT_PAGE_SIZE)
+        previous_percent = None
+        block_index = 0
+        byte_index = 0
+        for data_chunk in self._ebin_file.get_next_mem_page():
+            if self._progress_callback is not None and self._ebin_file.percent != previous_percent:
+                self._progress_callback(self._progress_task, self._ebin_file.percent)
+                previous_percent = self._ebin_file.percent
+            _log.debug("Sending chunk %d/%d %d%%" % (self._ebin_file.page_index + 1,
+                                                     self._ebin_file.num_pages,
+                                                     self._ebin_file.percent))
+            self._write_data(block_index, byte_index, data_chunk, 3)
+            byte_index += len(data_chunk)
+            # Increment block index if required.
+            if byte_index >= self._num_bytes_per_blocks:
+                byte_index = 0
+                block_index += 1
+
+    def _finish_firmware_update(self):
+        """
+        Finishes the firmware update process. Called just after the transfer firmware operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error finishing the firmware operation.
+        """
+        self._verify_firmware()
+        self._install_firmware()
+
+
 def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
                           timeout=None, progress_callback=None):
     """
@@ -3886,6 +4357,12 @@ def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None,
                                                      timeout=timeout,
                                                      max_block_size=max_block_size,
                                                      progress_callback=progress_callback)
+    elif bootloader_type == _BootloaderType.GEN3_BOOTLOADER:
+        update_process = _RemoteGPMFirmwareUpdater(remote_device,
+                                                   xml_firmware_file,
+                                                   xbee_firmware_file=firmware_file,
+                                                   timeout=timeout,
+                                                   progress_callback=progress_callback)
     else:
         # Bootloader not supported.
         _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
