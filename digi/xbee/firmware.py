@@ -4217,11 +4217,11 @@ def _determine_bootloader_type(target):
         # An XBee device was given. Bootloader type is determined using the device hardware version.
         try:
             was_connected = True
-            if not target.is_open():
+            if not target.is_remote() and not target.is_open():
                 target.open()
                 was_connected = False
             hardware_version = _read_device_hardware_version(target)
-            if not was_connected:
+            if not target.is_remote() and not was_connected:
                 target.close()
             return _BootloaderType.determine_bootloader_type(hardware_version)
         except XBeeException as e:
