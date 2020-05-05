@@ -3823,7 +3823,7 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     update_process.update_firmware()
 
 
-def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=None, otb_firmware_file=None,
+def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None, bootloader_file=None,
                            max_block_size=0, timeout=None, progress_callback=None):
     """
     Performs a remote firmware update operation in the given target.
@@ -3831,8 +3831,8 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
     Args:
         remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to upload its firmware.
         xml_firmware_file (String): path of the XML file that describes the firmware to upload.
-        ota_firmware_file (String, optional): path of the OTA firmware file to upload.
-        otb_firmware_file (String, optional): path of the OTB firmware file to upload (bootloader bundle).
+        firmware_file (String, optional): path of the binary firmware file to upload.
+        bootloader_file (String, optional): path of the bootloader firmware file to upload.
         max_block_size (Integer, optional): Maximum size of the ota block to send.
         timeout (Integer, optional): the timeout to wait for remote frame requests.
         progress_callback (Function, optional): function to execute to receive progress information. Receives two
@@ -3854,12 +3854,12 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
     if not _file_exists(xml_firmware_file):
         _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
-    if ota_firmware_file is not None and not _file_exists(ota_firmware_file):
-        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % ota_firmware_file)
-        raise FirmwareUpdateException(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % ota_firmware_file)
-    if otb_firmware_file is not None and not _file_exists(otb_firmware_file):
-        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % otb_firmware_file)
-        raise FirmwareUpdateException(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % otb_firmware_file)
+    if firmware_file is not None and not _file_exists(firmware_file):
+        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % firmware_file)
+        raise FirmwareUpdateException(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % firmware_file)
+    if bootloader_file is not None and not _file_exists(bootloader_file):
+        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % bootloader_file)
+        raise FirmwareUpdateException(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % bootloader_file)
     if not isinstance(max_block_size, int):
         raise ValueError("Maximum block size must be an integer")
     if max_block_size < 0 or max_block_size > 255:
@@ -3871,19 +3871,25 @@ def update_remote_firmware(remote_device, xml_firmware_file, ota_firmware_file=N
 
     if remote_device._comm_iface and remote_device._comm_iface.supports_update_firmware():
         remote_device._comm_iface.update_firmware(remote_device, xml_firmware_file,
-                                                  xbee_fw_file=ota_firmware_file,
-                                                  bootloader_fw_file=otb_firmware_file,
+                                                  xbee_fw_file=firmware_file,
+                                                  bootloader_fw_file=bootloader_file,
                                                   timeout=timeout,
                                                   progress_callback=progress_callback)
         return
 
-    update_process = _RemoteXBee3FirmwareUpdater(remote_device,
-                                                 xml_firmware_file,
-                                                 ota_firmware_file=ota_firmware_file,
-                                                 otb_firmware_file=otb_firmware_file,
-                                                 timeout=timeout,
-                                                 max_block_size=max_block_size,
-                                                 progress_callback=progress_callback)
+    bootloader_type = _determine_bootloader_type(remote_device)
+    if bootloader_type == _BootloaderType.GECKO_BOOTLOADER:
+        update_process = _RemoteXBee3FirmwareUpdater(remote_device,
+                                                     xml_firmware_file,
+                                                     ota_firmware_file=firmware_file,
+                                                     otb_firmware_file=bootloader_file,
+                                                     timeout=timeout,
+                                                     max_block_size=max_block_size,
+                                                     progress_callback=progress_callback)
+    else:
+        # Bootloader not supported.
+        _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
+        raise FirmwareUpdateException(_ERROR_BOOTLOADER_NOT_SUPPORTED)
     update_process.update_firmware()
 
 

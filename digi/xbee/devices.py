@@ -1543,8 +1543,8 @@ class AbstractXBeeDevice(object):
             raise OperationNotSupportedException("Firmware update is only supported in XBee3 devices")
         if self.is_remote():
             firmware.update_remote_firmware(self, xml_firmware_file,
-                                            ota_firmware_file=xbee_firmware_file,
-                                            otb_firmware_file=bootloader_firmware_file,
+                                            firmware_file=xbee_firmware_file,
+                                            bootloader_file=bootloader_firmware_file,
                                             timeout=timeout,
                                             max_block_size=self._fw_update_max_block_size,
                                             progress_callback=progress_callback)
