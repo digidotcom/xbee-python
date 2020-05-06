@@ -86,14 +86,16 @@ class XBeeProtocol(Enum):
             return XBeeProtocol.UNKNOWN
 
     @staticmethod
-    def determine_protocol(hardware_version, firmware_version):
+    def determine_protocol(hardware_version, firmware_version, br_value=None):
         """
         Determines the XBee protocol based on the given hardware and firmware
         versions.
 
         Args:
             hardware_version (Integer): hardware version of the protocol to determine.
-            firmware_version (String): firmware version of the protocol to determine.
+            firmware_version (Bytearray): firmware version of the protocol to determine.
+            br_value (Integer, optional, default=`None`): Value of BR setting
+                for XBee SX 900/868.
 
         Returns:
             The XBee protocol corresponding to the given hardware and firmware versions.
@@ -221,6 +223,12 @@ class XBeeProtocol(Enum):
                 return XBeeProtocol.XTEND
             elif firmware_version.startswith("8"):
                 return XBeeProtocol.XTEND_DM
+
+            if hardware_version in (HardwareVersion.SX.code,
+                                    HardwareVersion.SX_PRO.code):
+                if br_value == 0:
+                    return XBeeProtocol.DIGI_POINT
+
             return XBeeProtocol.DIGI_MESH
 
         elif hardware_version in [HardwareVersion.S2D_SMT_PRO.code,
@@ -253,7 +261,8 @@ class XBeeProtocol(Enum):
                 return XBeeProtocol.ZIGBEE
 
         elif hardware_version == HardwareVersion.XB8X.code:
-            return XBeeProtocol.DIGI_MESH
+            return XBeeProtocol.DIGI_MESH \
+                if br_value != 0 else XBeeProtocol.DIGI_POINT
 
         return XBeeProtocol.ZIGBEE
 

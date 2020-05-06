@@ -526,7 +526,8 @@ class AbstractXBeeDevice(object):
                     self._firmware_version = fw_version
 
             # Protocol:
-            self._protocol = XBeeProtocol.determine_protocol(self._hardware_version.code, self._firmware_version)
+            self._protocol = self.determine_protocol(
+                self._hardware_version.code, self._firmware_version)
 
             # 64-bit address:
             if init or self._64bit_addr is None or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
@@ -596,6 +597,27 @@ class AbstractXBeeDevice(object):
            | :meth:`.AbstractXBeeDevice.is_device_info_complete`
         """
         self._read_device_info(NetworkEventReason.READ_INFO, init=init, fire_event=fire_event)
+
+    def determine_protocol(self, hardware_version, firmware_version):
+        """
+        Determines the XBee protocol based on the given hardware and firmware
+        versions.
+
+        Args:
+            hardware_version (Integer): hardware version of the protocol to determine.
+            firmware_version (Bytearray): firmware version of the protocol to determine.
+
+        Returns:
+            The XBee protocol corresponding to the given hardware and firmware versions.
+        """
+        br_value = None
+        if hardware_version in (HardwareVersion.SX.code,
+                                HardwareVersion.SX_PRO.code,
+                                HardwareVersion.XB8X.code):
+            br_value = self.get_parameter(ATStringCommand.BR.command)[0]
+
+        return XBeeProtocol.determine_protocol(
+            hardware_version, firmware_version, br_value=br_value)
 
     def is_device_info_complete(self):
         """
@@ -2351,7 +2373,8 @@ class XBeeDevice(AbstractXBeeDevice):
             self._operating_mode = OperatingMode.get(xbee_info[0])
             self._hardware_version = HardwareVersion.get(xbee_info[1])
             self._firmware_version = utils.int_to_bytes(xbee_info[2])
-            self._protocol = XBeeProtocol.determine_protocol(self._hardware_version.code, self._firmware_version)
+            self._protocol = self.determine_protocol(
+                self._hardware_version.code, self._firmware_version)
             self._64bit_addr = XBee64BitAddress.from_hex_string(xbee_info[3])
             self._16bit_addr = XBee16BitAddress.from_hex_string(xbee_info[4])
             self._node_id = xbee_info[5]
@@ -4121,10 +4144,10 @@ class XBeeDevice(AbstractXBeeDevice):
 
         if self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                               XBeeProtocol.SMART_ENERGY, XBeeProtocol.DIGI_MESH,
-                              XBeeProtocol.DIGI_POINT, XBeeProtocol.SX]:
+                              XBeeProtocol.SX]:
             status, route = self.__get_trace_route(remote, timeout)
         else:
-            route = self, remote, [self]
+            route = self, remote, []
             status = TransmitStatus.SUCCESS
 
         if route:
@@ -4183,8 +4206,7 @@ class XBeeDevice(AbstractXBeeDevice):
                 bytearray([0])                 # Dummy payload
             )
 
-        elif self._protocol in [XBeeProtocol.DIGI_MESH,
-                                XBeeProtocol.DIGI_POINT, XBeeProtocol.SX]:
+        elif self._protocol in [XBeeProtocol.DIGI_MESH, XBeeProtocol.SX]:
             # Transmit a some information to the remote
             packet = TransmitPacket(
                 0x00,                     # Frame ID

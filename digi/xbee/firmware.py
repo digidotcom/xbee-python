@@ -2840,7 +2840,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             # Store RR value.
             self._updater_rr_value = _read_device_parameter_with_retries(self._local_device,
                                                                          ATStringCommand.RR.command)
-            if self._updater_ao_value is None:
+            if self._updater_rr_value is None:
                 self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.RR.command)
             # Set new RR value.
             if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.RR.command,
