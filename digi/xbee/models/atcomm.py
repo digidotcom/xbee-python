@@ -11,9 +11,9 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+from enum import Enum, unique
 
 from digi.xbee.models.status import ATCommandStatus
-from enum import Enum, unique
 from digi.xbee.util import utils
 
 
@@ -109,17 +109,25 @@ class ATStringCommand(Enum):
         self.__command = command
         self.__description = description
 
-    def __get_command(self):
+    @property
+    def command(self):
+        """
+        AT command alias
+
+        Returns:
+             String: The AT command alias.
+        """
         return self.__command
 
-    def __get_description(self):
+    @property
+    def description(self):
+        """
+        AT command description.
+
+        Returns:
+            String: The AT command description.
+        """
         return self.__description
-
-    command = property(__get_command)
-    """String. AT Command alias."""
-
-    description = property(__get_description)
-    """String. AT Command description"""
 
 
 ATStringCommand.__doc__ += utils.doc_enum(ATStringCommand)
@@ -144,7 +152,8 @@ class SpecialByte(Enum):
     def __init__(self, code):
         self.__code = code
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the SpecialByte element.
 
@@ -162,9 +171,12 @@ class SpecialByte(Enum):
             value (Integer): value associated to the special byte.
 
         Returns:
-            SpecialByte: SpecialByte with the given value.
+            :class:`.SpecialByte`: SpecialByte with the given value.
         """
-        return SpecialByte.lookupTable[value]
+        for special_byte in cls:
+            if special_byte.code == value:
+                return special_byte
+        return None
 
     @staticmethod
     def escape(value):
@@ -188,22 +200,17 @@ class SpecialByte(Enum):
             value (Integer): byte to check.
 
         Returns:
-            Boolean: ``True`` if value is a special byte, ``False`` in other case.
+            Boolean: `True` if value is a special byte, `False` in other case.
         """
-        return True if value in [i.value for i in SpecialByte] else False
+        return value in [i.value for i in SpecialByte]
 
-    code = property(__get_code)
-    """Integer. The special byte code."""
-
-
-SpecialByte.lookupTable = {x.code: x for x in SpecialByte}
 SpecialByte.__doc__ += utils.doc_enum(SpecialByte)
 
 
-class ATCommand(object):
+class ATCommand:
     """
-    This class represents an AT command used to read or set different properties
-    of the XBee device.
+    This class represents an AT command used to read or set different
+    properties of the XBee device.
 
     AT commands can be sent directly to the connected device or to remote
     devices and may have parameters.
@@ -213,11 +220,13 @@ class ATCommand(object):
 
     def __init__(self, command, parameter=None):
         """
-        Class constructor. Instantiates a new :class:`.ATCommand` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.ATCommand` object with
+        the provided parameters.
 
         Args:
             command (String): AT Command, must have length 2.
-            parameter (String or Bytearray, optional): The AT parameter value. Defaults to ``None``. Optional.
+            parameter (String or Bytearray, optional): The AT parameter value.
+                Defaults to `None`. Optional.
 
         Raises:
             ValueError: if command length is not 2.
@@ -226,7 +235,7 @@ class ATCommand(object):
             raise ValueError("Command length must be 2.")
 
         self.__command = command
-        self.__set_parameter(parameter)
+        self.__parameter = parameter
 
     def __str__(self):
         """
@@ -235,7 +244,8 @@ class ATCommand(object):
         Returns:
             String: representation of this ATCommand.
         """
-        return "Command: " + self.__command + "\n" + "Parameter: " + str(self.__parameter)
+        return "Command: %s - Parameter: %s" \
+               % (self.__command, str(self.__parameter))
 
     def __len__(self):
         """
@@ -246,24 +256,27 @@ class ATCommand(object):
         """
         if self.__parameter:
             return len(self.__command) + len(self.__parameter)
-        else:
-            return len(self.__command)
 
-    def __get_command(self):
+        return len(self.__command)
+
+    @property
+    def command(self):
         """
         Returns the AT command.
 
         Returns:
-            ATCommand: the AT command.
+            :class:`.ATCommand`: the AT command.
         """
         return self.__command
 
-    def __get_parameter(self):
+    @property
+    def parameter(self):
         """
         Returns the AT command parameter.
 
         Returns:
-            Bytearray: the AT command parameter. ``None`` if there is no parameter.
+            Bytearray: the AT command parameter.
+                `None` if there is no parameter.
         """
         return self.__parameter
 
@@ -272,11 +285,12 @@ class ATCommand(object):
         Returns this ATCommand parameter as a String.
 
         Returns:
-            String: this ATCommand parameter. ``None`` if there is no parameter.
+            String: this ATCommand parameter. `None` if there is no parameter.
         """
         return self.__parameter.decode() if self.__parameter else None
 
-    def __set_parameter(self, parameter):
+    @parameter.setter
+    def parameter(self, parameter):
         """
         Sets the AT command parameter.
 
@@ -288,14 +302,8 @@ class ATCommand(object):
         else:
             self.__parameter = parameter
 
-    command = property(__get_command)
-    """String. The AT command"""
 
-    parameter = property(__get_parameter, __set_parameter)
-    """Bytearray. The AT command parameter"""
-
-
-class ATCommandResponse(object):
+class ATCommandResponse:
     """
     This class represents the response of an AT Command sent by the connected
     XBee device or by a remote device after executing an AT Command.
@@ -306,24 +314,29 @@ class ATCommandResponse(object):
         Class constructor.
 
         Args:
-            command (ATCommand): The AT command that generated the response.
-            response (bytearray, optional): The command response. Default to ``None``.
-            status (ATCommandStatus, optional): The AT command status. Default to ATCommandStatus.OK
+            command (:class:`.ATCommand`): The AT command that generated the
+                response.
+            response (bytearray, optional): The command response.
+                Default to `None`.
+            status (:class:`.ATCommandStatus`, optional): The AT command
+                status. Default to ATCommandStatus.OK
         """
-        self.__atCommand = command
+        self.__at_command = command
         self.__response = response
         self.__comm_status = status
 
-    def __get_command(self):
+    @property
+    def command(self):
         """
         Returns the AT command.
 
         Returns:
-            ATCommand: the AT command.
+            :class:`.ATCommand`: the AT command.
         """
-        return self.__atCommand
+        return self.__at_command
 
-    def __get_response(self):
+    @property
+    def response(self):
         """
         Returns the AT command response.
 
@@ -332,20 +345,12 @@ class ATCommandResponse(object):
         """
         return self.__response
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the AT command response status.
 
         Returns:
-            ATCommandStatus: The AT command response status.
+            :class:`.ATCommandStatus`: The AT command response status.
         """
         return self.__comm_status
-
-    command = property(__get_command)
-    """String. The AT command."""
-
-    response = property(__get_response)
-    """Bytearray. The AT command response data."""
-
-    status = property(__get_status)
-    """ATCommandStatus. The AT command response status."""

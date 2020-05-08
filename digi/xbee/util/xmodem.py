@@ -58,22 +58,22 @@ _XMODEM_WRITE_RETRIES = 10
 
 class XModemException(Exception):
     """
-    This exception will be thrown when any problem related with the XModem/YModem transfer occurs.
+    This exception will be thrown when any problem related with the
+    XModem/YModem transfer occurs.
 
     All functionality of this class is the inherited from `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class XModemCancelException(XModemException):
     """
-    This exception will be thrown when the XModem/YModem transfer is cancelled by the remote end.
+    This exception will be thrown when the XModem/YModem transfer is cancelled
+    by the remote end.
 
     All functionality of this class is the inherited from `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class _XModemMode(Enum):
@@ -170,14 +170,15 @@ class _XModemVerificationMode(Enum):
         return self.__byte
 
 
-class _TransferFile(object):
+class _TransferFile:
     """
     Helper class used to read and split the file to transfer in data chunks.
     """
 
     def __init__(self, file_path, mode):
         """
-        Class constructor. Instantiates a new :class:`._TransferFile` with the given parameters.
+        Class constructor. Instantiates a new :class:`._TransferFile` with the
+        given parameters.
 
         Args:
             file_path (String): location of the file.
@@ -205,8 +206,8 @@ class _TransferFile(object):
                 if not read_bytes:
                     break
                 if len(read_bytes) < self._mode.block_size:
-                    # Since YModem allows for mixed block sizes transmissions, optimize
-                    # the packet size if the last block is < 128 bytes.
+                    # Since YModem allows for mixed block sizes transmissions,
+                    # optimize the packet size if the last block is < 128 bytes
                     if len(read_bytes) < _XMODEM_BLOCK_SIZE_128:
                         data = bytearray([self._mode.eof_pad] * _XMODEM_BLOCK_SIZE_128)
                     else:
@@ -248,14 +249,16 @@ class _TransferFile(object):
         return (self._chunk_index * 100) // self._num_chunks
 
 
-class _DownloadFile(object):
+class _DownloadFile:
     """
-    Helper class used to create and write the download file from the given data chunks.
+    Helper class used to create and write the download file from the given
+    data chunks.
     """
 
     def __init__(self, file_path, mode):
         """
-        Class constructor. Instantiates a new :class:`._DownloadFile` with the given parameters.
+        Class constructor. Instantiates a new :class:`._DownloadFile` with the
+        given parameters.
 
         Args:
             file_path (String): location of the file.
@@ -282,16 +285,16 @@ class _DownloadFile(object):
                 self._file = open(self._file_path, "wb+")
 
             bytes_to_write = len(data)
-            # It might be the case that the last data block contains padding data.
+            # It may happen that the last data block contains padding data.
             # Get rid of it by calculating remaining bytes to write.
             if self._size != 0:
                 bytes_to_write = min(bytes_to_write, self.size - self._written_bytes)
             self._file.write(data[0:bytes_to_write])
             self._written_bytes += bytes_to_write
             self._chunk_index += 1
-        except Exception as e:
+        except Exception as exc:
             self.close_file()
-            raise XModemException(_ERROR_XMODEM_WRITE_TO_FILE % (self._file_path, str(e)))
+            raise XModemException(_ERROR_XMODEM_WRITE_TO_FILE % (self._file_path, str(exc)))
 
     def close_file(self):
         """
@@ -377,40 +380,42 @@ class _DownloadFile(object):
         return (self._chunk_index * 100) // self._num_chunks
 
 
-class _XModemTransferSession(object):
+class _XModemTransferSession:
     """
     Helper class used to manage a XModem file transfer session.
     """
 
     def __init__(self, src_path, write_cb, read_cb, mode=_XModemMode.XMODEM, progress_cb=None, log=None):
         """
-        Class constructor. Instantiates a new :class:`._XModemTransferSession` with the given parameters.
+        Class constructor. Instantiates a new :class:`._XModemTransferSession`
+        with the given parameters.
 
         Args:
             src_path (String): absolute path of the file to transfer.
-            write_cb (Function): function to execute in order to write data to the remote end.
-                Takes the following arguments:
+            write_cb (Function): function to execute in order to write data to
+                the remote end. Takes the following arguments:
 
                     * The data to write as byte array.
 
                 The function returns the following:
 
-                    Boolean: ``True`` if the write succeeded, ``False`` otherwise
+                    Boolean: `True` if the write succeeded, `False` otherwise
 
-            read_cb (Function): function to execute in order to read data from the remote end.
-                Takes the following arguments:
+            read_cb (Function): function to execute in order to read data from
+                the remote end. Takes the following arguments:
 
                     * The size of the data to read.
                     * The timeout to wait for data. (seconds)
 
                 The function returns the following:
 
-                    Bytearray: the read data, ``None`` if data could not be read
+                    Bytearray: the read data, `None` if data could not be read
 
-            mode (:class:`._XModemMode`, optional): the XModem transfer mode. Defaults to XModem.
-            progress_cb (Function, optional): function to execute in order to receive transfer progress information.
-
-                 Takes the following arguments:
+            mode (:class:`._XModemMode`, optional): the XModem transfer mode.
+                Defaults to XModem.
+            progress_cb (Function, optional): function to execute in order to
+                receive transfer progress information. Takes the following
+                arguments:
 
                     * The progress percentage as integer.
 
@@ -446,15 +451,14 @@ class _XModemTransferSession(object):
             if verification == ord(XMODEM_CRC):
                 self._verification_mode = _XModemVerificationMode.CRC_16
                 break
-            elif verification == XMODEM_NAK:
+            if verification == XMODEM_NAK:
                 self._verification_mode = _XModemVerificationMode.CHECKSUM
                 break
-            elif verification == XMODEM_CAN:
+            if verification == XMODEM_CAN:
                 # Cancel requested from remote device.
                 raise XModemCancelException(_ERROR_XMODEM_CANCELLED)
-            else:
-                # We got either NAK or something unexpected.
-                retries -= 1
+            # We got either NAK or something unexpected.
+            retries -= 1
 
         # Check result.
         if retries <= 0:
@@ -552,12 +556,11 @@ class _XModemTransferSession(object):
             if answer == XMODEM_ACK:
                 # Block was sent successfully.
                 break
-            elif answer == XMODEM_CAN:
+            if answer == XMODEM_CAN:
                 # Cancel requested from remote device.
                 raise XModemCancelException(_ERROR_XMODEM_CANCELLED)
-            else:
-                # We got either NAK or something unexpected.
-                retries -= 1
+            # We got either NAK or something unexpected.
+            retries -= 1
 
         # Check result.
         if answer == XMODEM_NAK or retries <= 0:
@@ -591,12 +594,11 @@ class _XModemTransferSession(object):
             if answer == XMODEM_ACK:
                 # Block was sent successfully.
                 break
-            elif answer == XMODEM_CAN:
+            if answer == XMODEM_CAN:
                 # Transfer cancelled by the remote end.
                 raise XModemCancelException(_ERROR_XMODEM_CANCELLED)
-            else:
-                # We got either NAK or something unexpected.
-                retries -= 1
+            # We got either NAK or something unexpected.
+            retries -= 1
 
         # Check result.
         if answer == XMODEM_NAK or retries <= 0:
@@ -635,7 +637,7 @@ class _XModemTransferSession(object):
             self._send_empty_block_0()
 
 
-class _XModemReadSession(object):
+class _XModemReadSession:
     """
     Helper class used to manage a XModem file read session.
     """
@@ -643,35 +645,36 @@ class _XModemReadSession(object):
     def __init__(self, dest_path, write_cb, read_cb, mode=_XModemMode.XMODEM,
                  verification_mode=_XModemVerificationMode.CRC_16, progress_cb=None, log=None):
         """
-        Class constructor. Instantiates a new :class:`._XModemReadSession` with the given parameters.
+        Class constructor. Instantiates a new :class:`._XModemReadSession` with
+        the given parameters.
 
         Args:
             dest_path (String): absolute path to store downloaded file in.
-            write_cb (Function): function to execute in order to write data to the remote end.
-                Takes the following arguments:
+            write_cb (Function): function to execute in order to write data to
+                the remote end. Takes the following arguments:
 
                     * The data to write as byte array.
 
                 The function returns the following:
 
-                    Boolean: ``True`` if the write succeeded, ``False`` otherwise
+                    Boolean: `True` if the write succeeded, `False` otherwise
 
-            read_cb (Function): function to execute in order to read data from the remote end.
-                Takes the following arguments:
+            read_cb (Function): function to execute in order to read data from
+                the remote end. Takes the following arguments:
 
                     * The size of the data to read.
                     * The timeout to wait for data. (seconds)
 
                 The function returns the following:
 
-                    Bytearray: the read data, ``None`` if data could not be read
+                    Bytearray: the read data, `None` if data could not be read
 
-            mode (:class:`._XModemMode`, optional): the XModem transfer mode. Defaults to XModem.
-            verification_mode (:class:`._XModemVerificationMode`, optional): the XModem verification mode to use.
-                                                                             Defaults to 16-bit CRC.
-            progress_cb (Function, optional): function to execute in order to receive progress information.
-
-                 Takes the following arguments:
+            mode (:class:`._XModemMode`, optional): the XModem transfer mode.
+                Defaults to XModem.
+            verification_mode (:class:`._XModemVerificationMode`, optional):
+                the XModem verification mode to use. Defaults to 16-bit CRC.
+            progress_cb (Function, optional): function to execute in order to
+                receive progress information. Takes the following arguments:
 
                     * The progress percentage as integer.
 
@@ -696,7 +699,7 @@ class _XModemReadSession(object):
             retries (Integer, optional): the number of retries to perform.
 
         Returns:
-            Boolean: ``True`` if the data was sent successfully, ``False`` otherwise.
+            Boolean: `True` if data was successfully sent, `False` otherwise.
         """
         _retries = retries
         while _retries > 0:
@@ -709,7 +712,8 @@ class _XModemReadSession(object):
 
     def _send_verification_char(self):
         """
-        Sends the verification request byte to indicate we are ready to receive data.
+        Sends the verification request byte to indicate we are ready to receive
+        data.
 
         Raises:
             XModemException: if there is any error sending the verification request byte.
@@ -741,7 +745,8 @@ class _XModemReadSession(object):
 
     def _purge(self):
         """
-        Purges the remote end by consuming all data until timeout (no data) is received.
+        Purges the remote end by consuming all data until timeout (no data) is
+        received.
         """
         if self._log:
             self._log.debug("Purging remote end...")
@@ -754,7 +759,8 @@ class _XModemReadSession(object):
         Reads an XModem packet from the remote end.
 
         Returns:
-            Bytearray: the packet data without protocol overheads. If data size is 0, it means end of transmission.
+            Bytearray: the packet data without protocol overheads. If data size
+                is 0, it means end of transmission.
 
         Raises:
             XModemCancelException: if the transfer is cancelled by the remote end.
@@ -786,19 +792,19 @@ class _XModemReadSession(object):
                 if header == XMODEM_STX:
                     block_size = _XModemMode.YMODEM.block_size
                     break
-                elif header == XMODEM_SOH:
+                if header == XMODEM_SOH:
                     block_size = _XModemMode.XMODEM.block_size
                     break
-                elif header == XMODEM_EOT:
-                    # Transmission from the remote end has finished. ACK it and return an empty byte array.
+                if header == XMODEM_EOT:
+                    # Transmission from the remote end has finished. ACK it
+                    # and return an empty byte array.
                     self._send_ack()
                     return bytearray(0)
-                elif header == XMODEM_CAN:
+                if header == XMODEM_CAN:
                     # The remote end has cancelled the transfer.
                     raise XModemCancelException(_ERROR_XMODEM_CANCELLED)
-                else:
-                    # Unexpected content, read again.
-                    continue
+                # Unexpected content, read again.
+                continue
             # If header is not valid, consume one retry and try again.
             if header not in (XMODEM_STX, XMODEM_SOH):
                 retries -= 1
@@ -840,12 +846,12 @@ class _XModemReadSession(object):
                     self._send_ack()
                     self._seq_index = (self._seq_index + 1) & 0xFF
                     return data
-                else:
-                    # Checksum/CRC is invalid.
-                    if self._log:
-                        self._log.error(_ERROR_XMODEM_BAD_DATA)
+                # Checksum/CRC is invalid.
+                if self._log:
+                    self._log.error(_ERROR_XMODEM_BAD_DATA)
 
-            # Reaching this point means the packet is not valid. Purge port and send NAK before trying again.
+            # Reaching this point means the packet is not valid. Purge port
+            # and send NAK before trying again.
             self._purge()
             self._send_nak()
             retries -= 1
@@ -928,7 +934,8 @@ class _XModemReadSession(object):
 
 def _calculate_crc16_ccitt(data):
     """
-    Calculates and returns the CRC16 CCITT verification sequence of the given data.
+    Calculates and returns the CRC16 CCITT verification sequence of the given
+    data.
 
     Args:
         data (Bytearray): the data to calculate its CRC16 CCITT verification sequence.
@@ -937,9 +944,9 @@ def _calculate_crc16_ccitt(data):
         Bytearray: the CRC16 CCITT verification sequence of the given data as a 2 bytes byte array.
     """
     crc = 0x0000
-    for i in range(0, len(data)):
-        crc ^= data[i] << 8
-        for j in range(0, 8):
+    for val in data:
+        crc ^= val << 8
+        for _ in range(0, 8):
             if (crc & 0x8000) > 0:
                 crc = (crc << 1) ^ XMODEM_CRC_POLYNOMINAL
             else:
@@ -961,8 +968,8 @@ def _calculate_checksum(data):
     """
     checksum = 0
     for byte in data:
-        ch = byte & 0xFF
-        checksum += ch
+        char = byte & 0xFF
+        checksum += char
 
     return checksum & 0xFF
 
@@ -983,28 +990,27 @@ def send_file_xmodem(src_path, write_cb, read_cb, progress_cb=None, log=None):
 
     Args:
         src_path (String): absolute path of the file to transfer.
-        write_cb (Function): function to execute in order to write data to the remote end.
-            Takes the following arguments:
+        write_cb (Function): function to execute in order to write data to the
+            remote end. Takes the following arguments:
 
                 * The data to write as byte array.
 
             The function returns the following:
 
-                Boolean: ``True`` if the write succeeded, ``False`` otherwise
+                Boolean: `True` if the write succeeded, `False` otherwise.
 
-        read_cb (Function): function to execute in order to read data from the remote end.
-            Takes the following arguments:
+        read_cb (Function): function to execute in order to read data from the
+            remote end. Takes the following arguments:
 
                 * The size of the data to read.
                 * The timeout to wait for data. (seconds)
 
             The function returns the following:
 
-                Bytearray: the read data, ``None`` if data could not be read
+                Bytearray: the read data, `None` if data could not be read
 
-        progress_cb (Function, optional): function to execute in order to receive progress information.
-
-             Takes the following arguments:
+        progress_cb (Function, optional): function to execute in order to
+            receive progress information. Takes the following arguments:
 
                 * The progress percentage as integer.
 
@@ -1034,28 +1040,27 @@ def send_file_ymodem(src_path, write_cb, read_cb, progress_cb=None, log=None):
 
     Args:
         src_path (String): absolute path of the file to transfer.
-        write_cb (Function): function to execute in order to write data to the remote end.
-            Takes the following arguments:
+        write_cb (Function): function to execute in order to write data to the
+            remote end. Takes the following arguments:
 
                 * The data to write as byte array.
 
             The function returns the following:
 
-                Boolean: ``True`` if the write succeeded, ``False`` otherwise
+                Boolean: `True` if the write succeeded, `False` otherwise
 
-        read_cb (Function): function to execute in order to read data from the remote end.
-            Takes the following arguments:
+        read_cb (Function): function to execute in order to read data from the
+            remote end. Takes the following arguments:
 
                 * The size of the data to read.
                 * The timeout to wait for data. (seconds)
 
             The function returns the following:
 
-                Bytearray: the read data, ``None`` if data could not be read
+                Bytearray: the read data, `None` if data could not be read
 
-        progress_cb (Function, optional): function to execute in order to receive progress information.
-
-             Takes the following arguments:
+        progress_cb (Function, optional): function to execute in order to
+            receive progress information. Takes the following arguments:
 
                 * The progress percentage as integer.
 
@@ -1074,8 +1079,9 @@ def send_file_ymodem(src_path, write_cb, read_cb, progress_cb=None, log=None):
     if not isinstance(read_cb, collections.Callable):
         raise ValueError(_ERROR_VALUE_READ_CB)
 
-    session = _XModemTransferSession(src_path, write_cb, read_cb, mode=_XModemMode.YMODEM, progress_cb=progress_cb,
-                                     log=log)
+    session = _XModemTransferSession(
+        src_path, write_cb, read_cb, mode=_XModemMode.YMODEM,
+        progress_cb=progress_cb, log=log)
     session.transfer_file()
 
 
@@ -1085,30 +1091,29 @@ def get_file_ymodem(dest_path, write_cb, read_cb, crc=True, progress_cb=None, lo
 
     Args:
         dest_path (String): absolute path to store downloaded file in.
-        write_cb (Function): function to execute in order to write data to the remote end.
-            Takes the following arguments:
+        write_cb (Function): function to execute in order to write data to the
+            remote end. Takes the following arguments:
 
                 * The data to write as byte array.
 
             The function returns the following:
 
-                Boolean: ``True`` if the write succeeded, ``False`` otherwise
+                Boolean: `True` if the write succeeded, `False` otherwise
 
-        read_cb (Function): function to execute in order to read data from the remote end.
-            Takes the following arguments:
+        read_cb (Function): function to execute in order to read data from the
+            remote end. Takes the following arguments:
 
                 * The size of the data to read.
                 * The timeout to wait for data. (seconds)
 
             The function returns the following:
 
-                Bytearray: the read data, ``None`` if data could not be read
+                Bytearray: the read data, `None` if data could not be read
 
-        crc (Boolean, optional): ``True`` to use 16-bit CRC verification, ``False`` for standard 1 byte checksum.
-                                 Defaults to ``True``
-        progress_cb (Function, optional): function to execute in order to receive progress information.
-
-             Takes the following arguments:
+        crc (Boolean, optional): `True` to use 16-bit CRC verification, `False`
+            for standard 1 byte checksum. Defaults to `True`.
+        progress_cb (Function, optional): function to execute in order to
+            receive progress information. Takes the following arguments:
 
                 * The progress percentage as integer.
 

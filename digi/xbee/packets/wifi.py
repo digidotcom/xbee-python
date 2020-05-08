@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,21 +11,21 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+from ipaddress import IPv4Address
 
 from digi.xbee.packets.base import XBeeAPIPacket, DictKeys
 from digi.xbee.util import utils
 from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketException
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.models.mode import OperatingMode
-from digi.xbee.io import IOSample, IOLine
-from ipaddress import IPv4Address
 from digi.xbee.models.status import ATCommandStatus
+from digi.xbee.io import IOSample, IOLine
 
 
 class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
     """
-    This class represents a IO data sample RX indicator (Wi-Fi) packet. Packet is
-    built using the parameters of the constructor or providing a valid API
+    This class represents a IO data sample RX indicator (Wi-Fi) packet. Packet
+    is built using the parameters of the constructor or providing a valid API
     payload.
 
     When the module receives an IO sample frame from a remote device, it sends
@@ -43,7 +43,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
 
     def __init__(self, source_address, rssi, receive_options, rf_data=None):
         """
-        Class constructor. Instantiates a new :class:`.IODataSampleRxIndicatorWifiPacket` object with the
+        Class constructor. Instantiates a new
+        :class:`.IODataSampleRxIndicatorWifiPacket` object with the
         provided parameters.
 
         Args:
@@ -53,7 +54,7 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
             rf_data (Bytearray, optional): received RF data. Optional.
 
         Raises:
-            ValueError: if ``rf_data`` is not ``None`` and it's not valid for create an :class:`.IOSample`.
+            ValueError: if `rf_data` is not `None` and it's not valid for create an :class:`.IOSample`.
 
         .. seealso::
            | :class:`.IOSample`
@@ -77,28 +78,37 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
             :class:`.IODataSampleRxIndicatorWifiPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 16. (start delim. + length (2 bytes) + frame
-                type + source addr. (4 bytes) + rssi + receive options + rf data (5 bytes) + checksum = 16 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR_WIFI`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 16.
+                (start delim. + length (2 bytes) + frame type
+                + source addr. (4 bytes) + rssi + receive options
+                + rf data (5 bytes) + checksum = 16 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR_WIFI`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=IODataSampleRxIndicatorWifiPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=IODataSampleRxIndicatorWifiPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR_WIFI.code:
-            raise InvalidPacketException(message="This packet is not an IO data sample RX indicator Wi-Fi packet.")
+            raise InvalidPacketException(
+                message="This packet is not an IO data sample RX indicator Wi-Fi packet.")
 
-        return IODataSampleRxIndicatorWifiPacket(IPv4Address(bytes(raw[4:8])), raw[7], raw[8], rf_data=raw[9:-1])
+        return IODataSampleRxIndicatorWifiPacket(
+            IPv4Address(bytes(raw[4:8])), raw[7], raw[8], rf_data=raw[9:-1])
 
     def needs_id(self):
         """
@@ -160,7 +170,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
 
         return base
 
-    def __get_source_address(self):
+    @property
+    def source_address(self):
         """
         Returns the IPv4 address of the source device.
 
@@ -172,7 +183,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         """
         return self.__source_address
 
-    def __set_source_address(self, source_address):
+    @source_address.setter
+    def source_address(self, source_address):
         """
         Sets the IPv4 source address.
 
@@ -185,7 +197,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         if source_address is not None:
             self.__source_address = source_address
 
-    def __get_rssi(self):
+    @property
+    def rssi(self):
         """
         Returns the received Signal Strength Indicator (RSSI).
 
@@ -194,7 +207,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         """
         return self.__rssi
 
-    def __set_rssi(self, rssi):
+    @rssi.setter
+    def rssi(self, rssi):
         """
         Sets the received Signal Strength Indicator (RSSI).
 
@@ -203,7 +217,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         """
         self.__rssi = rssi
 
-    def __get_options(self):
+    @property
+    def receive_options(self):
         """
         Returns the receive options bitfield.
 
@@ -215,7 +230,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         """
         return self.__receive_options
 
-    def __set_options(self, receive_options):
+    @receive_options.setter
+    def receive_options(self, receive_options):
         """
         Sets the receive options bitfield.
 
@@ -227,7 +243,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         """
         self.__receive_options = receive_options
 
-    def __get_rf_data(self):
+    @property
+    def rf_data(self):
         """
         Returns the received RF data.
 
@@ -238,7 +255,8 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
             return None
         return self.__rf_data.copy()
 
-    def __set_rf_data(self, rf_data):
+    @rf_data.setter
+    def rf_data(self, rf_data):
         """
         Sets the received RF data.
 
@@ -256,20 +274,23 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         else:
             self.__io_sample = None
 
-    def __get_io_sample(self):
+    @property
+    def io_sample(self):
         """
         Returns the IO sample corresponding to the data contained in the packet.
 
         Returns:
-            :class:`.IOSample`: the IO sample of the packet, ``None`` if the packet has not any data or if the
-                sample could not be generated correctly.
+            :class:`.IOSample`: the IO sample of the packet, `None` if the
+                packet has not any data or if the sample could not be
+                generated correctly.
 
         .. seealso::
            | :class:`.IOSample`
         """
         return self.__io_sample
 
-    def __set_io_sample(self, io_sample):
+    @io_sample.setter
+    def io_sample(self, io_sample):
         """
         Sets the IO sample of the packet.
 
@@ -281,21 +302,6 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
         """
         self.__io_sample = io_sample
 
-    source_address = property(__get_source_address, __set_source_address)
-    """:class:`ipaddress.IPv4Address`. IPv4 source address."""
-
-    rssi = property(__get_rssi, __set_rssi)
-    """Integer. Received Signal Strength Indicator (RSSI) value."""
-
-    receive_options = property(__get_options, __set_options)
-    """Integer. Receive options bitfield."""
-
-    rf_data = property(__get_rf_data, __set_rf_data)
-    """Bytearray. Received RF data."""
-
-    io_sample = property(__get_io_sample, __set_io_sample)
-    """:class:`.IOSample`: IO sample corresponding to the data contained in the packet."""
-
 
 class RemoteATCommandWifiPacket(XBeeAPIPacket):
     """
@@ -305,7 +311,7 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
 
     Used to query or set module parameters on a remote device. For parameter
     changes on the remote device to take effect, changes must be applied, either
-    by setting the apply changes options bit, or by sending an ``AC`` command
+    by setting the apply changes options bit, or by sending an `AC` command
     to the remote node.
 
     Remote command options are set as a bitfield.
@@ -321,7 +327,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, dest_address, transmit_options, command, parameter=None):
         """
-        Class constructor. Instantiates a new :class:`.RemoteATCommandWifiPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.RemoteATCommandWifiPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (integer): the frame ID of the packet.
@@ -331,8 +338,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
             parameter (Bytearray, optional): AT command parameter. Optional.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if length of ``command`` is different than 2.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if length of `command` is different than 2.
 
         .. seealso::
            | :class:`ipaddress.IPv4Address`
@@ -360,34 +367,38 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
             :class:`.RemoteATCommandWifiPacket`
 
         Raises:
-            InvalidPacketException: if the Bytearray length is less than 17. (start delim. + length (2 bytes) + frame
-                type + frame id + dest. addr. (8 bytes) + transmit options + command (2  bytes) + checksum = 17 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.REMOTE_AT_COMMAND_REQUEST_WIFI`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the Bytearray length is less than 17.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + dest. addr. (8 bytes) + transmit options
+                + command (2  bytes) + checksum = 17 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.REMOTE_AT_COMMAND_REQUEST_WIFI`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandWifiPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=RemoteATCommandWifiPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_REQUEST_WIFI.code:
-            raise InvalidPacketException(message="This packet is not a remote AT command request Wi-Fi packet.")
+            raise InvalidPacketException(
+                message="This packet is not a remote AT command request Wi-Fi packet.")
 
-        return RemoteATCommandWifiPacket(
-            raw[4],
-            IPv4Address(bytes(raw[9:13])),
-            raw[13],
-            raw[14:16].decode("utf8"),
-            parameter=raw[16:-1]
-        )
+        return RemoteATCommandWifiPacket(raw[4], IPv4Address(bytes(raw[9:13])),
+                                         raw[13], raw[14:16].decode("utf8"),
+                                         parameter=raw[16:-1])
 
     def needs_id(self):
         """
@@ -424,7 +435,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
                 DictKeys.COMMAND:          self.__command,
                 DictKeys.PARAMETER:        list(self.__parameter) if self.__parameter is not None else None}
 
-    def __get_dest_address(self):
+    @property
+    def dest_address(self):
         """
         Returns the IPv4 address of the destination device.
 
@@ -436,7 +448,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         """
         return self.__dest_address
 
-    def __set_dest_address(self, dest_address):
+    @dest_address.setter
+    def dest_address(self, dest_address):
         """
         Sets the IPv4 destination address.
 
@@ -449,7 +462,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         if dest_address is not None:
             self.__dest_address = dest_address
 
-    def __get_transmit_options(self):
+    @property
+    def transmit_options(self):
         """
         Returns the transmit options bitfield.
 
@@ -461,7 +475,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         """
         return self.__transmit_options
 
-    def __set_transmit_options(self, transmit_options):
+    @transmit_options.setter
+    def transmit_options(self, transmit_options):
         """
         Sets the transmit options bitfield.
 
@@ -473,7 +488,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         """
         self.__transmit_options = transmit_options
 
-    def __get_command(self):
+    @property
+    def command(self):
         """
         Returns the AT command.
 
@@ -482,7 +498,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         """
         return self.__command
 
-    def __set_command(self, command):
+    @command.setter
+    def command(self, command):
         """
         Sets the AT command.
 
@@ -491,7 +508,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         """
         self.__command = command
 
-    def __get_parameter(self):
+    @property
+    def parameter(self):
         """
         Returns the AT command parameter.
 
@@ -500,7 +518,8 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         """
         return self.__parameter
 
-    def __set_parameter(self, parameter):
+    @parameter.setter
+    def parameter(self, parameter):
         """
         Sets the AT command parameter.
 
@@ -509,29 +528,17 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
         """
         self.__parameter = parameter
 
-    dest_address = property(__get_dest_address, __set_dest_address)
-    """:class:`ipaddress.IPv4Address`. IPv4 destination address."""
-
-    transmit_options = property(__get_transmit_options, __set_transmit_options)
-    """Integer. Transmit options bitfield."""
-
-    command = property(__get_command, __set_command)
-    """String. AT command."""
-
-    parameter = property(__get_parameter, __set_parameter)
-    """Bytearray. AT command parameter."""
-
 
 class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
     """
-    This class represents a remote AT command response (Wi-Fi) packet. Packet is
-    built using the parameters of the constructor or providing a valid API
+    This class represents a remote AT command response (Wi-Fi) packet. Packet
+    is built using the parameters of the constructor or providing a valid API
     payload.
 
     If a module receives a remote command response RF data frame in response
     to a Remote AT Command Request, the module will send a Remote AT Command
     Response message out the UART. Some commands may send back multiple frames
-    for example, Node Discover (``ND``) command.
+    for example, Node Discover (`ND`) command.
 
     This packet is received in response of a :class:`.RemoteATCommandPacket`.
 
@@ -548,7 +555,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, source_address, command, response_status, comm_value=None):
         """
-        Class constructor. Instantiates a new :class:`.RemoteATCommandResponseWifiPacket` object with the
+        Class constructor. Instantiates a new
+        :class:`.RemoteATCommandResponseWifiPacket` object with the
         provided parameters.
 
         Args:
@@ -559,8 +567,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
             comm_value (Bytearray, optional): the AT command response value.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if length of ``command`` is different than 2.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if length of `command` is different than 2.
 
         .. seealso::
            | :class:`.ATCommandStatus`
@@ -587,32 +595,38 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
             :class:`.RemoteATCommandResponseWifiPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 17. (start delim. + length (2 bytes) + frame
-                type + frame id + source addr. (8 bytes) +  command (2 bytes) + receive options + checksum = 17 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.REMOTE_AT_COMMAND_RESPONSE_WIFI`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 17.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + source addr. (8 bytes) +  command (2 bytes) + receive options
+                + checksum = 17 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.REMOTE_AT_COMMAND_RESPONSE_WIFI`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandResponseWifiPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=RemoteATCommandResponseWifiPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE_WIFI.code:
-            raise InvalidPacketException(message="This packet is not a remote AT command response Wi-Fi packet.")
+            raise InvalidPacketException(
+                message="This packet is not a remote AT command response Wi-Fi packet.")
 
-        return RemoteATCommandResponseWifiPacket(raw[4],
-                                                 IPv4Address(bytes(raw[9:13])),
-                                                 raw[13:15].decode("utf8"),
-                                                 ATCommandStatus.get(raw[15]),
-                                                 comm_value=raw[16:-1])
+        return RemoteATCommandResponseWifiPacket(
+            raw[4], IPv4Address(bytes(raw[9:13])), raw[13:15].decode("utf8"),
+            ATCommandStatus.get(raw[15]), comm_value=raw[16:-1])
 
     def needs_id(self):
         """
@@ -643,7 +657,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
                 DictKeys.AT_CMD_STATUS: self.__response_status,
                 DictKeys.RF_DATA:       list(self.__comm_value) if self.__comm_value is not None else None}
 
-    def __get_source_address(self):
+    @property
+    def source_address(self):
         """
         Returns the IPv4 address of the source device.
 
@@ -655,7 +670,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
         """
         return self.__source_address
 
-    def __set_source_address(self, source_address):
+    @source_address.setter
+    def source_address(self, source_address):
         """
         Sets the IPv4 source address.
 
@@ -668,7 +684,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
         if source_address is not None:
             self.__source_address = source_address
 
-    def __get_command(self):
+    @property
+    def command(self):
         """
         Returns the AT command of the packet.
 
@@ -677,7 +694,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
         """
         return self.__command
 
-    def __set_command(self, command):
+    @command.setter
+    def command(self, command):
         """
         Sets the AT command of the packet.
 
@@ -685,13 +703,14 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
             command (String): the new AT command of the packet. Must have length = 2.
 
         Raises:
-            ValueError: if length of ``command`` is different than 2.
+            ValueError: if length of `command` is different than 2.
         """
         if len(command) != 2:
             raise ValueError("Invalid command " + command)
         self.__command = command
 
-    def __get_response_status(self):
+    @property
+    def status(self):
         """
         Returns the AT command response status of the packet.
 
@@ -703,7 +722,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
         """
         return self.__response_status
 
-    def __set_response_status(self, response_status):
+    @status.setter
+    def status(self, response_status):
         """
         Sets the AT command response status of the packet
 
@@ -715,7 +735,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
         """
         self.__response_status = response_status
 
-    def __get_value(self):
+    @property
+    def command_value(self):
         """
         Returns the AT command response value.
 
@@ -724,7 +745,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
         """
         return self.__comm_value
 
-    def __set_value(self, comm_value):
+    @command_value.setter
+    def command_value(self, comm_value):
         """
         Sets the AT command response value.
 
@@ -732,15 +754,3 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
             comm_value (Bytearray): the new AT command response value.
         """
         self.__comm_value = comm_value
-
-    source_address = property(__get_source_address, __set_source_address)
-    """:class:`ipaddress.IPv4Address`. IPv4 source address."""
-
-    command = property(__get_command, __set_command)
-    """String. AT command."""
-
-    status = property(__get_response_status, __set_response_status)
-    """:class:`.ATCommandStatus`. AT command response status."""
-
-    command_value = property(__get_value, __set_value)
-    """Bytearray. AT command value."""

@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,22 +11,6 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-from digi.xbee.packets.base import *
-from digi.xbee.packets.cellular import *
-from digi.xbee.packets.common import *
-from digi.xbee.packets.devicecloud import *
-from digi.xbee.packets.digimesh import RouteInformationPacket
-from digi.xbee.packets.network import *
-from digi.xbee.packets.raw import *
-from digi.xbee.packets.relay import *
-from digi.xbee.packets.socket import *
-from digi.xbee.packets.wifi import *
-from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.models.mode import OperatingMode
-from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket,\
-    RegisterDeviceStatusPacket, RouteRecordIndicatorPacket
-
 """
 This module provides functionality to build XBee packets from
 bytearray returning the appropriate XBeePacket subclass.
@@ -34,7 +18,7 @@ bytearray returning the appropriate XBeePacket subclass.
 All the API and API2 logic is already included so all packet reads are
 independent of the XBee operating mode.
 
-Two API modes are supported and both can be enabled using the ``AP``
+Two API modes are supported and both can be enabled using the `AP`
 (API Enable) command::
 
     API1 - API Without Escapes
@@ -70,10 +54,10 @@ the byte to be escaped XOR'd with 0x20.
 
 The data bytes that need to be escaped:
 
-- ``0x7E`` - Frame Delimiter - :attr:`.SpecialByte.
-- ``0x7D`` - Escape
-- ``0x11`` - XON
-- ``0x13`` - XOFF
+- `0x7E` - Frame Delimiter - :attr:`.SpecialByte.
+- `0x7D` - Escape
+- `0x11` - XON
+- `0x13` - XOFF
 
 The length field has a two-byte value that specifies the number of
 bytes that will be contained in the frame data field. It does not include the
@@ -103,183 +87,215 @@ non-escaped data.
    | :class:`.XBeePacket`
    | :class:`.OperatingMode`
 """
+from digi.xbee.exception import InvalidPacketException
+from digi.xbee.packets.base import GenericXBeePacket, UnknownXBeePacket
+from digi.xbee.packets.cellular import TXSMSPacket, RXSMSPacket
+from digi.xbee.packets.common import ATCommPacket, ATCommQueuePacket, \
+    ATCommResponsePacket, ReceivePacket, RemoteATCommandPacket, \
+    RemoteATCommandResponsePacket, TransmitPacket, TransmitStatusPacket, \
+    ModemStatusPacket, IODataSampleRxIndicatorPacket, ExplicitAddressingPacket, \
+    ExplicitRXIndicatorPacket
+from digi.xbee.packets.devicecloud import SendDataRequestPacket, \
+    DeviceResponsePacket, SendDataResponsePacket, DeviceRequestPacket, \
+    DeviceResponseStatusPacket, FrameErrorPacket
+from digi.xbee.packets.digimesh import RouteInformationPacket
+from digi.xbee.packets.aft import ApiFrameType
+from digi.xbee.models.mode import OperatingMode
+from digi.xbee.packets.network import TXIPv4Packet, RXIPv4Packet
+from digi.xbee.packets.raw import RX64Packet, RX16Packet, TXStatusPacket, \
+    RX16IOPacket, RX64IOPacket
+from digi.xbee.packets.relay import UserDataRelayOutputPacket, \
+    UserDataRelayPacket
+from digi.xbee.packets.socket import SocketCreatePacket, \
+    SocketCreateResponsePacket, SocketOptionRequestPacket, \
+    SocketOptionResponsePacket, SocketConnectPacket, \
+    SocketConnectResponsePacket, SocketClosePacket, SocketCloseResponsePacket, \
+    SocketSendPacket, SocketSendToPacket, SocketBindListenPacket, \
+    SocketListenResponsePacket, SocketNewIPv4ClientPacket, SocketReceivePacket, \
+    SocketReceiveFromPacket, SocketStatePacket
+from digi.xbee.packets.wifi import RemoteATCommandWifiPacket, \
+    RemoteATCommandResponseWifiPacket, IODataSampleRxIndicatorWifiPacket
+from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket,\
+    RegisterDeviceStatusPacket, RouteRecordIndicatorPacket
 
 
 def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     """
     Creates a packet from raw data.
-    
+
     Args:
         packet_bytearray (Bytearray): the raw data of the packet to build.
-        operating_mode (:class:`.OperatingMode`): the operating mode in which the raw data has been captured.
+        operating_mode (:class:`.OperatingMode`): the operating mode in which
+            the raw data has been captured.
 
     .. seealso::
        | :class:`.OperatingMode`
     """
     if len(packet_bytearray) < 5:
-        raise InvalidPacketException(message="Bytearray must have, at least, 5 bytes (header, length, "
-                                             "frameType, checksum)")
+        raise InvalidPacketException(
+            message="Bytearray must have, at least, 5 bytes (header, length, "
+                    "frameType, checksum)")
 
     frame_type = ApiFrameType.get(packet_bytearray[3])
 
     if frame_type == ApiFrameType.GENERIC:
-        return GenericXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)
+        return GenericXBeePacket.create_packet(packet_bytearray,
+                                               operating_mode=operating_mode)
 
-    elif frame_type == ApiFrameType.AT_COMMAND:
+    if frame_type == ApiFrameType.AT_COMMAND:
         return ATCommPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.AT_COMMAND_QUEUE:
+    if frame_type == ApiFrameType.AT_COMMAND_QUEUE:
         return ATCommQueuePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.AT_COMMAND_RESPONSE:
+    if frame_type == ApiFrameType.AT_COMMAND_RESPONSE:
         return ATCommResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.RECEIVE_PACKET:
+    if frame_type == ApiFrameType.RECEIVE_PACKET:
         return ReceivePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.RX_64:
+    if frame_type == ApiFrameType.RX_64:
         return RX64Packet.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.RX_16:
+    if frame_type == ApiFrameType.RX_16:
         return RX16Packet.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
+    if frame_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
         return RemoteATCommandPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
+    if frame_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
         return RemoteATCommandResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.TRANSMIT_REQUEST:
+    if frame_type == ApiFrameType.TRANSMIT_REQUEST:
         return TransmitPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.TRANSMIT_STATUS:
+    if frame_type == ApiFrameType.TRANSMIT_STATUS:
         return TransmitStatusPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.MODEM_STATUS:
+    if frame_type == ApiFrameType.MODEM_STATUS:
         return ModemStatusPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.TX_STATUS:
+    if frame_type == ApiFrameType.TX_STATUS:
         return TXStatusPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.RX_IO_16:
+    if frame_type == ApiFrameType.RX_IO_16:
         return RX16IOPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.RX_IO_64:
+    if frame_type == ApiFrameType.RX_IO_64:
         return RX64IOPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR:
+    if frame_type == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR:
         return IODataSampleRxIndicatorPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.EXPLICIT_ADDRESSING:
+    if frame_type == ApiFrameType.EXPLICIT_ADDRESSING:
         return ExplicitAddressingPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.EXPLICIT_RX_INDICATOR:
+    if frame_type == ApiFrameType.EXPLICIT_RX_INDICATOR:
         return ExplicitRXIndicatorPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.TX_SMS:
+    if frame_type == ApiFrameType.TX_SMS:
         return TXSMSPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.TX_IPV4:
+    if frame_type == ApiFrameType.TX_IPV4:
         return TXIPv4Packet.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.RX_SMS:
+    if frame_type == ApiFrameType.RX_SMS:
         return RXSMSPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.USER_DATA_RELAY_OUTPUT:
+    if frame_type == ApiFrameType.USER_DATA_RELAY_OUTPUT:
         return UserDataRelayOutputPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.RX_IPV4:
+    if frame_type == ApiFrameType.RX_IPV4:
         return RXIPv4Packet.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST_WIFI:
+    if frame_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST_WIFI:
         return RemoteATCommandWifiPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SEND_DATA_REQUEST:
+    if frame_type == ApiFrameType.SEND_DATA_REQUEST:
         return SendDataRequestPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.DEVICE_RESPONSE:
+    if frame_type == ApiFrameType.DEVICE_RESPONSE:
         return DeviceResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.USER_DATA_RELAY_REQUEST:
+    if frame_type == ApiFrameType.USER_DATA_RELAY_REQUEST:
         return UserDataRelayPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE_WIFI:
+    if frame_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE_WIFI:
         return RemoteATCommandResponseWifiPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR_WIFI:
+    if frame_type == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR_WIFI:
         return IODataSampleRxIndicatorWifiPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SEND_DATA_RESPONSE:
+    if frame_type == ApiFrameType.SEND_DATA_RESPONSE:
         return SendDataResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.DEVICE_REQUEST:
+    if frame_type == ApiFrameType.DEVICE_REQUEST:
         return DeviceRequestPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.DEVICE_RESPONSE_STATUS:
+    if frame_type == ApiFrameType.DEVICE_RESPONSE_STATUS:
         return DeviceResponseStatusPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.FRAME_ERROR:
+    if frame_type == ApiFrameType.FRAME_ERROR:
         return FrameErrorPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.REGISTER_JOINING_DEVICE:
+    if frame_type == ApiFrameType.REGISTER_JOINING_DEVICE:
         return RegisterJoiningDevicePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.REGISTER_JOINING_DEVICE_STATUS:
+    if frame_type == ApiFrameType.REGISTER_JOINING_DEVICE_STATUS:
         return RegisterDeviceStatusPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.ROUTE_RECORD_INDICATOR:
+    if frame_type == ApiFrameType.ROUTE_RECORD_INDICATOR:
         return RouteRecordIndicatorPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_CREATE:
+    if frame_type == ApiFrameType.SOCKET_CREATE:
         return SocketCreatePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_CREATE_RESPONSE:
+    if frame_type == ApiFrameType.SOCKET_CREATE_RESPONSE:
         return SocketCreateResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_OPTION_REQUEST:
+    if frame_type == ApiFrameType.SOCKET_OPTION_REQUEST:
         return SocketOptionRequestPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_OPTION_RESPONSE:
+    if frame_type == ApiFrameType.SOCKET_OPTION_RESPONSE:
         return SocketOptionResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_CONNECT:
+    if frame_type == ApiFrameType.SOCKET_CONNECT:
         return SocketConnectPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_CONNECT_RESPONSE:
+    if frame_type == ApiFrameType.SOCKET_CONNECT_RESPONSE:
         return SocketConnectResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_CLOSE:
+    if frame_type == ApiFrameType.SOCKET_CLOSE:
         return SocketClosePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_CLOSE_RESPONSE:
+    if frame_type == ApiFrameType.SOCKET_CLOSE_RESPONSE:
         return SocketCloseResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_SEND:
+    if frame_type == ApiFrameType.SOCKET_SEND:
         return SocketSendPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_SENDTO:
+    if frame_type == ApiFrameType.SOCKET_SENDTO:
         return SocketSendToPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_BIND:
+    if frame_type == ApiFrameType.SOCKET_BIND:
         return SocketBindListenPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_LISTEN_RESPONSE:
+    if frame_type == ApiFrameType.SOCKET_LISTEN_RESPONSE:
         return SocketListenResponsePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_NEW_IPV4_CLIENT:
+    if frame_type == ApiFrameType.SOCKET_NEW_IPV4_CLIENT:
         return SocketNewIPv4ClientPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_RECEIVE:
+    if frame_type == ApiFrameType.SOCKET_RECEIVE:
         return SocketReceivePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_RECEIVE_FROM:
+    if frame_type == ApiFrameType.SOCKET_RECEIVE_FROM:
         return SocketReceiveFromPacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.SOCKET_STATE:
+    if frame_type == ApiFrameType.SOCKET_STATE:
         return SocketStatePacket.create_packet(packet_bytearray, operating_mode)
 
-    elif frame_type == ApiFrameType.DIGIMESH_ROUTE_INFORMATION:
+    if frame_type == ApiFrameType.DIGIMESH_ROUTE_INFORMATION:
         return RouteInformationPacket.create_packet(packet_bytearray, operating_mode)
 
-    else:
-        return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)
+    return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)

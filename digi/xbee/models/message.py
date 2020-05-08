@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -15,7 +15,7 @@
 import re
 
 
-class XBeeMessage(object):
+class XBeeMessage:
     """
     This class represents a XBee message, which is formed by a :class:`.RemoteXBeeDevice`
     (the sender) and some data (the data sent) as a bytearray.
@@ -28,8 +28,8 @@ class XBeeMessage(object):
         Args:
             data (Bytearray): the data sent.
             remote_device (:class:`.RemoteXBeeDevice`): the sender.
-            broadcast (Boolean, optional, default=``False``): flag indicating whether the  message is
-                broadcast (``True``) or not (``False``). Optional.
+            broadcast (Boolean, optional, default=`False`): flag indicating whether the  message is
+                broadcast (`True`) or not (`False`). Optional.
             timestamp: instant of time when the message was received.
         """
         self.__data = data
@@ -37,16 +37,18 @@ class XBeeMessage(object):
         self.__is_broadcast = broadcast
         self.__timestamp = timestamp
 
-    def __get_data(self):
+    @property
+    def data(self):
         """
-        Returns the data of the message.
+        Returns a bytearray containing the data of the message.
 
         Returns:
             Bytearray: the data of the message.
         """
         return self.__data
 
-    def __get_remote_device(self):
+    @property
+    def remote_device(self):
         """
         Returns the device which has sent the message.
 
@@ -55,18 +57,20 @@ class XBeeMessage(object):
         """
         return self.__remote_device
 
-    def __is_broadcast(self):
+    @property
+    def is_broadcast(self):
         """
         Returns whether the message is broadcast or not.
 
         Returns:
-            Boolean: ``True`` if the message is broadcast, ``False`` otherwise.
+            Boolean: `True` if the message is broadcast, `False` otherwise.
         """
         return self.__is_broadcast
 
-    def __get_timestamp(self):
+    @property
+    def timestamp(self):
         """
-        Returns the moment when the message was received as a ``time.time()``
+        Returns the moment when the message was received as a `time.time()`
         function returned value.
 
         Returns:
@@ -83,23 +87,12 @@ class XBeeMessage(object):
                 "Broadcast: ":   self.__is_broadcast,
                 "Received at: ": self.__timestamp}
 
-    data = property(__get_data)
-    """Bytearray. Bytearray containing the data of the message."""
-
-    remote_device = property(__get_remote_device)
-    """:class:`.RemoteXBeeDevice`. The device that has sent the message."""
-
-    is_broadcast = property(__is_broadcast)
-    """Boolean. ``True`` to indicate that the message is broadcast, ``False`` otherwise."""
-    
-    timestamp = property(__get_timestamp)
-    """Integer. Instant of time when the message was received."""
-
 
 class ExplicitXBeeMessage(XBeeMessage):
     """
-    This class represents an Explicit XBee message, which is formed by all parameters of a common XBee message and:
-    Source endpoint, destination endpoint, cluster ID, profile ID.
+    This class represents an Explicit XBee message, which is formed by all
+    parameters of a common XBee message and: Source endpoint, destination
+    endpoint, cluster ID, profile ID.
     """
 
     def __init__(self, data, remote_device, timestamp, source_endpoint,
@@ -115,8 +108,8 @@ class ExplicitXBeeMessage(XBeeMessage):
             dest_endpoint (Integer): destination endpoint of the message. 1 byte.
             cluster_id (Integer): cluster id of the message. 2 bytes.
             profile_id (Integer): profile id of the message. 2 bytes.
-            broadcast (Boolean, optional, default=``False``): flag indicating whether the message is
-                broadcast (``True``) or not (``False``). Optional.
+            broadcast (Boolean, optional, default=`False`): flag indicating whether the message is
+                broadcast (`True`) or not (`False`). Optional.
         """
         XBeeMessage.__init__(self, data, remote_device, timestamp, broadcast)
         self.__source_endpoint = source_endpoint
@@ -124,7 +117,8 @@ class ExplicitXBeeMessage(XBeeMessage):
         self.__cluster_id = cluster_id
         self.__profile_id = profile_id
 
-    def __get_source_endpoint(self):
+    @property
+    def source_endpoint(self):
         """
         Returns the source endpoint of the message.
 
@@ -133,7 +127,8 @@ class ExplicitXBeeMessage(XBeeMessage):
         """
         return self.__source_endpoint
 
-    def __get_dest_endpoint(self):
+    @property
+    def dest_endpoint(self):
         """
         Returns the destination endpoint of the message.
 
@@ -142,7 +137,8 @@ class ExplicitXBeeMessage(XBeeMessage):
         """
         return self.__dest_endpoint
 
-    def __get_cluster_id(self):
+    @property
+    def cluster_id(self):
         """
         Returns the cluster ID of the message.
 
@@ -151,7 +147,8 @@ class ExplicitXBeeMessage(XBeeMessage):
         """
         return self.__cluster_id
 
-    def __get_profile_id(self):
+    @property
+    def profile_id(self):
         """
         Returns the profile ID of the message.
 
@@ -160,7 +157,8 @@ class ExplicitXBeeMessage(XBeeMessage):
         """
         return self.__profile_id
 
-    def __set_source_endpoint(self, source_endpoint):
+    @source_endpoint.setter
+    def source_endpoint(self, source_endpoint):
         """
         Sets the source endpoint of the message.
 
@@ -169,7 +167,8 @@ class ExplicitXBeeMessage(XBeeMessage):
         """
         self.__source_endpoint = source_endpoint
 
-    def __set_dest_endpoint(self, dest_endpoint):
+    @dest_endpoint.setter
+    def dest_endpoint(self, dest_endpoint):
         """
          Sets the destination endpoint of the message.
 
@@ -178,7 +177,8 @@ class ExplicitXBeeMessage(XBeeMessage):
          """
         self.__dest_endpoint = dest_endpoint
 
-    def __set_cluster_id(self, cluster_id):
+    @cluster_id.setter
+    def cluster_id(self, cluster_id):
         """
          Sets the cluster ID of the message.
 
@@ -187,7 +187,8 @@ class ExplicitXBeeMessage(XBeeMessage):
          """
         self.__cluster_id = cluster_id
 
-    def __set_profile_id(self, profile_id):
+    @profile_id.setter
+    def profile_id(self, profile_id):
         """
          Sets the profile ID of the message.
 
@@ -197,30 +198,19 @@ class ExplicitXBeeMessage(XBeeMessage):
         self.__profile_id = profile_id
 
     def to_dict(self):
-        dc = XBeeMessage.to_dict(self)
-        dc.update({"Src_endpoint":  self.__source_endpoint,
-                   "Dest_endpoint": self.__dest_endpoint,
-                   "Cluster_id":    self.__cluster_id,
-                   "Profile_id":    self.__profile_id})
-        return dc
-
-    source_endpoint = property(__get_source_endpoint, __set_source_endpoint)
-    """Integer. The source endpoint of the message"""
-
-    dest_endpoint = property(__get_dest_endpoint, __set_dest_endpoint)
-    """Integer. The destination endpoint of the message"""
-
-    cluster_id = property(__get_cluster_id, __set_cluster_id)
-    """Integer. The Cluster ID of the message."""
-
-    profile_id = property(__get_profile_id, __set_profile_id)
-    """Integer. The profile ID of the message."""
+        msg_dict = XBeeMessage.to_dict(self)
+        msg_dict.update({"Src_endpoint":  self.__source_endpoint,
+                         "Dest_endpoint": self.__dest_endpoint,
+                         "Cluster_id":    self.__cluster_id,
+                         "Profile_id":    self.__profile_id})
+        return msg_dict
 
 
-class IPMessage(object):
+class IPMessage:
     """
-    This class represents an IP message containing the IP address the message belongs to, the source and destination
-    ports, the IP protocol, and the content (data) of the message.
+    This class represents an IP message containing the IP address the message
+    belongs to, the source and destination ports, the IP protocol, and the
+    content (data) of the message.
     """
 
     def __init__(self, ip_addr, source_port, dest_port, protocol, data):
@@ -235,11 +225,11 @@ class IPMessage(object):
             data (Bytearray): the data sent.
 
         Raises:
-            ValueError: if ``ip_addr`` is ``None``.
-            ValueError: if ``protocol`` is ``None``.
-            ValueError: if ``data`` is ``None``.
-            ValueError: if ``source_port`` is less than 0 or greater than 65535.
-            ValueError: if ``dest_port`` is less than 0 or greater than 65535.
+            ValueError: if `ip_addr` is `None`.
+            ValueError: if `protocol` is `None`.
+            ValueError: if `data` is `None`.
+            ValueError: if `source_port` is less than 0 or greater than 65535.
+            ValueError: if `dest_port` is less than 0 or greater than 65535.
         """
         if ip_addr is None:
             raise ValueError("IP address cannot be None")
@@ -259,7 +249,8 @@ class IPMessage(object):
         self.__protocol = protocol
         self.__data = data
 
-    def __get_ip_addr(self):
+    @property
+    def ip_addr(self):
         """
         Returns the IPv4 address this message is associated to.
 
@@ -268,7 +259,8 @@ class IPMessage(object):
         """
         return self.__ip_addr
 
-    def __get_source_port(self):
+    @property
+    def source_port(self):
         """
         Returns the source port of the transmission.
 
@@ -277,7 +269,8 @@ class IPMessage(object):
         """
         return self.__source_port
 
-    def __get_dest_port(self):
+    @property
+    def dest_port(self):
         """
         Returns the destination port of the transmission.
 
@@ -286,7 +279,8 @@ class IPMessage(object):
         """
         return self.__dest_port
 
-    def __get_protocol(self):
+    @property
+    def protocol(self):
         """
         Returns the protocol used in the transmission.
 
@@ -295,9 +289,10 @@ class IPMessage(object):
         """
         return self.__protocol
 
-    def __get_data(self):
+    @property
+    def data(self):
         """
-        Returns the data of the message.
+        Returns a bytearray containing the data of the message.
 
         Returns:
             Bytearray: the data of the message.
@@ -314,23 +309,8 @@ class IPMessage(object):
                 "Protocol: ":         self.__protocol,
                 "Data: ":             self.__data}
 
-    ip_addr = property(__get_ip_addr)
-    """:class:`ipaddress.IPv4Address`. The IPv4 address this message is associated to."""
 
-    source_port = property(__get_source_port)
-    """Integer. The source port of the transmission."""
-
-    dest_port = property(__get_dest_port)
-    """Integer. The destination port of the transmission."""
-
-    protocol = property(__get_protocol)
-    """:class:`.IPProtocol`. The protocol used in the transmission."""
-
-    data = property(__get_data)
-    """Bytearray. Bytearray containing the data of the message."""
-
-
-class SMSMessage(object):
+class SMSMessage:
     """
     This class represents an SMS message containing the phone number that sent
     the message and the content (data) of the message.
@@ -342,16 +322,17 @@ class SMSMessage(object):
 
     def __init__(self, phone_number, data):
         """
-        Class  constructor. Instantiates a new :class:`.SMSMessage` object with the provided parameters.
+        Class  constructor. Instantiates a new :class:`.SMSMessage` object with
+        the provided parameters.
 
         Args:
             phone_number (String): The phone number that sent the message.
             data (String): The message text.
 
         Raises:
-            ValueError: if ``phone_number`` is ``None``.
-            ValueError: if ``data`` is ``None``.
-            ValueError: if ``phone_number`` is not a valid phone number.
+            ValueError: if `phone_number` is `None`.
+            ValueError: if `data` is `None`.
+            ValueError: if `phone_number` is not a valid phone number.
         """
         if phone_number is None:
             raise ValueError("Phone number cannot be None")
@@ -363,7 +344,8 @@ class SMSMessage(object):
         self.__phone_number = phone_number
         self.__data = data
 
-    def __get_phone_number(self):
+    @property
+    def phone_number(self):
         """
         Returns the phone number that sent the message.
 
@@ -372,7 +354,8 @@ class SMSMessage(object):
         """
         return self.__phone_number
 
-    def __get_data(self):
+    @property
+    def data(self):
         """
         Returns the data of the message.
 
@@ -388,14 +371,8 @@ class SMSMessage(object):
         return {"Phone number: ": self.__phone_number,
                 "Data: ":         self.__data}
 
-    phone_number = property(__get_phone_number)
-    """String. The phone number that sent the message."""
 
-    data = property(__get_data)
-    """String. The data of the message."""
-
-
-class UserDataRelayMessage(object):
+class UserDataRelayMessage:
     """
     This class represents a user data relay message containing the source
     interface and the content (data) of the message.
@@ -406,15 +383,15 @@ class UserDataRelayMessage(object):
 
     def __init__(self, local_interface, data):
         """
-        Class constructor. Instantiates a new :class:`.UserDataRelayMessage` object with
-        the provided parameters.
+        Class constructor. Instantiates a new :class:`.UserDataRelayMessage`
+        object with the provided parameters.
 
         Args:
             local_interface (:class:`.XBeeLocalInterface`): The source XBee local interface.
             data (Bytearray): Byte array containing the data of the message.
 
         Raises:
-            ValueError: if ``relay_interface`` is ``None``.
+            ValueError: if `relay_interface` is `None`.
 
         .. seealso::
             | :class:`.XBeeLocalInterface`
@@ -425,7 +402,8 @@ class UserDataRelayMessage(object):
         self.__local_interface = local_interface
         self.__data = data
 
-    def __get_src_interface(self):
+    @property
+    def local_interface(self):
         """
         Returns the source interface that sent the message.
 
@@ -434,7 +412,8 @@ class UserDataRelayMessage(object):
         """
         return self.__local_interface
 
-    def __get_data(self):
+    @property
+    def data(self):
         """
         Returns the data of the message.
 
@@ -449,9 +428,3 @@ class UserDataRelayMessage(object):
         """
         return {"XBee local interface: ": self.__local_interface,
                 "Data: ":                 self.__data}
-
-    local_interface = property(__get_src_interface)
-    """:class:`.XBeeLocalInterface`. Source interface that sent the message."""
-
-    data = property(__get_data)
-    """Bytearray. The data of the message."""

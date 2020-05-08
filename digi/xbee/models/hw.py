@@ -98,7 +98,8 @@ class HardwareVersion(Enum):
         self.__code = code
         self.__description = description
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the HardwareVersion element.
 
@@ -107,7 +108,8 @@ class HardwareVersion(Enum):
         """
         return self.__code
 
-    def __get_description(self):
+    @property
+    def description(self):
         """
         Returns the description of the HardwareVersion element.
 
@@ -125,22 +127,13 @@ class HardwareVersion(Enum):
             code (Integer): the code of the hardware version to get.
 
         Returns:
-            :class:`HardwareVersion`: the HardwareVersion with the given code, ``None`` if there is not a
-                HardwareVersion with that code.
+            :class:`HardwareVersion`: the HardwareVersion with the given code,
+                `None` if not found.
         """
-        try:
-            return cls.lookupTable[code]
-        except KeyError:
-            return None
-
-    code = property(__get_code)
-    """Integer. The hardware version code."""
-
-    description = property(__get_description)
-    """String. The hardware version description."""
+        for version in cls:
+            if version.code == code:
+                return version
+        return None
 
 
-# Class variable of HardwareVersion. Dictionary <Integer, HardwareVersion> for
-# search HardwareVersion by code.
-HardwareVersion.lookupTable = {x.code: x for x in HardwareVersion}
 HardwareVersion.__doc__ += utils.doc_enum(HardwareVersion)

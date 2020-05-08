@@ -1,4 +1,4 @@
-# Copyright 2019, Digi International Inc.
+# Copyright 2019, 2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -32,9 +32,11 @@ class SocketInfo:
     __SEPARATOR = "\r"
     __LIST_LENGTH = 6
 
-    def __init__(self, socket_id, state, protocol, local_port, remote_port, remote_address):
+    def __init__(self, socket_id, state, protocol, local_port, remote_port,
+                 remote_address):
         """
-        Class constructor. Instantiates a ``SocketInfo`` object with the given parameters.
+        Class constructor. Instantiates a `SocketInfo` object with the given
+        parameters.
 
         Args:
             socket_id (Integer): The ID of the socket.
@@ -54,15 +56,19 @@ class SocketInfo:
     @staticmethod
     def create_socket_info(raw):
         """
-        Parses the given bytearray data and returns a ``SocketInfo`` object.
+        Parses the given bytearray data and returns a `SocketInfo` object.
 
         Args:
-            raw (Bytearray): received data from the ``SI`` command with a socket ID as argument.
+            raw (Bytearray): received data from the `SI` command with a socket
+                ID as argument.
 
         Returns:
-            :class:`.SocketInfo`: The socket information, or ``None`` if the provided data is invalid.
+            :class:`.SocketInfo`: The socket information, or `None` if the
+                provided data is invalid.
         """
-        info_array = bytearray.fromhex(utils.hex_to_string(raw)).decode("utf8").strip().split(SocketInfo.__SEPARATOR)
+        info_array = bytearray.fromhex(
+            utils.hex_to_string(raw)).decode("utf8").strip().split(
+                SocketInfo.__SEPARATOR)
         if len(info_array) != SocketInfo.__LIST_LENGTH:
             return None
         socket_id = int(info_array[0], 0)
@@ -71,27 +77,33 @@ class SocketInfo:
         local_port = int(info_array[3], 0)
         remote_port = int(info_array[4], 0)
         remote_address = info_array[5]
-        return SocketInfo(socket_id, state, protocol, local_port, remote_port, remote_address)
+        return SocketInfo(socket_id, state, protocol, local_port,
+                          remote_port, remote_address)
 
     @staticmethod
     def parse_socket_list(raw):
         """
-        Parses the given bytearray data and returns a list with the active socket IDs.
+        Parses the given bytearray data and returns a list with the active
+        socket IDs.
 
         Args:
-            raw (Bytearray): received data from the ``SI`` command.
+            raw (Bytearray): received data from the `SI` command.
 
         Returns:
-            List: list with the IDs of all active (open) sockets, or empty list if there is not any active socket.
+            List: list with the IDs of all active (open) sockets, or empty list
+                if there is not any active socket.
         """
         socket_list = list()
-        ids_array = bytearray.fromhex(utils.hex_to_string(raw)).decode("utf8").strip().split(SocketInfo.__SEPARATOR)
-        for x in ids_array:
-            if x != "":
-                socket_list.append(int(x, 0))
+        ids_array = bytearray.fromhex(
+            utils.hex_to_string(raw)).decode("utf8").strip().split(
+                SocketInfo.__SEPARATOR)
+        for soc_id in ids_array:
+            if soc_id != "":
+                socket_list.append(int(soc_id, 0))
         return socket_list
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the ID of the socket.
 
@@ -100,7 +112,8 @@ class SocketInfo:
         """
         return self.__socket_id
 
-    def __get_state(self):
+    @property
+    def state(self):
         """
         Returns the state of the socket.
 
@@ -109,7 +122,8 @@ class SocketInfo:
         """
         return self.__state
 
-    def __get_protocol(self):
+    @property
+    def protocol(self):
         """
         Returns the protocol of the socket.
 
@@ -118,16 +132,19 @@ class SocketInfo:
         """
         return self.__protocol
 
-    def __get_local_port(self):
+    @property
+    def local_port(self):
         """
         Returns the local port of the socket.
+        This is 0 unless the socket is explicitly bound to a port.
 
         Returns:
             Integer: the local port of the socket.
         """
         return self.__local_port
 
-    def __get_remote_port(self):
+    @property
+    def remote_port(self):
         """
         Returns the remote port of the socket.
 
@@ -136,9 +153,11 @@ class SocketInfo:
         """
         return self.__remote_port
 
-    def __get_remote_address(self):
+    @property
+    def remote_address(self):
         """
         Returns the remote IPv4 address of the socket.
+        This is `0.0.0.0` for an unconnected socket.
 
         Returns:
             String: the remote IPv4 address of the socket.
@@ -157,21 +176,3 @@ class SocketInfo:
                   utils.hex_to_string(utils.int_to_bytes(self.__local_port, num_bytes=2), False),
                   utils.hex_to_string(utils.int_to_bytes(self.__remote_port, num_bytes=2), False),
                   self.__remote_address)
-
-    socket_id = property(__get_socket_id)
-    """Integer. The ID of the socket."""
-
-    state = property(__get_state)
-    """:class:`.SocketInfoState`: The state of the socket."""
-
-    protocol = property(__get_protocol)
-    """:class:`.IPProtocol`: The protocol of the socket."""
-
-    local_port = property(__get_local_port)
-    """Integer: The local port of the socket. This is 0 unless the socket is explicitly bound to a port."""
-
-    remote_port = property(__get_remote_port)
-    """Integer: The remote port of the socket."""
-
-    remote_address = property(__get_remote_address)
-    """String: The remote IPv4 address of the socket. This is ``0.0.0.0`` for an unconnected socket."""

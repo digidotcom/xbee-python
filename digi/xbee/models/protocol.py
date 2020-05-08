@@ -51,7 +51,8 @@ class XBeeProtocol(Enum):
         self.__code = code
         self.__description = description
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the XBeeProtocol element.
 
@@ -60,7 +61,8 @@ class XBeeProtocol(Enum):
         """
         return self.__code
 
-    def __get_description(self):
+    @property
+    def description(self):
         """
         Returns the description of the XBeeProtocol element.
 
@@ -80,10 +82,10 @@ class XBeeProtocol(Enum):
         Returns:
             XBeeProtocol: XBeeProtocol for the given code.
         """
-        try:
-            return cls.lookupTable[code]
-        except KeyError:
-            return XBeeProtocol.UNKNOWN
+        for protocol in cls:
+            if protocol.code == code:
+                return protocol
+        return XBeeProtocol.UNKNOWN
 
     @staticmethod
     def determine_protocol(hardware_version, firmware_version, br_value=None):
@@ -106,78 +108,78 @@ class XBeeProtocol(Enum):
                 HardwareVersion.get(hardware_version) is None:
             return XBeeProtocol.UNKNOWN
 
-        elif hardware_version in [HardwareVersion.XC09_009.code,
-                                  HardwareVersion.XC09_038.code]:
+        if hardware_version in [HardwareVersion.XC09_009.code,
+                                HardwareVersion.XC09_038.code]:
             return XBeeProtocol.XCITE
 
-        elif hardware_version in [HardwareVersion.XT09_XXX.code,
-                                  HardwareVersion.XT09B_XXX.code]:
+        if hardware_version in [HardwareVersion.XT09_XXX.code,
+                                HardwareVersion.XT09B_XXX.code]:
             if ((len(firmware_version) == 4 and firmware_version.startswith("8")) or
                     (len(firmware_version) == 5 and firmware_version[1] == '8')):
                 return XBeeProtocol.XTEND_DM
             return XBeeProtocol.XTEND
 
-        elif hardware_version in [HardwareVersion.XB24_AXX_XX.code,
-                                  HardwareVersion.XBP24_AXX_XX.code]:
+        if hardware_version in [HardwareVersion.XB24_AXX_XX.code,
+                                HardwareVersion.XBP24_AXX_XX.code]:
             if len(firmware_version) == 4 and firmware_version.startswith("8"):
-                    return XBeeProtocol.DIGI_MESH
+                return XBeeProtocol.DIGI_MESH
             return XBeeProtocol.RAW_802_15_4
 
-        elif hardware_version in [HardwareVersion.XB24_BXIX_XXX.code,
-                                  HardwareVersion.XBP24_BXIX_XXX.code]:
+        if hardware_version in [HardwareVersion.XB24_BXIX_XXX.code,
+                                HardwareVersion.XBP24_BXIX_XXX.code]:
             if ((len(firmware_version) == 4 and firmware_version.startswith("1") and firmware_version.endswith("20"))
                     or (len(firmware_version) == 4 and firmware_version.startswith("2"))):
                 return XBeeProtocol.ZIGBEE
-            elif len(firmware_version) == 4 and firmware_version.startswith("3"):
+            if len(firmware_version) == 4 and firmware_version.startswith("3"):
                 return XBeeProtocol.SMART_ENERGY
             return XBeeProtocol.ZNET
 
-        elif hardware_version == HardwareVersion.XBP09_DXIX_XXX.code:
+        if hardware_version == HardwareVersion.XBP09_DXIX_XXX.code:
             if ((len(firmware_version) == 4 and firmware_version.startswith("8") or
-                (len(firmware_version) == 4 and firmware_version[1] == '8')) or
+                 (len(firmware_version) == 4 and firmware_version[1] == '8')) or
                     (len(firmware_version) == 5 and firmware_version[1] == '8')):
                 return XBeeProtocol.DIGI_MESH
             return XBeeProtocol.DIGI_POINT
 
-        elif hardware_version == HardwareVersion.XBP09_XCXX_XXX.code:
+        if hardware_version == HardwareVersion.XBP09_XCXX_XXX.code:
             return XBeeProtocol.XC
 
-        elif hardware_version == HardwareVersion.XBP08_DXXX_XXX.code:
+        if hardware_version == HardwareVersion.XBP08_DXXX_XXX.code:
             return XBeeProtocol.DIGI_POINT
 
-        elif hardware_version == HardwareVersion.XBP24B.code:
+        if hardware_version == HardwareVersion.XBP24B.code:
             if len(firmware_version) == 4 and firmware_version.startswith("3"):
                 return XBeeProtocol.SMART_ENERGY
             return XBeeProtocol.ZIGBEE
 
-        elif hardware_version in [HardwareVersion.XB24_WF.code,
-                                  HardwareVersion.WIFI_ATHEROS.code,
-                                  HardwareVersion.SMT_WIFI_ATHEROS.code]:
+        if hardware_version in [HardwareVersion.XB24_WF.code,
+                                HardwareVersion.WIFI_ATHEROS.code,
+                                HardwareVersion.SMT_WIFI_ATHEROS.code]:
             return XBeeProtocol.XBEE_WIFI
 
-        elif hardware_version in [HardwareVersion.XBP24C.code,
-                                  HardwareVersion.XB24C.code]:
+        if hardware_version in [HardwareVersion.XBP24C.code,
+                                HardwareVersion.XB24C.code]:
             if (len(firmware_version) == 4 and (firmware_version.startswith("5")) or
                     (firmware_version.startswith("6"))):
                 return XBeeProtocol.SMART_ENERGY
-            elif firmware_version.startswith("2"):
+            if firmware_version.startswith("2"):
                 return XBeeProtocol.RAW_802_15_4
-            elif firmware_version.startswith("9"):
+            if firmware_version.startswith("9"):
                 return XBeeProtocol.DIGI_MESH
             return XBeeProtocol.ZIGBEE
 
-        elif hardware_version in [HardwareVersion.XSC_GEN3.code,
-                                  HardwareVersion.SRD_868_GEN3.code]:
+        if hardware_version in [HardwareVersion.XSC_GEN3.code,
+                                HardwareVersion.SRD_868_GEN3.code]:
             if len(firmware_version) == 4 and firmware_version.startswith("8"):
                 return XBeeProtocol.DIGI_MESH
-            elif len(firmware_version) == 4 and firmware_version.startswith("1"):
+            if len(firmware_version) == 4 and firmware_version.startswith("1"):
                 return XBeeProtocol.DIGI_POINT
             return XBeeProtocol.XC
 
-        elif hardware_version == HardwareVersion.XBEE_CELL_TH.code:
+        if hardware_version == HardwareVersion.XBEE_CELL_TH.code:
             return XBeeProtocol.UNKNOWN
 
-        elif hardware_version == HardwareVersion.XLR_MODULE.code:
+        if hardware_version == HardwareVersion.XLR_MODULE.code:
             # This is for the old version of the XLR we have (K60), and it is
             # reporting the firmware of the module (8001), this will change in
             # future (after K64 integration) reporting the hardware and firmware
@@ -185,10 +187,9 @@ class XBeeProtocol(Enum):
             # TODO maybe this should be removed in future, since this case will never be released.
             if firmware_version.startswith("1"):
                 return XBeeProtocol.XLR
-            else:
-                return XBeeProtocol.XLR_MODULE
+            return XBeeProtocol.XLR_MODULE
 
-        elif hardware_version == HardwareVersion.XLR_BASEBOARD.code:
+        if hardware_version == HardwareVersion.XLR_BASEBOARD.code:
             # XLR devices with K64 will report the baseboard hardware version,
             # and also firmware version (the one we have here is 1002, but this value
             # is not being reported since is an old K60 version, the module fw version
@@ -198,30 +199,29 @@ class XBeeProtocol(Enum):
             # Probably this XLR_DM and XLR will depend on the firmware version.
             if firmware_version.startswith("1"):
                 return XBeeProtocol.XLR
-            else:
-                return XBeeProtocol.XLR_MODULE
+            return XBeeProtocol.XLR_MODULE
 
-        elif hardware_version == HardwareVersion.XB900HP_NZ.code:
+        if hardware_version == HardwareVersion.XB900HP_NZ.code:
             return XBeeProtocol.DIGI_POINT
 
-        elif hardware_version in [HardwareVersion.XBP24C_TH_DIP.code,
-                                  HardwareVersion.XB24C_TH_DIP.code,
-                                  HardwareVersion.XBP24C_S2C_SMT.code]:
+        if hardware_version in [HardwareVersion.XBP24C_TH_DIP.code,
+                                HardwareVersion.XB24C_TH_DIP.code,
+                                HardwareVersion.XBP24C_S2C_SMT.code]:
             if (len(firmware_version) == 4 and
                     (firmware_version.startswith("5") or firmware_version.startswith("6"))):
                 return XBeeProtocol.SMART_ENERGY
-            elif firmware_version.startswith("2"):
+            if firmware_version.startswith("2"):
                 return XBeeProtocol.RAW_802_15_4
-            elif firmware_version.startswith("9"):
+            if firmware_version.startswith("9"):
                 return XBeeProtocol.DIGI_MESH
             return XBeeProtocol.ZIGBEE
 
-        elif hardware_version in [HardwareVersion.SX_PRO.code,
-                                  HardwareVersion.SX.code,
-                                  HardwareVersion.XTR.code]:
+        if hardware_version in [HardwareVersion.SX_PRO.code,
+                                HardwareVersion.SX.code,
+                                HardwareVersion.XTR.code]:
             if firmware_version.startswith("2"):
                 return XBeeProtocol.XTEND
-            elif firmware_version.startswith("8"):
+            if firmware_version.startswith("8"):
                 return XBeeProtocol.XTEND_DM
 
             if hardware_version in (HardwareVersion.SX.code,
@@ -231,49 +231,41 @@ class XBeeProtocol(Enum):
 
             return XBeeProtocol.DIGI_MESH
 
-        elif hardware_version in [HardwareVersion.S2D_SMT_PRO.code,
-                                  HardwareVersion.S2D_SMT_REG.code,
-                                  HardwareVersion.S2D_TH_PRO.code,
-                                  HardwareVersion.S2D_TH_REG.code]:
+        if hardware_version in [HardwareVersion.S2D_SMT_PRO.code,
+                                HardwareVersion.S2D_SMT_REG.code,
+                                HardwareVersion.S2D_TH_PRO.code,
+                                HardwareVersion.S2D_TH_REG.code]:
             return XBeeProtocol.ZIGBEE
 
-        elif hardware_version in [HardwareVersion.CELLULAR_CAT1_LTE_VERIZON.code,
-                                  HardwareVersion.CELLULAR_3G.code,
-                                  HardwareVersion.CELLULAR_LTE_ATT.code,
-                                  HardwareVersion.CELLULAR_LTE_VERIZON.code,
-                                  HardwareVersion.CELLULAR_3_CAT1_LTE_ATT.code,
-                                  HardwareVersion.CELLULAR_3_LTE_M_VERIZON.code,
-                                  HardwareVersion.CELLULAR_3_LTE_M_ATT.code,
-                                  HardwareVersion.CELLULAR_3_CAT1_LTE_VERIZON.code]:
+        if hardware_version in [HardwareVersion.CELLULAR_CAT1_LTE_VERIZON.code,
+                                HardwareVersion.CELLULAR_3G.code,
+                                HardwareVersion.CELLULAR_LTE_ATT.code,
+                                HardwareVersion.CELLULAR_LTE_VERIZON.code,
+                                HardwareVersion.CELLULAR_3_CAT1_LTE_ATT.code,
+                                HardwareVersion.CELLULAR_3_LTE_M_VERIZON.code,
+                                HardwareVersion.CELLULAR_3_LTE_M_ATT.code,
+                                HardwareVersion.CELLULAR_3_CAT1_LTE_VERIZON.code]:
             return XBeeProtocol.CELLULAR
 
-        elif hardware_version == HardwareVersion.CELLULAR_NBIOT_EUROPE.code:
+        if hardware_version == HardwareVersion.CELLULAR_NBIOT_EUROPE.code:
             return XBeeProtocol.CELLULAR_NBIOT
 
-        elif hardware_version in [HardwareVersion.XBEE3.code,
-                                  HardwareVersion.XBEE3_SMT.code,
-                                  HardwareVersion.XBEE3_TH.code]:
+        if hardware_version in [HardwareVersion.XBEE3.code,
+                                HardwareVersion.XBEE3_SMT.code,
+                                HardwareVersion.XBEE3_TH.code]:
             if firmware_version.startswith("2"):
                 return XBeeProtocol.RAW_802_15_4
-            elif firmware_version.startswith("3"):
+            if firmware_version.startswith("3"):
                 return XBeeProtocol.DIGI_MESH
-            else:
-                return XBeeProtocol.ZIGBEE
+            return XBeeProtocol.ZIGBEE
 
-        elif hardware_version == HardwareVersion.XB8X.code:
+        if hardware_version == HardwareVersion.XB8X.code:
             return XBeeProtocol.DIGI_MESH \
                 if br_value != 0 else XBeeProtocol.DIGI_POINT
 
         return XBeeProtocol.ZIGBEE
 
-    code = property(__get_code)
-    """Integer. XBee protocol code."""
 
-    description = property(__get_description)
-    """String. XBee protocol description."""
-
-
-XBeeProtocol.lookupTable = {x.code: x for x in XBeeProtocol}
 XBeeProtocol.__doc__ += utils.doc_enum(XBeeProtocol)
 
 
@@ -295,7 +287,8 @@ class IPProtocol(Enum):
         self.__code = code
         self.__description = description
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the IP protocol.
 
@@ -304,7 +297,8 @@ class IPProtocol(Enum):
         """
         return self.__code
 
-    def __get_description(self):
+    @property
+    def description(self):
         """
         Returns the description of the IP protocol.
 
@@ -322,13 +316,13 @@ class IPProtocol(Enum):
             code (Integer): code associated to the IP protocol.
 
         Returns:
-            :class:`.IPProtocol`: IP protocol for the given code or ``None`` if there
-                is not any ``IPProtocol`` with the given code.
+            :class:`.IPProtocol`: IP protocol for the given code or `None` if
+                there is not any `IPProtocol` with the given code.
         """
-        try:
-            return cls.lookupTable[code]
-        except KeyError:
-            return None
+        for protocol in cls:
+            if protocol.code == code:
+                return protocol
+        return None
 
     @classmethod
     def get_by_description(cls, description):
@@ -339,22 +333,16 @@ class IPProtocol(Enum):
             description (String): the description of the IP Protocol to get.
 
         Returns:
-            :class:`.IPProtocol`: IP protocol for the given description or ``None`` if there
-                is not any ``IPProtocol`` with the given description.
+            :class:`.IPProtocol`: IP protocol for the given description or
+                `None` if there is not any `IPProtocol` with the given
+                description.
         """
-        for x in IPProtocol:
-            if x.description.lower() == description.lower():
-                return x
+        for prot in IPProtocol:
+            if prot.description.lower() == description.lower():
+                return prot
         return None
 
-    code = property(__get_code)
-    """Integer: IP protocol code."""
 
-    description = property(__get_description)
-    """String: IP protocol description."""
-
-
-IPProtocol.lookupTable = {x.code: x for x in IPProtocol}
 IPProtocol.__doc__ += utils.doc_enum(IPProtocol)
 
 
@@ -403,10 +391,11 @@ class Role(Enum):
         Returns the Role for the given identifier.
 
         Args:
-            identifier (Integer): the id value corresponding to the role to get.
+            identifier (Integer): the id value of the role to get.
 
         Returns:
-            :class:`.Role`: the Role with the given identifier. ``None`` if it does not exist.
+            :class:`.Role`: the Role with the given identifier. `None` if it
+                does not exist.
         """
         for item in cls:
             if identifier == item.id:

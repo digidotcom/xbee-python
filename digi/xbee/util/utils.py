@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -24,35 +24,39 @@ __MASK = 0xFF
 
 def is_bit_enabled(number, position):
     """
-    Returns whether the bit located at ``position`` within ``number`` is enabled or not.
+    Returns whether the bit located at `position` within `number` is enabled.
 
     Args:
         number (Integer): the number to check if a bit is enabled.
-        position (Integer): the position of the bit to check if is enabled in ``number``.
+        position (Integer): the position of the bit to check if is enabled in
+            `number`.
 
     Returns:
-        Boolean: ``True`` if the bit located at ``position`` within ``number`` is enabled, ``False`` otherwise.
+        Boolean: `True` if the bit located at `position` within `number` is
+            enabled, `False` otherwise.
     """
     return ((number & 0xFFFFFFFF) >> position) & 0x01 == 0x01
 
 
 def get_int_from_byte(number, offset, length):
     """
-    Reads an integer value from the given byte using the provived bit offset and length.
+    Reads an integer value from the given byte using the provived bit offset
+    and length.
 
     Args:
         number (Integer): Byte to read the integer from.
-        offset (Integer): Bit offset inside the byte to start reading (LSB = 0, MSB = 7).
+        offset (Integer): Bit offset inside the byte to start reading
+            (LSB = 0, MSB = 7).
         length (Integer): Number of bits to read.
 
     Returns:
         Integer: The integer value read.
 
     Raises:
-        ValueError: If ``number`` is lower than 0 or higher than 255.
-                    If ``offset`` is lower than 0 or higher than 7.
-                    If ``length`` is lower than 0 or higher than 8.
-                    If ``offset + length`` is higher than 8.
+        ValueError: If `number is lower than 0 or higher than 255.
+                    If `offset` is lower than 0 or higher than 7.
+                    If `length` is lower than 0 or higher than 8.
+                    If `offset + length` is higher than 8.
     """
     if number < 0 or number > 255:
         raise ValueError("Number must be between 0 and 255")
@@ -77,16 +81,16 @@ def get_int_from_byte(number, offset, length):
 def hex_string_to_bytes(hex_string):
     """
     Converts a String (composed by hex. digits) into a bytearray with same digits.
-    
+
     Args:
         hex_string (String): String (made by hex. digits) with "0x" header or not.
 
     Returns:
         Bytearray: bytearray containing the numeric value of the hexadecimal digits.
-        
+
     Raises:
         ValueError: if invalid literal for int() with base 16 is provided.
-    
+
     Example:
         >>> a = "0xFFFE"
         >>> for i in hex_string_to_bytes(a): print(i)
@@ -94,14 +98,13 @@ def hex_string_to_bytes(hex_string):
         254
         >>> print(type(hex_string_to_bytes(a)))
         <type 'bytearray'>
-        
+
         >>> b = "FFFE"
         >>> for i in hex_string_to_bytes(b): print(i)
         255
         254
         >>> print(type(hex_string_to_bytes(b)))
         <type 'bytearray'>
-        
     """
     aux = int(hex_string, 16)
     return int_to_bytes(aux)
@@ -110,13 +113,13 @@ def hex_string_to_bytes(hex_string):
 def int_to_bytes(number, num_bytes=None):
     """
     Converts the provided integer into a bytearray.
-    
-    If ``number`` has less bytes than ``num_bytes``, the resultant bytearray
+
+    If `number` has less bytes than `num_bytes`, the resultant bytearray
     is filled with zeros (0x00) starting at the beginning.
-    
-    If ``number`` has more bytes than ``num_bytes``, the resultant bytearray
+
+    If `number` has more bytes than `num_bytes`, the resultant bytearray
     is returned without changes.
-    
+
     Args:
         number (Integer): the number to convert to a bytearray.
         num_bytes (Integer): the number of bytes that the resultant bytearray will have.
@@ -130,7 +133,6 @@ def int_to_bytes(number, num_bytes=None):
         [255,254]
         >>> print(type(int_to_bytes(a)))
         <type 'bytearray'>
-        
     """
     byte_array = bytearray()
     byte_array.insert(0, number & __MASK)
@@ -150,16 +152,16 @@ def length_to_int(byte_array):
     """
     Calculates the length value for the given length field of a packet.
     Length field are bytes 1 and 2 of any packet.
-    
+
     Args:
         byte_array (Bytearray): length field of a packet.
-        
+
     Returns:
         Integer: the length value.
-    
+
     Raises:
-        ValueError: if ``byte_array`` is not a valid length field (it has length distinct than 0).
-    
+        ValueError: if `byte_array` is not a valid length field (it has length distinct than 0).
+
     Example:
         >>> b = bytearray([13,14])
         >>> c = length_to_int(b)
@@ -176,7 +178,7 @@ def length_to_int(byte_array):
 def bytes_to_int(byte_array):
     """
     Converts the provided bytearray in an Integer.
-    This integer is result of concatenate all components of ``byte_array``
+    This integer is result of concatenate all components of `byte_array`
     and convert that hex number to a decimal number.
 
     Args:
@@ -198,24 +200,28 @@ def bytes_to_int(byte_array):
     return int("".join(["%02X" % i for i in byte_array]), 16)
 
 
-def ascii_to_int(ni):
+def ascii_to_int(array):
     """
-    Converts a bytearray containing the ASCII code of each number digit in an Integer.
-    This integer is result of the number formed by all ASCII codes of the bytearray.
-    
+    Converts a bytearray containing the ASCII code of each number digit in an
+    Integer. This integer is result of the number formed by all ASCII codes of
+    the bytearray.
+
+    Args:
+        array (Bytearray): bytearray to convert in integer.
+
     Example:
-        >>> x = bytearray( [0x31,0x30,0x30] )   #0x31 => ASCII code for number 1.
-                                                #0x31,0x30,0x30 <==> 1,0,0
+        >>> x = bytearray( [0x31,0x30,0x30] )  #0x31 => ASCII code for number 1.
+                                               #0x31,0x30,0x30 <==> 1,0,0
         >>> print(ascii_to_int(x))
         100
     """
-    return int("".join([str(i - 0x30) for i in ni]))
+    return int("".join([str(i - 0x30) for i in array]))
 
 
 def int_to_ascii(number):
     """
-    Converts an integer number to a bytearray. Each element of the bytearray is the ASCII
-    code that corresponds to the digit of its position.
+    Converts an integer number to a bytearray. Each element of the bytearray is
+    the ASCII code that corresponds to the digit of its position.
 
     Args:
         number (Integer): the number to convert to an ASCII bytearray.
@@ -235,35 +241,36 @@ def int_to_ascii(number):
 
 def int_to_length(number):
     """
-    Converts am integer into a bytearray of 2 bytes corresponding to the length field of a
-    packet. If this bytearray has length 1, a byte with value 0 is added at the beginning.
+    Converts an integer into a bytearray of 2 bytes corresponding to the
+    length field of a packet. If this bytearray has length 1, a byte with value
+    0 is added at the beginning.
 
     Args:
         number (Integer): the number to convert to a length field.
 
     Returns:
-
+        Bytearray: The bytearray.
 
     Raises:
-        ValueError: if ``number`` is less than 0 or greater than 0xFFFF.
-        
+        ValueError: if `number` is less than 0 or greater than 0xFFFF.
+
     Example:
         >>> a = 0
         >>> print(hex_to_string(int_to_length(a)))
         00 00
-        
+
         >>> a = 8
         >>> print(hex_to_string(int_to_length(a)))
         00 08
-        
+
         >>> a = 200
         >>> print(hex_to_string(int_to_length(a)))
         00 C8
-        
+
         >>> a = 0xFF00
         >>> print(hex_to_string(int_to_length(a)))
         FF 00
-        
+
         >>> a = 0xFF
         >>> print(hex_to_string(int_to_length(a)))
         00 FF
@@ -278,13 +285,13 @@ def int_to_length(number):
 
 def hex_to_string(byte_array, pretty=True):
     """
-    Returns the provided bytearray in a pretty string format. All bytes are separated by blank spaces and
-    printed in hex format.
+    Returns the provided bytearray in a pretty string format. All bytes are
+    separated by blank spaces and printed in hex format.
 
     Args:
         byte_array (Bytearray): the bytearray to print in pretty string.
-        pretty (Boolean, optional): ``True`` for pretty string format, ``False`` for plain string format.
-            Default to ``True``.
+        pretty (Boolean, optional): `True` for pretty string format, `False`
+            for plain string format. Default to `True`.
 
     Returns:
         String: the bytearray formatted in a string format.
@@ -296,21 +303,21 @@ def hex_to_string(byte_array, pretty=True):
 def doc_enum(enum_class, descriptions=None):
     """
     Returns a string with the description of each value of an enumeration.
-    
+
     Args:
         enum_class (Enumeration): the Enumeration to get its values documentation.
-        descriptions (dictionary): each enumeration's item description. The key is the enumeration element name
-            and the value is the description.
-            
+        descriptions (dictionary): each enumeration's item description. The key
+            is the enumeration element name and the value is the description.
+
     Returns:
         String: the string listing all the enumeration values and their descriptions.
     """
     tab = " "*4
     data = "\n| Values:\n"
-    for x in enum_class:
-        data += """| {:s}**{:s}**{:s} {:s}\n""".format(tab, x,
-                                                       ":" if descriptions is not None else " =",
-                                                       str(x.value) if descriptions is None else descriptions[x])
+    for item in enum_class:
+        data += """| {:s}**{:s}**{:s} {:s}\n""".format(
+            tab, item, ":" if descriptions is not None else " =",
+            str(item.value) if descriptions is None else descriptions[item])
     return data + "| \n"
 
 
@@ -321,16 +328,16 @@ def enable_logger(name, level=logging.DEBUG):
     Args:
         name (String): name of the logger to enable.
         level (Integer): logging level value.
-    
+
     Assigns a default formatter and a default handler (for console).
     """
     log = logging.getLogger(name)
     log.disabled = False
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
+    handler = logging.StreamHandler()
+    handler.setLevel(level)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)-7s - %(message)s')
-    ch.setFormatter(formatter)
-    log.addHandler(ch)
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
     log.setLevel(level)
 
 
@@ -349,12 +356,12 @@ def deprecated(version, details="None"):
     """
     Decorates a method to mark as deprecated.
     This adds a deprecation note to the method docstring and also raises a
-    :class:``warning.DeprecationWarning``.
+    :class:`warning.DeprecationWarning`.
 
     Args:
         version (String): Version that deprecates this feature.
-        details (String, optional, default=``None``): Extra details to be added to the
-            method docstring and warning.
+        details (String, optional, default=`None`): Extra details to be added
+            to the method docstring and warning.
     """
     def _function_wrapper(func):
         docstring = func.__doc__ or ""

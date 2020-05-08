@@ -51,18 +51,22 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, registrant_address, options, key):
         """
-        Class constructor. Instantiates a new :class:`.RegisterJoiningDevicePacket` object with the
+        Class constructor. Instantiates a new
+        :class:`.RegisterJoiningDevicePacket` object with the
         provided parameters.
 
         Args:
             frame_id (integer): the frame ID of the packet.
-            registrant_address (:class:`.XBee64BitAddress`): the 64-bit address of the destination device.
-            options (:class:`.RegisterKeyOptions`): the register options indicating the key source.
-            key (Bytearray): key of the device to register. Up to 16 bytes if entering a Link Key or up to
-                18 bytes (16-byte code + 2 byte CRC) if entering an Install Code.
+            registrant_address (:class:`.XBee64BitAddress`): the 64-bit address
+                of the destination device.
+            options (:class:`.RegisterKeyOptions`): the register options
+                indicating the key source.
+            key (Bytearray): key of the device to register. Up to 16 bytes if
+                entering a Link Key or up to 18 bytes
+                (16-byte code + 2 byte CRC) if entering an Install Code.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.XBee64BitAddress`
@@ -87,30 +91,38 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
             :class:`.RegisterJoiningDevicePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 17. (start delim. + length (2 bytes) + frame
-                type + frame id + 64-bit registrant addr. (8 bytes) + 16-bit registrant addr. (2 bytes) + options
+            InvalidPacketException: if the bytearray length is less than 17.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + 64-bit registrant addr. (8 bytes)
+                + 16-bit registrant addr. (2 bytes) + options
                 + checksum = 17 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.REGISTER_JOINING_DEVICE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.REGISTER_JOINING_DEVICE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
+            raise InvalidOperatingModeException(
+                operating_mode.name + " is not supported.")
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=RegisterJoiningDevicePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=RegisterJoiningDevicePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REGISTER_JOINING_DEVICE.code:
-            raise InvalidPacketException("This packet is not a Register Joining Device packet.")
+            raise InvalidPacketException(
+                "This packet is not a Register Joining Device packet.")
 
-        return RegisterJoiningDevicePacket(raw[4],
-                                           XBee64BitAddress(raw[5:13]),
+        return RegisterJoiningDevicePacket(raw[4], XBee64BitAddress(raw[5:13]),
                                            RegisterKeyOptions.get(raw[15]),
                                            raw[16:-1])
 
@@ -151,7 +163,8 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
                                                    self.__options.description),
                 DictKeys.KEY:         list(self.__key) if self.__key is not None else None}
 
-    def __get_registrant_address(self):
+    @property
+    def registrant_address(self):
         """
         Returns the 64-bit registrant address.
 
@@ -163,12 +176,14 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         """
         return self.__registrant_address
 
-    def __set_registrant_address(self, registrant_address):
+    @registrant_address.setter
+    def registrant_address(self, registrant_address):
         """
         Sets the 64-bit registrant address.
 
         Args:
-            registrant_address (:class:`.XBee64BitAddress`): The new 64-bit registrant address.
+            registrant_address (:class:`.XBee64BitAddress`): The new 64-bit
+                registrant address.
 
         .. seealso::
            | :class:`.XBee64BitAddress`
@@ -176,7 +191,8 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         if registrant_address is not None:
             self.__registrant_address = registrant_address
 
-    def __get_options(self):
+    @property
+    def options(self):
         """
         Returns the register options value.
 
@@ -188,7 +204,8 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         """
         return self.__options
 
-    def __set_options(self, options):
+    @options.setter
+    def options(self, options):
         """
         Sets the register options value.
 
@@ -200,7 +217,8 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         """
         self.__options = options
 
-    def __get_key(self):
+    @property
+    def key(self):
         """
         Returns the register key.
 
@@ -211,7 +229,8 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
             return None
         return self.__key.copy()
 
-    def __set_key(self, key):
+    @key.setter
+    def key(self, key):
         """
         Sets the register key.
 
@@ -222,15 +241,6 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
             self.__key = None
         else:
             self.__key = key.copy()
-
-    registrant_address = property(__get_registrant_address, __set_registrant_address)
-    """:class:`.XBee64BitAddress`. Registrant 64-bit address."""
-
-    options = property(__get_options, __set_options)
-    """:class:`.RegisterKeyOptions`. Register options."""
-
-    key = property(__get_key, __set_key)
-    """Bytearray. Register key."""
 
 
 class RegisterDeviceStatusPacket(XBeeAPIPacket):
@@ -252,15 +262,17 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, status):
         """
-        Class constructor. Instantiates a new :class:`.RegisterDeviceStatusPacket` object with the
+        Class constructor. Instantiates a new
+        :class:`.RegisterDeviceStatusPacket` object with the
         provided parameters.
 
         Args:
             frame_id (integer): the frame ID of the packet.
-            status (:class:`.ZigbeeRegisterStatus`): status of the register device operation.
+            status (:class:`.ZigbeeRegisterStatus`): status of the register
+                device operation.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -282,28 +294,37 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
             :class:`.RegisterDeviceStatusPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 17. (start delim. + length (2 bytes) + frame
-                type + frame id + status + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                1 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.REGISTER_JOINING_DEVICE_STATUS`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 17.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + status + checksum = 7 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 1 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.REGISTER_JOINING_DEVICE_STATUS`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
-            raise InvalidOperatingModeException(operating_mode.name + " is not supported.")
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
+            raise InvalidOperatingModeException(
+                operating_mode.name + " is not supported.")
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=RegisterDeviceStatusPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=RegisterDeviceStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REGISTER_JOINING_DEVICE_STATUS.code:
-            raise InvalidPacketException("This packet is not a Register Device Status packet.")
+            raise InvalidPacketException(
+                "This packet is not a Register Device Status packet.")
 
-        return RegisterDeviceStatusPacket(raw[4], ZigbeeRegisterStatus.get(raw[5]))
+        return RegisterDeviceStatusPacket(
+            raw[4], ZigbeeRegisterStatus.get(raw[5]))
 
     def needs_id(self):
         """
@@ -333,7 +354,8 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
         return {DictKeys.STATUS: "%s (%s)" % (self.__status.code,
                                               self.__status.description)}
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the register device status.
 
@@ -345,7 +367,8 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
         """
         return self.__status
 
-    def __set_status(self, status):
+    @status.setter
+    def status(self, status):
         """
         Sets the register device status.
 
@@ -357,9 +380,6 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
         """
         self.__status = status
 
-    status = property(__get_status, __set_status)
-    """:class:`.ZigbeeRegisterStatus`. Register device status."""
-
 
 class RouteRecordIndicatorPacket(XBeeAPIPacket):
     """
@@ -368,8 +388,8 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
     payload.
 
     The route record indicator is received whenever a device sends a Zigbee
-    route record command. This is used with many-to-one routing to create source
-    routes for devices in a network.
+    route record command. This is used with many-to-one routing to create
+    source routes for devices in a network.
 
     Among received data, some options can also be received indicating
     transmission parameters.
@@ -431,15 +451,15 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
                 :attr:`.ApiFrameType.ROUTE_RECORD_INDICATOR`.
             InvalidPacketException: If the number of hops does not match with
                 the number of 16-bit addresses.
-            InvalidOperatingModeException: If ``operating_mode`` is not
+            InvalidOperatingModeException: If `operating_mode` is not
                 supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE,
-                                  OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(
                 operating_mode.name + " is not supported.")
 
@@ -456,10 +476,9 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
             raise InvalidPacketException("Specified number of hops does not"
                                          "match with the length of addresses.")
 
-        return RouteRecordIndicatorPacket(XBee64BitAddress(raw[4:12]),
-                                          XBee16BitAddress(raw[12:14]),
-                                          raw[14],
-                                          hops)
+        return RouteRecordIndicatorPacket(
+            XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]),
+            raw[14], hops)
 
     def needs_id(self):
         """
@@ -690,8 +709,8 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
         Raises:
             InvalidPacketException: If the bytearray length is less than 18.
                 (start delim. + length (2 bytes) + frame type + frame id +
-                 64-bit addr. + 16-bit addr. + Route command options + num of addrs
-                 + hops 16-bit addrs + checksum = 18 bytes).
+                64-bit addr. + 16-bit addr. + Route command options
+                + num of addrs + hops 16-bit addrs + checksum = 18 bytes).
             InvalidPacketException: If the length field of `raw` is different
                 from its real length. (length field: bytes 1 and 3)
             InvalidPacketException: If the first byte of 'raw' is not the
@@ -702,15 +721,15 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
                 :attr:`.ApiFrameType.CREATE_SOURCE_ROUTE`.
             InvalidPacketException: If the number of hops does not match with
                 the number of 16-bit addresses.
-            InvalidOperatingModeException: If ``operating_mode`` is not
+            InvalidOperatingModeException: If `operating_mode` is not
                 supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE,
-                                  OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(
                 operating_mode.name + " is not supported.")
 
@@ -727,8 +746,9 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
             raise InvalidPacketException("Specified number of hops does not"
                                          "match with the length of addresses.")
 
-        return CreateSourceRoutePacket(raw[4], XBee64BitAddress(raw[5:13]),
-                                       XBee16BitAddress(raw[13:15]), raw[15], hops)
+        return CreateSourceRoutePacket(
+            raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
+            raw[15], hops)
 
     def needs_id(self):
         """

@@ -1,4 +1,4 @@
-# Copyright 2019, Digi International Inc.
+# Copyright 2019, 2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -41,7 +41,8 @@ class SocketCreatePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, protocol):
         """
-        Class constructor. Instantiates a new :class:`.SocketCreatePacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketCreatePacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -52,7 +53,7 @@ class SocketCreatePacket(XBeeAPIPacket):
            | :class:`.IPProtocol`
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -70,26 +71,33 @@ class SocketCreatePacket(XBeeAPIPacket):
             :class:`.SocketCreatePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 7. (start delim. + length (2 bytes) + frame
-                type + frame id + protocol + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_CREATE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 7.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + protocol + checksum = 7 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_CREATE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketCreatePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketCreatePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_CREATE.code:
-            raise InvalidPacketException(message="This packet is not a Socket Create packet.")
+            raise InvalidPacketException(
+                message="This packet is not a Socket Create packet.")
 
         return SocketCreatePacket(raw[4], IPProtocol.get(raw[5]))
 
@@ -120,7 +128,8 @@ class SocketCreatePacket(XBeeAPIPacket):
         """
         return {DictKeys.IP_PROTOCOL.value: "%s (%s)" % (self.__protocol.code, self.__protocol.description)}
 
-    def __get_protocol(self):
+    @property
+    def protocol(self):
         """
         Returns the communication protocol.
 
@@ -132,7 +141,8 @@ class SocketCreatePacket(XBeeAPIPacket):
         """
         return self.__protocol
 
-    def __set_protocol(self, protocol):
+    @protocol.setter
+    def protocol(self, protocol):
         """
         Sets the communication protocol.
 
@@ -143,9 +153,6 @@ class SocketCreatePacket(XBeeAPIPacket):
            | :class:`.IPProtocol`
         """
         self.__protocol = protocol
-
-    protocol = property(__get_protocol, __set_protocol)
-    """:class:`.IPProtocol`. Communication protocol."""
 
 
 class SocketCreateResponsePacket(XBeeAPIPacket):
@@ -169,7 +176,8 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, status):
         """
-        Class constructor. Instantiates a new :class:`.SocketCreateResponsePacket` object with the provided parameters.
+        Class constructor. Instantiates a new
+        :class:`.SocketCreateResponsePacket` object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -181,8 +189,8 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -203,28 +211,36 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
             :class:`.SocketCreateResponsePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 8. (start delim. + length (2 bytes) + frame
-                type + frame id + socket id + status + checksum = 8 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_CREATE_RESPONSE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 8.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket id + status + checksum = 8 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_CREATE_RESPONSE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketCreateResponsePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketCreateResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_CREATE_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not a Socket Create Response packet.")
+            raise InvalidPacketException(
+                message="This packet is not a Socket Create Response packet.")
 
-        return SocketCreateResponsePacket(raw[4], raw[5], SocketStatus.get(raw[6]))
+        return SocketCreateResponsePacket(
+            raw[4], raw[5], SocketStatus.get(raw[6]))
 
     def needs_id(self):
         """
@@ -257,7 +273,8 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
         return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
                 DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the the socket ID.
 
@@ -266,7 +283,8 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -274,13 +292,14 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
             socket_id (Integer): the new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__socket_id = socket_id
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the socket create status.
 
@@ -292,7 +311,8 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
         """
         return self.__status
 
-    def __set_status(self, status):
+    @status.setter
+    def status(self, status):
         """
         Sets the socket create status.
 
@@ -303,12 +323,6 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
         """
         self.__status = status
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    status = property(__get_status, __set_status)
-    """:class:`.SocketStatus`. Socket create status."""
 
 
 class SocketOptionRequestPacket(XBeeAPIPacket):
@@ -331,7 +345,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, option, option_data=None):
         """
-        Class constructor. Instantiates a new :class:`.SocketOptionRequestPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketOptionRequestPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -344,8 +359,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
            | :class:`.SocketOption`
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -367,28 +382,36 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
             :class:`.SocketOptionRequestPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 8. (start delim. + length (2 bytes) + frame
-                type + frame id + socket id + option + checksum = 8 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_OPTION_REQUEST`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 8.
+                (start delim. + length (2 bytes) + frame type + frame id
+                    + socket id + option + checksum = 8 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: byte 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_OPTION_REQUEST`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketOptionRequestPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketOptionRequestPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_OPTION_REQUEST.code:
-            raise InvalidPacketException(message="This packet is not a Socket Option Request packet.")
+            raise InvalidPacketException(
+                message="This packet is not a Socket Option Request packet.")
 
-        return SocketOptionRequestPacket(raw[4], raw[5], SocketOption.get(raw[6]), raw[7:-1])
+        return SocketOptionRequestPacket(
+            raw[4], raw[5], SocketOption.get(raw[6]), raw[7:-1])
 
     def needs_id(self):
         """
@@ -422,11 +445,11 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         """
         return {DictKeys.SOCKET_ID.value:   utils.hex_to_string(bytearray([self.__socket_id])),
                 DictKeys.OPTION_ID.value:   "%s (%s)" % (self.__option.code, self.__option.description),
-                DictKeys.OPTION_DATA.value: utils.hex_to_string(self.__option_data,
-                                                                True) if self.__option_data is not None
-                else None}
+                DictKeys.OPTION_DATA.value: utils.hex_to_string(
+                    self.__option_data, True) if self.__option_data is not None else None}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the the socket ID.
 
@@ -435,7 +458,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -443,13 +467,14 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
             socket_id (Integer): the new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__socket_id = socket_id
 
-    def __get_option(self):
+    @property
+    def option(self):
         """
         Returns the socket option.
 
@@ -461,7 +486,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         """
         return self.__option
 
-    def __set_option(self, option):
+    @option.setter
+    def option(self, option):
         """
         Sets the socket option.
 
@@ -473,7 +499,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         """
         self.__option = option
 
-    def __get_option_data(self):
+    @property
+    def option_data(self):
         """
         Returns the socket option data.
 
@@ -482,7 +509,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         """
         return self.__option_data if self.__option_data is None else self.__option_data.copy()
 
-    def __set_option_data(self, option_data):
+    @option_data.setter
+    def option_data(self, option_data):
         """
         Sets the socket option data.
 
@@ -490,15 +518,6 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
             option_data (Bytearray): the new socket option data.
         """
         self.__option_data = None if option_data is None else option_data.copy()
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    option = property(__get_option, __set_option)
-    """:class:`.SocketOption`. Socket option."""
-
-    option_data = property(__get_option_data, __set_option_data)
-    """Bytearray. Socket option data."""
 
 
 class SocketOptionResponsePacket(XBeeAPIPacket):
@@ -518,7 +537,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, option, status, option_data=None):
         """
-        Class constructor. Instantiates a new :class:`.SocketOptionResponsePacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketOptionResponsePacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -533,8 +553,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -557,29 +577,37 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
             :class:`.SocketOptionResponsePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 9. (start delim. + length (2 bytes) + frame
-                type + frame id + socket id + option + status + checksum = 9 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_OPTION_RESPONSE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 9.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket id + option + status + checksum = 9 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+            header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_OPTION_RESPONSE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketOptionResponsePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketOptionResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_OPTION_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not a Socket Option Response packet.")
+            raise InvalidPacketException(
+                message="This packet is not a Socket Option Response packet.")
 
-        return SocketOptionResponsePacket(raw[4], raw[5], SocketOption.get(raw[6]), SocketStatus.get(raw[7]),
-                                          raw[8:-1])
+        return SocketOptionResponsePacket(raw[4], raw[5],
+                                          SocketOption.get(raw[6]),
+                                          SocketStatus.get(raw[7]), raw[8:-1])
 
     def needs_id(self):
         """
@@ -618,7 +646,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
                 DictKeys.OPTION_DATA.value: utils.hex_to_string(self.__option_data,
                                                                 True) if self.__option_data is not None else None}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the the socket ID.
 
@@ -627,7 +656,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -635,13 +665,14 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
             socket_id (Integer): the new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__socket_id = socket_id
 
-    def __get_option(self):
+    @property
+    def option(self):
         """
         Returns the socket option.
 
@@ -653,7 +684,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         """
         return self.__option
 
-    def __set_option(self, option):
+    @option.setter
+    def option(self, option):
         """
         Sets the socket option.
 
@@ -665,7 +697,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         """
         self.__option = option
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the socket option status.
 
@@ -677,7 +710,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         """
         return self.__status
 
-    def __set_status(self, status):
+    @status.setter
+    def status(self, status):
         """
         Sets the socket option status.
 
@@ -689,7 +723,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         """
         self.__status = status
 
-    def __get_option_data(self):
+    @property
+    def option_data(self):
         """
         Returns the socket option data.
 
@@ -698,7 +733,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         """
         return self.__option_data if self.__option_data is None else self.__option_data.copy()
 
-    def __set_option_data(self, option_data):
+    @option_data.setter
+    def option_data(self, option_data):
         """
         Sets the socket option data.
 
@@ -706,18 +742,6 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
             option_data (Bytearray): the new socket option data.
         """
         self.__option_data = None if option_data is None else option_data.copy()
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    option = property(__get_option, __set_option)
-    """:class:`.SocketOption`. Socket option."""
-
-    status = property(__get_status, __set_status)
-    """:class:`SocketStatus`. Socket option status"""
-
-    option_data = property(__get_option_data, __set_option_data)
-    """Bytearray. Socket option data."""
 
 
 class SocketConnectPacket(XBeeAPIPacket):
@@ -772,12 +796,12 @@ class SocketConnectPacket(XBeeAPIPacket):
            | :class:`.XBeeAPIPacket`
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
-            ValueError: if ``dest_port`` is less than 0 or greater than 65535.
-            ValueError: if ``dest_address_type`` is different than :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+            ValueError: if `dest_port` is less than 0 or greater than 65535.
+            ValueError: if `dest_address_type` is different than :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
                         :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
-            ValueError: if ``dest_address`` is ``None`` or does not follow the format specified in the configured type.
+            ValueError: if `dest_address` is `None` or does not follow the format specified in the configured type.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -790,9 +814,9 @@ class SocketConnectPacket(XBeeAPIPacket):
                                                                             SocketConnectPacket.DEST_ADDRESS_STRING))
         if (dest_address is None
                 or (dest_address_type == SocketConnectPacket.DEST_ADDRESS_BINARY
-                    and (type(dest_address) is not bytearray or len(dest_address) != 4))
+                    and (not isinstance(dest_address, bytearray) or len(dest_address) != 4))
                 or (dest_address_type == SocketConnectPacket.DEST_ADDRESS_STRING
-                    and (type(dest_address) is not str or len(dest_address) < 1))):
+                    and (not isinstance(dest_address, str) or len(dest_address) < 1))):
             raise ValueError("Invalid destination address")
 
         super().__init__(ApiFrameType.SOCKET_CONNECT)
@@ -811,34 +835,42 @@ class SocketConnectPacket(XBeeAPIPacket):
             :class:`.SocketConnectPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 11. (start delim. + length (2 bytes) + frame
-                type + frame id + socket id + dest port (2 bytes) + dest address type + dest_address + checksum =
-                11 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_CONNECT`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 11.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket id + dest port (2 bytes) + dest address type
+                + dest_address + checksum = 11 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_CONNECT`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketConnectPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketConnectPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_CONNECT.code:
-            raise InvalidPacketException(message="This packet is not a Socket Connect packet.")
+            raise InvalidPacketException(
+                message="This packet is not a Socket Connect packet.")
 
         addr_type = raw[8]
         address = raw[9:-1]
         if address is not None and addr_type == SocketConnectPacket.DEST_ADDRESS_STRING:
             address = address.decode("utf8")
 
-        return SocketConnectPacket(raw[4], raw[5], utils.bytes_to_int(raw[6:8]), addr_type, address)
+        return SocketConnectPacket(
+            raw[4], raw[5], utils.bytes_to_int(raw[6:8]), addr_type, address)
 
     def needs_id(self):
         """
@@ -860,7 +892,7 @@ class SocketConnectPacket(XBeeAPIPacket):
         ret.append(self.__socket_id)
         ret += utils.int_to_bytes(self.__dest_port, num_bytes=2)
         ret.append(self.__dest_address_type)
-        ret += self.__dest_address.encode() if type(self.__dest_address) is str else self.__dest_address
+        ret += self.__dest_address.encode() if isinstance(self.__dest_address, str) else self.__dest_address
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -870,16 +902,17 @@ class SocketConnectPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value:      utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.DEST_PORT.value:      "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__dest_port,
-                                                                                                   num_bytes=2)),
-                                                            self.__dest_port),
+        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
+                DictKeys.DEST_PORT.value: "%s (%s)"
+                                          % (utils.hex_to_string(utils.int_to_bytes(self.__dest_port, num_bytes=2)),
+                                             self.__dest_port),
                 DictKeys.DEST_ADDR_TYPE.value: utils.hex_to_string(bytearray([self.__dest_address_type])),
-                DictKeys.DEST_ADDR.value:      ("%s (%s)" % (utils.hex_to_string(self.__dest_address.encode()),
-                                                             self.__dest_address)) if type(self.__dest_address) is str
-                else utils.hex_to_string(self.__dest_address)}
+                DictKeys.DEST_ADDR.value:      ("%s (%s)" % (
+                    utils.hex_to_string(
+                        self.__dest_address.encode()), self.__dest_address)) if isinstance(self.__dest_address, str) else utils.hex_to_string(self.__dest_address)}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the the socket ID.
 
@@ -888,7 +921,8 @@ class SocketConnectPacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -896,13 +930,14 @@ class SocketConnectPacket(XBeeAPIPacket):
             socket_id (Integer): the new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__socket_id = socket_id
 
-    def __get_dest_port(self):
+    @property
+    def dest_port(self):
         """
         Returns the destination port.
 
@@ -911,7 +946,8 @@ class SocketConnectPacket(XBeeAPIPacket):
         """
         return self.__dest_port
 
-    def __set_dest_port(self, dest_port):
+    @dest_port.setter
+    def dest_port(self, dest_port):
         """
         Sets the destination port.
 
@@ -919,13 +955,14 @@ class SocketConnectPacket(XBeeAPIPacket):
             dest_port (Integer): the new destination port.
 
         Raises:
-            ValueError: if ``dest_port`` is less than 0 or greater than 65535.
+            ValueError: if `dest_port` is less than 0 or greater than 65535.
         """
         if dest_port < 0 or dest_port > 65535:
             raise ValueError("Destination port must be between 0 and 65535")
         self.__dest_port = dest_port
 
-    def __get_dest_address_type(self):
+    @property
+    def dest_address_type(self):
         """
         Returns the destination address type.
 
@@ -934,7 +971,8 @@ class SocketConnectPacket(XBeeAPIPacket):
         """
         return self.__dest_address_type
 
-    def __set_dest_address_type(self, dest_address_type):
+    @dest_address_type.setter
+    def dest_address_type(self, dest_address_type):
         """
         Sets the destination address type.
 
@@ -942,7 +980,7 @@ class SocketConnectPacket(XBeeAPIPacket):
             dest_address_type (Integer): the new destination address type.
 
         Raises:
-            ValueError: if ``dest_address_type`` is different than :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
+            ValueError: if `dest_address_type` is different than :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
                         :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
         """
         if dest_address_type not in (SocketConnectPacket.DEST_ADDRESS_BINARY, SocketConnectPacket.DEST_ADDRESS_STRING):
@@ -950,7 +988,8 @@ class SocketConnectPacket(XBeeAPIPacket):
                                                                             SocketConnectPacket.DEST_ADDRESS_STRING))
         self.__dest_address_type = dest_address_type
 
-    def __get_dest_address(self):
+    @property
+    def dest_address(self):
         """
         Returns the destination address.
 
@@ -959,7 +998,8 @@ class SocketConnectPacket(XBeeAPIPacket):
         """
         return self.__dest_address
 
-    def __set_dest_address(self, dest_address):
+    @dest_address.setter
+    def dest_address(self, dest_address):
         """
         Sets the destination address.
 
@@ -967,28 +1007,16 @@ class SocketConnectPacket(XBeeAPIPacket):
             dest_address (Bytearray or String): the new destination address.
 
         Raises:
-            ValueError: if ``dest_address`` is ``None``.
-            ValueError: if ``dest_address`` does not follow the format specified in the configured type.
+            ValueError: if `dest_address` is `None`.
+            ValueError: if `dest_address` does not follow the format specified in the configured type.
         """
         if (dest_address is None
                 or (self.__dest_address_type == SocketConnectPacket.DEST_ADDRESS_BINARY
-                    and (type(dest_address) is not bytearray or len(dest_address) != 4))
+                    and (not isinstance(dest_address, bytearray) or len(dest_address) != 4))
                 or (self.__dest_address_type == SocketConnectPacket.DEST_ADDRESS_STRING
-                    and (type(dest_address) is not str or len(dest_address) < 1))):
+                    and (not isinstance(dest_address, str) or len(dest_address) < 1))):
             raise ValueError("Invalid destination address")
         self.__dest_address = dest_address
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    dest_port = property(__get_dest_port, __set_dest_port)
-    """Integer. Destination port."""
-
-    dest_address_type = property(__get_dest_address_type, __set_dest_address_type)
-    """Integer. Destination address type."""
-
-    dest_address = property(__get_dest_address, __set_dest_address)
-    """Bytearray. Destination address."""
 
 
 class SocketConnectResponsePacket(XBeeAPIPacket):
@@ -1008,7 +1036,8 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, status):
         """
-        Class constructor. Instantiates a new :class:`.SocketConnectPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketConnectPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -1020,8 +1049,8 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -1042,28 +1071,36 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
             :class:`.SocketConnectResponsePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 8. (start delim. + length (2 bytes) + frame
-                type + frame id + socket id + status + checksum = 8 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_CONNECT_RESPONSE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 8.
+                (start delim. + length (2 bytes) + frame type + frame id
+                    + socket id + status + checksum = 8 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_CONNECT_RESPONSE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketConnectResponsePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketConnectResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_CONNECT_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not a Socket Connect Response packet.")
+            raise InvalidPacketException(
+                message="This packet is not a Socket Connect Response packet.")
 
-        return SocketConnectResponsePacket(raw[4], raw[5], SocketStatus.get(raw[6]))
+        return SocketConnectResponsePacket(
+            raw[4], raw[5], SocketStatus.get(raw[6]))
 
     def needs_id(self):
         """
@@ -1096,7 +1133,8 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
         return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
                 DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the the socket ID.
 
@@ -1105,7 +1143,8 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -1113,13 +1152,14 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
             socket_id (Integer): the new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__socket_id = socket_id
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the socket connect status.
 
@@ -1131,7 +1171,8 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
         """
         return self.__status
 
-    def __set_status(self, status):
+    @status.setter
+    def status(self, status):
         """
         Sets the socket connect status.
 
@@ -1142,12 +1183,6 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
         """
         self.__status = status
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    status = property(__get_status, __set_status)
-    """:class:`.SocketStatus`. Socket connect status."""
 
 
 class SocketClosePacket(XBeeAPIPacket):
@@ -1166,7 +1201,8 @@ class SocketClosePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id):
         """
-        Class constructor. Instantiates a new :class:`.SocketClosePacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketClosePacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -1176,8 +1212,8 @@ class SocketClosePacket(XBeeAPIPacket):
            | :class:`.XBeeAPIPacket`
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -1197,20 +1233,25 @@ class SocketClosePacket(XBeeAPIPacket):
             :class:`.SocketClosePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 7. (start delim. + length (2 bytes) + frame
+            InvalidPacketException: if the bytearray length is less than 7.
+                (start delim. + length (2 bytes) + frame
                 type + frame id + socket id + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_CLOSE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_CLOSE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=SocketClosePacket.__MIN_PACKET_LENGTH)
@@ -1247,7 +1288,8 @@ class SocketClosePacket(XBeeAPIPacket):
         """
         return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id]))}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -1256,7 +1298,8 @@ class SocketClosePacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -1264,14 +1307,11 @@ class SocketClosePacket(XBeeAPIPacket):
             socket_id (Integer): the new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__socket_id = socket_id
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
 
 
 class SocketCloseResponsePacket(XBeeAPIPacket):
@@ -1295,7 +1335,8 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, status):
         """
-        Class constructor. Instantiates a new :class:`.SocketCloseResponsePacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketCloseResponsePacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -1307,8 +1348,8 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -1329,28 +1370,36 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
             :class:`.SocketCloseResponsePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 8. (start delim. + length (2 bytes) + frame
-                type + frame id + socket id + status + checksum = 8 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_CLOSE_RESPONSE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 8.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket id + status + checksum = 8 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_CLOSE_RESPONSE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketCloseResponsePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketCloseResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_CLOSE_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not a Socket Close Response packet.")
+            raise InvalidPacketException(
+                message="This packet is not a Socket Close Response packet.")
 
-        return SocketCloseResponsePacket(raw[4], raw[5], SocketStatus.get(raw[6]))
+        return SocketCloseResponsePacket(
+            raw[4], raw[5], SocketStatus.get(raw[6]))
 
     def needs_id(self):
         """
@@ -1383,7 +1432,8 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
         return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
                 DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the the socket ID.
 
@@ -1392,7 +1442,8 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -1400,13 +1451,14 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
             socket_id (Integer): the new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__socket_id = socket_id
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the socket close status.
 
@@ -1418,7 +1470,8 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
         """
         return self.__status
 
-    def __set_status(self, status):
+    @status.setter
+    def status(self, status):
         """
         Sets the socket close status.
 
@@ -1429,12 +1482,6 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
         """
         self.__status = status
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    status = property(__get_status, __set_status)
-    """:class:`.SocketStatus`. Socket close status."""
 
 
 class SocketSendPacket(XBeeAPIPacket):
@@ -1460,8 +1507,8 @@ class SocketSendPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, payload=None):
         """
-        Class constructor. Instantiates a new :class:`.SocketSendPacket` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketSendPacket` object
+        with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -1469,8 +1516,8 @@ class SocketSendPacket(XBeeAPIPacket):
             payload (Bytearray, optional): data that is sent.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -1494,26 +1541,33 @@ class SocketSendPacket(XBeeAPIPacket):
             :class:`.SocketSendPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 7. (start delim. + length (2 bytes) + frame
-                type + frame id + socket ID + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_SEND`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 7.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket ID + checksum = 7 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_SEND`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketSendPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketSendPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_SEND.code:
-            raise InvalidPacketException("This packet is not a Socket Send (transmit) packet.")
+            raise InvalidPacketException(
+                "This packet is not a Socket Send (transmit) packet.")
 
         return SocketSendPacket(raw[4], raw[5], raw[7:-1])
 
@@ -1552,7 +1606,8 @@ class SocketSendPacket(XBeeAPIPacket):
                 DictKeys.PAYLOAD.value:          utils.hex_to_string(self.__payload,
                                                                      True) if self.__payload is not None else None}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -1561,7 +1616,8 @@ class SocketSendPacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -1569,13 +1625,14 @@ class SocketSendPacket(XBeeAPIPacket):
             socket_id (Integer): The new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
         self.__socket_id = socket_id
 
-    def __get_payload(self):
+    @property
+    def payload(self):
         """
         Returns the payload to send.
 
@@ -1586,7 +1643,8 @@ class SocketSendPacket(XBeeAPIPacket):
             return None
         return self.__payload.copy()
 
-    def __set_payload(self, payload):
+    @payload.setter
+    def payload(self, payload):
         """
         Sets the payload to send.
 
@@ -1597,12 +1655,6 @@ class SocketSendPacket(XBeeAPIPacket):
             self.__payload = None
         else:
             self.__payload = payload.copy()
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    payload = property(__get_payload, __set_payload)
-    """Bytearray. Payload to send."""
 
 
 class SocketSendToPacket(XBeeAPIPacket):
@@ -1627,8 +1679,8 @@ class SocketSendToPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, dest_address, dest_port, payload=None):
         """
-        Class constructor. Instantiates a new :class:`.SocketSendToPacket` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketSendToPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -1638,9 +1690,9 @@ class SocketSendToPacket(XBeeAPIPacket):
             payload (Bytearray, optional): data that is sent.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
-            ValueError: if ``dest_port`` is less than 0 or greater than 65535.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+            ValueError: if `dest_port` is less than 0 or greater than 65535.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -1668,27 +1720,35 @@ class SocketSendToPacket(XBeeAPIPacket):
             :class:`.SocketSendToPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 14. (start delim. + length (2 bytes) + frame
-                type + frame id + socket ID + dest address (4 bytes) + dest port (2 bytes) + transmit options +
-                checksum = 14 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_SENDTO`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 14.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket ID + dest address (4 bytes) + dest port (2 bytes)
+                + transmit options + checksum = 14 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_SENDTO`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketSendToPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketSendToPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_SENDTO.code:
-            raise InvalidPacketException("This packet is not a Socket SendTo (Transmit Explicit Data): IPv4 packet.")
+            raise InvalidPacketException(
+                "This packet is not a Socket SendTo (Transmit Explicit Data): "
+                "IPv4 packet.")
 
         return SocketSendToPacket(raw[4], raw[5], IPv4Address(bytes(raw[6:10])),
                                   utils.bytes_to_int(raw[10:12]), raw[13:-1])
@@ -1735,7 +1795,8 @@ class SocketSendToPacket(XBeeAPIPacket):
                 DictKeys.PAYLOAD.value:          utils.hex_to_string(self.__payload,
                                                                      True) if self.__payload is not None else None}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -1744,7 +1805,8 @@ class SocketSendToPacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -1752,13 +1814,14 @@ class SocketSendToPacket(XBeeAPIPacket):
             socket_id (Integer): The new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
         self.__socket_id = socket_id
 
-    def __get_dest_address(self):
+    @property
+    def dest_address(self):
         """
         Returns the IPv4 address of the destination device.
 
@@ -1767,7 +1830,8 @@ class SocketSendToPacket(XBeeAPIPacket):
         """
         return self.__dest_address
 
-    def __set_dest_address(self, dest_address):
+    @dest_address.setter
+    def dest_address(self, dest_address):
         """
         Sets the IPv4 destination address.
 
@@ -1777,7 +1841,8 @@ class SocketSendToPacket(XBeeAPIPacket):
         if dest_address is not None:
             self.__dest_address = dest_address
 
-    def __get_dest_port(self):
+    @property
+    def dest_port(self):
         """
         Returns the destination port.
 
@@ -1786,7 +1851,8 @@ class SocketSendToPacket(XBeeAPIPacket):
         """
         return self.__dest_port
 
-    def __set_dest_port(self, dest_port):
+    @dest_port.setter
+    def dest_port(self, dest_port):
         """
         Sets the destination port.
 
@@ -1794,13 +1860,14 @@ class SocketSendToPacket(XBeeAPIPacket):
             dest_port (Integer): the new destination port.
 
         Raises:
-            ValueError: if ``dest_port`` is less than 0 or greater than 65535.
+            ValueError: if `dest_port` is less than 0 or greater than 65535.
         """
         if dest_port < 0 or dest_port > 65535:
             raise ValueError("Destination port must be between 0 and 65535")
         self.__dest_port = dest_port
 
-    def __get_payload(self):
+    @property
+    def payload(self):
         """
         Returns the payload to send.
 
@@ -1811,7 +1878,8 @@ class SocketSendToPacket(XBeeAPIPacket):
             return None
         return self.__payload.copy()
 
-    def __set_payload(self, payload):
+    @payload.setter
+    def payload(self, payload):
         """
         Sets the payload to send.
 
@@ -1822,18 +1890,6 @@ class SocketSendToPacket(XBeeAPIPacket):
             self.__payload = None
         else:
             self.__payload = payload.copy()
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    dest_address = property(__get_dest_address, __set_dest_address)
-    """:class:`ipaddress.IPv4Address`. IPv4 address of the destination device."""
-
-    dest_port = property(__get_dest_port, __set_dest_port)
-    """Integer. Destination port."""
-
-    payload = property(__get_payload, __set_payload)
-    """Bytearray. Payload to send."""
 
 
 class SocketBindListenPacket(XBeeAPIPacket):
@@ -1862,8 +1918,8 @@ class SocketBindListenPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, source_port):
         """
-        Class constructor. Instantiates a new :class:`.SocketBindListenPacket` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketBindListenPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -1871,9 +1927,9 @@ class SocketBindListenPacket(XBeeAPIPacket):
             source_port (Integer): the port to listen on.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
-            ValueError: if ``source_port`` is less than 0 or greater than 65535.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+            ValueError: if `source_port` is less than 0 or greater than 65535.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -1899,28 +1955,36 @@ class SocketBindListenPacket(XBeeAPIPacket):
             :class:`.SocketBindListenPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 9. (start delim. + length (2 bytes) + frame
-                type + frame id + socket ID + source port (2 bytes) + checksum = 9 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_BIND`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 9.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket ID + source port (2 bytes) + checksum = 9 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_BIND`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketBindListenPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketBindListenPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_BIND.code:
-            raise InvalidPacketException("This packet is not a Socket Bind/Listen packet.")
+            raise InvalidPacketException(
+                "This packet is not a Socket Bind/Listen packet.")
 
-        return SocketBindListenPacket(raw[4], raw[5], utils.bytes_to_int(raw[6:8]))
+        return SocketBindListenPacket(
+            raw[4], raw[5], utils.bytes_to_int(raw[6:8]))
 
     def needs_id(self):
         """
@@ -1955,7 +2019,8 @@ class SocketBindListenPacket(XBeeAPIPacket):
                                                                                               num_bytes=2)),
                                                        self.__source_port)}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -1964,7 +2029,8 @@ class SocketBindListenPacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -1972,13 +2038,14 @@ class SocketBindListenPacket(XBeeAPIPacket):
             socket_id (Integer): The new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
         self.__socket_id = socket_id
 
-    def __get_source_port(self):
+    @property
+    def source_port(self):
         """
         Returns the source port.
 
@@ -1987,7 +2054,8 @@ class SocketBindListenPacket(XBeeAPIPacket):
         """
         return self.__source_port
 
-    def __set_source_port(self, source_port):
+    @source_port.setter
+    def source_port(self, source_port):
         """
         Sets the source port.
 
@@ -1995,17 +2063,11 @@ class SocketBindListenPacket(XBeeAPIPacket):
             source_port (Integer): the new source port.
 
         Raises:
-            ValueError: if ``source_port`` is less than 0 or greater than 65535.
+            ValueError: if `source_port` is less than 0 or greater than 65535.
         """
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
         self.__source_port = source_port
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    source_port = property(__get_source_port, __set_source_port)
-    """Integer. Source port."""
 
 
 class SocketListenResponsePacket(XBeeAPIPacket):
@@ -2025,8 +2087,8 @@ class SocketListenResponsePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, status):
         """
-        Class constructor. Instantiates a new :class:`.SocketListenResponsePacket` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketListenResponsePacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -2034,8 +2096,8 @@ class SocketListenResponsePacket(XBeeAPIPacket):
             status (:class:`.SocketStatus`): socket listen status.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -2060,28 +2122,36 @@ class SocketListenResponsePacket(XBeeAPIPacket):
             :class:`.SocketListenResponsePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 8. (start delim. + length (2 bytes) + frame
-                type + frame id + socket ID + status + checksum = 8 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_LISTEN_RESPONSE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 8.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket ID + status + checksum = 8 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_LISTEN_RESPONSE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketListenResponsePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketListenResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_LISTEN_RESPONSE.code:
-            raise InvalidPacketException("This packet is not a Socket Listen Response packet.")
+            raise InvalidPacketException(
+                "This packet is not a Socket Listen Response packet.")
 
-        return SocketListenResponsePacket(raw[4], raw[5], SocketStatus.get(raw[6]))
+        return SocketListenResponsePacket(
+            raw[4], raw[5], SocketStatus.get(raw[6]))
 
     def needs_id(self):
         """
@@ -2115,7 +2185,8 @@ class SocketListenResponsePacket(XBeeAPIPacket):
                 DictKeys.STATUS.value:    "%s (%s)" % (utils.hex_to_string(bytearray([self.__status.code])),
                                                        self.__status.description)}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -2124,7 +2195,8 @@ class SocketListenResponsePacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -2132,13 +2204,14 @@ class SocketListenResponsePacket(XBeeAPIPacket):
             socket_id (Integer): The new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
         self.__socket_id = socket_id
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the socket listen status.
 
@@ -2150,7 +2223,8 @@ class SocketListenResponsePacket(XBeeAPIPacket):
         """
         return self.__status
 
-    def __set_status(self, status):
+    @status.setter
+    def status(self, status):
         """
         Sets the socket listen status.
 
@@ -2161,12 +2235,6 @@ class SocketListenResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
         """
         self.__status = status
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    status = property(__get_status, __set_status)
-    """:class:`.SocketStatus`. Socket listen status."""
 
 
 class SocketNewIPv4ClientPacket(XBeeAPIPacket):
@@ -2189,8 +2257,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
 
     def __init__(self, socket_id, client_socket_id, remote_address, remote_port):
         """
-        Class constructor. Instantiates a new :class:`.SocketNewIPv4ClientPacket` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketNewIPv4ClientPacket`
+        object with the provided parameters.
 
         Args:
             socket_id (Integer): the socket ID of the listener socket.
@@ -2199,9 +2267,9 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
             remote_port (Integer): the remote port number.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
-            ValueError: if ``client_socket_id`` is less than 0 or greater than 255.
-            ValueError: if ``remote_port`` is less than 0 or greater than 65535.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+            ValueError: if `client_socket_id` is less than 0 or greater than 255.
+            ValueError: if `remote_port` is less than 0 or greater than 65535.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -2228,29 +2296,37 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
             :class:`.SocketNewIPv4ClientPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 13. (start delim. + length (2 bytes) + frame
-                type + socket ID + client socket ID + remote address (4 bytes) + remote port (2 bytes)
-                + checksum = 13 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_NEW_IPV4_CLIENT`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 13.
+                (start delim. + length (2 bytes) + frame type + socket ID
+                + client socket ID + remote address (4 bytes)
+                + remote port (2 bytes) + checksum = 13 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_NEW_IPV4_CLIENT`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketNewIPv4ClientPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketNewIPv4ClientPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_NEW_IPV4_CLIENT.code:
-            raise InvalidPacketException("This packet is not a Socket New IPv4 Client packet.")
+            raise InvalidPacketException(
+                "This packet is not a Socket New IPv4 Client packet.")
 
-        return SocketNewIPv4ClientPacket(raw[4], raw[5], IPv4Address(bytes(raw[6:10])),
+        return SocketNewIPv4ClientPacket(raw[4], raw[5],
+                                         IPv4Address(bytes(raw[6:10])),
                                          utils.bytes_to_int(raw[10:12]))
 
     def needs_id(self):
@@ -2291,7 +2367,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
                                                                                                      num_bytes=2)),
                                                               self.__remote_port)}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -2300,7 +2377,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -2308,13 +2386,14 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
             socket_id (Integer): The new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__socket_id = socket_id
 
-    def __get_client_socket_id(self):
+    @property
+    def client_socket_id(self):
         """
         Returns the client socket ID.
 
@@ -2323,7 +2402,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         """
         return self.__client_socket_id
 
-    def __set_client_socket_id(self, client_socket_id):
+    @client_socket_id.setter
+    def client_socket_id(self, client_socket_id):
         """
         Sets the client socket ID.
 
@@ -2331,13 +2411,14 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
             client_socket_id (Integer): The new client socket ID.
 
         Raises:
-            ValueError: if ``client_socket_id`` is less than 0 or greater than 255.
+            ValueError: if `client_socket_id` is less than 0 or greater than 255.
         """
         if client_socket_id < 0 or client_socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
         self.__client_socket_id = client_socket_id
 
-    def __get_remote_address(self):
+    @property
+    def remote_address(self):
         """
         Returns the remote IPv4 address.
 
@@ -2346,7 +2427,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         """
         return self.__remote_address
 
-    def __set_remote_address(self, remote_address):
+    @remote_address.setter
+    def remote_address(self, remote_address):
         """
         Sets the remote IPv4 address.
 
@@ -2356,7 +2438,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         if remote_address is not None:
             self.__remote_address = remote_address
 
-    def __get_remote_port(self):
+    @property
+    def remote_port(self):
         """
         Returns the remote port.
 
@@ -2365,7 +2448,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         """
         return self.__remote_port
 
-    def __set_remote_port(self, remote_port):
+    @remote_port.setter
+    def remote_port(self, remote_port):
         """
         Sets the remote port.
 
@@ -2373,23 +2457,11 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
             remote_port (Integer): the new remote port.
 
         Raises:
-            ValueError: if ``remote_port`` is less than 0 or greater than 65535.
+            ValueError: if `remote_port` is less than 0 or greater than 65535.
         """
         if remote_port < 0 or remote_port > 65535:
             raise ValueError("Remote port must be between 0 and 65535")
         self.__remote_port = remote_port
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    client_socket_id = property(__get_client_socket_id, __set_client_socket_id)
-    """Integer. Client socket ID."""
-
-    remote_address = property(__get_remote_address, __set_remote_address)
-    """:class:`ipaddress.IPv4Address`. Remote IPv4 address."""
-
-    remote_port = property(__get_remote_port, __set_remote_port)
-    """Integer. Remote port."""
 
 
 class SocketReceivePacket(XBeeAPIPacket):
@@ -2408,8 +2480,8 @@ class SocketReceivePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, payload=None):
         """
-        Class constructor. Instantiates a new :class:`.SocketReceivePacket` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketReceivePacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -2417,8 +2489,8 @@ class SocketReceivePacket(XBeeAPIPacket):
             payload (Bytearray, optional): data that is received.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -2442,26 +2514,33 @@ class SocketReceivePacket(XBeeAPIPacket):
             :class:`.SocketReceivePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 7. (start delim. + length (2 bytes) + frame
-                type + frame id + socket ID + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_RECEIVE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 7.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket ID + checksum = 7 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_RECEIVE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketReceivePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketReceivePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_RECEIVE.code:
-            raise InvalidPacketException("This packet is not a Socket Receive packet.")
+            raise InvalidPacketException(
+                "This packet is not a Socket Receive packet.")
 
         return SocketReceivePacket(raw[4], raw[5], raw[7:-1])
 
@@ -2499,7 +2578,8 @@ class SocketReceivePacket(XBeeAPIPacket):
                 DictKeys.STATUS.value:    utils.hex_to_string(bytearray([0])),
                 DictKeys.PAYLOAD.value:   utils.hex_to_string(self.__payload) if self.__payload is not None else None}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -2508,7 +2588,8 @@ class SocketReceivePacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -2516,13 +2597,14 @@ class SocketReceivePacket(XBeeAPIPacket):
             socket_id (Integer): The new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
         self.__socket_id = socket_id
 
-    def __get_payload(self):
+    @property
+    def payload(self):
         """
         Returns the payload that was received.
 
@@ -2533,7 +2615,8 @@ class SocketReceivePacket(XBeeAPIPacket):
             return None
         return self.__payload.copy()
 
-    def __set_payload(self, payload):
+    @payload.setter
+    def payload(self, payload):
         """
         Sets the payload that was received.
 
@@ -2544,12 +2627,6 @@ class SocketReceivePacket(XBeeAPIPacket):
             self.__payload = None
         else:
             self.__payload = payload.copy()
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    payload = property(__get_payload, __set_payload)
-    """Bytearray. Payload that was received."""
 
 
 class SocketReceiveFromPacket(XBeeAPIPacket):
@@ -2569,8 +2646,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, socket_id, source_address, source_port, payload=None):
         """
-        Class constructor. Instantiates a new :class:`.SocketReceiveFromPacket` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketReceiveFromPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -2580,9 +2657,9 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             payload (Bytearray, optional): data that is received.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
-            ValueError: if ``source_port`` is less than 0 or greater than 65535.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+            ValueError: if `source_port` is less than 0 or greater than 65535.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -2610,30 +2687,38 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             :class:`.SocketReceiveFromPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 13. (start delim. + length (2 bytes) + frame
-                type + frame id + socket ID + source address (4 bytes) + source port (2 bytes) + status +
-                checksum = 14 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_RECEIVE_FROM`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 13.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket ID + source address (4 bytes) + source port (2 bytes)
+                + status + Checksum = 14 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_RECEIVE_FROM`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketReceiveFromPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketReceiveFromPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_RECEIVE_FROM.code:
-            raise InvalidPacketException("This packet is not a Socket Receive From packet.")
+            raise InvalidPacketException(
+                "This packet is not a Socket Receive From packet.")
 
-        return SocketReceiveFromPacket(raw[4], raw[5], IPv4Address(bytes(raw[6:10])),
-                                       utils.bytes_to_int(raw[10:12]), raw[13:-1])
+        return SocketReceiveFromPacket(
+            raw[4], raw[5], IPv4Address(bytes(raw[6:10])),
+            utils.bytes_to_int(raw[10:12]), raw[13:-1])
 
     def needs_id(self):
         """
@@ -2677,7 +2762,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
                 DictKeys.PAYLOAD.value:       utils.hex_to_string(self.__payload,
                                                                   True) if self.__payload is not None else None}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -2686,7 +2772,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -2694,13 +2781,14 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             socket_id (Integer): The new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
         self.__socket_id = socket_id
 
-    def __get_source_address(self):
+    @property
+    def source_address(self):
         """
         Returns the IPv4 address of the source device.
 
@@ -2709,7 +2797,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         """
         return self.__source_address
 
-    def __set_source_address(self, source_address):
+    @source_address.setter
+    def source_address(self, source_address):
         """
         Sets the IPv4 source address.
 
@@ -2719,7 +2808,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         if source_address is not None:
             self.__source_address = source_address
 
-    def __get_source_port(self):
+    @property
+    def source_port(self):
         """
         Returns the source port.
 
@@ -2728,7 +2818,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         """
         return self.__source_port
 
-    def __set_source_port(self, source_port):
+    @source_port.setter
+    def source_port(self, source_port):
         """
         Sets the destination port.
 
@@ -2736,13 +2827,14 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             source_port (Integer): the new source port.
 
         Raises:
-            ValueError: if ``source_port`` is less than 0 or greater than 65535.
+            ValueError: if `source_port` is less than 0 or greater than 65535.
         """
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
         self.__source_port = source_port
 
-    def __get_payload(self):
+    @property
+    def payload(self):
         """
         Returns the payload to send.
 
@@ -2753,7 +2845,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             return None
         return self.__payload.copy()
 
-    def __set_payload(self, payload):
+    @payload.setter
+    def payload(self, payload):
         """
         Sets the payload to send.
 
@@ -2764,18 +2857,6 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             self.__payload = None
         else:
             self.__payload = payload.copy()
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    source_address = property(__get_source_address, __set_source_address)
-    """:class:`ipaddress.IPv4Address`. IPv4 address of the source device."""
-
-    source_port = property(__get_source_port, __set_source_port)
-    """Integer. Source port."""
-
-    payload = property(__get_payload, __set_payload)
-    """Bytearray. Payload that has been received."""
 
 
 class SocketStatePacket(XBeeAPIPacket):
@@ -2794,15 +2875,15 @@ class SocketStatePacket(XBeeAPIPacket):
 
     def __init__(self, socket_id, state):
         """
-        Class constructor. Instantiates a new :class:`.SocketStatePacket` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketStatePacket`
+        object with the provided parameters.
 
         Args:
             socket_id (Integer): the socket identifier.
             state (:class:`.SocketState`): socket status.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.SockeState`
@@ -2824,26 +2905,33 @@ class SocketStatePacket(XBeeAPIPacket):
             :class:`.SocketStatePacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 7. (start delim. + length (2 bytes) + frame
-                type + socket ID + state + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.SOCKET_STATUS`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 7.
+                (start delim. + length (2 bytes) + frame type + socket ID
+                 + state + checksum = 7 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_STATUS`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE, OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=SocketStatePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketStatePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.SOCKET_STATE.code:
-            raise InvalidPacketException("This packet is not a Socket State packet.")
+            raise InvalidPacketException(
+                "This packet is not a Socket State packet.")
 
         return SocketStatePacket(raw[4], SocketState.get(raw[5]))
 
@@ -2879,7 +2967,8 @@ class SocketStatePacket(XBeeAPIPacket):
                 DictKeys.STATUS.value:    "%s (%s)" % (utils.hex_to_string(bytearray([self.__state.code])),
                                                        self.__state.description)}
 
-    def __get_socket_id(self):
+    @property
+    def socket_id(self):
         """
         Returns the socket ID.
 
@@ -2888,7 +2977,8 @@ class SocketStatePacket(XBeeAPIPacket):
         """
         return self.__socket_id
 
-    def __set_socket_id(self, socket_id):
+    @socket_id.setter
+    def socket_id(self, socket_id):
         """
         Sets the socket ID.
 
@@ -2896,13 +2986,14 @@ class SocketStatePacket(XBeeAPIPacket):
             socket_id (Integer): The new socket ID.
 
         Raises:
-            ValueError: if ``socket_id`` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
         """
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
         self.__socket_id = socket_id
 
-    def __get_state(self):
+    @property
+    def state(self):
         """
         Returns the socket state.
 
@@ -2914,7 +3005,8 @@ class SocketStatePacket(XBeeAPIPacket):
         """
         return self.__state
 
-    def __set_state(self, status):
+    @state.setter
+    def state(self, status):
         """
         Sets the socket state.
 
@@ -2925,9 +3017,3 @@ class SocketStatePacket(XBeeAPIPacket):
            | :class:`.SocketState`
         """
         self.__state = status
-
-    socket_id = property(__get_socket_id, __set_socket_id)
-    """Integer. Socket ID."""
-
-    state = property(__get_state, __set_state)
-    """:class:`.SocketState`. Socket state."""

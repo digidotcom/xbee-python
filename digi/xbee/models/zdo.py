@@ -29,41 +29,43 @@ from digi.xbee.packets.common import ExplicitAddressingPacket, RemoteATCommandPa
 from digi.xbee.util import utils
 
 
-class __ZDOCommand(metaclass=ABCMeta):
+class _ZDOCommand(metaclass=ABCMeta):
     """
     This class represents a ZDO command.
     """
 
-    _SOURCE_ENDPOINT = 0x00
-    _DESTINATION_ENDPOINT = 0x00
-    _PROFILE_ID = 0x0000
+    SOURCE_ENDPOINT = 0x00
+    DEST_ENDPOINT = 0x00
+    PROFILE_ID = 0x0000
 
-    __STATUS_SUCCESS = 0x00
+    STATUS_SUCCESS = 0x00
 
-    __global_transaction_id = 1
+    _global_transaction_id = 1
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self, xbee, cluster_id, receive_cluster_id, configure_ao, timeout):
         """
-        Class constructor. Instantiates a new :class:`.__ZDOCommand` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`._ZDOCommand` object
+        with the provided parameters.
 
         Args:
-            xbee (class:`digi.xbee.devices.XBeeDevice` or
-                class:`digi.xbee.devices.RemoteXBeeDevice`): the XBee to send the ZDO command.
+            xbee (class:`.XBeeDevice` or class:`.RemoteXBeeDevice`): the XBee
+                to send the ZDO command.
             cluster_id (Integer): The ZDO command cluster ID.
             receive_cluster_id (Integer): The ZDO command receive cluster ID.
-            configure_ao (Boolean): ``True`` to configure AO value before and after executing this
-                ZDO command, ``False`` otherwise.
+            configure_ao (Boolean): `True` to configure AO value before and
+                after executing this ZDO command, `False` otherwise.
             timeout(Float): The ZDO command timeout in seconds.
 
         Raises:
-            OperationNotSupportedException: If ZDO commands are not supported in the XBee protocol.
-            TypeError: If the ``xbee`` is not a ``digi.xbee.devices.XBeeDevice`` or a
-                ``digi.xbee.devices.RemoteXBeeDevice``.
-            ValueError: If ``xbee`` is ``None``.
-            ValueError: If ``cluster_id``, ``receive_cluster_id``, or ``timeout`` are less than 0.
+            OperationNotSupportedException: If ZDO commands are not supported
+                in the XBee protocol.
+            TypeError: If the `xbee` is not a `.XBeeDevice` or a
+                `.RemoteXBeeDevice`.
+            ValueError: If `xbee` is `None`.
+            ValueError: If `cluster_id`, `receive_cluster_id`, or `timeout` are
+                less than 0.
         """
         if not xbee:
             raise ValueError("XBee cannot be None")
@@ -96,10 +98,10 @@ class __ZDOCommand(metaclass=ABCMeta):
         self._received_answer = False
         self._data_parsed = False
 
-        self._current_transaction_id = self.__class__.__global_transaction_id
-        self.__class__.__global_transaction_id = self.__class__.__global_transaction_id + 1
-        if self.__class__.__global_transaction_id == 0xFF:
-            self.__class__.__global_transaction_id = 1
+        self._current_transaction_id = self.__class__._global_transaction_id
+        self.__class__._global_transaction_id = self.__class__._global_transaction_id + 1
+        if self.__class__._global_transaction_id == 0xFF:
+            self.__class__._global_transaction_id = 1
 
     @property
     def running(self):
@@ -107,7 +109,7 @@ class __ZDOCommand(metaclass=ABCMeta):
         Returns if this ZDO command is running.
 
         Returns:
-            Boolean: ``True`` if it is running, ``False`` otherwise.
+            Boolean: `True` if it is running, `False` otherwise.
         """
         return self._running
 
@@ -134,13 +136,14 @@ class __ZDOCommand(metaclass=ABCMeta):
 
     def _start_process(self, sync=True, zdo_callback=None):
         """
-        Starts the ZDO command process. It can be a blocking method depending on `sync``.
+        Starts the ZDO command process. It can be a blocking method depending
+        on `sync`.
 
         Args:
-            sync (Boolean): ``True`` for a blocking method, ``False`` to run asynchronously in a
-                separate thread.
-            zdo_callback (Function, optional): method to execute when ZDO process finishes. Receives
-                                              two arguments:
+            sync (Boolean): `True` for a blocking method, `False` to run
+                asynchronously in a separate thread.
+            zdo_callback (Function, optional): method to execute when ZDO
+                process finishes. Receives two arguments:
                 * The XBee device that executed the ZDO command.
                 * An error message if something went wrong.
         """
@@ -156,8 +159,8 @@ class __ZDOCommand(metaclass=ABCMeta):
         Sends the ZDO command.
 
         Args:
-            zdo_callback (Function, optional): method to execute when ZDO process finishes. Receives
-                                              two arguments:
+            zdo_callback (Function, optional): method to execute when ZDO
+                process finishes. Receives two arguments:
                 * The XBee device that executed the ZDO command.
                 * An error message if something went wrong.
         """
@@ -169,18 +172,18 @@ class __ZDOCommand(metaclass=ABCMeta):
         self._lock.clear()
 
         if not self._xbee.is_remote():
-            xb = self._xbee
+            node = self._xbee
         else:
-            xb = self._xbee.get_local_xbee_device()
+            node = self._xbee.get_local_xbee_device()
 
-        xb.add_packet_received_callback(self._zdo_packet_callback)
+        node.add_packet_received_callback(self._zdo_packet_callback)
 
         self._init_variables()
 
         try:
             self.__prepare_device()
 
-            xb.send_packet(self._generate_zdo_packet())
+            node.send_packet(self._generate_zdo_packet())
 
             self._lock.wait(self.__timeout)
 
@@ -195,10 +198,10 @@ class __ZDOCommand(metaclass=ABCMeta):
                 return
 
             self._perform_finish_actions()
-        except XBeeException as e:
-            self._error = "Error sending ZDO command: " + str(e)
+        except XBeeException as exc:
+            self._error = "Error sending ZDO command: " + str(exc)
         finally:
-            xb.del_packet_received_callback(self._zdo_packet_callback)
+            node.del_packet_received_callback(self._zdo_packet_callback)
             self.__restore_device()
             self._notify_process_finished(zdo_callback)
             self._running = False
@@ -208,7 +211,6 @@ class __ZDOCommand(metaclass=ABCMeta):
         """
         Initializes the ZDO command process variables.
         """
-        pass
 
     @abstractmethod
     def _is_broadcast(self):
@@ -216,9 +218,8 @@ class __ZDOCommand(metaclass=ABCMeta):
         Retrieves whether the ZDO is broadcast.
 
         Returns:
-            Boolean: ``True`` for broadcasting this ZDO, ``False`` otherwise.
+            Boolean: `True` for broadcasting this ZDO, `False` otherwise.
         """
-        pass
 
     @abstractmethod
     def _get_zdo_command_data(self):
@@ -228,36 +229,33 @@ class __ZDOCommand(metaclass=ABCMeta):
         Returns:
             Bytearray: The packet data.
         """
-        pass
 
     @abstractmethod
     def _parse_data(self, data):
         """
-        Handles what to do with the received data of the explicit frame. The status
-        byte is already consumed.
+        Handles what to do with the received data of the explicit frame. The
+        status byte is already consumed.
 
         Args:
-            data(bytearray): Byte array containing the frame data.
+            data (bytearray): Byte array containing the frame data.
 
         Returns:
-            Boolean: ``True`` if the process finishes, ``False`` otherwise.
+            Boolean: `True` if the process finishes, `False` otherwise.
         """
-        pass
 
     @abstractmethod
     def _perform_finish_actions(self):
         """
         Performs final actions when the ZDO process has finished successfully.
         """
-        pass
 
     def _notify_process_finished(self, zdo_callback):
         """
         Notifies that the ZDO process has finished its execution.
 
         Args:
-            zdo_callback (Function, optional): method to execute when ZDO process finishes. Receives
-                two arguments:
+            zdo_callback (Function, optional): method to execute when ZDO
+                process finishes. Receives two arguments:
                 * The XBee device that executed the ZDO command.
                 * An error message if something went wrong.
         """
@@ -266,31 +264,31 @@ class __ZDOCommand(metaclass=ABCMeta):
 
     def __prepare_device(self):
         """
-        Performs the local XBee configuration before sending the ZDO command. This saves the
-        current AO value and sets it to 1.
+        Performs the local XBee configuration before sending the ZDO command.
+        This saves the current AO value and sets it to 1.
         """
         if not self.__configure_ao:
             return
 
         if not self._xbee.is_remote():
-            xb = self._xbee
+            node = self._xbee
         else:
-            xb = self._xbee.get_local_xbee_device()
+            node = self._xbee.get_local_xbee_device()
 
         try:
-            self.__saved_ao = xb.get_api_output_mode_value()
+            self.__saved_ao = node.get_api_output_mode_value()
 
             # Do not configure AO if it is already
             if utils.is_bit_enabled(self.__saved_ao[0], 0):
                 self.__saved_ao = None
                 return
 
-            value = APIOutputModeBit.calculate_api_output_mode_value(self._xbee.get_protocol(),
-                                                                     {APIOutputModeBit.EXPLICIT})
-            xb.set_api_output_mode_value(value)
+            value = APIOutputModeBit.calculate_api_output_mode_value(
+                self._xbee.get_protocol(), {APIOutputModeBit.EXPLICIT})
+            node.set_api_output_mode_value(value)
 
-        except XBeeException as e:
-            raise XBeeException("Could not prepare XBee for ZDO: " + str(e))
+        except XBeeException as exc:
+            raise XBeeException("Could not prepare XBee for ZDO: " + str(exc))
 
     def __restore_device(self):
         """
@@ -301,21 +299,21 @@ class __ZDOCommand(metaclass=ABCMeta):
             return
 
         if not self._xbee.is_remote():
-            xb = self._xbee
+            node = self._xbee
         else:
-            xb = self._xbee.get_local_xbee_device()
+            node = self._xbee.get_local_xbee_device()
 
         try:
-            xb.set_api_output_mode_value(self.__saved_ao[0])
-        except XBeeException as e:
-            self._error = "Could not restore XBee after ZDO: " + str(e)
+            node.set_api_output_mode_value(self.__saved_ao[0])
+        except XBeeException as exc:
+            self._error = "Could not restore XBee after ZDO: " + str(exc)
 
     def _generate_zdo_packet(self):
         """
         Generates the ZDO packet.
 
         Returns:
-             :class:`digi.xbee.packets.common.ExplicitAddressingPacket`: The packet to send.
+             :class:`.ExplicitAddressingPacket`: The packet to send.
         """
         if self._is_broadcast():
             addr64 = XBee64BitAddress.BROADCAST_ADDRESS
@@ -324,19 +322,19 @@ class __ZDOCommand(metaclass=ABCMeta):
             addr64 = self._xbee.get_64bit_addr()
             addr16 = self._xbee.get_16bit_addr()
 
-        return ExplicitAddressingPacket(self._current_transaction_id, addr64, addr16,
-                                        self.__class__._SOURCE_ENDPOINT,
-                                        self.__class__._DESTINATION_ENDPOINT, self.__cluster_id,
-                                        self.__class__._PROFILE_ID, broadcast_radius=0,
-                                        transmit_options=TransmitOptions.NONE.value,
-                                        rf_data=self._get_zdo_command_data())
+        return ExplicitAddressingPacket(
+            self._current_transaction_id, addr64, addr16,
+            self.__class__.SOURCE_ENDPOINT, self.__class__.DEST_ENDPOINT,
+            self.__cluster_id, self.__class__.PROFILE_ID, broadcast_radius=0,
+            transmit_options=TransmitOptions.NONE.value,
+            rf_data=self._get_zdo_command_data())
 
     def _zdo_packet_callback(self, frame):
         """
         Callback notified when a new frame is received.
 
         Args:
-            frame (:class:`digi.xbee.packets.base.XBeeAPIPacket`): The received packet.
+            frame (:class:`.XBeeAPIPacket`): The received packet.
         """
         if not self._running:
             return
@@ -351,20 +349,19 @@ class __ZDOCommand(metaclass=ABCMeta):
                     and x16 != XBee16BitAddress.UNKNOWN_ADDRESS
                     and x16 != frame.x16bit_source_addr):
                 return
-            # Check profile and endpoints
-            if frame.profile_id != self.__class__._PROFILE_ID \
-                    or frame.source_endpoint != self.__class__._SOURCE_ENDPOINT \
-                    or frame.dest_endpoint != self.__class__._DESTINATION_ENDPOINT:
-                return
-            # Check if the cluster ID is correct.
-            if frame.cluster_id != self.__receive_cluster_id:
-                return
-            # If transaction ID does not match, discard: it is not the frame we are waiting for.
-            if frame.rf_data[0] != self._current_transaction_id:
+            # Check:
+            #    * Profile, Cluster ID and endpoints.
+            #    * If transaction ID matches, if not discard: not the frame we
+            #      are waiting for.
+            if (frame.profile_id != self.__class__.PROFILE_ID
+                    or frame.cluster_id != self.__receive_cluster_id
+                    or frame.source_endpoint != self.__class__.SOURCE_ENDPOINT
+                    or frame.dest_endpoint != self.__class__.DEST_ENDPOINT
+                    or frame.rf_data[0] != self._current_transaction_id):
                 return
             self._received_answer = True
             # Status byte
-            if frame.rf_data[1] != self.__class__.__STATUS_SUCCESS:
+            if frame.rf_data[1] != self.__class__.STATUS_SUCCESS:
                 self._error = "Error executing ZDO command (status: %d)" % int(frame.rf_data[1])
                 self.stop()
                 return
@@ -376,13 +373,13 @@ class __ZDOCommand(metaclass=ABCMeta):
         elif frame.get_frame_type() == ApiFrameType.TRANSMIT_STATUS:
             self._logger.debug("Received 'ZDO' status frame: %s",
                                frame.transmit_status.description)
-            # If transaction ID does not match, discard: it is not the frame we are waiting for.
+            # If transaction ID does not match, discard: not the frame we are waiting for.
             if frame.frame_id != self._current_transaction_id:
                 return
 
             self._received_status = True
-            if frame.transmit_status != TransmitStatus.SUCCESS \
-                    and frame.transmit_status != TransmitStatus.SELF_ADDRESSED:
+            if frame.transmit_status not in (TransmitStatus.SUCCESS,
+                                             TransmitStatus.SELF_ADDRESSED):
                 self._error = "Error sending ZDO command: %s" % frame.transmit_status.description
                 self.stop()
 
@@ -390,41 +387,44 @@ class __ZDOCommand(metaclass=ABCMeta):
                 self.stop()
 
 
-class NodeDescriptorReader(__ZDOCommand):
+class NodeDescriptorReader(_ZDOCommand):
     """
     This class performs a node descriptor read of the given XBee using a ZDO command.
 
     The node descriptor read works only with Zigbee devices in API mode.
     """
 
-    __CLUSTER_ID = 0x0002
-    __RECEIVE_CLUSTER_ID = 0x8002
+    CLUSTER_ID = 0x0002
+    RECEIVE_CLUSTER_ID = 0x8002
 
     __DEFAULT_TIMEOUT = 20  # seconds
 
     def __init__(self, xbee, configure_ao=True, timeout=__DEFAULT_TIMEOUT):
         """
-        Class constructor. Instantiates a new :class:`.NodeDescriptorReader` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.NodeDescriptorReader`
+        object with the provided parameters.
 
         Args:
-            xbee (class:`digi.xbee.devices.XBeeDevice` or
-                class:`digi.xbee.devices.RemoteXBeeDevice`): the XBee to send the command.
-            configure_ao (Boolean, optional, default=``True``): ``True`` to configure AO value
-                before and after executing this command, ``False`` otherwise.
-            timeout (Float, optional, default=``.__DEFAULT_TIMEOUT``): The ZDO command timeout
-                in seconds.
+            xbee (class:`.XBeeDevice` or class:`.RemoteXBeeDevice`): the XBee
+                to send the command.
+            configure_ao (Boolean, optional, default=`True`): `True` to set
+                AO value before and after executing, `False` otherwise.
+            timeout (Float, optional, default=`.__DEFAULT_TIMEOUT`): The ZDO
+                command timeout in seconds.
 
         Raises:
-            ValueError: If ``xbee`` is ``None``.
-            ValueError: If ``cluster_id``, ``receive_cluster_id``, or ``timeout`` are less than 0.
-            TypeError: If the ``xbee`` is not a ``digi.xbee.devices.XBeeDevice`` or a
-                ``digi.xbee.devices.RemoteXBeeDevice``.
+            ValueError: If `xbee` is `None`.
+            ValueError: If `cluster_id`, `receive_cluster_id`, or `timeout`
+                are less than 0.
+            TypeError: If the `xbee` is not a `.XBeeDevice` or a
+                `RemoteXBeeDevice`.
         """
-        super().__init__(xbee, self.__class__.__CLUSTER_ID, self.__class__.__RECEIVE_CLUSTER_ID,
-                         configure_ao, timeout)
+        super().__init__(
+            xbee, self.__class__.CLUSTER_ID,
+            self.__class__.RECEIVE_CLUSTER_ID, configure_ao, timeout)
 
         self.__node_descriptor = None
+        self.__role = Role.UNKNOWN
 
     def get_node_descriptor(self):
         """
@@ -442,7 +442,7 @@ class NodeDescriptorReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._init_variables`
+           | :meth:`._ZDOCommand._init_variables`
         """
         self.__role = Role.UNKNOWN
 
@@ -451,7 +451,7 @@ class NodeDescriptorReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._is_broadcast`
+           | :meth:`._ZDOCommand._is_broadcast`
         """
         return False
 
@@ -460,17 +460,18 @@ class NodeDescriptorReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._get_zdo_command_data`
+           | :meth:`._ZDOCommand._get_zdo_command_data`
         """
-        return bytearray([self._current_transaction_id, self._xbee.get_16bit_addr().get_lsb(),
-                          self._xbee.get_16bit_addr().get_hsb()])
+        return bytearray([
+            self._current_transaction_id, self._xbee.get_16bit_addr().get_lsb(),
+            self._xbee.get_16bit_addr().get_hsb()])
 
     def _parse_data(self, data):
         """
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._parse_data`
+           | :meth:`._ZDOCommand._parse_data`
         """
         # Ensure the 16-bit address received matches the address of the device
         x16 = XBee16BitAddress.from_bytes(data[1], data[0])
@@ -505,10 +506,10 @@ class NodeDescriptorReader(__ZDOCommand):
         # Maximum outgoing transfer size: next byte
         desc_capabilities = NodeDescriptorReader.__to_bits(data[14])
 
-        self.__node_descriptor = NodeDescriptor(role, complex_desc_available, user_desc_available,
-                                                freq_band, mac_capabilities, manufacturer_code,
-                                                max_buffer_size, max_in_transfer_size,
-                                                max_out_transfer_size, desc_capabilities)
+        self.__node_descriptor = NodeDescriptor(
+            role, complex_desc_available, user_desc_available, freq_band,
+            mac_capabilities, manufacturer_code, max_buffer_size,
+            max_in_transfer_size, max_out_transfer_size, desc_capabilities)
 
         return True
 
@@ -530,12 +531,11 @@ class NodeDescriptorReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._perform_finish_actions`
+           | :meth:`._ZDOCommand._perform_finish_actions`
         """
-        pass
 
 
-class NodeDescriptor(object):
+class NodeDescriptor:
     """
     This class represents a node descriptor of an XBee.
     """
@@ -544,21 +544,25 @@ class NodeDescriptor(object):
                  mac_capabilities, manufacturer_code, max_buffer_size, max_in_transfer_size,
                  max_out_transfer_size, desc_capabilities):
         """
-        Class constructor. Instantiates a new :class:`.NodeDescriptor` object with the provided
-        parameters.
+        Class constructor. Instantiates a new :class:`.NodeDescriptor` object
+        with the provided parameters.
 
         Args:
-            role (:class:`digi.xbee.models.protocol.Role`): The device role.
-            complex_desc_supported (Boolean): ``True`` if the complex descriptor is supported.
-            user_desc_supported (Boolean): ``True`` if the user descriptor is supported.
+            role (:class:`.Role`): The device role.
+            complex_desc_supported (Boolean): `True` if the complex descriptor
+                is supported.
+            user_desc_supported (Boolean): `True` if the user descriptor is
+                supported.
             freq_band (List): Byte array with the frequency bands.
             mac_capabilities (List): Byte array with MAC capabilities.
-            manufacturer_code (Integer): The manufacturer's code assigned by the Zigbee Alliance.
-            max_buffer_size  (Integer): Maximum size in bytes of a data transmission.
-            max_in_transfer_size (Integer): Maximum number of bytes that can be received by the
-                node.
-            max_out_transfer_size (Integer): Maximum number of bytes that can be transmitted by the
-                node.
+            manufacturer_code (Integer): The manufacturer's code assigned by
+                the Zigbee Alliance.
+            max_buffer_size  (Integer): Maximum size in bytes of a data
+                transmission.
+            max_in_transfer_size (Integer): Maximum number of bytes that can be
+                received by the node.
+            max_out_transfer_size (Integer): Maximum number of bytes that can
+                 be transmitted by the node.
             desc_capabilities (List): Byte array with descriptor capabilities.
         """
         self.__role = role
@@ -578,10 +582,10 @@ class NodeDescriptor(object):
         Gets the role in this node descriptor.
 
         Returns:
-             :class:`digi.xbee.models.protocol.Role`: The role of the node descriptor.
+             :class:`.Role`: The role of the node descriptor.
 
         .. seealso::
-           | :class:`digi.xbee.models.protocol.Role`
+           | :class:`.Role`
         """
         return self.__role
 
@@ -591,7 +595,7 @@ class NodeDescriptor(object):
         Gets if the complex descriptor is supported.
 
         Returns:
-             Boolean: ``True`` if supported, ``False`` otherwise.
+             Boolean: `True` if supported, `False` otherwise.
         """
         return self.__complex_desc_available
 
@@ -601,7 +605,7 @@ class NodeDescriptor(object):
         Gets if the user descriptor is supported.
 
         Returns:
-             Boolean: ``True`` if supported, ``False`` otherwise.
+             Boolean: `True` if supported, `False` otherwise.
         """
         return self.__user_desc_available
 
@@ -670,8 +674,8 @@ class NodeDescriptor(object):
     @property
     def max_out_transfer_size(self):
         """
-        Gets the maximum number of bytes that can be transmitted by the node, including
-        fragmentation.
+        Gets the maximum number of bytes that can be transmitted by the node,
+        including fragmentation.
 
         Returns:
              Integer: Maximum number of bytes that can be transmitted by the node.
@@ -691,7 +695,7 @@ class NodeDescriptor(object):
         return self.__desc_capabilities
 
 
-class RouteTableReader(__ZDOCommand):
+class RouteTableReader(_ZDOCommand):
     """
     This class performs a route table read of the given XBee using a ZDO command.
 
@@ -700,38 +704,40 @@ class RouteTableReader(__ZDOCommand):
 
     DEFAULT_TIMEOUT = 20  # seconds
 
-    __CLUSTER_ID = 0x0032
-    __RECEIVE_CLUSTER_ID = 0x8032
+    CLUSTER_ID = 0x0032
+    RECEIVE_CLUSTER_ID = 0x8032
 
-    __ROUTE_BYTES_LEN = 5
+    ROUTE_BYTES_LEN = 5
 
-    __ST_FIELD_OFFSET = 0
-    __ST_FIELD_LEN = 3
-    __MEM_FIELD_OFFSET = 3
-    __M2O_FIELD_OFFSET = 4
-    __RR_FIELD_OFFSET = 5
+    ST_FIELD_OFFSET = 0
+    ST_FIELD_LEN = 3
+    MEM_FIELD_OFFSET = 3
+    M2O_FIELD_OFFSET = 4
+    RR_FIELD_OFFSET = 5
 
     def __init__(self, xbee, configure_ao=True, timeout=DEFAULT_TIMEOUT):
         """
-        Class constructor. Instantiates a new :class:`.RouteTableReader` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.RouteTableReader` object
+        with the provided parameters.
 
         Args:
-            xbee (class:`digi.xbee.devices.XBeeDevice` or
-                class:`digi.xbee.devices.RemoteXBeeDevice`): the XBee to send the command.
-            configure_ao (Boolean, optional, default=``True``): ``True`` to configure AO value
-                before and after executing this command, ``False`` otherwise.
-            timeout (Float, optional, default=``.DEFAULT_TIMEOUT``): The ZDO command timeout
-                in seconds.
+            xbee (class:`.XBeeDevice` or class:`.RemoteXBeeDevice`): the XBee
+                to send the command.
+            configure_ao (Boolean, optional, default=`True`): `True` to set
+                AO value before and after executing, `False` otherwise.
+            timeout (Float, optional, default=`.DEFAULT_TIMEOUT`): The ZDO
+                command timeout in seconds.
 
         Raises:
-            ValueError: If ``xbee`` is ``None``.
-            ValueError: If ``cluster_id``, ``receive_cluster_id``, or ``timeout`` are less than 0.
-            TypeError: If the ``xbee`` is not a ``digi.xbee.devices.XBeeDevice`` or a
-                ``digi.xbee.devices.RemoteXBeeDevice``.
+            ValueError: If `xbee` is `None`.
+            ValueError: If `cluster_id`, `receive_cluster_id`, or `timeout` are
+                less than 0.
+            TypeError: If the `xbee` is not a `.XBeeDevice` or a
+                `.RemoteXBeeDevice`.
         """
-        super().__init__(xbee, self.__class__.__CLUSTER_ID, self.__class__.__RECEIVE_CLUSTER_ID,
-                         configure_ao, timeout)
+        super().__init__(
+            xbee, self.__class__.CLUSTER_ID,
+            self.__class__.RECEIVE_CLUSTER_ID, configure_ao, timeout)
 
         self.__routes = None
         self.__total_routes = 0
@@ -741,32 +747,34 @@ class RouteTableReader(__ZDOCommand):
 
     def get_route_table(self, route_callback=None, process_finished_callback=None):
         """
-        Returns the routes of the XBee. If ``route_callback`` is not defined, the process blocks
-        until the complete routing table is read.
+        Returns the routes of the XBee. If `route_callback` is not defined, the
+        process blocks until the complete routing table is read.
 
         Args:
-            route_callback (Function, optional, default=``None``): method called when a new route
-                is received. Receives two arguments:
+            route_callback (Function, optional, default=`None`): method called
+                when a new route is received. Receives two arguments:
 
                 * The XBee that owns this new route.
                 * The new route.
 
-            process_finished_callback (Function, optional, default=``None``): method to execute when
-                the process finishes. Receives two arguments:
+            process_finished_callback (Function, optional, default=`None`):
+                method to execute when the process finishes. Receives two
+                arguments:
 
                 * The XBee device that executed the ZDO command.
                 * A list with the discovered routes.
                 * An error message if something went wrong.
 
         Returns:
-            List: List of :class:`.Route` when ``route_callback`` is not defined, ``None``
-                otherwise (in this case routes are received in the callback).
+            List: List of :class:`.Route` when `route_callback` is not defined,
+                `None` otherwise (in this case routes are received in the
+                callback).
 
         .. seealso::
            | :class:`.Route`
         """
         self.__cb = route_callback
-        self._start_process(sync=True if not self.__cb else False,
+        self._start_process(sync=bool(not self.__cb),
                             zdo_callback=process_finished_callback)
 
         return self.__routes
@@ -776,7 +784,7 @@ class RouteTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._init_variables`
+           | :meth:`._ZDOCommand._init_variables`
         """
         self.__routes = []
         self.__total_routes = 0
@@ -787,7 +795,7 @@ class RouteTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._is_broadcast`
+           | :meth:`._ZDOCommand._is_broadcast`
         """
         return False
 
@@ -796,7 +804,7 @@ class RouteTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._get_zdo_command_data`
+           | :meth:`._ZDOCommand._get_zdo_command_data`
         """
         return bytearray([self._current_transaction_id, self.__index])
 
@@ -805,7 +813,7 @@ class RouteTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._parse_data`
+           | :meth:`._ZDOCommand._parse_data`
         """
         # Byte 0: Total number of routing table entries
         # Byte 1: Starting point in the routing table
@@ -823,21 +831,23 @@ class RouteTableReader(__ZDOCommand):
         # Parse routes
         routes_starting_index = 3
         byte_index = routes_starting_index
-        n_route_data_bytes = len(data) - 3  # Subtract the 3 first bytes: total number of entries,
-        # start index, and the number of entries in this response
+        # Subtract the 3 first bytes: total number of entries, start index, and
+        # the number of entries in this response
+        n_route_data_bytes = len(data) - 3
 
         while byte_index + 1 < n_route_data_bytes:
-            if byte_index + self.__class__.__ROUTE_BYTES_LEN \
+            if byte_index + self.__class__.ROUTE_BYTES_LEN \
                     > n_route_data_bytes + routes_starting_index:
                 break
 
-            r = self.__parse_route(data[byte_index:byte_index + self.__class__.__ROUTE_BYTES_LEN])
-            if r:
-                self.__routes.append(r)
+            route = self.__parse_route(
+                data[byte_index:byte_index + self.__class__.ROUTE_BYTES_LEN])
+            if route:
+                self.__routes.append(route)
                 if self.__cb:
-                    self.__cb(self._xbee, r)
+                    self.__cb(self._xbee, route)
 
-            byte_index += self.__class__.__ROUTE_BYTES_LEN
+            byte_index += self.__class__.ROUTE_BYTES_LEN
             self.__index += 1
 
         # Check if we already have all the routes
@@ -853,16 +863,15 @@ class RouteTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._perform_finish_actions`
+           | :meth:`._ZDOCommand._perform_finish_actions`
         """
-        pass
 
     def _notify_process_finished(self, zdo_callback):
         """
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._notify_process_finished`
+           | :meth:`._ZDOCommand._notify_process_finished`
         """
         if zdo_callback:
             zdo_callback(self._xbee, self.__routes, self._error)
@@ -875,7 +884,7 @@ class RouteTableReader(__ZDOCommand):
             data (bytearray): Bytearray with data to parse.
 
         Returns:
-             :class:`.Route`: The route or ``None`` if not found.
+             :class:`.Route`: The route or `None` if not found.
         """
         # Bytes 0 - 1: 16-bit destination address (little endian)
         # Byte 2: Setting byte:
@@ -887,25 +896,25 @@ class RouteTableReader(__ZDOCommand):
         return Route(XBee16BitAddress.from_bytes(data[1], data[0]),
                      XBee16BitAddress.from_bytes(data[4], data[3]),
                      RouteStatus.get(utils.get_int_from_byte(data[2],
-                                                             self.__class__.__ST_FIELD_OFFSET,
-                                                             self.__class__.__ST_FIELD_LEN)),
-                     utils.is_bit_enabled(data[2], self.__class__.__MEM_FIELD_OFFSET),
-                     utils.is_bit_enabled(data[2], self.__class__.__M2O_FIELD_OFFSET),
-                     utils.is_bit_enabled(data[2], self.__class__.__RR_FIELD_OFFSET))
+                                                             self.__class__.ST_FIELD_OFFSET,
+                                                             self.__class__.ST_FIELD_LEN)),
+                     utils.is_bit_enabled(data[2], self.__class__.MEM_FIELD_OFFSET),
+                     utils.is_bit_enabled(data[2], self.__class__.M2O_FIELD_OFFSET),
+                     utils.is_bit_enabled(data[2], self.__class__.RR_FIELD_OFFSET))
 
     def __get_next_routes(self):
         """
         Sends a new ZDO request to get more route table entries.
         """
         if not self._xbee.is_remote():
-            xb = self._xbee
+            node = self._xbee
         else:
-            xb = self._xbee.get_local_xbee_device()
+            node = self._xbee.get_local_xbee_device()
 
         try:
-            xb.send_packet(self._generate_zdo_packet())
-        except XBeeException as e:
-            self._error = "Error sending ZDO command: " + str(e)
+            node.send_packet(self._generate_zdo_packet())
+        except XBeeException as exc:
+            self._error = "Error sending ZDO command: " + str(exc)
 
 
 class RouteStatus(Enum):
@@ -956,7 +965,8 @@ class RouteStatus(Enum):
             identifier (Integer): the id corresponding to the route status to get.
 
         Returns:
-            :class:`.RouteStatus`: the RouteStatus with the given id. ``None`` if it does not exist.
+            :class:`.RouteStatus`: the RouteStatus with the given id. `None` if
+                it does not exist.
         """
         for item in cls:
             if identifier == item.id:
@@ -965,31 +975,34 @@ class RouteStatus(Enum):
         return None
 
 
-class Route(object):
+class Route:
     """
     This class represents a Zigbee route read from the route table of an XBee.
     """
 
-    def __init__(self, destination, next_hop, status, is_low_memory, is_many_to_one,
-                 is_route_record_required):
+    def __init__(self, destination, next_hop, status, is_low_memory,
+                 is_many_to_one, is_route_record_required):
         """
-        Class constructor. Instantiates a new :class:`.Route` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.Route` object with the
+        provided parameters.
 
         Args:
-            destination (:class:`digi.xbee.models.address.XBee16BitAddress`): 16-bit destination
+            destination (:class:`.XBee16BitAddress`): 16-bit destination
                 address of the route.
-            next_hop (:class:`digi.xbee.models.address.XBee16BitAddress`): 16-bit address of the
+            next_hop (:class:`.XBee16BitAddress`): 16-bit address of the
                 next hop.
             status (:class:`.RouteStatus`): Status of the route.
-            is_low_memory (Boolean): ``True`` to indicate if the device is a low-memory
+            is_low_memory (Boolean): `True` to indicate if the device is a
+                low-memory concentrator.
+            is_many_to_one (Boolean): `True` to indicate the destination is a
                 concentrator.
-            is_many_to_one (Boolean): ``True`` to indicate the destination is a concentrator.
-            is_route_record_required (Boolean): ``True`` to indicate a route record message should
-                be sent prior to the next data transmission.
+            is_route_record_required (Boolean): `True` to indicate a route
+                record message should be sent prior to the next data
+                transmission.
 
         .. seealso::
            | :class:`.RouteStatus`
-           | :class:`digi.xbee.models.address.XBee16BitAddress`
+           | :class:`.XBee16BitAddress`
         """
         self.__dest = destination
         self.__next = next_hop
@@ -999,12 +1012,10 @@ class Route(object):
         self.__is_rr_required = is_route_record_required
 
     def __str__(self):
-        return "Destination: {!s} - Next: {!s} (status: {!s}, low-memory: {!r}, " \
-               "many-to-one: {!r}, route record required: {!r})".format(self.__dest, self.__next,
-                                                                        self.__status.name,
-                                                                        self.__is_low_memory,
-                                                                        self.__is_mto,
-                                                                        self.__is_rr_required)
+        return ("Destination: {!s} - Next: {!s} (status: {!s}, low-memory: {!r}"
+                ", many-to-one: {!r}, route record required: {!r})".format(
+                    self.__dest, self.__next, self.__status.name,
+                    self.__is_low_memory, self.__is_mto, self.__is_rr_required))
 
     @property
     def destination(self):
@@ -1012,10 +1023,10 @@ class Route(object):
         Gets the 16-bit address of this route destination.
 
         Returns:
-            :class:`digi.xbee.models.address.XBee16BitAddress`: 16-bit address of the destination.
+            :class:`.XBee16BitAddress`: 16-bit address of the destination.
 
         .. seealso::
-           | :class:`digi.xbee.models.address.XBee16BitAddress`
+           | :class:`.XBee16BitAddress`
         """
         return self.__dest
 
@@ -1025,10 +1036,10 @@ class Route(object):
         Gets the 16-bit address of this route next hop.
 
         Returns:
-            :class:`digi.xbee.models.address.XBee16BitAddress`: 16-bit address of the next hop.
+            :class:`.XBee16BitAddress`: 16-bit address of the next hop.
 
         .. seealso::
-           | :class:`digi.xbee.models.address.XBee16BitAddress`
+           | :class:`.XBee16BitAddress`
         """
         return self.__next
 
@@ -1051,7 +1062,7 @@ class Route(object):
         Gets whether the device is a low-memory concentrator.
 
         Returns:
-            Boolean: ``True`` if the device is a low-memory concentrator, ``False`` otherwise.
+            Boolean: `True` if the device is a low-memory concentrator, `False` otherwise.
         """
         return self.__is_low_memory
 
@@ -1061,61 +1072,65 @@ class Route(object):
         Gets whether the destination is a concentrator.
 
         Returns:
-            Boolean: ``True`` if destination is a concentrator, ``False`` otherwise.
+            Boolean: `True` if destination is a concentrator, `False` otherwise.
         """
         return self.__is_mto
 
     @property
     def is_route_record_required(self):
         """
-        Gets whether a route record message should be sent prior the next data transmission.
+        Gets whether a route record message should be sent prior the next data
+        transmission.
 
         Returns:
-            Boolean: ``True`` if a route record message should be sent, ``False`` otherwise.
+            Boolean: `True` if a route record message should be sent, `False` otherwise.
         """
         return self.__is_rr_required
 
 
-class NeighborTableReader(__ZDOCommand):
+class NeighborTableReader(_ZDOCommand):
     """
-    This class performs a neighbor table read of the given XBee using a ZDO command.
+    This class performs a neighbor table read of the given XBee using a ZDO
+    command.
 
     The node descriptor read works only with Zigbee devices in API mode.
     """
 
     DEFAULT_TIMEOUT = 20  # seconds
 
-    __CLUSTER_ID = 0x0031
-    __RECEIVE_CLUSTER_ID = 0x8031
+    CLUSTER_ID = 0x0031
+    RECEIVE_CLUSTER_ID = 0x8031
 
-    __NEIGHBOR_BYTES_LEN = 22
+    NEIGHBOR_BYTES_LEN = 22
 
-    __ROLE_FIELD_OFFSET = 0
-    __ROLE_FIELD_LEN = 2
-    __RELATIONSHIP_FIELD_OFFSET = 4
-    __RELATIONSHIP_FIELD_LEN = 3
+    ROLE_FIELD_OFFSET = 0
+    ROLE_FIELD_LEN = 2
+    RELATIONSHIP_FIELD_OFFSET = 4
+    RELATIONSHIP_FIELD_LEN = 3
 
     def __init__(self, xbee, configure_ao=True, timeout=DEFAULT_TIMEOUT):
         """
-        Class constructor. Instantiates a new :class:`.NeighborTableReader` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.NeighborTableReader`
+        object with the provided parameters.
 
         Args:
-            xbee (class:`digi.xbee.devices.XBeeDevice` or
-                class:`digi.xbee.devices.RemoteXBeeDevice`): the XBee to send the command.
-            configure_ao (Boolean, optional, default=``True``): ``True`` to configure AO value
-                before and after executing this command, ``False`` otherwise.
-            timeout (Float, optional, default=``.DEFAULT_TIMEOUT``): The ZDO command timeout
-                in seconds.
+            xbee (class:`.XBeeDevice` or class:`.RemoteXBeeDevice`): the XBee
+                to send the command.
+            configure_ao (Boolean, optional, default=`True`): `True` to set
+                AO value before and after executing, `False` otherwise.
+            timeout (Float, optional, default=`.DEFAULT_TIMEOUT`): The ZDO
+                command timeout in seconds.
 
         Raises:
-            ValueError: If ``xbee`` is ``None``.
-            ValueError: If ``cluster_id``, ``receive_cluster_id``, or ``timeout`` are less than 0.
-            TypeError: If the ``xbee`` is not a ``digi.xbee.devices.XBeeDevice`` or a
-                ``digi.xbee.devices.RemoteXBeeDevice``.
+            ValueError: If `xbee` is `None`.
+            ValueError: If `cluster_id`, `receive_cluster_id`, or `timeout` are
+                less than 0.
+            TypeError: If the `xbee` is not a `.XBeeDevice` or a
+                `.RemoteXBeeDevice`.
         """
-        super().__init__(xbee, self.__class__.__CLUSTER_ID, self.__class__.__RECEIVE_CLUSTER_ID,
-                         configure_ao, timeout)
+        super().__init__(
+            xbee, self.__class__.CLUSTER_ID,
+            self.__class__.RECEIVE_CLUSTER_ID, configure_ao, timeout)
 
         self.__neighbors = None
         self.__total_neighbors = 0
@@ -1125,32 +1140,34 @@ class NeighborTableReader(__ZDOCommand):
 
     def get_neighbor_table(self, neighbor_callback=None, process_finished_callback=None):
         """
-        Returns the neighbors of the XBee. If ``neighbor_callback`` is not defined, the process
-        blocks until the complete neighbor table is read.
+        Returns the neighbors of the XBee. If `neighbor_callback` is not
+        defined, the process blocks until the complete neighbor table is read.
 
         Args:
-            neighbor_callback (Function, optional, default=``None``): method called when a new
-                neighbor is received. Receives two arguments:
+            neighbor_callback (Function, optional, default=`None`): method
+                called when a new beighbor is received. Receives two arguments:
 
                 * The XBee that owns this new neighbor.
                 * The new neighbor.
 
-            process_finished_callback (Function, optional, default=``None``): method to execute when
-                the process finishes. Receives two arguments:
+            process_finished_callback (Function, optional, default=`None`):
+                method to execute when the process finishes. Receives two
+                arguments:
 
                 * The XBee device that executed the ZDO command.
                 * A list with the discovered neighbors.
                 * An error message if something went wrong.
 
         Returns:
-            List: List of :class:`.Neighbor` when ``neighbor_callback`` is not defined, ``None``
-                otherwise (in this case neighbors are received in the callback).
+            List: List of :class:`.Neighbor` when `neighbor_callback` is not
+                defined, `None` otherwise (in this case neighbors are received
+                in the callback).
 
         .. seealso::
            | :class:`.Neighbor`
         """
         self.__cb = neighbor_callback
-        self._start_process(sync=True if not self.__cb else False,
+        self._start_process(sync=bool(not self.__cb),
                             zdo_callback=process_finished_callback)
 
         return self.__neighbors
@@ -1160,7 +1177,7 @@ class NeighborTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._init_variables`
+           | :meth:`._ZDOCommand._init_variables`
         """
         self.__neighbors = []
         self.__total_neighbors = 0
@@ -1171,7 +1188,7 @@ class NeighborTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._is_broadcast`
+           | :meth:`._ZDOCommand._is_broadcast`
         """
         return False
 
@@ -1180,7 +1197,7 @@ class NeighborTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._get_zdo_command_data`
+           | :meth:`._ZDOCommand._get_zdo_command_data`
         """
         return bytearray([self._current_transaction_id, self.__index])
 
@@ -1189,7 +1206,7 @@ class NeighborTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._parse_data`
+           | :meth:`._ZDOCommand._parse_data`
         """
         # Byte 0: Total number of neighbor table entries
         # Byte 1: Starting point in the neighbor table
@@ -1207,24 +1224,25 @@ class NeighborTableReader(__ZDOCommand):
         # Parse neighbors
         neighbors_starting_index = 3
         byte_index = neighbors_starting_index
-        n_neighbor_data_bytes = len(data) - 3  # Subtract the 3 first bytes: total number of
-        # entries, start index, and the number of entries in this response
+        # Subtract the 3 first bytes: total number of entries, start index,
+        # and the number of entries in this response
+        n_neighbor_data_bytes = len(data) - 3
 
         while byte_index + 1 < n_neighbor_data_bytes:
-            if byte_index + self.__class__.__NEIGHBOR_BYTES_LEN \
+            if byte_index + self.__class__.NEIGHBOR_BYTES_LEN \
                     > n_neighbor_data_bytes + neighbors_starting_index:
                 break
 
-            n = self.__parse_neighbor(
-                data[byte_index:byte_index + self.__class__.__NEIGHBOR_BYTES_LEN])
+            neighbor = self.__parse_neighbor(
+                data[byte_index:byte_index + self.__class__.NEIGHBOR_BYTES_LEN])
             # Do not add the node with Zigbee coordinator address "0000000000000000"
             # The coordinator is already received with its real 64-bit address
-            if n and n.node.get_64bit_addr() != XBee64BitAddress.COORDINATOR_ADDRESS:
-                self.__neighbors.append(n)
+            if neighbor and neighbor.node.get_64bit_addr() != XBee64BitAddress.COORDINATOR_ADDRESS:
+                self.__neighbors.append(neighbor)
                 if self.__cb:
-                    self.__cb(self._xbee, n)
+                    self.__cb(self._xbee, neighbor)
 
-            byte_index += self.__class__.__NEIGHBOR_BYTES_LEN
+            byte_index += self.__class__.NEIGHBOR_BYTES_LEN
             self.__index += 1
 
         # Check if we already have all the neighbors
@@ -1240,16 +1258,15 @@ class NeighborTableReader(__ZDOCommand):
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._perform_finish_actions`
+           | :meth:`._ZDOCommand._perform_finish_actions`
         """
-        pass
 
     def _notify_process_finished(self, zdo_callback):
         """
         Override.
 
         .. seealso::
-           | :meth:`.__ZDOCommand._notify_process_finished`
+           | :meth:`._ZDOCommand._notify_process_finished`
         """
         if zdo_callback:
             zdo_callback(self._xbee, self.__neighbors, self._error)
@@ -1262,40 +1279,40 @@ class NeighborTableReader(__ZDOCommand):
             data (bytearray): Bytearray with data to parse.
 
         Returns:
-             :class:`.Neighbor`: The neighbor or ``None`` if not found.
+             :class:`.Neighbor`: The neighbor or `None` if not found.
         """
         # Bytes 0 - 7: Extended PAN ID (little endian)
         # Bytes 8 - 15: 64-bit neighbor address (little endian)
         # Bytes 16 - 17: 16-bit neighbor address (little endian)
         # Byte 18: First setting byte:
         #          * Bit 0 - 1: Neighbor role
-        #          * Bit 2 - 3: Receiver on when idle (indicates if the neighbor's receiver is
-        #                       enabled during idle times)
+        #          * Bit 2 - 3: Receiver on when idle (indicates if the
+        #                       neighbor's receiver is enabled during idle times)
         #          * Bit 4 - 6: Relationship of this neighbor with the node
         #          * Bit 7: Reserved
         # Byte 19: Second setting byte:
         #          * Bit 0 - 1: Permit joining (indicates if the neighbor accepts join requests)
         #          * Bit 2 - 7: Reserved
-        # Byte 20: Depth (Tree depth of the neighbor. A value of 0 indicates the neighbor is the
-        #          coordinator)
+        # Byte 20: Depth (Tree depth of the neighbor. A value of 0 indicates
+        #          the neighbor is the coordinator)
         # Byte 21: LQI (The estimated link quality of data transmissions from this neighbor)
         x64 = XBee64BitAddress.from_bytes(*data[8:16][:: -1])
         x16 = XBee16BitAddress.from_bytes(data[17], data[16])
-        role = Role.get(utils.get_int_from_byte(data[18], self.__class__.__ROLE_FIELD_OFFSET,
-                                                self.__class__.__ROLE_FIELD_LEN))
+        role = Role.get(utils.get_int_from_byte(data[18], self.__class__.ROLE_FIELD_OFFSET,
+                                                self.__class__.ROLE_FIELD_LEN))
         relationship = NeighborRelationship.get(
-            utils.get_int_from_byte(data[18], self.__class__.__RELATIONSHIP_FIELD_OFFSET,
-                                    self.__class__.__RELATIONSHIP_FIELD_LEN))
+            utils.get_int_from_byte(data[18], self.__class__.RELATIONSHIP_FIELD_OFFSET,
+                                    self.__class__.RELATIONSHIP_FIELD_LEN))
         depth = int(data[20])
         lqi = int(data[21])
 
         if not self._xbee.is_remote():
-            xb = self._xbee
+            node = self._xbee
         else:
-            xb = self._xbee.get_local_xbee_device()
+            node = self._xbee.get_local_xbee_device()
 
         # Create a new remote node
-        n_xb = RemoteZigBeeDevice(xb, x64bit_addr=x64, x16bit_addr=x16)
+        n_xb = RemoteZigBeeDevice(node, x64bit_addr=x64, x16bit_addr=x16)
         n_xb._role = role
 
         return Neighbor(n_xb, relationship, depth, lqi)
@@ -1305,14 +1322,14 @@ class NeighborTableReader(__ZDOCommand):
         Sends a new ZDO request to get more neighbor table entries.
         """
         if not self._xbee.is_remote():
-            xb = self._xbee
+            node = self._xbee
         else:
-            xb = self._xbee.get_local_xbee_device()
+            node = self._xbee.get_local_xbee_device()
 
         try:
-            xb.send_packet(self._generate_zdo_packet())
-        except XBeeException as e:
-            self._error = "Error sending ZDO command: " + str(e)
+            node.send_packet(self._generate_zdo_packet())
+        except XBeeException as exc:
+            self._error = "Error sending ZDO command: " + str(exc)
 
 
 class NeighborRelationship(Enum):
@@ -1360,41 +1377,41 @@ class NeighborRelationship(Enum):
             identifier (Integer): the id corresponding to the neighbor relationship to get.
 
         Returns:
-            :class:`.NeighborRelationship`: the NeighborRelationship with the given id. ``None``
-                if it does not exist.
+            :class:`.NeighborRelationship`: the NeighborRelationship with the
+                given id. `None` if it does not exist.
         """
         for item in cls:
             if identifier == item.id:
                 return item
-
         return None
 
 
-class Neighbor(object):
+class Neighbor:
     """
     This class represents a Zigbee or DigiMesh neighbor.
 
-    This information is read from the neighbor table of a Zigbee XBee, or provided by the 'FN'
-    command in a Digimesh XBee.
+    This information is read from the neighbor table of a Zigbee XBee, or
+    provided by the 'FN' command in a Digimesh XBee.
     """
 
     def __init__(self, node, relationship, depth, lq):
         """
-        Class constructor. Instantiates a new :class:`.Neighbor` object with the provided
-        parameters.
+        Class constructor. Instantiates a new :class:`.Neighbor` object with
+        the provided parameters.
 
         Args:
-            node (:class:`digi.xbee.devices.RemoteXBeeDevice`): The neighbor node.
-            relationship (:class:`.NeighborRelationship`): The relationship of this neighbor with
-                the node.
-            depth (Integer): The tree depth of the neighbor. A value of 0 indicates the device is a
-                Zigbee coordinator for the network. -1 means this is unknown.
-            lq (Integer): The estimated link quality (LQI or RSSI) of data transmission from this
-                neighbor.
+            node (:class:`.RemoteXBeeDevice`): The neighbor node.
+            relationship (:class:`.NeighborRelationship`): The relationship of
+                this neighbor with the node.
+            depth (Integer): The tree depth of the neighbor. A value of 0
+                indicates the device is a Zigbee coordinator for the network.
+                -1 means this is unknown.
+            lq (Integer): The estimated link quality (LQI or RSSI) of data
+                transmission from this neighbor.
 
         .. seealso::
            | :class:`.NeighborRelationship`
-           | :class:`digi.xbee.devices.RemoteXBeeDevice`
+           | :class:`.RemoteXBeeDevice`
         """
         self.__node = node
         self.__relationship = relationship
@@ -1402,8 +1419,8 @@ class Neighbor(object):
         self.__lq = lq
 
     def __str__(self):
-        return "Node: {!s} (relationship: {!s}, depth: {!r}, lq: {!r})"\
-            .format(self.__node, self.__relationship.name, self.__depth, self.__lq)
+        return "Node: {!s} (relationship: {!s}, depth: {!r}, lq: {!r})".format(
+            self.__node, self.__relationship.name, self.__depth, self.__lq)
 
     @property
     def node(self):
@@ -1411,10 +1428,10 @@ class Neighbor(object):
         Gets the neighbor node.
 
         Returns:
-            :class:`digi.xbee.devices.RemoteXBeeDevice`: The node itself.
+            :class:`.RemoteXBeeDevice`: The node itself.
 
         .. seealso::
-           | :class:`digi.xbee.devices.RemoteXBeeDevice`
+           | :class:`.RemoteXBeeDevice`
         """
         return self.__node
 
@@ -1444,7 +1461,8 @@ class Neighbor(object):
     @property
     def lq(self):
         """
-        Gets the estimated link quality (LQI or RSSI) of data transmission from this neighbor.
+        Gets the estimated link quality (LQI or RSSI) of data transmission
+        from this neighbor.
 
         Returns:
             Integer: The estimated link quality of data transmission from this neighbor.
@@ -1452,35 +1470,35 @@ class Neighbor(object):
         return self.__lq
 
 
-class NeighborFinder(object):
+class NeighborFinder:
     """
-    This class performs a find neighbors (FN) of an XBee. This action requires an XBee device and
-    optionally a find timeout.
+    This class performs a find neighbors (FN) of an XBee. This action requires
+    an XBee device and optionally a find timeout.
 
     The process works only in DigiMesh.
     """
 
     DEFAULT_TIMEOUT = 20  # seconds
 
-    __global_frame_id = 1
+    _global_frame_id = 1
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self, xbee, timeout=DEFAULT_TIMEOUT):
         """
-        Class constructor. Instantiates a new :class:`.NeighborFinder` object with the
-        provided parameters.
+        Class constructor. Instantiates a new :class:`.NeighborFinder` object
+        with the provided parameters.
 
         Args:
-            xbee (class:`digi.xbee.devices.XBeeDevice` or
-                class:`digi.xbee.devices.RemoteXBeeDevice`): The XBee to get neighbors from.
+            xbee (class:`.XBeeDevice` or class:`.RemoteXBeeDevice`): The XBee
+                to get neighbors from.
             timeout(Float): The timeout for the process in seconds.
 
         Raises:
             OperationNotSupportedException: If the process is not supported in the XBee.
-            TypeError: If the ``xbee`` is not a ``digi.xbee.devices.AbstracXBeeDevice``.
-            ValueError: If ``xbee`` is ``None``.
-            ValueError: If ```timeout`` is less than 0.
+            TypeError: If the `xbee` is not a `.AbstracXBeeDevice`.
+            ValueError: If `xbee` is `None`.
+            ValueError: If `timeout` is less than 0.
         """
         if not xbee:
             raise ValueError("XBee cannot be None")
@@ -1505,10 +1523,10 @@ class NeighborFinder(object):
         self.__neighbors = []
         self.__cb = None
 
-        self.__current_frame_id = self.__class__.__global_frame_id
-        self.__class__.__global_frame_id = self.__class__.__global_frame_id + 1
-        if self.__class__.__global_frame_id == 0xFF:
-            self.__class__.__global_frame_id = 1
+        self.__current_frame_id = self.__class__._global_frame_id
+        self.__class__._global_frame_id = self.__class__._global_frame_id + 1
+        if self.__class__._global_frame_id == 0xFF:
+            self.__class__._global_frame_id = 1
 
     @property
     def running(self):
@@ -1516,7 +1534,7 @@ class NeighborFinder(object):
         Returns whether this find neighbors process is running.
 
         Returns:
-            Boolean: ``True`` if it is running, ``False`` otherwise.
+            Boolean: `True` if it is running, `False` otherwise.
         """
         return self.__running
 
@@ -1542,26 +1560,28 @@ class NeighborFinder(object):
 
     def get_neighbors(self, neighbor_callback=None, process_finished_callback=None):
         """
-        Returns the neighbors of the XBee. If ``neighbor_callback`` is not defined, the process
-        blocks until the complete neighbor table is read.
+        Returns the neighbors of the XBee. If `neighbor_callback` is not
+        defined, the process blocks until the complete neighbor table is read.
 
         Args:
-            neighbor_callback (Function, optional, default=``None``): method called when a new
-                neighbor is received. Receives two arguments:
+            neighbor_callback (Function, optional, default=`None`): method
+                called when a new neighbor is received. Receives two arguments:
 
                 * The XBee that owns this new neighbor.
                 * The new neighbor.
 
-            process_finished_callback (Function, optional, default=``None``): method to execute when
-                the process finishes. Receives two arguments:
+            process_finished_callback (Function, optional, default=`None`):
+                method to execute when the process finishes. Receives two
+                arguments:
 
                 * The XBee device that executed the FN command.
                 * A list with the discovered neighbors.
                 * An error message if something went wrong.
 
         Returns:
-            List: List of :class:`.Neighbor` when ``neighbor_callback`` is not defined, ``None``
-                otherwise (in this case neighbors are received in the callback).
+            List: List of :class:`.Neighbor` when `neighbor_callback` is not
+                defined, `None` otherwise (in this case neighbors are received
+                in the callback).
 
         .. seealso::
            | :class:`.Neighbor`
@@ -1584,8 +1604,8 @@ class NeighborFinder(object):
         Sends the FN command.
 
         Args:
-            process_finished_callback (Function, optional): method to execute when
-                the process finishes. Receives two arguments:
+            process_finished_callback (Function, optional): method to execute
+                when the process finishes. Receives two arguments:
 
                 * The XBee device that executed the FN command.
                 * A list with the discovered neighbors.
@@ -1599,14 +1619,14 @@ class NeighborFinder(object):
         self.__neighbors = []
 
         if not self.__xbee.is_remote():
-            xb = self.__xbee
+            node = self.__xbee
         else:
-            xb = self.__xbee.get_local_xbee_device()
+            node = self.__xbee.get_local_xbee_device()
 
-        xb.add_packet_received_callback(self.__fn_packet_callback)
+        node.add_packet_received_callback(self.__fn_packet_callback)
 
         try:
-            xb.send_packet(self.__generate_fn_packet())
+            node.send_packet(self.__generate_fn_packet())
 
             self.__lock.wait(self.__timeout)
 
@@ -1614,10 +1634,10 @@ class NeighborFinder(object):
                 if not self.__error:
                     self.__error = "%s command answer not received" % ATStringCommand.FN.command
                 return
-        except XBeeException as e:
-            self.__error = "Error sending %s command: %s" % (ATStringCommand.FN.command, str(e))
+        except XBeeException as exc:
+            self.__error = "Error sending %s command: %s" % (ATStringCommand.FN.command, str(exc))
         finally:
-            xb.del_packet_received_callback(self.__fn_packet_callback)
+            node.del_packet_received_callback(self.__fn_packet_callback)
             if process_finished_callback:
                 process_finished_callback(self.__xbee, self.__neighbors, self.__error)
             self.__running = False
@@ -1627,13 +1647,14 @@ class NeighborFinder(object):
         Generates the AT command packet or remote AT command packet.
 
         Returns:
-             :class:`digi.xbee.packets.common.RemoteATCommandPacket` or
-             :class:`digi.xbee.packets.common.ATCommandPacket`: The packet to send.
+             :class:`.RemoteATCommandPacket` or :class:`.ATCommandPacket`:
+                The packet to send.
         """
         if self.__xbee.is_remote():
-            return RemoteATCommandPacket(self.__current_frame_id, self.__xbee.get_64bit_addr(),
-                                         XBee16BitAddress.UNKNOWN_ADDRESS, TransmitOptions.NONE.value,
-                                         ATStringCommand.FN.command)
+            return RemoteATCommandPacket(
+                self.__current_frame_id, self.__xbee.get_64bit_addr(),
+                XBee16BitAddress.UNKNOWN_ADDRESS, TransmitOptions.NONE.value,
+                ATStringCommand.FN.command)
 
         return ATCommPacket(self.__current_frame_id, ATStringCommand.FN.command)
 
@@ -1696,12 +1717,12 @@ class NeighborFinder(object):
             rssi = 0
 
         if not self.__xbee.is_remote():
-            xb = self.__xbee
+            node = self.__xbee
         else:
-            xb = self.__xbee.get_local_xbee_device()
+            node = self.__xbee.get_local_xbee_device()
 
         # Create a new remote node
-        n_xb = RemoteDigiMeshDevice(xb, x64bit_addr=x64, node_id=node_id.decode())
+        n_xb = RemoteDigiMeshDevice(node, x64bit_addr=x64, node_id=node_id.decode())
         n_xb._role = role
 
         neighbor = Neighbor(n_xb, NeighborRelationship.SIBLING, -1, rssi)
@@ -1714,20 +1735,21 @@ class NeighborFinder(object):
         Callback notified when a new frame is received.
 
         Args:
-            frame (:class:`digi.xbee.packets.base.XBeeAPIPacket`): The received packet.
+            frame (:class:`.XBeeAPIPacket`): The received packet.
         """
         if not self.__running:
             return
 
         frame_type = frame.get_frame_type()
-        if frame_type == ApiFrameType.AT_COMMAND_RESPONSE \
-                or frame_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE:
+        if frame_type in (ApiFrameType.AT_COMMAND_RESPONSE,
+                          ApiFrameType.REMOTE_AT_COMMAND_RESPONSE):
 
             self._logger.debug("Received '%s' frame: %s",
                                frame.get_frame_type().description,
                                utils.hex_to_string(frame.output()))
 
-            # If frame ID does not match, discard: it is not the frame we are waiting for
+            # If frame ID does not match, discard: it is not the frame we are
+            # waiting for
             if frame.frame_id != self.__current_frame_id:
                 return
             # Check the command

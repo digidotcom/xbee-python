@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -38,16 +38,18 @@ class DeviceRequestPacket(XBeeAPIPacket):
 
     def __init__(self, request_id, target=None, request_data=None):
         """
-        Class constructor. Instantiates a new :class:`.DeviceRequestPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.DeviceRequestPacket`
+        object with the provided parameters.
 
         Args:
-            request_id (Integer): number that identifies the device request. (0 has no special meaning)
+            request_id (Integer): number that identifies the device request.
+                (0 has no special meaning)
             target (String): device request target.
             request_data (Bytearray, optional): data of the request. Optional.
 
         Raises:
-            ValueError: if ``request_id`` is less than 0 or greater than 255.
-            ValueError: if length of ``target`` is greater than 255.
+            ValueError: if `request_id` is less than 0 or greater than 255.
+            ValueError: if length of `target` is greater than 255.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -74,20 +76,25 @@ class DeviceRequestPacket(XBeeAPIPacket):
             :class:`.DeviceRequestPacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 9. (start delim. + length (2 bytes) + frame
-                type + request id + transport + flags + target length + checksum = 9 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is different than :attr:`.ApiFrameType.DEVICE_REQUEST`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 9.
+                (start delim. + length (2 bytes) + frame type + request id
+                + transport + flags + target length + checksum = 9 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is different from
+            ç   :attr:`.ApiFrameType.DEVICE_REQUEST`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=DeviceRequestPacket.__MIN_PACKET_LENGTH)
@@ -142,7 +149,8 @@ class DeviceRequestPacket(XBeeAPIPacket):
                 DictKeys.TARGET:     self.__target,
                 DictKeys.RF_DATA:    list(self.__request_data) if self.__request_data is not None else None}
 
-    def __get_request_id(self):
+    @property
+    def request_id(self):
         """
         Returns the request ID of the packet.
 
@@ -151,7 +159,8 @@ class DeviceRequestPacket(XBeeAPIPacket):
         """
         return self.__request_id
 
-    def __set_request_id(self, request_id):
+    @request_id.setter
+    def request_id(self, request_id):
         """
         Sets the request ID of the packet.
 
@@ -159,13 +168,14 @@ class DeviceRequestPacket(XBeeAPIPacket):
             request_id (Integer): the new request ID of the packet. Must be between 0 and 255.
 
         Raises:
-            ValueError: if ``request_id`` is less than 0 or greater than 255.
+            ValueError: if `request_id` is less than 0 or greater than 255.
         """
         if request_id < 0 or request_id > 255:
             raise ValueError("Device request ID must be between 0 and 255.")
         self.__request_id = request_id
 
-    def __get_transport(self):
+    @property
+    def transport(self):
         """
         Returns the transport of the packet.
 
@@ -174,7 +184,8 @@ class DeviceRequestPacket(XBeeAPIPacket):
         """
         return self.__transport
 
-    def __get_flags(self):
+    @property
+    def flags(self):
         """
         Returns the flags of the packet.
 
@@ -183,7 +194,8 @@ class DeviceRequestPacket(XBeeAPIPacket):
         """
         return self.__flags
 
-    def __get_target(self):
+    @property
+    def target(self):
         """
         Returns the device request target of the packet.
 
@@ -192,7 +204,8 @@ class DeviceRequestPacket(XBeeAPIPacket):
         """
         return self.__target
 
-    def __set_target(self, target):
+    @target.setter
+    def target(self, target):
         """
         Sets the device request target of the packet.
 
@@ -200,13 +213,14 @@ class DeviceRequestPacket(XBeeAPIPacket):
             target (String): the new device request target of the packet.
 
         Raises:
-            ValueError: if ``target`` length is greater than 255.
+            ValueError: if `target` length is greater than 255.
         """
         if target is not None and len(target) > 255:
             raise ValueError("Target length cannot exceed 255 bytes.")
         self.__target = target
 
-    def __get_request_data(self):
+    @property
+    def request_data(self):
         """
         Returns the data of the device request.
 
@@ -217,7 +231,8 @@ class DeviceRequestPacket(XBeeAPIPacket):
             return None
         return self.__request_data.copy()
 
-    def __set_request_data(self, request_data):
+    @request_data.setter
+    def request_data(self, request_data):
         """
         Sets the data of the device request.
 
@@ -228,21 +243,6 @@ class DeviceRequestPacket(XBeeAPIPacket):
             self.__request_data = None
         else:
             self.__request_data = request_data.copy()
-
-    request_id = property(__get_request_id, __set_request_id)
-    """Integer. Request ID of the packet."""
-
-    transport = property(__get_transport)
-    """Integer. Transport (reserved)."""
-
-    flags = property(__get_flags)
-    """Integer. Flags (reserved)."""
-
-    target = property(__get_target, __set_target)
-    """String. Request target of the packet."""
-
-    request_data = property(__get_request_data, __set_request_data)
-    """Bytearray. Data of the device request."""
 
 
 class DeviceResponsePacket(XBeeAPIPacket):
@@ -263,7 +263,8 @@ class DeviceResponsePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, request_id, response_data=None):
         """
-        Class constructor. Instantiates a new :class:`.DeviceResponsePacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.DeviceResponsePacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -272,8 +273,8 @@ class DeviceResponsePacket(XBeeAPIPacket):
             response_data (Bytearray, optional): data of the response. Optional.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
-            ValueError: if ``request_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `request_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -297,20 +298,25 @@ class DeviceResponsePacket(XBeeAPIPacket):
             :class:`.DeviceResponsePacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 8. (start delim. + length (2 bytes) + frame
-                type + frame id + request id + reserved + checksum = 8 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is different than :attr:`.ApiFrameType.DEVICE_RESPONSE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 8.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + request id + reserved + checksum = 8 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is different from
+                :attr:`.ApiFrameType.DEVICE_RESPONSE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=DeviceResponsePacket.__MIN_PACKET_LENGTH)
@@ -354,7 +360,8 @@ class DeviceResponsePacket(XBeeAPIPacket):
                 DictKeys.RESERVED:   0x00,
                 DictKeys.RF_DATA:    list(self.__response_data) if self.__response_data is not None else None}
 
-    def __get_request_id(self):
+    @property
+    def request_id(self):
         """
         Returns the request ID of the packet.
 
@@ -363,7 +370,8 @@ class DeviceResponsePacket(XBeeAPIPacket):
         """
         return self.__request_id
 
-    def __set_request_id(self, request_id):
+    @request_id.setter
+    def request_id(self, request_id):
         """
         Sets the request ID of the packet.
 
@@ -371,13 +379,14 @@ class DeviceResponsePacket(XBeeAPIPacket):
             request_id (Integer): the new request ID of the packet. Must be between 0 and 255.
 
         Raises:
-            ValueError: if ``request_id`` is less than 0 or greater than 255.
+            ValueError: if `request_id` is less than 0 or greater than 255.
         """
         if request_id < 0 or request_id > 255:
             raise ValueError("Device request ID must be between 0 and 255.")
         self.__request_id = request_id
 
-    def __get_response_data(self):
+    @property
+    def request_data(self):
         """
         Returns the data of the device response.
 
@@ -388,7 +397,8 @@ class DeviceResponsePacket(XBeeAPIPacket):
             return None
         return self.__response_data.copy()
 
-    def __set_response_data(self, response_data):
+    @request_data.setter
+    def request_data(self, response_data):
         """
         Sets the data of the device response.
 
@@ -399,12 +409,6 @@ class DeviceResponsePacket(XBeeAPIPacket):
             self.__response_data = None
         else:
             self.__response_data = response_data.copy()
-
-    request_id = property(__get_request_id, __set_request_id)
-    """Integer. Request ID of the packet."""
-
-    request_data = property(__get_response_data, __set_response_data)
-    """Bytearray. Data of the device response."""
 
 
 class DeviceResponseStatusPacket(XBeeAPIPacket):
@@ -431,7 +435,7 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
             status (:class:`.DeviceCloudStatus`): device response status.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.DeviceCloudStatus`
@@ -453,20 +457,25 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
             :class:`.DeviceResponseStatusPacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 7. (start delim. + length (2 bytes) + frame
-                type + frame id + device response status + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is different than :attr:`.ApiFrameType.DEVICE_RESPONSE_STATUS`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 7.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + device response status + checksum = 7 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is different
+                from :attr:`.ApiFrameType.DEVICE_RESPONSE_STATUS`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=DeviceResponseStatusPacket.__MIN_PACKET_LENGTH)
@@ -503,7 +512,8 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
         """
         return {DictKeys.DC_STATUS: self.__status}
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the status of the device response packet.
 
@@ -515,7 +525,8 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
         """
         return self.__status
 
-    def __set_status(self, status):
+    @status.setter
+    def status(self, status):
         """
         Sets the status of the device response packet.
 
@@ -526,9 +537,6 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
            | :class:`.DeviceCloudStatus`
         """
         self.__status = status
-
-    status = property(__get_status, __set_status)
-    """:class:`.DeviceCloudStatus`. Status of the device response."""
 
 
 class FrameErrorPacket(XBeeAPIPacket):
@@ -547,7 +555,8 @@ class FrameErrorPacket(XBeeAPIPacket):
 
     def __init__(self, frame_error):
         """
-        Class constructor. Instantiates a new :class:`.FrameErrorPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.FrameErrorPacket` object
+        with the provided parameters.
 
         Args:
             frame_error (:class:`.FrameError`): the frame error.
@@ -568,20 +577,25 @@ class FrameErrorPacket(XBeeAPIPacket):
             :class:`.FrameErrorPacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 6. (start delim. + length (2 bytes) + frame
-                type + frame error + checksum = 6 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is different than :attr:`.ApiFrameType.FRAME_ERROR`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 6.
+                (start delim. + length (2 bytes) + frame type + frame error
+                + checksum = 6 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is different from
+                :attr:`.ApiFrameType.FRAME_ERROR`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=FrameErrorPacket.__MIN_PACKET_LENGTH)
@@ -618,7 +632,8 @@ class FrameErrorPacket(XBeeAPIPacket):
         """
         return {DictKeys.FRAME_ERROR: self.__frame_error}
 
-    def __get_error(self):
+    @property
+    def error(self):
         """
         Returns the frame error of the packet.
 
@@ -630,7 +645,8 @@ class FrameErrorPacket(XBeeAPIPacket):
         """
         return self.__frame_error
 
-    def __set_error(self, frame_error):
+    @error.setter
+    def error(self, frame_error):
         """
         Sets the frame error of the packet.
 
@@ -641,9 +657,6 @@ class FrameErrorPacket(XBeeAPIPacket):
            | :class:`.FrameError`
         """
         self.__frame_error = frame_error
-
-    error = property(__get_error, __set_error)
-    """:class:`.FrameError`. Frame error of the packet."""
 
 
 class SendDataRequestPacket(XBeeAPIPacket):
@@ -666,7 +679,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, path, content_type, options, file_data=None):
         """
-        Class constructor. Instantiates a new :class:`.SendDataRequestPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SendDataRequestPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -676,7 +690,7 @@ class SendDataRequestPacket(XBeeAPIPacket):
             file_data (Bytearray, optional): data of the file to upload. Optional.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -701,20 +715,26 @@ class SendDataRequestPacket(XBeeAPIPacket):
             :class:`.SendDataRequestPacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 10. (start delim. + length (2 bytes) + frame
-                type + frame id + path length + content type length + transport + options + checksum = 10 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is different than :attr:`.ApiFrameType.SEND_DATA_REQUEST`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 10.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + path length + content type length + transport + options
+                + checksum = 10 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is different from
+                :attr:`.ApiFrameType.SEND_DATA_REQUEST`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=SendDataRequestPacket.__MIN_PACKET_LENGTH)
@@ -778,7 +798,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
                 DictKeys.TRANSMIT_OPTIONS:    self.__options,
                 DictKeys.RF_DATA:             list(self.__file_data) if self.__file_data is not None else None}
 
-    def __get_path(self):
+    @property
+    def path(self):
         """
         Returns the path of the file to upload to Device Cloud.
 
@@ -787,7 +808,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
         """
         return self.__path
 
-    def __set_path(self, path):
+    @path.setter
+    def path(self, path):
         """
         Sets the path of the file to upload to Device Cloud.
 
@@ -796,7 +818,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
         """
         self.__path = path
 
-    def __get_content_type(self):
+    @property
+    def content_type(self):
         """
         Returns the content type of the file to upload.
 
@@ -805,7 +828,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
         """
         return self.__content_type
 
-    def __set_content_type(self, content_type):
+    @content_type.setter
+    def content_type(self, content_type):
         """
         Sets the content type of the file to upload.
 
@@ -814,7 +838,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
         """
         self.__content_type = content_type
 
-    def __get_options(self):
+    @property
+    def options(self):
         """
         Returns the file upload operation options.
 
@@ -826,7 +851,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
         """
         return self.__options
 
-    def __set_options(self, options):
+    @options.setter
+    def options(self, options):
         """
         Sets the file upload operation options.
 
@@ -838,7 +864,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
         """
         self.__options = options
 
-    def __get_file_data(self):
+    @property
+    def file_data(self):
         """
         Returns the data of the file to upload.
 
@@ -849,7 +876,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
             return None
         return self.__file_data.copy()
 
-    def __set_file_data(self, file_data):
+    @file_data.setter
+    def file_data(self, file_data):
         """
         Sets the data of the file to upload.
 
@@ -860,18 +888,6 @@ class SendDataRequestPacket(XBeeAPIPacket):
             self.__file_data = None
         else:
             self.__file_data = file_data.copy()
-
-    path = property(__get_path, __set_path)
-    """String. Path of the file to upload to Device Cloud."""
-
-    content_type = property(__get_content_type, __set_content_type)
-    """String. The content type of the file to upload."""
-
-    options = property(__get_options, __set_options)
-    """:class:`.SendDataRequestOptions`. File upload operation options."""
-
-    file_data = property(__get_file_data, __set_file_data)
-    """Bytearray. Data of the file to upload."""
 
 
 class SendDataResponsePacket(XBeeAPIPacket):
@@ -891,14 +907,15 @@ class SendDataResponsePacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, status):
         """
-        Class constructor. Instantiates a new :class:`.SendDataResponsePacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SendDataResponsePacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
             status (:class:`.DeviceCloudStatus`): the file upload status.
 
         Raises:
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
 
         .. seealso::
            | :class:`.DeviceCloudStatus`
@@ -920,20 +937,25 @@ class SendDataResponsePacket(XBeeAPIPacket):
             :class:`.SendDataResponsePacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 10. (start delim. + length (2 bytes) + frame
-                type + frame id + status + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is different than :attr:`.ApiFrameType.SEND_DATA_RESPONSE`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 10.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + status + checksum = 7 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is different from
+                :attr:`.ApiFrameType.SEND_DATA_RESPONSE`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=SendDataResponsePacket.__MIN_PACKET_LENGTH)
@@ -970,7 +992,8 @@ class SendDataResponsePacket(XBeeAPIPacket):
         """
         return {DictKeys.DC_STATUS: self.__status}
 
-    def __get_status(self):
+    @property
+    def status(self):
         """
         Returns the file upload status.
 
@@ -982,7 +1005,8 @@ class SendDataResponsePacket(XBeeAPIPacket):
         """
         return self.__status
 
-    def __set_status(self, status):
+    @status.setter
+    def status(self, status):
         """
         Sets the file upload status.
 
@@ -993,6 +1017,3 @@ class SendDataResponsePacket(XBeeAPIPacket):
            | :class:`.DeviceCloudStatus`
         """
         self.__status = status
-
-    status = property(__get_status, __set_status)
-    """:class:`.DeviceCloudStatus`. The file upload status."""

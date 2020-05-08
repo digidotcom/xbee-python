@@ -1,4 +1,4 @@
-# Copyright 2017, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,12 +16,12 @@ from enum import Enum, unique
 from digi.xbee.util import utils
 
 
-class AccessPoint(object):
+class AccessPoint:
     """
-    This class represents an Access Point for the Wi-Fi protocol. It contains 
-    SSID, the encryption type and the link quality between the Wi-Fi module and 
+    This class represents an Access Point for the Wi-Fi protocol. It contains
+    SSID, the encryption type and the link quality between the Wi-Fi module and
     the access point.
-    
+
     This class is used within the library to list the access points
     and connect to a specific one in the Wi-Fi protocol.
 
@@ -43,9 +43,9 @@ class AccessPoint(object):
             signal_quality (Integer, optional): signal quality with the access point in %. Optional.
 
         Raises:
-            ValueError: if length of ``ssid`` is 0.
-            ValueError: if ``channel`` is less than 0.
-            ValueError: if ``signal_quality`` is less than 0 or greater than 100.
+            ValueError: if length of `ssid` is 0.
+            ValueError: if `channel` is less than 0.
+            ValueError: if `signal_quality` is less than 0 or greater than 100.
 
         .. seealso::
            | :class:`.WiFiEncryptionType`
@@ -72,7 +72,8 @@ class AccessPoint(object):
         return "%s (%s) - CH: %s - Signal: %s%%" % (self.__ssid, self.__encryption_type.description,
                                                     self.__channel, self.__signal_quality)
 
-    def __get_ssid(self):
+    @property
+    def ssid(self):
         """
         Returns the SSID of the access point.
 
@@ -81,7 +82,8 @@ class AccessPoint(object):
         """
         return self.__ssid
 
-    def __get_encryption_type(self):
+    @property
+    def encryption_type(self):
         """
         Returns the encryption type of the access point.
 
@@ -93,7 +95,8 @@ class AccessPoint(object):
         """
         return self.__encryption_type
 
-    def __get_channel(self):
+    @property
+    def channel(self):
         """
         Returns the channel of the access point.
 
@@ -105,7 +108,8 @@ class AccessPoint(object):
         """
         return self.__channel
 
-    def __set_channel(self, channel):
+    @channel.setter
+    def channel(self, channel):
         """
         Sets the channel of the access point.
 
@@ -113,7 +117,7 @@ class AccessPoint(object):
             channel (Integer): the new channel of the access point
 
         Raises:
-            ValueError: if ``channel`` is less than 0.
+            ValueError: if `channel` is less than 0.
 
         .. seealso::
            | :func:`.AccessPoint.get_channel`
@@ -122,7 +126,8 @@ class AccessPoint(object):
             raise ValueError(self.__ERROR_CHANNEL)
         self.__channel = channel
 
-    def __get_signal_quality(self):
+    @property
+    def signal_quality(self):
         """
         Returns the signal quality with the access point in %.
 
@@ -134,15 +139,16 @@ class AccessPoint(object):
         """
         return self.__signal_quality
 
-    def __set_signal_quality(self, signal_quality):
+    @signal_quality.setter
+    def signal_quality(self, signal_quality):
         """
-        Sets the channel of the access point.
+        Sets the signal quality with the access point (percentage).
 
         Args:
             signal_quality (Integer): the new signal quality with the access point.
 
         Raises:
-            ValueError: if ``signal_quality`` is less than 0 or greater than 100.
+            ValueError: if `signal_quality` is less than 0 or greater than 100.
 
         .. seealso::
            | :func:`.AccessPoint.__get_signal_quality`
@@ -150,18 +156,6 @@ class AccessPoint(object):
         if signal_quality < 0 or signal_quality > 100:
             raise ValueError(self.__ERROR_SIGNAL_QUALITY)
         self.__signal_quality = signal_quality
-
-    ssid = property(__get_ssid)
-    """String. SSID of the access point."""
-
-    encryption_type = property(__get_encryption_type)
-    """:class:`.WiFiEncryptionType`. Encryption type of the access point."""
-
-    channel = property(__get_channel, __set_channel)
-    """String. Channel of the access point."""
-
-    signal_quality = property(__get_signal_quality, __set_signal_quality)
-    """String. The signal quality with the access point in %."""
 
 
 @unique
@@ -178,7 +172,8 @@ class WiFiEncryptionType(Enum):
         self.__code = code
         self.__description = description
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the WiFiEncryptionType element.
 
@@ -187,7 +182,8 @@ class WiFiEncryptionType(Enum):
         """
         return self.__code
 
-    def __get_description(self):
+    @property
+    def description(self):
         """
         Returns the description of the WiFiEncryptionType element.
 
@@ -205,20 +201,13 @@ class WiFiEncryptionType(Enum):
             code (Integer): the code of the Wi-Fi encryption type to get.
 
         Returns:
-            :class:`.WiFiEncryptionType`: the WiFiEncryptionType with the given code, ``None`` if there is
-                not any Wi-Fi encryption type with the provided code.
+            :class:`.WiFiEncryptionType`: the WiFiEncryptionType with the given
+                code, `None` if not found.
         """
-        try:
-            return cls.lookupTable[code]
-        except KeyError:
-            return None
-
-    code = property(__get_code)
-    """Integer. The Wi-Fi encryption type code."""
-
-    description = property(__get_description)
-    """String. The Wi-Fi encryption type description."""
+        for enc_type in cls:
+            if enc_type.code == code:
+                return enc_type
+        return None
 
 
-WiFiEncryptionType.lookupTable = {x.code: x for x in WiFiEncryptionType}
 WiFiEncryptionType.__doc__ += utils.doc_enum(WiFiEncryptionType)

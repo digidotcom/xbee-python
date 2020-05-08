@@ -1,4 +1,4 @@
-# Copyright 2019, Digi International Inc.
+# Copyright 2019, 2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -55,8 +55,8 @@ class RouteInformationPacket(XBeeAPIPacket):
             src_addr (:class:`.XBee64BitAddress`): The 64-bit address of the
                 source node of this network-level transmission.
             responder_addr (:class:`.XBee64BitAddress`): The 64-bit address of
-                the node that generates this packet after it sends
-                (or attempts to send) the packet to the next hop (successor node).
+                the node that generates this packet after it sends (or attempts
+                to send) the packet to the next hop (successor node).
             successor_addr (:class:`.XBee64BitAddress`): The 64-bit address of
                 the next node after the responder in the route towards the
                 destination, whether or not the packet arrived successfully at
@@ -65,9 +65,9 @@ class RouteInformationPacket(XBeeAPIPacket):
                 data of the packet.
 
         Raises:
-            ValueError: if ``src_event`` is not 0x11 or 0x12.
-            ValueError: if ``timestamp`` is not between 0 and 0xFFFFFFFF.
-            ValueError: if ``ack_timeout_count`` or ``tx_block_count`` are not
+            ValueError: if `src_event` is not 0x11 or 0x12.
+            ValueError: if `timestamp` is not between 0 and 0xFFFFFFFF.
+            ValueError: if `ack_timeout_count` or `tx_block_count` are not
                 between 0 and 255.
 
         .. seealso::
@@ -89,7 +89,7 @@ class RouteInformationPacket(XBeeAPIPacket):
         self.__timestamp = timestamp
         self.__ack_timeout_count = ack_timeout_count
         self.__tx_block_count = tx_block_count
-        self.__reserved = 0
+        self._reserved = 0
         self.__dst_addr = dst_addr
         self.__src_addr = src_addr
         self.__responder_addr = responder_addr
@@ -122,15 +122,15 @@ class RouteInformationPacket(XBeeAPIPacket):
             InvalidPacketException: If the internal length byte of the rest
                 of the frame (without the checksum) is different from its real
                 length.
-            InvalidOperatingModeException: If ``operating_mode`` is not
+            InvalidOperatingModeException: If `operating_mode` is not
                 supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode not in [OperatingMode.ESCAPED_API_MODE,
-                                  OperatingMode.API_MODE]:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(
                 operating_mode.name + " is not supported.")
 
@@ -155,7 +155,7 @@ class RouteInformationPacket(XBeeAPIPacket):
                                         XBee64BitAddress(raw[29:37]),
                                         XBee64BitAddress(raw[37:45]),
                                         additional_data)
-        packet.__reserved = raw[12]
+        packet._reserved = raw[12]
 
         return packet
 
@@ -180,7 +180,7 @@ class RouteInformationPacket(XBeeAPIPacket):
         ret += utils.int_to_bytes(self.__timestamp, num_bytes=4)
         ret.append(self.__ack_timeout_count)
         ret.append(self.__tx_block_count)
-        ret.append(self.__reserved)
+        ret.append(self._reserved)
         ret += self.__dst_addr.address
         ret += self.__src_addr.address
         ret += self.__responder_addr.address
@@ -227,7 +227,7 @@ class RouteInformationPacket(XBeeAPIPacket):
             src_event (Integer): The new source event.
 
         Raises:
-            ValueError: if ``src_event`` is not 0x11 or 0x12.
+            ValueError: if `src_event` is not 0x11 or 0x12.
         """
         if src_event not in [0x11, 0x12]:
             raise ValueError("Source event must be 0x11 or 0x12.")
@@ -267,7 +267,7 @@ class RouteInformationPacket(XBeeAPIPacket):
             timestamp (Integer): The number of microseconds.
 
         Raises:
-            ValueError: if ``timestamp`` is not between 0 and 0xFFFFFFFF.
+            ValueError: if `timestamp` is not between 0 and 0xFFFFFFFF.
         """
         if timestamp < 0 or timestamp > 0xFFFFFFFF:  # 4 bytes
             raise ValueError("Timestamp must be between 0 and %d." % 0xFFFFFFFF)
@@ -293,7 +293,7 @@ class RouteInformationPacket(XBeeAPIPacket):
             ack_timeout_count (Integer): The number of MAC ACK timeouts that occur.
 
         Raises:
-            ValueError: if ``ack_timeout_count`` is not between 0 and 255.
+            ValueError: if `ack_timeout_count` is not between 0 and 255.
         """
         if ack_timeout_count < 0 or ack_timeout_count > 0xFF:  # 1 byte
             raise ValueError("ACK timeout count must be between 0 and 255")
@@ -323,7 +323,7 @@ class RouteInformationPacket(XBeeAPIPacket):
                 blocked due to reception in progress.
 
         Raises:
-            ValueError: if ``tx_block_count`` is not between 0 and 255.
+            ValueError: if `tx_block_count` is not between 0 and 255.
         """
         if tx_block_count < 0 or tx_block_count > 0xFF:  # 1 byte
             raise ValueError("TX blocked count must be between 0 and 255")

@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,13 +12,14 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+import re
+
 from digi.xbee.packets.base import XBeeAPIPacket, DictKeys
 from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketException
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.options import TransmitOptions
 from digi.xbee.util import utils
-import re
 
 
 PATTERN_PHONE_NUMBER = "^\+?\d+$"
@@ -27,9 +28,9 @@ PATTERN_PHONE_NUMBER = "^\+?\d+$"
 
 class RXSMSPacket(XBeeAPIPacket):
     """
-    This class represents an RX (Receive) SMS packet. Packet is built 
+    This class represents an RX (Receive) SMS packet. Packet is built
     using the parameters of the constructor or providing a valid byte array.
-    
+
     .. seealso::
        | :class:`.TXSMSPacket`
        | :class:`.XBeeAPIPacket`
@@ -39,15 +40,16 @@ class RXSMSPacket(XBeeAPIPacket):
 
     def __init__(self, phone_number, data):
         """
-        Class constructor. Instantiates a new :class:`.RXSMSPacket` object withe the provided parameters.
-        
+        Class constructor. Instantiates a new :class:`.RXSMSPacket` object with
+        the provided parameters.
+
         Args:
             phone_number (String): phone number of the device that sent the SMS.
             data (String): packet data (text of the SMS).
-            
+
         Raises:
-            ValueError: if length of ``phone_number`` is greater than 20.
-            ValueError: if ``phone_number`` is not a valid phone number.
+            ValueError: if length of `phone_number` is greater than 20.
+            ValueError: if `phone_number` is not a valid phone number.
         """
         if len(phone_number) > 20:
             raise ValueError("Phone number length cannot be greater than 20 bytes")
@@ -63,26 +65,31 @@ class RXSMSPacket(XBeeAPIPacket):
     def create_packet(raw, operating_mode):
         """
         Override method.
-        
+
         Returns:
             :class:`.RXSMSPacket`
-            
+
         Raises:
-            InvalidPacketException: if the bytearray length is less than 25. (start delim + length (2 bytes) +
-                frame type + phone number (20 bytes) + checksum = 25 bytes)
-            InvalidPacketException: if the length field of ``raw`` is different than its real length. (length field:
-                bytes 2 and 3)
-            InvalidPacketException: if the first byte of ``raw`` is not the header byte. See :class:`.SPECIAL_BYTE`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is different than :py:attr:`.ApiFrameType.RX_SMS`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
-            
+            InvalidPacketException: if the bytearray length is less than 25.
+                (start delim + length (2 bytes) + frame type
+                + phone number (20 bytes) + checksum = 25 bytes)
+            InvalidPacketException: if the length field of `raw` is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of `raw` is not the
+                header byte. See :class:`.SPECIAL_BYTE`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is different than
+                :py:attr:`.ApiFrameType.RX_SMS`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
+
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
-        
+
         XBeeAPIPacket._check_api_packet(raw, min_length=RXSMSPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.RX_SMS.code:
@@ -93,7 +100,7 @@ class RXSMSPacket(XBeeAPIPacket):
     def needs_id(self):
         """
         Override method.
-        
+
         .. seealso::
            | :meth:`.XBeeAPIPacket.needs_id`
         """
@@ -108,7 +115,8 @@ class RXSMSPacket(XBeeAPIPacket):
         """
         return self.__phone_number
 
-    def __get_phone_number(self):
+    @property
+    def phone_number(self):
         """
         Returns the phone number of the device that sent the SMS.
 
@@ -117,7 +125,8 @@ class RXSMSPacket(XBeeAPIPacket):
         """
         return self.__phone_number.decode("utf8").replace("\0", "")
 
-    def __set_phone_number(self, phone_number):
+    @phone_number.setter
+    def phone_number(self, phone_number):
         """
         Sets the phone number of the device that sent the SMS.
 
@@ -125,8 +134,8 @@ class RXSMSPacket(XBeeAPIPacket):
             phone_number (String): the new phone number.
 
         Raises:
-            ValueError: if length of ``phone_number`` is greater than 20.
-            ValueError: if ``phone_number`` is not a valid phone number.
+            ValueError: if length of `phone_number` is greater than 20.
+            ValueError: if `phone_number` is not a valid phone number.
         """
         if len(phone_number) > 20:
             raise ValueError("Phone number length cannot be greater than 20 bytes")
@@ -136,7 +145,8 @@ class RXSMSPacket(XBeeAPIPacket):
         self.__phone_number = bytearray(20)
         self.__phone_number[0:len(phone_number)] = phone_number.encode("utf8")
 
-    def __get_data(self):
+    @property
+    def data(self):
         """
         Returns the data of the packet (SMS text).
 
@@ -145,7 +155,8 @@ class RXSMSPacket(XBeeAPIPacket):
         """
         return self.__data
 
-    def __set_data(self, data):
+    @data.setter
+    def data(self, data):
         """
         Sets the data of the packet.
 
@@ -177,18 +188,12 @@ class RXSMSPacket(XBeeAPIPacket):
         return {DictKeys.PHONE_NUMBER: self.__phone_number,
                 DictKeys.RF_DATA:      self.__data}
 
-    phone_number = property(__get_phone_number, __set_phone_number)
-    """String. Phone number that sent the SMS."""
-
-    data = property(__get_data, __set_data)
-    """String. Data of the SMS."""
-
 
 class TXSMSPacket(XBeeAPIPacket):
     """
-    This class represents a TX (Transmit) SMS packet. Packet is built 
+    This class represents a TX (Transmit) SMS packet. Packet is built
     using the parameters of the constructor or providing a valid byte array.
-    
+
     .. seealso::
        | :class:`.RXSMSPacket`
        | :class:`.XBeeAPIPacket`
@@ -198,7 +203,8 @@ class TXSMSPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, phone_number, data):
         """
-        Class constructor. Instantiates a new :class:`.TXSMSPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.TXSMSPacket` object with
+        the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID. Must be between 0 and 255.
@@ -206,9 +212,9 @@ class TXSMSPacket(XBeeAPIPacket):
             data (String): this packet's data.
 
         Raises:
-            ValueError: if ``frame_id`` is not between 0 and 255.
-            ValueError: if length of ``phone_number`` is greater than 20.
-            ValueError: if ``phone_number`` is not a valid phone number.
+            ValueError: if `frame_id` is not between 0 and 255.
+            ValueError: if length of `phone_number` is greater than 20.
+            ValueError: if `phone_number` is not a valid phone number.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -220,7 +226,7 @@ class TXSMSPacket(XBeeAPIPacket):
         if not re.match(PATTERN_PHONE_NUMBER, phone_number):
             raise ValueError("Phone number invalid, only numbers and '+' prefix allowed.")
         super().__init__(ApiFrameType.TX_SMS)
-        
+
         self._frame_id = frame_id
         self.__transmit_options = TransmitOptions.NONE.value
         self.__phone_number = bytearray(20)
@@ -236,27 +242,33 @@ class TXSMSPacket(XBeeAPIPacket):
             :class:`.TXSMSPacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 27. (start delim, length (2 bytes), frame type,
-                frame id, transmit options, phone number (20 bytes), checksum)
-            InvalidPacketException: if the length field of ``raw`` is different than its real length. (length field:
-                bytes 2 and 3)
-            InvalidPacketException: if the first byte of ``raw`` is not the header byte. See :class:`.SPECIAL_BYTE`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is different than :py:attr:`.ApiFrameType.TX_SMS`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 27.
+                (start delim, length (2 bytes), frame type, frame id,
+                transmit options, phone number (20 bytes), checksum)
+            InvalidPacketException: if the length field of `raw` is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of `raw` is not the
+                header byte. See :class:`.SPECIAL_BYTE`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is different than
+                :py:attr:`.ApiFrameType.TX_SMS`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
-        
+
         XBeeAPIPacket._check_api_packet(raw, min_length=TXSMSPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.TX_SMS.code:
             raise InvalidPacketException(message="This packet is not a TXSMSPacket")
 
-        return TXSMSPacket(raw[4], raw[6:25].decode("utf8").replace("\0", ""), raw[26:-1].decode("utf8"))
+        return TXSMSPacket(raw[4], raw[6:25].decode("utf8").replace("\0", ""),
+                           raw[26:-1].decode("utf8"))
 
     def needs_id(self):
         """
@@ -276,7 +288,8 @@ class TXSMSPacket(XBeeAPIPacket):
         """
         return self.__phone_number
 
-    def __get_phone_number(self):
+    @property
+    def phone_number(self):
         """
         Returns the phone number of the transmitter device.
 
@@ -285,7 +298,8 @@ class TXSMSPacket(XBeeAPIPacket):
         """
         return self.__phone_number.decode("utf8").replace("\0", "")
 
-    def __set_phone_number(self, phone_number):
+    @phone_number.setter
+    def phone_number(self, phone_number):
         """
         Sets the phone number of the transmitter device.
 
@@ -293,8 +307,8 @@ class TXSMSPacket(XBeeAPIPacket):
             phone_number (String): the new phone number.
 
         Raises:
-            ValueError: if length of ``phone_number`` is greater than 20.
-            ValueError: if ``phone_number`` is not a valid phone number.
+            ValueError: if length of `phone_number` is greater than 20.
+            ValueError: if `phone_number` is not a valid phone number.
         """
         if len(phone_number) > 20:
             raise ValueError("Phone number length cannot be greater than 20 bytes")
@@ -304,7 +318,8 @@ class TXSMSPacket(XBeeAPIPacket):
         self.__phone_number = bytearray(20)
         self.__phone_number[0:len(phone_number)] = phone_number.encode("utf8")
 
-    def __get_data(self):
+    @property
+    def data(self):
         """
         Returns the data of the packet (SMS text).
 
@@ -313,7 +328,8 @@ class TXSMSPacket(XBeeAPIPacket):
         """
         return self.__data
 
-    def __set_data(self, data):
+    @data.setter
+    def data(self, data):
         """
         Sets the data of the packet.
 
@@ -345,9 +361,3 @@ class TXSMSPacket(XBeeAPIPacket):
         return {DictKeys.OPTIONS:      self.__transmit_options,
                 DictKeys.PHONE_NUMBER: self.__phone_number,
                 DictKeys.RF_DATA:      self.__data}
-
-    phone_number = property(__get_phone_number, __set_phone_number)
-    """String. Phone number that sent the SMS."""
-
-    data = property(__get_data, __set_data)
-    """String. Data of the SMS."""

@@ -1,4 +1,4 @@
-# Copyright 2017-2019, Digi International Inc.
+# Copyright 2017-2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -39,7 +39,8 @@ class OperatingMode(Enum):
         self.__code = code
         self.__description = description
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the OperatingMode element.
 
@@ -48,7 +49,8 @@ class OperatingMode(Enum):
         """
         return self.__code
 
-    def __get_description(self):
+    @property
+    def description(self):
         """
         Returns the description of the OperatingMode element.
 
@@ -68,19 +70,12 @@ class OperatingMode(Enum):
         Returns:
             :class:`.OperatingMode`: the OperatingMode with the given code.
         """
-        try:
-            return cls.lookupTable[code]
-        except KeyError:
-            return OperatingMode.UNKNOWN
-
-    code = property(__get_code)
-    """Integer. The operating mode code."""
-
-    description = property(__get_description)
-    """String: The operating mode description."""
+        for mode in cls:
+            if mode.code == code:
+                return mode
+        return OperatingMode.UNKNOWN
 
 
-OperatingMode.lookupTable = {x.code: x for x in OperatingMode}
 OperatingMode.__doc__ += utils.doc_enum(OperatingMode)
 
 
@@ -103,7 +98,8 @@ class APIOutputMode(Enum):
         self.__code = code
         self.__description = description
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the APIOutputMode element.
 
@@ -112,7 +108,8 @@ class APIOutputMode(Enum):
         """
         return self.__code
 
-    def __get_description(self):
+    @property
+    def description(self):
         """
         Returns the description of the APIOutputMode element.
 
@@ -130,22 +127,15 @@ class APIOutputMode(Enum):
             code (Integer): the code corresponding to the API output mode to get.
 
         Returns:
-            :class:`.OperatingMode`: the APIOutputMode with the given code, ``None`` if there is not an
-                APIOutputMode with that code.
+            :class:`.APIOutputMode`: the APIOutputMode with the given code,
+                `None` if not found.
         """
-        try:
-            return cls.lookupTable[code]
-        except KeyError:
-            return None
-
-    code = property(__get_code)
-    """Integer. The API output mode code."""
-
-    description = property(__get_description)
-    """String: The API output mode description."""
+        for mode in cls:
+            if mode.code == code:
+                return mode
+        return None
 
 
-APIOutputMode.lookupTable = {x.code: x for x in APIOutputMode}
 APIOutputMode.__doc__ += utils.doc_enum(APIOutputMode)
 
 
@@ -169,7 +159,8 @@ class APIOutputModeBit(Enum):
         self.__code = code
         self.__description = description
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the APIOutputModeBit element.
 
@@ -178,7 +169,8 @@ class APIOutputModeBit(Enum):
         """
         return self.__code
 
-    def __get_description(self):
+    @property
+    def description(self):
         """
         Returns the description of the APIOutputModeBit element.
 
@@ -196,46 +188,40 @@ class APIOutputModeBit(Enum):
             code (Integer): the code corresponding to the API output mode to get.
 
         Returns:
-            :class:`.OperatingMode`: the APIOutputModeBit with the given code, ``None``
-                if there is not an APIOutputModeBit with that code.
+            :class:`.OperatingMode`: the APIOutputModeBit with the given code,
+                `None` if not found.
         """
         for item in cls:
             if code == item.code:
                 return item
-
         return None
 
     @classmethod
     def calculate_api_output_mode_value(cls, protocol, options):
         """
-        Calculates the total value of a combination of several option bits for the
-        given protocol.
+        Calculates the total value of a combination of several option bits for
+        the given protocol.
 
         Args:
-            protocol (:class:`digi.xbee.models.protocol.XBeeProtocol`): The ``XBeeProtocol``
-                to calculate the value of all the given API output options.
+            protocol (:class:`digi.xbee.models.protocol.XBeeProtocol`): The
+                `XBeeProtocol` to calculate the value of all the given API
+                output options.
             options: Collection of option bits to get the final value.
 
         Returns:
-            Integer: The value to be configured in the module depending on the given
-                collection of option bits and the protocol.
+            Integer: The value to be configured in the module depending on the
+                given collection of option bits and the protocol.
         """
         if not options:
             return 0
 
         if protocol == XBeeProtocol.ZIGBEE:
             return sum(op.code for op in options)
-        elif protocol in (XBeeProtocol.DIGI_MESH, XBeeProtocol.DIGI_POINT,
-                          XBeeProtocol.XLR, XBeeProtocol.XLR_DM):
+        if protocol in (XBeeProtocol.DIGI_MESH, XBeeProtocol.DIGI_POINT,
+                        XBeeProtocol.XLR, XBeeProtocol.XLR_DM):
             return sum(op.code for op in options if lambda option: option != cls.EXPLICIT)
 
         return 0
-
-    code = property(__get_code)
-    """Integer. The API output mode bit code."""
-
-    description = property(__get_description)
-    """String: The API output mode bit description."""
 
 
 APIOutputModeBit.__doc__ += utils.doc_enum(APIOutputModeBit)
@@ -254,7 +240,8 @@ class IPAddressingMode(Enum):
         self.__code = code
         self.__description = description
 
-    def __get_code(self):
+    @property
+    def code(self):
         """
         Returns the code of the IPAddressingMode element.
 
@@ -263,7 +250,8 @@ class IPAddressingMode(Enum):
         """
         return self.__code
 
-    def __get_description(self):
+    @property
+    def description(self):
         """
         Returns the description of the IPAddressingMode element.
 
@@ -281,30 +269,23 @@ class IPAddressingMode(Enum):
             code (Integer): the code corresponding to the IP addressing mode to get.
 
         Returns:
-            :class:`.IPAddressingMode`: the IPAddressingMode with the given code, ``None`` if there is not an
-                IPAddressingMode with that code.
+            :class:`.IPAddressingMode`: the IPAddressingMode with the given
+                code, `None` if not found.
         """
-        try:
-            return cls.lookupTable[code]
-        except KeyError:
-            return None
-
-    code = property(__get_code)
-    """Integer. The IP addressing mode code."""
-
-    description = property(__get_description)
-    """String. The IP addressing mode description."""
+        for mode in cls:
+            if mode.code == code:
+                return mode
+        return None
 
 
-IPAddressingMode.lookupTable = {x.code: x for x in IPAddressingMode}
 IPAddressingMode.__doc__ += utils.doc_enum(IPAddressingMode)
 
 
 @unique
 class NeighborDiscoveryMode(Enum):
     """
-    Enumerates the different neighbor discovery modes. This mode establishes the way the
-    network discovery process is performed.
+    Enumerates the different neighbor discovery modes. This mode establishes
+    the way the network discovery process is performed.
 
     | Inherited properties:
     |     **name** (String): the name (id) of this OperatingMode.
@@ -313,17 +294,19 @@ class NeighborDiscoveryMode(Enum):
 
     CASCADE = (0, "Cascade")
     """
-    The discovery of a node neighbors is requested once the previous request finishes.
+    The discovery of a node neighbors is requested once the previous request
+    finishes.
     This means that just one discovery process is running at the same time.
 
-    This mode is recommended for large networks, it might be a slower method but it
-    generates less traffic than 'Flood'.
+    This mode is recommended for large networks, it might be a slower method
+    but it generates less traffic than 'Flood'.
     """
 
     FLOOD = (1, "Flood")
     """
-    The discovery of a node neighbors is requested when the node is found in the network.
-    This means that several discovery processes might be running at the same time.
+    The discovery of a node neighbors is requested when the node is found in
+    the network. This means that several discovery processes might be running
+    at the same time.
     """
 
     def __init__(self, code, description):
@@ -360,10 +343,12 @@ class NeighborDiscoveryMode(Enum):
 
         Returns:
             :class:`.NeighborDiscoveryMode`: the NeighborDiscoveryMode with
-                the given code. ``None`` if there is not a mode with that code.
+                the given code. `None` if not found.
         """
         for mode in cls:
             if mode.code == code:
                 return mode
-
         return None
+
+
+NeighborDiscoveryMode.__doc__ += utils.doc_enum(NeighborDiscoveryMode)

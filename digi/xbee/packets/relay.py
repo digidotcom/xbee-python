@@ -1,4 +1,4 @@
-# Copyright 2019, Digi International Inc.
+# Copyright 2019, 2020, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -40,7 +40,8 @@ class UserDataRelayPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, local_interface, data=None):
         """
-        Class constructor. Instantiates a new :class:`.UserDataRelayPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.UserDataRelayPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (integer): the frame ID of the packet.
@@ -52,8 +53,8 @@ class UserDataRelayPacket(XBeeAPIPacket):
            | :class:`.XBeeLocalInterface`
 
         Raises:
-            ValueError: if ``local_interface`` is ``None``.
-            ValueError: if ``frame_id`` is less than 0 or greater than 255.
+            ValueError: if `local_interface` is `None`.
+            ValueError: if `frame_id` is less than 0 or greater than 255.
         """
         if local_interface is None:
             raise ValueError("Destination interface cannot be None")
@@ -74,20 +75,25 @@ class UserDataRelayPacket(XBeeAPIPacket):
             :class:`.UserDataRelayPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 7. (start delim. + length (2 bytes) + frame
-                type + frame id + relay interface + checksum = 7 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.USER_DATA_RELAY_REQUEST`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 7.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + relay interface + checksum = 7 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.USER_DATA_RELAY_REQUEST`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         XBeeAPIPacket._check_api_packet(raw, min_length=UserDataRelayPacket.__MIN_PACKET_LENGTH)
@@ -129,7 +135,8 @@ class UserDataRelayPacket(XBeeAPIPacket):
         return {DictKeys.DEST_INTERFACE: self.__local_interface.description,
                 DictKeys.DATA:           list(self.__data) if self.__data is not None else None}
 
-    def __get_data(self):
+    @property
+    def data(self):
         """
         Returns the data to send.
 
@@ -140,7 +147,8 @@ class UserDataRelayPacket(XBeeAPIPacket):
             return None
         return self.__data.copy()
 
-    def __set_data(self, data):
+    @data.setter
+    def data(self, data):
         """
         Sets the data to send.
 
@@ -152,7 +160,8 @@ class UserDataRelayPacket(XBeeAPIPacket):
         else:
             self.__data = data.copy()
 
-    def __get_dest_interface(self):
+    @property
+    def dest_interface(self):
         """
         Returns the the destination interface.
 
@@ -164,7 +173,8 @@ class UserDataRelayPacket(XBeeAPIPacket):
         """
         return self.__local_interface
 
-    def __set_dest_interface(self, local_interface):
+    @dest_interface.setter
+    def dest_interface(self, local_interface):
         """
         Sets the destination interface.
 
@@ -175,12 +185,6 @@ class UserDataRelayPacket(XBeeAPIPacket):
            | :class:`.XBeeLocalInterface`
         """
         self.__local_interface = local_interface
-
-    dest_interface = property(__get_dest_interface, __set_dest_interface)
-    """:class:`.XBeeLocalInterface`. Destination local interface."""
-
-    data = property(__get_data, __set_data)
-    """Bytearray. Data to send."""
 
 
 class UserDataRelayOutputPacket(XBeeAPIPacket):
@@ -212,7 +216,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
             data (Bytearray, optional): Data received from the source interface.
 
         Raises:
-            ValueError: if ``local_interface`` is ``None``.
+            ValueError: if `local_interface` is `None`.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -234,26 +238,33 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
             :class:`.UserDataRelayOutputPacket`.
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 6. (start delim. + length (2 bytes) + frame
-                type + relay interface + checksum = 6 bytes).
-            InvalidPacketException: if the length field of 'raw' is different than its real length. (length field: bytes
-                2 and 3)
-            InvalidPacketException: if the first byte of 'raw' is not the header byte. See :class:`.SpecialByte`.
-            InvalidPacketException: if the calculated checksum is different than the checksum field value (last byte).
-            InvalidPacketException: if the frame type is not :attr:`.ApiFrameType.USER_DATA_RELAY_OUTPUT`.
-            InvalidOperatingModeException: if ``operating_mode`` is not supported.
+            InvalidPacketException: if the bytearray length is less than 6.
+                (start delim. + length (2 bytes) + frame type + relay interface
+                + checksum = 6 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.USER_DATA_RELAY_OUTPUT`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::
            | :meth:`.XBeePacket.create_packet`
            | :meth:`.XBeeAPIPacket._check_api_packet`
         """
-        if operating_mode != OperatingMode.ESCAPED_API_MODE and operating_mode != OperatingMode.API_MODE:
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=UserDataRelayOutputPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=UserDataRelayOutputPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.USER_DATA_RELAY_OUTPUT.code:
-            raise InvalidPacketException(message="This packet is not a user data relay output packet.")
+            raise InvalidPacketException(
+                message="This packet is not a user data relay output packet.")
 
         return UserDataRelayOutputPacket(XBeeLocalInterface.get(raw[4]), data=raw[5:-1])
 
@@ -289,7 +300,8 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         return {DictKeys.SOURCE_INTERFACE: self.__local_interface.description,
                 DictKeys.DATA:             list(self.__data) if self.__data is not None else None}
 
-    def __get_data(self):
+    @property
+    def data(self):
         """
         Returns the received data.
 
@@ -300,7 +312,8 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
             return None
         return self.__data.copy()
 
-    def __set_data(self, data):
+    @data.setter
+    def data(self, data):
         """
         Sets the received data.
 
@@ -312,7 +325,8 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         else:
             self.__data = data.copy()
 
-    def __get_src_interface(self):
+    @property
+    def src_interface(self):
         """
         Returns the the source interface.
 
@@ -324,7 +338,8 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         """
         return self.__local_interface
 
-    def __set_src_interface(self, local_interface):
+    @src_interface.setter
+    def src_interface(self, local_interface):
         """
         Sets the source interface.
 
@@ -335,9 +350,3 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
            | :class:`.XBeeLocalInterface`
         """
         self.__local_interface = local_interface
-
-    src_interface = property(__get_src_interface, __set_src_interface)
-    """:class:`.XBeeLocalInterface`. Source local interface."""
-
-    data = property(__get_data, __set_data)
-    """Bytearray. Received data."""
