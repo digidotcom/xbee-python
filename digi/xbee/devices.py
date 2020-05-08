@@ -7765,7 +7765,9 @@ class XBeeNetwork(object):
         self.start_discovery_process()
         while self.is_discovery_running():
             time.sleep(0.1)
-        return list(filter(lambda x: x.get_node_id() in device_id_list, self.__last_search_dev_list))
+        discovered_devices = list(filter(lambda x: x.get_node_id() in device_id_list, self.__last_search_dev_list))
+        self.__last_search_dev_list.clear()
+        return discovered_devices
 
     def is_discovery_running(self):
         """
@@ -8815,6 +8817,7 @@ class XBeeNetwork(object):
                 with a single 'ND'.
         """
         self._stop_event.clear()
+        self.__last_search_dev_list.clear()
         self.__discovering = True
         self.__discover_result = None
 
