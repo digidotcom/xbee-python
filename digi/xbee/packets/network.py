@@ -105,15 +105,6 @@ class RXIPv4Packet(XBeeAPIPacket):
                             utils.bytes_to_int(raw[10:12]), IPProtocol.get(raw[12]),
                             data=raw[14:-1])
 
-    def needs_id(self):
-        """
-        Override method.
-
-        .. seealso::
-           | :meth:`.XBeeAPIPacket.needs_id`
-        """
-        return True
-
     @property
     def source_address(self):
         """
