@@ -101,7 +101,8 @@ class UserDataRelayPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.USER_DATA_RELAY_REQUEST.code:
             raise InvalidPacketException(message="This packet is not a user data relay packet.")
 
-        return UserDataRelayPacket(raw[4], XBeeLocalInterface.get(raw[5]), data=raw[6:-1])
+        return UserDataRelayPacket(raw[4], XBeeLocalInterface.get(raw[5]),
+                                   data=raw[6:-1] if len(raw) > UserDataRelayPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -266,7 +267,8 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 message="This packet is not a user data relay output packet.")
 
-        return UserDataRelayOutputPacket(XBeeLocalInterface.get(raw[4]), data=raw[5:-1])
+        return UserDataRelayOutputPacket(XBeeLocalInterface.get(raw[4]),
+                                         data=raw[5:-1] if len(raw) > UserDataRelayOutputPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """

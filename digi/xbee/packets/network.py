@@ -103,7 +103,7 @@ class RXIPv4Packet(XBeeAPIPacket):
 
         return RXIPv4Packet(IPv4Address(bytes(raw[4:8])), utils.bytes_to_int(raw[8:10]),
                             utils.bytes_to_int(raw[10:12]), IPProtocol.get(raw[12]),
-                            data=raw[14:-1])
+                            data=raw[14:-1] if len(raw) > RXIPv4Packet.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -357,7 +357,7 @@ class TXIPv4Packet(XBeeAPIPacket):
 
         return TXIPv4Packet(raw[4], IPv4Address(bytes(raw[5:9])), utils.bytes_to_int(raw[9:11]),
                             utils.bytes_to_int(raw[11:13]), IPProtocol.get(raw[13]),
-                            raw[14], data=raw[15:-1])
+                            raw[14], data=raw[15:-1] if len(raw) > TXIPv4Packet.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """

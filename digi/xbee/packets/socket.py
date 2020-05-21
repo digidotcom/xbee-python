@@ -411,7 +411,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
                 message="This packet is not a Socket Option Request packet.")
 
         return SocketOptionRequestPacket(
-            raw[4], raw[5], SocketOption.get(raw[6]), raw[7:-1])
+            raw[4], raw[5], SocketOption.get(raw[6]),
+            option_data=raw[7:-1] if len(raw) > SocketOptionRequestPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -605,9 +606,9 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 message="This packet is not a Socket Option Response packet.")
 
-        return SocketOptionResponsePacket(raw[4], raw[5],
-                                          SocketOption.get(raw[6]),
-                                          SocketStatus.get(raw[7]), raw[8:-1])
+        return SocketOptionResponsePacket(
+            raw[4], raw[5], SocketOption.get(raw[6]), SocketStatus.get(raw[7]),
+            option_data=raw[8:-1] if len(raw) > SocketOptionResponsePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -1569,7 +1570,8 @@ class SocketSendPacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 "This packet is not a Socket Send (transmit) packet.")
 
-        return SocketSendPacket(raw[4], raw[5], raw[7:-1])
+        return SocketSendPacket(
+            raw[4], raw[5], payload=raw[7:-1] if len(raw) > SocketSendPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -1750,8 +1752,9 @@ class SocketSendToPacket(XBeeAPIPacket):
                 "This packet is not a Socket SendTo (Transmit Explicit Data): "
                 "IPv4 packet.")
 
-        return SocketSendToPacket(raw[4], raw[5], IPv4Address(bytes(raw[6:10])),
-                                  utils.bytes_to_int(raw[10:12]), raw[13:-1])
+        return SocketSendToPacket(
+            raw[4], raw[5], IPv4Address(bytes(raw[6:10])), utils.bytes_to_int(raw[10:12]),
+            payload=raw[13:-1] if len(raw) > SocketSendToPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -2542,7 +2545,8 @@ class SocketReceivePacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 "This packet is not a Socket Receive packet.")
 
-        return SocketReceivePacket(raw[4], raw[5], raw[7:-1])
+        return SocketReceivePacket(
+            raw[4], raw[5], payload=raw[7:-1] if len(raw) > SocketReceivePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -2718,7 +2722,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
 
         return SocketReceiveFromPacket(
             raw[4], raw[5], IPv4Address(bytes(raw[6:10])),
-            utils.bytes_to_int(raw[10:12]), raw[13:-1])
+            utils.bytes_to_int(raw[10:12]),
+            payload=raw[13:-1] if len(raw) > SocketReceiveFromPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """

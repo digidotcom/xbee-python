@@ -268,7 +268,7 @@ class TXSMSPacket(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not a TXSMSPacket")
 
         return TXSMSPacket(raw[4], raw[6:25].decode("utf8").replace("\0", ""),
-                           raw[26:-1].decode("utf8"))
+                           raw[26:-1].decode("utf8") if len(raw) > TXSMSPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """

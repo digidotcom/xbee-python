@@ -398,7 +398,7 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
 
         return RemoteATCommandWifiPacket(raw[4], IPv4Address(bytes(raw[9:13])),
                                          raw[13], raw[14:16].decode("utf8"),
-                                         parameter=raw[16:-1])
+                                         parameter=raw[16:-1] if len(raw) > RemoteATCommandWifiPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -626,7 +626,8 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
 
         return RemoteATCommandResponseWifiPacket(
             raw[4], IPv4Address(bytes(raw[9:13])), raw[13:15].decode("utf8"),
-            ATCommandStatus.get(raw[15]), comm_value=raw[16:-1])
+            ATCommandStatus.get(raw[15]),
+            comm_value=raw[16:-1] if len(raw) > RemoteATCommandResponseWifiPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """

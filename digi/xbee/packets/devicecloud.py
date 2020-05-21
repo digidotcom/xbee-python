@@ -34,7 +34,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
        | :class:`.XBeeAPIPacket`
     """
 
-    __MIN_PACKET_LENGTH = 5
+    __MIN_PACKET_LENGTH = 9
 
     def __init__(self, request_id, target=None, request_data=None):
         """
@@ -104,8 +104,9 @@ class DeviceRequestPacket(XBeeAPIPacket):
 
         target_length = raw[7]
 
-        return DeviceRequestPacket(raw[4], target=raw[8:8 + target_length].decode("utf8"),
-                                   request_data=raw[8 + target_length:-1])
+        return DeviceRequestPacket(
+            raw[4], target=raw[8:8 + target_length].decode("utf8"),
+            request_data=raw[8 + target_length:-1] if len(raw) > DeviceRequestPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -324,7 +325,8 @@ class DeviceResponsePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.DEVICE_RESPONSE.code:
             raise InvalidPacketException(message="This packet is not a device response packet.")
 
-        return DeviceResponsePacket(raw[4], raw[5], response_data=raw[7:-1])
+        return DeviceResponsePacket(raw[4], raw[5],
+                                    response_data=raw[7:-1] if len(raw) > DeviceResponsePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """

@@ -99,7 +99,8 @@ class TX64Packet(XBeeAPIPacket):
         if raw[3] != ApiFrameType.TX_64.code:
             raise InvalidPacketException(message="This packet is not a TX 64 packet.")
 
-        return TX64Packet(raw[4], XBee64BitAddress(raw[5:13]), raw[13], rf_data=raw[14:-1])
+        return TX64Packet(raw[4], XBee64BitAddress(raw[5:13]), raw[13],
+                          rf_data=raw[14:-1] if len(raw) > TX64Packet.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -289,7 +290,8 @@ class TX16Packet(XBeeAPIPacket):
         if raw[3] != ApiFrameType.TX_16.code:
             raise InvalidPacketException(message="This packet is not a TX 16 packet.")
 
-        return TX16Packet(raw[4], XBee16BitAddress(raw[5:7]), raw[7], rf_data=raw[8:-1])
+        return TX16Packet(raw[4], XBee16BitAddress(raw[5:7]), raw[7],
+                          rf_data=raw[8:-1] if len(raw) > TX16Packet.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -610,7 +612,8 @@ class RX64Packet(XBeeAPIPacket):
         if raw[3] != ApiFrameType.RX_64.code:
             raise InvalidPacketException(message="This packet is not an RX 64 packet.")
 
-        return RX64Packet(XBee64BitAddress(raw[4:12]), raw[12], raw[13], rf_data=raw[14:-1])
+        return RX64Packet(XBee64BitAddress(raw[4:12]), raw[12], raw[13],
+                          rf_data=raw[14:-1] if len(raw) > RX64Packet.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -832,7 +835,8 @@ class RX16Packet(XBeeAPIPacket):
         if raw[3] != ApiFrameType.RX_16.code:
             raise InvalidPacketException(message="This packet is not an RX 16 Packet")
 
-        return RX16Packet(XBee16BitAddress(raw[4:6]), raw[6], raw[7], rf_data=raw[8:-1])
+        return RX16Packet(XBee16BitAddress(raw[4:6]), raw[6], raw[7],
+                          rf_data=raw[8:-1] if len(raw) > RX16Packet.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """

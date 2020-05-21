@@ -37,7 +37,7 @@ class ATCommPacket(XBeeAPIPacket):
        | :class:`.XBeeAPIPacket`
     """
 
-    __MIN_PACKET_LENGTH = 6
+    __MIN_PACKET_LENGTH = 8
 
     def __init__(self, frame_id, command, parameter=None):
         """
@@ -76,9 +76,9 @@ class ATCommPacket(XBeeAPIPacket):
             :class:`.ATCommPacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 6.
+            InvalidPacketException: if the bytearray length is less than 8.
                 (start delim. + length (2 bytes) + frame type
-                + frame id + checksum = 6 bytes).
+                + frame id + command (2 bytes) + checksum = 8 bytes).
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: bytes 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the
@@ -102,7 +102,8 @@ class ATCommPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.AT_COMMAND.code:
             raise InvalidPacketException(message="This packet is not an AT command packet.")
 
-        return ATCommPacket(raw[4], raw[5:7].decode("utf8"), parameter=raw[7:-1])
+        return ATCommPacket(raw[4], raw[5:7].decode("utf8"),
+                            parameter=raw[7:-1] if len(raw) > ATCommPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -198,7 +199,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
        | :class:`.XBeeAPIPacket`
     """
 
-    __MIN_PACKET_LENGTH = 6
+    __MIN_PACKET_LENGTH = 8
 
     def __init__(self, frame_id, command, parameter=None):
         """
@@ -237,9 +238,9 @@ class ATCommQueuePacket(XBeeAPIPacket):
             :class:`.ATCommQueuePacket`
 
         Raises:
-            InvalidPacketException: if the bytearray length is less than 6.
+            InvalidPacketException: if the bytearray length is less than 8.
                 (start delim. + length (2 bytes) + frame type
-                + frame id + checksum = 6 bytes).
+                + frame id + command + checksum = 8 bytes).
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: bytes 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the
@@ -263,7 +264,8 @@ class ATCommQueuePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.AT_COMMAND_QUEUE.code:
             raise InvalidPacketException(message="This packet is not an AT command Queue packet.")
 
-        return ATCommQueuePacket(raw[4], raw[5:7].decode("utf8"), parameter=raw[7:-1])
+        return ATCommQueuePacket(raw[4], raw[5:7].decode("utf8"),
+                                 parameter=raw[7:-1] if len(raw) > ATCommQueuePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -441,7 +443,8 @@ class ATCommResponsePacket(XBeeAPIPacket):
         if ATCommandStatus.get(raw[7]) is None:
             raise InvalidPacketException(message="Invalid command status.")
 
-        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), raw[7], comm_value=raw[8:-1])
+        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), raw[7],
+                                    comm_value=raw[8:-1] if len(raw) > ATCommResponsePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -627,8 +630,8 @@ class ReceivePacket(XBeeAPIPacket):
 
         Raises:
             InvalidPacketException: if the bytearray length is less than 16.
-                (start delim. + length (2 bytes) + frame type + frame id
-                + 64bit addr. + 16bit addr. + Receive options + checksum = 16 bytes).
+                (start delim. + length (2 bytes) + frame type + 64bit addr.
+                + 16bit addr. + Receive options + checksum = 16 bytes).
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: bytes 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the
@@ -654,7 +657,7 @@ class ReceivePacket(XBeeAPIPacket):
         return ReceivePacket(XBee64BitAddress(raw[4:12]),
                              XBee16BitAddress(raw[12:14]),
                              raw[14],
-                             rf_data=raw[15:-1])
+                             rf_data=raw[15:-1] if len(raw) > ReceivePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -900,7 +903,8 @@ class RemoteATCommandPacket(XBeeAPIPacket):
 
         return RemoteATCommandPacket(raw[4], XBee64BitAddress(raw[5:13]),
                                      XBee16BitAddress(raw[13:15]), raw[15],
-                                     raw[16:18].decode("utf8"), raw[18:-1])
+                                     raw[16:18].decode("utf8"),
+                                     parameter=raw[18:-1] if len(raw) > RemoteATCommandPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -1161,9 +1165,10 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE.code:
             raise InvalidPacketException(message="This packet is not a remote AT command response packet.")
 
-        return RemoteATCommandResponsePacket(raw[4], XBee64BitAddress(raw[5:13]),
-                                             XBee16BitAddress(raw[13:15]), raw[15:17].decode("utf8"),
-                                             raw[17], comm_value=raw[18:-1])
+        return RemoteATCommandResponsePacket(
+            raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
+            raw[15:17].decode("utf8"), raw[17],
+            comm_value=raw[18:-1] if len(raw) > RemoteATCommandResponsePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -1433,7 +1438,8 @@ class TransmitPacket(XBeeAPIPacket):
         Raises:
             InvalidPacketException: if the bytearray length is less than 18.
                 (start delim. + length (2 bytes) + frame type + frame id
-                + 64bit addr. + 16bit addr. + Receive options + checksum = 16 bytes).
+                + 64bit addr. + 16bit addr. + broadcast radious
+                + Transmit options + checksum = 18 bytes).
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: bytes 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the
@@ -1457,9 +1463,9 @@ class TransmitPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.TRANSMIT_REQUEST.code:
             raise InvalidPacketException(message="This packet is not a transmit request packet.")
 
-        return TransmitPacket(raw[4], XBee64BitAddress(raw[5:13]),
-                              XBee16BitAddress(raw[13:15]), raw[15],
-                              raw[16], rf_data=raw[17:-1])
+        return TransmitPacket(
+            raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
+            raw[15], raw[16], rf_data=raw[17:-1] if len(raw) > TransmitPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -2401,9 +2407,10 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.EXPLICIT_ADDRESSING.code:
             raise InvalidPacketException(message="This packet is not an explicit addressing packet")
 
-        return ExplicitAddressingPacket(raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
-                                        raw[15], raw[16], utils.bytes_to_int(raw[17:19]),
-                                        utils.bytes_to_int(raw[19:21]), raw[21], raw[22], rf_data=raw[23:-1])
+        return ExplicitAddressingPacket(
+            raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
+            raw[15], raw[16], utils.bytes_to_int(raw[17:19]), utils.bytes_to_int(raw[19:21]),
+            raw[21], raw[22], rf_data=raw[23:-1] if len(raw) > ExplicitAddressingPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -2760,9 +2767,10 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.EXPLICIT_RX_INDICATOR.code:
             raise InvalidPacketException(message="This packet is not an explicit RX indicator packet.")
 
-        return ExplicitRXIndicatorPacket(XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]), raw[14], raw[15],
-                                         utils.bytes_to_int(raw[16:18]), utils.bytes_to_int(raw[18:20]),
-                                         raw[20], rf_data=raw[21:-1])
+        return ExplicitRXIndicatorPacket(
+            XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]), raw[14], raw[15],
+            utils.bytes_to_int(raw[16:18]), utils.bytes_to_int(raw[18:20]), raw[20],
+            rf_data=raw[21:-1] if len(raw) > ExplicitRXIndicatorPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
