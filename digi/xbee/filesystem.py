@@ -21,10 +21,11 @@ import time
 
 from digi.xbee.exception import XBeeException, OperationNotSupportedException
 from digi.xbee.models.atcomm import ATStringCommand
+from digi.xbee.models.filesystem import DirResponseFlag
 from digi.xbee.models.hw import HardwareVersion
-from digi.xbee.util import xmodem
+from digi.xbee.util import xmodem, utils
 from digi.xbee.util.xmodem import XModemException
-from enum import Enum, unique
+from enum import Enum
 from os import listdir
 from os.path import isfile
 from serial.serialutil import SerialException
@@ -145,35 +146,46 @@ class _FilesystemFunction(Enum):
         return self.__command
 
 
-class FileSystemElement(object):
+class FileSystemElement:
     """
     Class used to represent XBee file system elements (files and directories).
     """
 
-    def __init__(self, name, path, size=0, is_directory=False):
+    def __init__(self, name, path=None, is_dir=False, size=0, is_secure=False):
         """
-        Class constructor. Instantiates a new :class:`.FileSystemElement` with the given parameters.
+        Class constructor. Instantiates a new :class:`.FileSystemElement`
+        object with the given parameters.
 
         Args:
-            name (String): the name of the file system element.
-            path (String): the absolute path of the file system element.
-            size (Integer): the size of the file system element, only applicable to files.
-            is_directory (Boolean): ``True`` if the file system element is a directory, ``False`` if it is a file.
+            name (String): The name of the file system element.
+            path (String, optional, default=`None`): Absolute path of the element.
+            is_dir (Boolean, optional, default=`True`): `True` if the
+                element is a directory, `False` for a file.
+            size (Integer, optional, default=0): Element size in bytes.
+                Only for files.
+            is_secure (Boolean, optional, default=`False`): `True` for a secure
+                element, `False` otherwise.
+
+        Raises:
+            ValueError: If any of the parameters are invalid.
         """
+        if not name or not isinstance(name, str):
+            raise ValueError("Name must be a non-empty string")
+        if not isinstance(size, int):
+            raise ValueError("Size must be a integer")
+        if path and not isinstance(path, str):
+            raise ValueError("Path must be a string")
+
         self._name = name
-        self._path = path
-        self._size = size
-        self._is_directory = is_directory
-        self._is_secure = False
-        # Check if element is 'write-only' (secure)
-        if self._name.endswith(_SECURE_ELEMENT_SUFFIX):
-            self._is_secure = True
+        self._path = path if path is not None else ""
+        self._is_dir = is_dir
+        self._size = size if not is_dir else 0
+        self._is_secure = is_secure
 
     def __str__(self):
-        if self._is_directory:
-            return "<DIR> %s/" % self._name
-        else:
-            return "%d %s" % (self._size, self._name)
+        return "{:s} {:10s} {:25s} {:s}".format(
+            "d" if self._is_dir else "*" if self._is_secure else "-", self.size_pretty,
+            self._name, self._path if self._path else "")
 
     @property
     def name(self):
@@ -196,34 +208,74 @@ class FileSystemElement(object):
         return self._path
 
     @property
-    def size(self):
+    def is_dir(self):
         """
-        Returns the file system element size.
+        Returns whether the file system element is a directory.
 
         Returns:
-            Integer: the file system element size. If element is a directory, returns '0'.
+            Boolean: `True` for a directory, `False` otherwise.
          """
-        return self._size if self._is_directory else 0
+        return self._is_dir
 
     @property
-    def is_directory(self):
+    def size(self):
         """
-        Returns whether the file system element is a directory or not.
+        Returns the size in bytes of the element.
 
         Returns:
-            Boolean: ``True`` if the file system element is a directory, ``False`` otherwise.
-         """
-        return self._is_directory
+            Integer: The size in bytes of the file, 0 for a directory.
+        """
+        return self._size
+
+    @property
+    def size_pretty(self):
+        """
+        Returns a human readable size (e.g., 1K 234M 2G).
+
+        Returns:
+            String: Human readable size.
+        """
+        units = [(1 << 50, 'PB'), (1 << 40, 'TB'), (1 << 30, 'GB'),
+                 (1 << 20, 'MB'), (1 << 10, 'KB'), (1, 'B')]
+
+        factor, suffix = units[len(units) - 1]
+        for factor, suffix in units:
+            if self._size >= factor:
+                break
+        amount = round(self._size / factor, 2)
+
+        return "%5.2f%s" % (amount, suffix)
 
     @property
     def is_secure(self):
         """
-        Returns whether the file system element is a secure element or not.
+        Returns whether the element is secure.
 
         Returns:
-            Boolean: ``True`` if the file system element is secure, ``False`` otherwise.
-         """
+            Boolean: `True` for a secure element, `False` otherwise.
+        """
         return self._is_secure
+
+    @staticmethod
+    def from_data(name, size, flags, path=None):
+        """
+        Creates a file element from its name and the bytearray with info and
+        size.
+
+        Args:
+            name (String): The name of the element to create.
+            size (Bytearray): Byte array containing file size.
+            flags (Integer): Integer with file system element information.
+            path (String, optional, default=`None`): The absolute path of the
+                element (without its name).
+
+        Returns:
+            :class:`.FileSystemElement`: The new file system element.
+        """
+        return FileSystemElement(
+            name, path=path, is_dir=bool(flags & DirResponseFlag.IS_DIR),
+            size=utils.bytes_to_int(size),
+            is_secure=bool(flags & DirResponseFlag.IS_SECURE))
 
 
 class FileSystemException(XBeeException):
@@ -668,14 +720,16 @@ class LocalXBeeFileSystemManager(object):
         Lists the contents of the given directory.
 
         Args:
-            directory (String, optional): the directory to list its contents. Optional. If not provided, the current
-                                          directory contents are listed.
+            directory (String, optional): the directory to list its contents.
+                If not provided, the current directory contents are listed.
 
         Returns:
-            List: list of ``:class:`.FilesystemElement``` objects contained in the given (or current) directory.
+            List: list of `:class:`.FilesystemElement` objects contained in
+                the given (or current) directory.
 
         Raises:
-            FileSystemException: if there is any error listing the directory contents or the function is not supported.
+            FileSystemException: if there is any error listing the directory
+                contents or the function is not supported.
         """
         if not directory:
             _log.info("Listing directory contents of current dir")
@@ -698,13 +752,17 @@ class LocalXBeeFileSystemManager(object):
             result = re.match(_PATTERN_FILE_SYSTEM_DIRECTORY, line)
             if result is not None and len(result.groups()) > 0:
                 name = result.groups()[0]
-                filesystem_elements.append(FileSystemElement(name, path + name, is_directory=True))
+                filesystem_elements.append(FileSystemElement(
+                    name, path + name, is_dir=True,
+                    is_secure=name.endswith(_SECURE_ELEMENT_SUFFIX)))
             else:
                 result = re.match(_PATTERN_FILE_SYSTEM_FILE, line)
                 if result is not None and len(result.groups()) > 1:
                     name = result.groups()[1]
                     size = int(result.groups()[0])
-                    filesystem_elements.append(FileSystemElement(name, path + name, size=size))
+                    filesystem_elements.append(FileSystemElement(
+                        name, path + name, size=size,
+                        is_secure=name.endswith(_SECURE_ELEMENT_SUFFIX)))
                 else:
                     _log.warning("Unknown filesystem element entry: %s", line)
 
@@ -791,7 +849,7 @@ class LocalXBeeFileSystemManager(object):
             dest_name = os.path.basename(dest_path)
             elements = self.list_directory(dest_parent)
             for element in elements:
-                if not element.is_directory and element.name == dest_name:
+                if not element.is_dir and element.name == dest_name:
                     self.remove_element(element.path)
                     break
 

@@ -12,7 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from enum import Enum, unique
+from enum import Enum, unique, IntFlag
 
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.util import utils
@@ -643,3 +643,83 @@ class SocketOption(Enum):
 
 
 SocketOption.__doc__ += utils.doc_enum(SocketOption)
+
+
+@unique
+class FileOpenRequestOption(IntFlag):
+    """
+    This enumeration lists all the available options for `FSCmdType.FILE_OPEN`
+    command requests.
+
+    | Inherited properties:
+    |     **name** (String): Name (id) of this FileOpenRequestOption.
+    |     **value** (String): Value of this FileOpenRequestOption.
+    """
+
+    CREATE = 1 << 0
+    """
+    Create if file does not exist.
+    """
+
+    EXCLUSIVE = 1 << 1
+    """
+    Error out if file exists.
+    """
+
+    READ = 1 << 2
+    """
+    Open file for reading.
+    """
+
+    WRITE = 1 << 3
+    """
+    Open file for writing.
+    """
+
+    TRUNCATE = 1 << 4
+    """
+    Truncate file to 0 bytes.
+    """
+
+    APPEND = 1 << 5
+    """
+    Append to end of file.
+    """
+
+    SECURE = 1 << 7
+    """
+    Create a secure write-only file.
+    """
+
+
+FileOpenRequestOption.__doc__ += utils.doc_enum(FileOpenRequestOption)
+
+
+@unique
+class DirResponseFlag(IntFlag):
+    """
+    This enumeration lists all the available flags for `FSCmdType.DIR_OPEN` and
+    `FSCmdType.DIR_READ` command responses.
+
+    | Inherited properties:
+    |     **name** (String): Name (id) of this DirResponseFlag.
+    |     **value** (String): Value of this DirResponseFlag.
+    """
+
+    IS_DIR = 1 << 7
+    """
+    Entry is a directory.
+    """
+
+    IS_SECURE = 1 << 6
+    """
+    Entry is stored securely.
+    """
+
+    IS_LAST = 1 << 0
+    """
+    Entry is the last.
+    """
+
+
+DirResponseFlag.__doc__ += utils.doc_enum(DirResponseFlag)

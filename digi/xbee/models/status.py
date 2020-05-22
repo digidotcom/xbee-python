@@ -1106,3 +1106,83 @@ class SocketInfoState(Enum):
 
 
 SocketInfoState.__doc__ += utils.doc_enum(SocketInfoState)
+
+
+@unique
+class FSCommandStatus(Enum):
+    """
+    This class lists all the possible states of an file system command after
+    execution.
+
+    | Inherited properties:
+    |     **name** (String): Name (id) of the FSCommandStatus.
+    |     **value** (String): Value of the FSCommandStatus.
+    """
+    SUCCESS = (0x00, "Success")
+    ERROR = (0x01, "Error")
+    INVALID_COMMAND = (0x02, "Invalid file system command")
+    INVALID_PARAMETER = (0x03, "Invalid command parameter")
+    ACCESS_DENIED = (0x50, "Access denied")
+    ALREADY_EXISTS = (0x51, "File or directory already exists")
+    DOES_NOT_EXIST = (0x52, "File or directory does not exist")
+    INVALID_NAME = (0x53, "Invalid file or directory name")
+    IS_DIRECTORY = (0x54, "File operation on directory")
+    DIR_NOT_EMPTY = (0x55, "Directory is not empty")
+    EOF_REACHED = (0x56, "Attempt to read past EOF (end of file)")
+    HW_FAILURE = (0x57, "Hardware failure")
+    NO_DEVICE = (0x58, "Volume offline / format required")
+    VOLUME_FULL = (0x59, "Volume full")
+    TIMED_OUT = (0x5A, "Operation timed out")
+    DEVICE_BUSY = (0x5B, "Busy with prior operation")
+    RESOURCE_FAILURE = (
+        0x5C, "Resource failure (memory allocation failed, try again)")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    @property
+    def code(self):
+        """
+        Returns the code of the FSCommandStatus element.
+
+        Returns:
+            Integer: Code of the FSCommandStatus element.
+        """
+        return self.__code
+
+    @property
+    def description(self):
+        """
+        Returns the description of the FSCommandStatus element.
+
+        Returns:
+            String: Description of the FSCommandStatus element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the file system command status for the given code.
+
+        Args:
+            code (Integer): Code of the file system command status to get.
+
+        Returns:
+            :class:`.FSCommandStatus`: File system command status with the
+                given code, `None` if not found.
+        """
+        for status in cls:
+            if code == status.code:
+                return status
+        return None
+
+    def __repr__(self):
+        return "%s (0x%0.2X)" % (self.__description, self.__code)
+
+    def __str__(self):
+        return "%s (0x%0.2X)" % (self.__description, self.__code)
+
+
+FSCommandStatus.__doc__ += utils.doc_enum(FSCommandStatus)

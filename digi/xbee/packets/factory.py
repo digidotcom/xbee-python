@@ -101,6 +101,7 @@ from digi.xbee.packets.devicecloud import SendDataRequestPacket, \
 from digi.xbee.packets.digimesh import RouteInformationPacket
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.models.mode import OperatingMode
+from digi.xbee.packets.filesystem import FSRequestPacket, FSResponsePacket, RemoteFSRequestPacket, RemoteFSResponsePacket
 from digi.xbee.packets.network import TXIPv4Packet, RXIPv4Packet
 from digi.xbee.packets.raw import RX64Packet, RX16Packet, TXStatusPacket, \
     RX16IOPacket, RX64IOPacket
@@ -298,4 +299,17 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     if frame_type == ApiFrameType.DIGIMESH_ROUTE_INFORMATION:
         return RouteInformationPacket.create_packet(packet_bytearray, operating_mode)
 
+    if frame_type == ApiFrameType.FILE_SYSTEM_REQUEST:
+        return FSRequestPacket.create_packet(packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.FILE_SYSTEM_RESPONSE:
+        return FSResponsePacket.create_packet(packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.REMOTE_FILE_SYSTEM_REQUEST:
+        return RemoteFSRequestPacket.create_packet(packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.REMOTE_FILE_SYSTEM_RESPONSE:
+        return RemoteFSResponsePacket.create_packet(packet_bytearray, operating_mode)
+
     return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)
+

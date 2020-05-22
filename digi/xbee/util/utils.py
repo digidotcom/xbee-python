@@ -316,7 +316,7 @@ def doc_enum(enum_class, descriptions=None):
     data = "\n| Values:\n"
     for item in enum_class:
         data += """| {:s}**{:s}**{:s} {:s}\n""".format(
-            tab, item, ":" if descriptions is not None else " =",
+            tab, str(item), ":" if descriptions is not None else " =",
             str(item.value) if descriptions is None else descriptions[item])
     return data + "| \n"
 
