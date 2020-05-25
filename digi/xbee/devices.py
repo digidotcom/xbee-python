@@ -4213,7 +4213,8 @@ class XBeeDevice(AbstractXBeeDevice):
                 remote.get_64bit_addr(),  # 64-bit address of the remote
                 remote.get_16bit_addr(),  # 16-bit address of the remote
                 0x00,                     # Broadcast radius (0x00 - Maximum)
-                0x08,                     # Transmit options (0x08 - Generate trace route packets)
+                # Transmit options (0x08 - Generate trace route packets)
+                TransmitOptions.DIGIMESH_MODE.value | TransmitOptions.ENABLE_TRACE_ROUTE.value,
                 bytearray([0])            # Dummy payload
             )
 

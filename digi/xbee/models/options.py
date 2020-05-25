@@ -41,23 +41,61 @@ class ReceiveOptions(Enum):
 
     BROADCAST_PACKET = 0x02
     """
-    Packet was a broadcast packet.
+    Packet was sent as a broadcast.
 
     Not valid for WiFi protocol.
+    """
+
+    BROADCAST_PANS_PACKET = 0x04
+    """
+    Packet was broadcast accros all PANs.
+
+    Only for 802.15.4 protocol.
+    """
+
+    SECURE_SESSION_ENC = 0x10
+    """
+    Packet sent across a Secure Session.
+
+    Only for XBee 3.
     """
 
     APS_ENCRYPTED = 0x20
     """
     Packet encrypted with APS encryption.
 
-    Only valid for ZigBee XBee protocol.
+    Only valid for Zigbee protocol.
     """
 
     SENT_FROM_END_DEVICE = 0x40
     """
     Packet was sent from an end device (if known).
 
-    Only valid for ZigBee XBee protocol.
+    Only valid for Zigbee protocol.
+    """
+
+    POINT_MULTIPOINT_MODE = 0x40
+    """
+    Transmission is performed using point-to-Multipoint mode.
+
+    Only valid for DigiMesh 868/900 and Point-to-Multipoint 868/900
+    protocols.
+    """
+
+    REPEATER_MODE = 0x80
+    """
+    Transmission is performed using repeater mode.
+
+    Only valid for DigiMesh 868/900 and Point-to-Multipoint 868/900
+    protocols.
+    """
+
+    DIGIMESH_MODE = 0xC0
+    """
+    Transmission is performed using DigiMesh mode.
+
+    Only valid for DigiMesh 868/900 and Point-to-Multipoint 868/900
+    protocols.
     """
 
 
@@ -86,7 +124,7 @@ class TransmitOptions(Enum):
     """
     Disables acknowledgments on all unicasts.
 
-    Only valid for DigiMesh, 802.15.4 and Point-to-multipoint
+    Only valid for Zigbee, DigiMesh, 802.15.4, and Point-to-multipoint
     protocols.
     """
 
@@ -94,7 +132,7 @@ class TransmitOptions(Enum):
     """
     Disables the retries and router repair in the frame.
 
-    Only valid for ZigBee protocol.
+    Only valid for Zigbee protocol.
     """
 
     DONT_ATTEMPT_RD = 0x02
@@ -104,6 +142,14 @@ class TransmitOptions(Enum):
     Disables Route Discovery on all DigiMesh unicasts.
 
     Only valid for DigiMesh protocol.
+    """
+
+    BROADCAST_PAN = 0x02
+    """
+    Sends packet with broadcast {@code PAN ID}. Packet will be sent to all
+    PANs.
+
+    Only valid for 802.15.4 XBee 3 protocol.
     """
 
     USE_BROADCAST_PAN_ID = 0x04
@@ -122,7 +168,7 @@ class TransmitOptions(Enum):
 
     NACK message is enabled on the packet.
 
-    Only valid for DigiMesh 868/900 protocol.
+    Only valid for DigiMesh 868/900 protocol, and XBee 3 DigiMesh.
     """
 
     ENABLE_UNICAST_TRACE_ROUTE = 0x04
@@ -134,11 +180,34 @@ class TransmitOptions(Enum):
     Only valid for DigiMesh 868/900 protocol.
     """
 
+    INDIRECT_TRANSMISSION = 0x04
+    """
+    Used for binding transmissions.
+
+    Only valid for Zigbee protocol.
+    """
+
     ENABLE_MULTICAST = 0x08
     """
     Enables multicast transmission request.
 
-    Only valid for ZigBee XBee protocol.
+    Only valid for Zigbee XBee protocol.
+    """
+
+    ENABLE_TRACE_ROUTE = 0x08
+    """
+    Enable a unicast Trace Route on DigiMesh transmissions
+    When set, the transmission will generate a Route Information - 0x8D frame.
+
+    Only valid for DigiMesh XBee protocol.
+    """
+
+    SECURE_SESSION_ENC = 0x10
+    """
+    Encrypt payload for transmission across a Secure Session.
+    Reduces maximum payload size by 4 bytes.
+
+    Only for XBee 3.
     """
 
     ENABLE_APS_ENCRYPTION = 0x20
@@ -148,7 +217,7 @@ class TransmitOptions(Enum):
     Enabling APS encryption decreases the maximum number of RF payload
     bytes by 4 (below the value reported by {@code NP}).
 
-    Only valid for ZigBee XBee protocol.
+    Only valid for Zigbee XBee protocol.
     """
 
     USE_EXTENDED_TIMEOUT = 0x40
@@ -158,7 +227,7 @@ class TransmitOptions(Enum):
     Setting the extended timeout bit causes the stack to set the
     extended transmission timeout for the destination address.
 
-    Only valid for ZigBee XBee protocol.
+    Only valid for Zigbee XBee protocol.
     """
 
     POINT_MULTIPOINT_MODE = 0x40
@@ -214,6 +283,14 @@ class RemoteATCmdOptions(Enum):
 
     If this option is not set, AC command must be sent before changes
     will take effect.
+    """
+
+    SECURE_SESSION_ENC = 0x10
+    """
+    Send the remote command securely.
+    Requires a Secure Session be established with the destination.
+
+    Only for XBee 3.
     """
 
     EXTENDED_TIMEOUT = 0x40
