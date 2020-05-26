@@ -25,12 +25,18 @@ class ATCommandStatus(Enum):
     |     **name** (String): the name (id) of the ATCommandStatus.
     |     **value** (String): the value of the ATCommandStatus.
     """
-    OK = (0, "Status OK")
-    ERROR = (1, "Status Error")
-    INVALID_COMMAND = (2, "Invalid command")
-    INVALID_PARAMETER = (3, "Invalid parameter")
-    TX_FAILURE = (4, "TX failure")
-    UNKNOWN = (255, "Unknown status")
+    OK = (0x00, "Status OK")
+    ERROR = (0x01, "Status Error")
+    INVALID_COMMAND = (0x02, "Invalid command")
+    INVALID_PARAMETER = (0x03, "Invalid parameter")
+    TX_FAILURE = (0x04, "TX failure")
+    NO_SECURE_SESSION = (0x0B, "No secure session: Remote command access "
+                               "requires a secure session be established first")
+    ENC_ERROR = (0x0C, "Encryption error")
+    CMD_SENT_INSECURELY = (0x0D, "Command sent insecurely: A secure session "
+                                 "exists, but the request needs to have the "
+                                 "appropriate command option set (bit 4)")
+    UNKNOWN = (0xFF, "Unknown status")
 
     def __init__(self, code, description):
         self.__code = code
@@ -154,8 +160,7 @@ class TransmitStatus(Enum):
     PURGED = (
         0x03, "Transmission purged, it was attempted before stack was up")
     WIFI_PHYSICAL_ERROR = (
-        0x04, "Physical error occurred on the interface with the WiFi "
-              "transceiver")
+        0x04, "Transceiver was unable to complete the transmission")
     INVALID_DESTINATION = (0x15, "Invalid destination endpoint")
     NO_BUFFERS = (0x18, "No buffers")
     NETWORK_ACK_FAILURE = (0x21, "Network ACK Failure")
@@ -173,6 +178,8 @@ class TransmitStatus(Enum):
     SOFTWARE_ERROR = (0x31, "A software error occurred")
     RESOURCE_ERROR = (
         0x32, "Resource error lack of free buffers, timers, etc")
+    NO_SECURE_SESSION = (0x34, "No Secure session connection")
+    ENC_FAILURE = (0x35, "Encryption failure")
     PAYLOAD_TOO_LARGE = (0x74, "Data payload too large")
     INDIRECT_MESSAGE_UNREQUESTED = (0x75, "Indirect message unrequested")
     SOCKET_CREATION_FAILED = (0x76, "Attempt to create a client socket failed")
@@ -192,17 +199,21 @@ class TransmitStatus(Enum):
     RELAY_INTERFACE_REJECTED = (
         0x7D, "Destination interface on a User Data Relay Frame exists, but "
               "the interface is not accepting data")
+    MODEM_UPDATE_IN_PROGRESS = (
+        0x7E, "Modem update in progress. Try again after update completion.")
     SOCKET_CONNECTION_REFUSED = (
         0x80, "Destination server refused the connection")
     SOCKET_CONNECTION_LOST = (
         0x81, "The existing connection was lost before the data was sent")
-    SOCKET_ERROR_NO_SERVER = (0x82, "The attempted connection timed out")
+    SOCKET_ERROR_NO_SERVER = (0x82, "No server")
     SOCKET_ERROR_CLOSED = (0x83, "The existing connection was closed")
     SOCKET_ERROR_UNKNOWN_SERVER = (0x84, "The server could not be found")
     SOCKET_ERROR_UNKNOWN_ERROR = (0x85, "An unknown error occurred")
     INVALID_TLS_CONFIGURATION = (
         0x86, "TLS Profile on a 0x23 API request does not exist, or one or "
               "more certificates is invalid")
+    SOCKET_NOT_CONNECTED = (0x87, "Socket not connected")
+    SOCKET_NOT_BOUND = (0x88, "Socket not bound")
     KEY_NOT_AUTHORIZED = (0xBB, "Key not authorized")
     UNKNOWN = (0xFF, "Unknown")
 
@@ -265,13 +276,15 @@ class ModemStatus(Enum):
     COORDINATOR_REALIGNMENT = (0x05, "Coordinator realignment")
     COORDINATOR_STARTED = (0x06, "The coordinator started")
     NETWORK_SECURITY_KEY_UPDATED = (0x07, "Network security key was updated")
-    NETWORK_WOKE_UP = (0x0B, "Network Woke Up")
-    NETWORK_WENT_TO_SLEEP = (0x0C, "Network Went To Sleep")
+    NETWORK_WOKE_UP = (0x0B, "Network woke up")
+    NETWORK_WENT_TO_SLEEP = (0x0C, "Network went to sleep")
     VOLTAGE_SUPPLY_LIMIT_EXCEEDED = (0x0D, "Voltage supply limit exceeded")
     REMOTE_MANAGER_CONNECTED = (0x0E, "Remote Manager connected")
     REMOTE_MANAGER_DISCONNECTED = (0x0F, "Remote Manager disconnected")
     MODEM_CONFIG_CHANGED_WHILE_JOINING = (
         0x11, "Modem configuration changed while joining")
+    ACCESS_FAULT = (0x12, "Access fault")
+    FATAL_ERROR = (0x13, "Fatal error")
     BLUETOOTH_CONNECTED = (
         0x32, "A Bluetooth connection has been made and API mode has been "
               "unlocked")
@@ -279,6 +292,22 @@ class ModemStatus(Enum):
         0x33, "An unlocked Bluetooth connection has been disconnected")
     BANDMASK_CONFIGURATION_ERROR = (
         0x34, "LTE-M/NB-IoT bandmask configuration has failed")
+    CELLULAR_UPDATE_START = (0x35, "Cellular component update started")
+    CELLULAR_UPDATE_FAILED = (0x36, "Cellular component update failed")
+    CELLULAR_UPDATE_SUCCESS = (0x37, "Cellular component update completed")
+    FIRMWARE_UPDATE_START = (0x38, "XBee firmware update started")
+    FIRMWARE_UPDATE_FAILED = (0x39, "XBee firmware update failed")
+    FIRMWARE_UPDATE_APPLYING = (0x3A, "XBee firmware update applying")
+    SEC_SESSION_ESTABLISHED = (0x3B, "Secure session successfully established")
+    SEC_SESSION_END = (0x3C, "Secure session ended")
+    SEC_SESSION_AUTH_FAILED = (0x3D, "Secure session authentication failed")
+    COORD_PAN_ID_CONFLICT = (
+        0x3E, "Coordinator detected a PAN ID conflict but took no action because CR=0")
+    COORD_CHANGE_PAN_ID = (
+        0x3F, "Coordinator changed PAN ID due to a conflict")
+    ROUTER_PAN_ID_CHANGED = (
+        0x40, "Router PAN ID was changed by coordinator due to a conflict")
+    NET_WATCHDOG_EXPIRED = (0x42, "Network watchdog timeout expired")
     ERROR_STACK = (0x80, "Stack error")
     ERROR_AP_NOT_CONNECTED = (
         0x82, "Send/join command issued without connecting from AP")
