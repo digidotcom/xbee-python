@@ -590,7 +590,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
             Integer: The receive options bitfield.
 
         .. seealso::
-           | :class:`.XBeeReceiveOptions`
+           | :class:`.ReceiveOptions`
         """
         return self.__receive_options
 
@@ -603,7 +603,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
             receive_options (Integer): The new receive options bitfield.
 
         .. seealso::
-           | :class:`.XBeeReceiveOptions`
+           | :class:`.ReceiveOptions`
         """
         self.__receive_options = receive_options
 

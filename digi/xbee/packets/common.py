@@ -2672,7 +2672,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
     transmission parameters.
 
     .. seealso::
-       | :class:`.XBeeReceiveOptions`
+       | :class:`.ReceiveOptions`
        | :class:`.ExplicitAddressingPacket`
        | :class:`.XBeeAPIPacket`
     """
@@ -2701,7 +2701,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBee16BitAddress`
            | :class:`.XBee64BitAddress`
-           | :class:`.XBeeReceiveOptions`
+           | :class:`.ReceiveOptions`
            | :class:`.XBeeAPIPacket`
         """
         if source_endpoint < 0 or source_endpoint > 255:
@@ -2957,7 +2957,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
             Integer: the receive options bitfield.
 
         .. seealso::
-           | :class:`.XBeeReceiveOptions`
+           | :class:`.ReceiveOptions`
         """
         return self.__receive_options
 
@@ -2970,7 +2970,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
             receive_options (Integer): the new receive options bitfield.
 
         .. seealso::
-           | :class:`.XBeeReceiveOptions`
+           | :class:`.ReceiveOptions`
         """
         self.__receive_options = receive_options
 
