@@ -477,7 +477,7 @@ class PacketListener(threading.Thread):
     Default max. size that the queue has.
     """
 
-    _LOG_PATTERN = "{comm_iface:<6s}{event:<12s}{fr_type:<10s}{sender:<18s}{more_data:<50s}"
+    _LOG_PATTERN = "{comm_iface:s} - {event:s} - {fr_type:s}: {sender:s} - {more_data:s}"
     """
     Generic pattern for display received messages (high-level) with logger.
     """
