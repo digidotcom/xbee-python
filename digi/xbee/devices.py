@@ -140,7 +140,7 @@ class AbstractXBeeDevice(object):
 
         self.__generic_lock = threading.Lock()
 
-        self._fw_update_max_block_size = 0
+        self._ota_max_block_size = 0
 
     def __eq__(self, other):
         """
@@ -1568,7 +1568,7 @@ class AbstractXBeeDevice(object):
                                             firmware_file=xbee_firmware_file,
                                             bootloader_file=bootloader_firmware_file,
                                             timeout=timeout,
-                                            max_block_size=self._fw_update_max_block_size,
+                                            max_block_size=self._ota_max_block_size,
                                             progress_callback=progress_callback)
         else:
             if self._operating_mode != OperatingMode.API_MODE and \
@@ -7101,12 +7101,21 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         """
         return self._local_xbee_device.comm_iface
 
-    def set_fw_update_max_block_size(self, size):
+    def get_ota_max_block_size(self):
         """
-        Sets the maximum size in bytes of the ota block to send.
+        Returns the maximum number of bytes to send for ota updates.
+
+        Returns:
+             Integer: Maximum ota block size to send.
+        """
+        return self._ota_max_block_size
+
+    def set_ota_max_block_size(self, size):
+        """
+        Sets the maximum number of bytes to send for ota updates.
 
         Args:
-            size (Integer, optional): Maximum size of the ota block to send.
+            size (Integer): Maximum ota block size to send.
 
         Raises:
             ValueError: If size is not between 0 and 255.
@@ -7116,7 +7125,7 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         if size < 0 or size > 255:
             raise ValueError("Maximum block size must be between 0 and 255")
 
-        self._fw_update_max_block_size = size
+        self._ota_max_block_size = size
 
     def update_filesystem_image(self, ota_filesystem_file, timeout=None, progress_callback=None):
         """
@@ -7147,7 +7156,7 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
 
         update_remote_filesystem_image(self, ota_filesystem_file,
                                        timeout=timeout,
-                                       max_block_size=self._fw_update_max_block_size,
+                                       max_block_size=self._ota_max_block_size,
                                        progress_callback=progress_callback)
 
 
