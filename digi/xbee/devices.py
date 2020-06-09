@@ -21,6 +21,7 @@ import time
 from queue import Queue, Empty
 
 from digi.xbee import serial
+from digi.xbee.filesystem import FileSystemManager
 from digi.xbee.packets.cellular import TXSMSPacket
 from digi.xbee.models.accesspoint import AccessPoint, WiFiEncryptionType
 from digi.xbee.models.atcomm import ATCommandResponse, ATCommand, ATStringCommand
@@ -141,6 +142,7 @@ class AbstractXBeeDevice(object):
         self.__generic_lock = threading.Lock()
 
         self._ota_max_block_size = 0
+        self._file_manager = None
 
     def __eq__(self, other):
         """
@@ -1625,6 +1627,18 @@ class AbstractXBeeDevice(object):
 
         profile.apply_xbee_profile(self, profile_path, timeout=timeout, progress_callback=progress_callback)
 
+    def get_file_manager(self):
+        """
+        Returns the file system manager for the XBee.
+
+        Returns:
+             :class:`.FileSystemManager`: The file system manager.
+        """
+        if not self._file_manager:
+            self._file_manager = FileSystemManager(self)
+
+        return self._file_manager
+
     def _get_ai_status(self):
         """
         Returns the current association status of this XBee device.
@@ -2311,6 +2325,8 @@ class XBeeDevice(AbstractXBeeDevice):
             if self._packet_listener else None
         route_info_cbs = self._packet_listener.get_route_info_callbacks() \
             if self._packet_listener else None
+        fs_frame_cbs = self._packet_listener.get_fs_frame_received_callbacks() \
+            if self._packet_listener else None
 
         self._comm_iface.open()
         self._log.info("%s port opened", self._comm_iface)
@@ -2339,6 +2355,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self._packet_listener.add_socket_data_received_from_callback(socket_data_from_cbs)
         self._packet_listener.add_route_record_received_callback(route_record_cbs)
         self._packet_listener.add_route_info_received_callback(route_info_cbs)
+        self._packet_listener.add_fs_frame_received_callback(fs_frame_cbs)
 
         self._operating_mode = OperatingMode.API_MODE
         self._packet_listener.start()
@@ -3226,6 +3243,27 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         self._packet_listener.add_socket_data_received_from_callback(callback)
 
+    @AbstractXBeeDevice._before_send_method
+    def add_fs_frame_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`digi.xbee.reader.FileSystemFrameReceived`.
+
+        Args:
+            callback (Function): the callback. Receives four arguments.
+
+                * Source (:class:`.AbstractXBeeDevice`): The node that sent the
+                  file system frame.
+                * Frame id (Integer): The received frame id.
+                * Command (:class:`.FSCmd`): The file system command
+                * Receive options (Integer): Bitfield indicating receive options.
+
+        .. seealso::
+           | :class:`.AbstractXBeeDevice`
+           | :class:`.FSCmd`
+           | :class:`.ReceiveOptions`
+        """
+        self._packet_listener.add_fs_frame_received_callback(callback)
+
     def del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`digi.xbee.reader.PacketReceived` event.
@@ -3387,6 +3425,21 @@ class XBeeDevice(AbstractXBeeDevice):
                 :class:`digi.xbee.reader.SocketDataReceivedFrom` event.
         """
         self._packet_listener.del_socket_data_received_from_callback(callback)
+
+    @AbstractXBeeDevice._before_send_method
+    def del_fs_frame_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`digi.xbee.reader.FileSystemFrameReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if `callback` is not in the callback list of
+                :class:`digi.xbee.reader.FileSystemFrameReceived` event.
+        """
+        self._packet_listener.del_fs_frame_received_callback(callback)
 
     def get_xbee_device_callbacks(self):
         """
@@ -3934,10 +3987,10 @@ class XBeeDevice(AbstractXBeeDevice):
         self.__route_received += callback
 
         if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
-                              XBeeProtocol.SMART_ENERGY]
-                and not self.__route_record_callback in self._packet_listener.get_route_record_received_callbacks()):
+                               XBeeProtocol.SMART_ENERGY]
+                and self.__route_record_callback not in self._packet_listener.get_route_record_received_callbacks()):
             self._packet_listener.add_route_record_received_callback(self.__route_record_callback)
-        elif not self.__route_info_callback in self._packet_listener.get_route_info_callbacks():
+        elif self.__route_info_callback not in self._packet_listener.get_route_info_callbacks():
             self._packet_listener.add_route_info_received_callback(self.__route_info_callback)
 
     def del_route_received_callback(self, callback):
@@ -4233,7 +4286,7 @@ class XBeeDevice(AbstractXBeeDevice):
             st_frame = self.send_packet_sync_and_get_response(packet, timeout=timeout)
             if st_frame.transmit_status in [TransmitStatus.SUCCESS,
                                             TransmitStatus.SELF_ADDRESSED]:
-                timed_out = lock.wait(timeout - (time.time() - start))
+                timed_out = not lock.wait(timeout - (time.time() - start))
         except TimeoutException:
             timed_out = True
         finally:

@@ -17,18 +17,29 @@ import logging
 import os
 import re
 import string
+import threading
 import time
-
-from digi.xbee.exception import XBeeException, OperationNotSupportedException
-from digi.xbee.models.atcomm import ATStringCommand
-from digi.xbee.models.filesystem import DirResponseFlag
-from digi.xbee.models.hw import HardwareVersion
-from digi.xbee.util import xmodem, utils
-from digi.xbee.util.xmodem import XModemException
+from abc import ABCMeta, abstractmethod
 from enum import Enum
 from os import listdir
 from os.path import isfile
+from pathlib import PurePosixPath
 from serial.serialutil import SerialException
+
+from digi.xbee.exception import XBeeException, OperationNotSupportedException
+from digi.xbee.models.atcomm import ATStringCommand
+from digi.xbee.models.filesystem import FSCmd, GetPathIdCmdRequest, \
+    CreateDirCmdRequest, OpenDirCmdRequest, DeleteCmdRequest, VolStatCmdRequest, \
+    VolFormatCmdRequest, HashFileCmdRequest, ReadDirCmdRequest, \
+    OpenFileCmdRequest, CloseFileCmdRequest, ReadFileCmdRequest, \
+    WriteFileCmdRequest, CloseDirCmdRequest, RenameCmdRequest
+from digi.xbee.models.hw import HardwareVersion
+from digi.xbee.models.options import TransmitOptions, DirResponseFlag, FileOpenRequestOption
+from digi.xbee.models.protocol import XBeeProtocol
+from digi.xbee.models.status import TransmitStatus, FSCommandStatus
+from digi.xbee.packets.filesystem import RemoteFSRequestPacket, FSRequestPacket
+from digi.xbee.util import xmodem, utils
+from digi.xbee.util.xmodem import XModemException
 
 _ANSWER_ATFS = "AT%s" % ATStringCommand.FS.command
 _ANSWER_SHA256 = "sha256"
@@ -74,6 +85,8 @@ _SECURE_ELEMENT_SUFFIX = "#"
 SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
                                HardwareVersion.XBEE3_SMT.code,
                                HardwareVersion.XBEE3_TH.code)
+
+_DEFAULT_BLOCK_SIZE = 64
 
 _TRANSFER_TIMEOUT = 5  # Seconds.
 
@@ -207,6 +220,16 @@ class FileSystemElement:
          """
         return self._path
 
+    @path.setter
+    def path(self, element_path):
+        """
+        Sets the file system element absolute path.
+
+        Args:
+            element_path (String): File system element absolute path.
+         """
+        self._path = element_path
+
     @property
     def is_dir(self):
         """
@@ -285,7 +308,10 @@ class FileSystemException(XBeeException):
     All functionality of this class is the inherited from `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
+
+    def __init__(self, message, fs_status=None):
+        super().__init__(message)
+        self.status = fs_status
 
 
 class FileSystemNotSupportedException(FileSystemException):
@@ -296,6 +322,2132 @@ class FileSystemNotSupportedException(FileSystemException):
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
     pass
+
+
+class _FSFrameSender:
+    """
+    Helper class used to send file system frames and wait for the response.
+    """
+
+    def __init__(self, xbee):
+        """
+        Class constructor. Instantiates a new :class:`._FSFrameSender` with
+        the given parameters.
+
+        Args:
+            xbee (:class:`.AbstractXBeeDevice`): Destination XBee.
+        """
+        self.__xbee = xbee
+        self.__lock = threading.Event()
+        self.__frame = None
+        self.__resp_cmd = None
+        self.__rec_opts = None
+
+    def __str__(self):
+        return "File system sender (dst: %s)" % self.__xbee
+
+    def _fs_frame_cb(self, xbee, frame_id, cmd, receive_opts):
+        """
+        Callback to execute when a new frame id is received.
+
+        Args:
+            xbee (:class:`.AbstractXBeeDevice`): The node that sent the file
+                system frame.
+            frame_id (Integer): The received frame id.
+            cmd (:class:`.FSCmd`): The file system command.
+            receive_opts (Integer): Bitfield indicating receive options.
+                See :class:`.ReceiveOptions`.
+        """
+        if (frame_id != self.__frame.frame_id
+                or cmd.type != self.__frame.command.type
+                or xbee != self.__xbee):
+            return
+
+        self.__resp_cmd = cmd
+        self.__rec_opts = receive_opts
+        self.__lock.set()
+
+    def send(self, frame_to_send, timeout=10):
+        """
+        Sends the file system frame to the provided XBee and waits for its
+        response.
+
+        Args:
+            frame_to_send (:class:`XBeeAPIPacket`): The file system frame to
+                send.
+            timeout (Float): Maximum number of seconds to wait for the response.
+
+        Returns:
+            Tuple: Tuple containing route data:
+                - rv_status (Integer): Status of the file system command
+                  execution. See :class:`.FSCommandStatus`.
+                - resp_cmd (:class:`.FSCmd`): The response command.
+                - rv_opts (Integer): Bitfield indicating the receive options.
+                  See :class:`.ReceiveOptions`.
+        """
+        local_xb = self.__xbee
+        if self.__xbee.is_remote():
+            local_xb = self.__xbee.get_local_xbee_device()
+        tr_status = None
+        self.__lock.clear()
+        self.__frame = frame_to_send
+        self.__resp_cmd = None
+        self.__rec_opts = None
+
+        log_msg_fmt = "%s: %s: %s" % (str(self), self.__frame.command.type.description, "%s")
+
+        local_xb.add_fs_frame_received_callback(self._fs_frame_cb)
+
+        try:
+            #start = time.time()
+
+            if self.__xbee.is_remote():
+                _log.debug(log_msg_fmt, "Sending remote frame")
+                local_xb.send_packet(self.__frame)
+                if not self.__lock.wait(timeout):
+                    self._throw_fs_exc(self.__frame.command,
+                                       "Timeout waiting for remote response")
+                tr_status = TransmitStatus.SUCCESS
+                # Transmit status frame is never received for Zigbee,
+                # DigiMesh is receiving it, 802.15.4
+                # https://jira.digi.com/browse/XBHAWK-530
+                #st_frame = local_xb.send_packet_sync_and_get_response(
+                #    self.__frame, timeout=timeout)
+                #tr_status = st_frame.transmit_status if st_frame else None
+                #if tr_status in (TransmitStatus.SUCCESS,
+                #                 TransmitStatus.SELF_ADDRESSED):
+                #    if not self.__lock.wait(timeout - (time.time() - start)):
+                #        self._throw_fs_exc(self.__frame.command,
+                #                           "Timeout waiting for remote response")
+                #else:
+                #    self._throw_fs_exc(self.__frame.command,
+                #                       "Remote frame not sent (tr status: %s)" % tr_status)
+            else:
+                _log.debug(log_msg_fmt, "Sending local frame")
+                local_xb.send_packet(self.__frame)
+                if not self.__lock.wait(timeout):
+                    self._throw_fs_exc(self.__frame.command,
+                                       "Timeout waiting for local response")
+                tr_status = TransmitStatus.SUCCESS
+        except FileSystemException:
+            pass
+        except XBeeException as exc:
+            self._throw_fs_exc(self.__frame.command, str(exc))
+        finally:
+            local_xb.del_fs_frame_received_callback(self._fs_frame_cb)
+
+        if not tr_status or not self.__resp_cmd:
+            self._throw_fs_exc(self.__frame.command, "Response not received in timeout")
+
+        status = self.__resp_cmd.status_value
+        if status != FSCommandStatus.SUCCESS.code:
+            fs_status = FSCommandStatus.get(status)
+            msg = str(fs_status) if fs_status else "Unknown file system status (0x%0.2X)" % status
+            _log.error("%s: %s: %s", str(self), self.__frame.command.type.description, msg)
+
+        return status, self.__resp_cmd, self.__rec_opts
+
+    def _throw_fs_exc(self, cmd, msg, status=None):
+        exc_msg_fmt = "%s error: %s" % (cmd.type.description, "%s")
+        log_msg_fmt = "%s: %s: %s" % (str(self), cmd.type.description, "%s")
+
+        _log.error(log_msg_fmt, msg)
+        raise FileSystemException(exc_msg_fmt % msg, fs_status=status)
+
+
+class FileProcess(metaclass=ABCMeta):
+    """
+    This class represents a file process.
+    """
+
+    def __init__(self, f_mng, file, timeout):
+        """
+        Class constructor. Instantiates a new :class:`._FileProcess` object
+        with the provided parameters.
+
+        Args:
+            f_mng (class:`.FileSystemManager`): The file system manager.
+            file (:class:`.FileSystemElement` or String): File or its absolute path.
+            timeout(Float): The timeout in seconds.
+        """
+        if not isinstance(file, (str, FileSystemElement)):
+            raise ValueError("File must be a string or a FileSystemElement")
+        if isinstance(file, FileSystemElement):
+            if file.is_dir:
+                raise ValueError("File cannot be a directory")
+            if file.path in ("/", "\\", ".", ".."):
+                raise ValueError("Invalid file path")
+        if isinstance(file, str) and file in ("/", "\\", ".", ".."):
+            raise ValueError("Invalid file path")
+
+        # Sanitize path
+        file_path = file
+        if isinstance(file, FileSystemElement):
+            file_path = file.path
+        file_path = os.path.normpath(file_path.replace('\\', '/'))
+
+        self._f_mng = f_mng
+        self._f_path = file_path
+        self._timeout = timeout
+
+        self._fid = None
+        self._fsize = None
+        self._cpid = None
+
+        self._running = False
+        self._opened = False
+        self._status = None
+        self._cb = None
+
+    @property
+    def running(self):
+        """
+        Returns if this file command is running.
+
+        Returns:
+            Boolean: `True` if it is running, `False` otherwise.
+        """
+        return self._running
+
+    @property
+    def status(self):
+        """
+        Returns the status code.
+
+        Returns:
+             Integer: The status.
+        """
+        return self._status
+
+    @property
+    def block_size(self):
+        """
+        Returns the size of the block for this file operation.
+
+        Returns:
+             Integer: The size of the block for this file operation.
+        """
+        return self._get_block_size(0)
+
+    def _next(self, last=True):
+        """
+        Executes the next action.
+        """
+        error = bool(self._status not in (None, FSCommandStatus.SUCCESS.code))
+
+        if not self._fid and not self._opened and not error:
+            self._start_process()
+            if self._fid is None or self._cpid is None:
+                return
+
+        r_last = False
+        if not error:
+            r_last = self._exec_specific_cmd()
+
+        if self._opened and (last or r_last or error):
+            self._end_process()
+
+    def _start_process(self):
+        """
+        Starts the file process.
+        """
+        self._running = True
+        self._status = None
+        self._cpid = 0
+
+        # Check length of path, if is too big try to change to a parent
+        self._cpid, f_path = self._f_mng._cd_to_execute(self._f_path, self._cpid, self._timeout)
+
+        self._status, self._fid, self._fsize = self._f_mng.popen_file(
+            f_path, options=self._get_open_flags(), path_id=self._cpid, timeout=self._timeout)
+
+        self._opened = bool(self._status == FSCommandStatus.SUCCESS.code)
+        if not self._opened:
+            if self._cpid:
+                self._f_mng.prelease_path_id(self._cpid, self._timeout)
+            self._running = False
+            self._notify_process_finished()
+
+    def _end_process(self):
+        """
+        Closes the file and releases the path id.
+        """
+        cl_st = None
+        # Close file and release directory path id
+        if self._fid:
+            cl_st = self._f_mng.pclose_file(self._fid, timeout=self._timeout)
+        if self._cpid:
+            self._f_mng.prelease_path_id(self._cpid, self._timeout)
+
+        self._opened = False
+        self._running = False
+
+        self._status = self._status if self._status else cl_st
+        if self._status:
+            self._notify_process_finished()
+
+    def _get_block_size(self, extra_data_len):
+        xbee = self._f_mng.xbee
+
+        n_bytes = self._f_mng.np_value
+        if not n_bytes:
+            n_bytes = _DEFAULT_BLOCK_SIZE
+        else:
+            n_bytes = self._f_mng.np_value - extra_data_len
+        if xbee.is_remote():
+            cfg_max = xbee.get_ota_max_block_size()
+            n_bytes = min(cfg_max, n_bytes) if cfg_max else n_bytes
+
+        # If max block is not configured and NP cannot be read, set 64
+        if n_bytes < 1:
+            n_bytes = _DEFAULT_BLOCK_SIZE
+
+        return n_bytes
+
+    @abstractmethod
+    def _get_open_flags(self):
+        """
+        Bitmask that specifies the options to open the file.
+
+        :class:`.FileOpenRequestOption`: Options to open the file.
+        """
+
+    @abstractmethod
+    def _exec_specific_cmd(self):
+        """
+        Executes the specific file process (read or write).
+        """
+
+    @abstractmethod
+    def _notify_process_finished(self):
+        """
+        Notifies that the file process has finished its execution.
+        """
+
+    def _log_str(self, msg, *args):
+        return "%s: %s" % (str(self), msg % args)
+
+
+class _ReadFileProcess(FileProcess):
+
+    def __init__(self, f_mng, file, offset, timeout, read_callback=None):
+        """
+        Override.
+
+        Args:
+            offset (Integer): File offset to start reading.
+            read_callback (Function, optional, default=`None`): Method called
+                when new data is read. Receives three arguments:
+
+                * The read chunk of data.
+                * The progress percentage as float.
+                * The total size of the file.
+                * The completion status code (integer). See `.FSCommandStatus`.
+        """
+        if offset is not None and not isinstance(offset, int) or offset < 0:
+            raise ValueError("Offset must be 0 or greater")
+
+        super().__init__(f_mng, file, timeout)
+        self.__offset = offset
+        self.__l_off = offset
+        self._cb = read_callback
+        self.__size = 0
+        self.__data = bytearray()
+
+        _log.debug(self._log_str("Reading file '%s' (offset: %d)",
+                                 self._f_path, offset))
+
+    def __str__(self):
+        return "Read file command ('%s')" % self._f_path
+
+    @property
+    def block_size(self):
+        """
+        Returns the size of the block for this file operation.
+
+        Returns:
+             Integer: The size of the block for this file operation.
+        """
+        # cmd_id (1) + f_id (2) + offset (4) + size (2) = 9
+        return self._get_block_size(9)
+
+    def next(self, size=-1, last=True):
+        """
+        Reads from the current offset the provided amount of data. The process
+        blocks until all data is read.
+        Set `last` to `False` to use subsequents calls to `next` to read more
+        data. When no more read is required, close the file setting `last` to
+        `True`. If the end of the file is reached it is close independently of
+        `last` value.
+
+        Args:
+            size (Integer, optional, default=-1): Number of bytes to read.
+                -1 for the complete file.
+            last (Boolean, optional, default=`True'): `True` if this is the
+                last step, `False` otherwise.
+
+        Returns:
+            Bytearray: The total read data bytearray.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                and `progress_cb` is `None`.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(size, int) or size < -1:
+            raise ValueError("Size must be -1 or greater")
+
+        if not size or self._fsize and self.__l_off >= self._fsize:
+            return bytearray()
+
+        self.__size = size
+
+        super()._next(last=last)
+
+        if self._status == FSCommandStatus.SUCCESS.code:
+            return self.__data
+
+        if not self._cb:
+            _raise_exception(self._status,
+                             "Error reading file '%s'" % self._f_path)
+
+        return bytearray()
+
+    def _get_open_flags(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._FileProcess._get_open_flags`
+        """
+        return FileOpenRequestOption.READ
+
+    def _exec_specific_cmd(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._FileProcess._exec_specific_cmd`
+        """
+        self._status = FSCommandStatus.SUCCESS.code
+        self.__data = bytearray()
+
+        # Calculate total size to read in file
+        total_in_file = self._fsize - self.__offset
+        if total_in_file <= 0:
+            return True
+
+        # Calculate remaining (not read) size in file
+        remain_in_file = self._fsize - self.__l_off
+        if not remain_in_file:
+            return True
+
+        # Calculate total size to read
+        total_to_read = min(self.__size, total_in_file)
+        if total_to_read == -1:
+            total_to_read = total_in_file
+
+        # Calculate remaining (not read) to read
+        remain_to_read = min(self.__size, remain_in_file)
+        if remain_to_read == -1:
+            remain_to_read = remain_in_file
+
+        # Calculate chunk length
+        chunk_len = min(self.block_size, remain_to_read)
+        _log.debug(self._log_str("Block size: %d", chunk_len))
+
+        while chunk_len and len(self.__data) < remain_to_read and self.__l_off < self._fsize:
+            _log.debug(self._log_str("Reading, offset: %d, size: %d", self.__l_off, chunk_len))
+            self._status, _fid, _offst, chunk = self._f_mng.pread_file(
+                self._fid, offset=self.__l_off, size=chunk_len, timeout=self._timeout)
+
+            if self._status != FSCommandStatus.SUCCESS.code:
+                return True
+
+            self.__data += chunk
+
+            _log.debug(self._log_str("Read %d (%d/%d)", len(chunk),
+                                     len(self.__data), remain_to_read))
+
+            if self._cb:
+                self._cb(chunk, len(self.__data) * 100 / remain_to_read,
+                         self._fsize, self._status)
+
+            # Recalculate offset
+            self.__l_off += len(chunk)
+
+            # Recalculate chunk length
+            chunk_len = min(chunk_len, remain_to_read - len(self.__data))
+
+        return self.__l_off >= self._fsize
+
+    def _notify_process_finished(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._FileProcess._notify_process_finished`
+        """
+        if self._cb:
+            self._cb(bytearray(), 0, self._fsize, self._status)
+
+
+class _WriteFileProcess(FileProcess):
+
+    def __init__(self, f_mng, file, offset, options, timeout, write_callback=None):
+        """
+        Override.
+
+        Args:
+            write_callback (Function, optional, default=`None`): Method called
+                when data is written. Receives three arguments:
+
+                * The amount of bytes written in the chunk.
+                * The progress percentage as float.
+                * The completion status code (integer). See `.FSCommandStatus`.
+        """
+        if offset is not None and not isinstance(offset, int) or offset < 0:
+            raise ValueError("Offset must be 0 or greater")
+
+        super().__init__(f_mng, file, timeout)
+        self.__offset = offset
+        self.__options = options
+        self._cb = write_callback
+        self.__n_bytes = 0
+        self.__data = bytearray()
+
+        _log.debug(self._log_str("Writing to file '%s' (offset: %d)",
+                                 self._f_path, offset))
+
+    def __str__(self):
+        return "Write file command ('%s')" % self._f_path
+
+    @property
+    def block_size(self):
+        """
+        Returns the size of the block for this file operation.
+
+        Returns:
+             Integer: The size of the block for this file operation.
+        """
+        # cmd_id (1) + f_id (2) + offset (4) = 7
+        return self._get_block_size(7)
+
+    def next(self, data, last=True):
+        """
+        Writes the provided data in the current file offset. The process blocks
+        until all requested data is written.
+        Set `last` to `False` to use subsequents calls to `next` to write more
+        data. When no more write is required, close the file setting `last` to
+        `True`. If the end of the file is reached it is close independently of
+        `last` value.
+
+        Args:
+            data (Bytearray, bytes, String): Data to write.
+            last (Boolean, optional, default=`True'): 'True' if this is the
+                last chunk to write, `False` otherwise.
+
+        Returns:
+            Integer: The total size written (in bytes).
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                and `progress_cb` is `None`.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(data, (bytearray, bytes, str)):
+            raise ValueError("Data must be a bytearray, bytes or a string")
+
+        self.__data = data
+        if isinstance(data, str):
+            self.__data = bytearray(data, 'utf-8')
+
+        super()._next(last=last)
+
+        if self._status == FSCommandStatus.SUCCESS.code:
+            return self.__n_bytes
+
+        if not self._cb:
+            _raise_exception(self._status,
+                             "Error writing file '%s'" % self._f_path)
+
+        return None
+
+    def _get_open_flags(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._FileProcess._get_open_flags`
+        """
+        return self.__options
+
+    def _exec_specific_cmd(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._FileProcess._exec_specific_cmd`
+        """
+        self._status = FSCommandStatus.SUCCESS.code
+        if not self.__data or self.__offset + 1 >= self._fsize:
+            return True
+
+        last_offset = self.__offset
+        data_offset = 0
+
+        # Calculate chunk length
+        chunk_len = min(self.block_size, len(self.__data))
+        _log.debug(self._log_str("Block size: %d", chunk_len))
+
+        while chunk_len and data_offset < len(self.__data):
+            _log.debug(self._log_str("Writing, offset: %d, size: %d", last_offset, chunk_len))
+            self._status, _fid, last_offset = self._f_mng.pwrite_file(
+                self._fid, data=self.__data[data_offset:data_offset + chunk_len],
+                offset=last_offset, timeout=self._timeout)
+
+            if self._status != FSCommandStatus.SUCCESS.code:
+                return True
+
+            data_offset += chunk_len
+            self.__n_bytes += chunk_len
+
+            if self._cb:
+                self._cb(chunk_len, self.__n_bytes * 100 / len(self.__data),
+                         self._status)
+
+            # Recalculate chunk length
+            chunk_len = min(chunk_len, len(self.__data) - data_offset)
+
+        self.__offset = last_offset
+        self.__n_bytes = 0
+
+        return False
+
+    def _notify_process_finished(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._FileProcess._notify_process_finished`
+        """
+        if self._cb:
+            self._cb(0, self.__n_bytes, self._status)
+
+
+class FileSystemManager:
+    """
+    Helper class used to manage local or remote XBee file system.
+    """
+
+    DEFAULT_TIMEOUT = 20
+    DEFAULT_FORMAT_TIMEOUT = 30
+
+    _LOCAL_READ_CHUNK = 1024
+
+    def __init__(self, xbee):
+        """
+        Class constructor. Instantiates a new :class:`.FileSystemManager` with
+        the given parameters.
+
+        Args:
+            xbee (:class:`.AbstractXBeeDevice`): XBee to manage its file system.
+
+        Raises:
+            FileSystemNotSupportedException: If the XBee does not support
+                filesystem.
+        """
+        from digi.xbee.devices import AbstractXBeeDevice
+        if not isinstance(xbee, AbstractXBeeDevice):
+            raise ValueError("XBee must be an XBee class")
+
+        self.__xbee = xbee
+        self.__np_val = None
+        self.__root = FileSystemElement(name="/", path="/", is_dir=True,
+                                        size=0, is_secure=False)
+
+    def __str__(self):
+        return "File system (%s)" % self.__xbee
+
+    @property
+    def xbee(self):
+        """
+        Returns the XBee of this file system manager.
+
+        Returns:
+            :class:`.AbstractXBeeDevice`: XBee to manage its file system.
+        """
+        return self.__xbee
+
+    @property
+    def np_value(self):
+        """
+        The 'NP' parameter value of the local XBee.
+
+        Returns:
+             Integer: The 'NP' value.
+        """
+        return self._get_np()
+
+    def get_root(self):
+        """
+        Returns the root directory.
+
+        Returns:
+             :class:`.FileSystemElement`: The root directory.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+        """
+        return self.__root
+
+    def make_directory(self, dir_path, base=None, mk_parents=True, timeout=DEFAULT_TIMEOUT):
+        """
+        Creates the provided directory.
+
+        Args:
+            dir_path (String): Path of the new directory to create. It is
+                relative to the directory specify in base.
+            base (:class:`.FileSystemElement`, optional, default=`None): Base
+                directory. If not specify it refers to '/flash'.
+            mk_parents (Boolean, optional, default=`True`): `True` to make
+                parent directories as needed, `False` otherwise.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion. If `mk_parents`
+                this is the timeout per directory creation.
+
+        Returns:
+            List: List of :class:`.FileSystemElement` created directories.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(dir_path, str):
+            raise ValueError("Directory path must be a non empty string")
+        if dir_path in ("/", "\\", ".", ".."):
+            raise ValueError("Invalid directory path")
+        if base and not isinstance(base, FileSystemElement):
+            raise ValueError("Base must be a FileSystemElement")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        path_id = 0
+        path = os.path.normpath(dir_path.replace('\\', '/'))
+
+        base_path = "/flash"
+        if base:
+            base_path = os.path.normpath(base.path.replace('\\', '/'))
+
+        comp_path = os.path.join(base_path, path)
+
+        _log.debug(self._log_str("Creating directory '%s' (base: %s)",
+                                 path, base_path))
+        path = PurePosixPath(comp_path)
+        dirs = []
+
+        start = time.time()
+
+        try:
+            # XBee create directory command does not make intermediate dir, this
+            # method generates them recursively:
+            # https://jira.digi.com/browse/XBHAWK-523
+            if mk_parents and str(path.parent) not in (path.root, '.', '/flash'):
+                dirs += self.make_directory(str(path.parent), mk_parents=True, timeout=timeout)
+
+            # Check length of path, if is too big try to change to a parent
+            path_id, to_create = self._cd_to_execute(
+                comp_path, path_id, timeout - (time.time() - start))
+
+            # Create the directory
+            status = self.pmake_directory(to_create, path_id=path_id,
+                                          timeout=(timeout - (time.time() - start)))
+        finally:
+            if path_id:
+                self.prelease_path_id(path_id, timeout)
+
+        if status not in (FSCommandStatus.SUCCESS.code,
+                          FSCommandStatus.ALREADY_EXISTS.code):
+            _raise_exception(status, "Error making directory '%s'" % comp_path)
+
+        dirs.append(
+            FileSystemElement(os.path.basename(comp_path), path=comp_path,
+                              is_dir=True, size=0, is_secure=False))
+
+        return dirs
+
+    def list_directory(self, directory=None, timeout=DEFAULT_TIMEOUT):
+        """
+        Lists the contents of the given directory.
+
+        Args:
+            directory (:class:`.FileSystemElement` or String): Directory to
+                list or its absolute path.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            List: List of `:class:`.FilesystemElement` objects contained in
+                the given directory, empty list if status is not 0.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+        """
+        if directory:
+            if not isinstance(directory, (str, FileSystemElement)):
+                raise ValueError("Directory must be a string or a FileSystemElement")
+            if isinstance(directory, FileSystemElement) and not directory.is_dir:
+                raise ValueError("Directory must be a directory")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        path_id = 0
+        dir_path = directory
+        if isinstance(directory, FileSystemElement):
+            dir_path = directory.path
+
+        if dir_path in ("", ".", None):
+            dir_path = "/flash"
+        elif dir_path == "..":
+            dir_path = "/"
+        dir_path = os.path.normpath(dir_path.replace('\\', '/'))
+
+        _log.debug(self._log_str("Listing directory '%s'", dir_path))
+
+        start = time.time()
+
+        try:
+            # Check length of path, if is too big try to change to a parent
+            path_id, to_list = self._cd_to_execute(dir_path, path_id, timeout)
+
+            status, files = self.plist_directory(
+                to_list, path_id=path_id, timeout=(timeout - (time.time() - start)))
+
+            # This will store the absolute path of the contents
+            for entry in files:
+                entry.path = os.path.join(dir_path, entry.name)
+        finally:
+            if path_id:
+                self.prelease_path_id(path_id, timeout)
+
+        if status != FSCommandStatus.SUCCESS.code:
+            _raise_exception(status, "Error listing directory '%s'" % dir_path)
+
+        return files
+
+    def remove(self, entry, rm_children=True, timeout=DEFAULT_TIMEOUT):
+        """
+        Removes the given file system entry.
+
+        All files in a directory must be deleted before removing the directory.
+        On XBee 3 802.15.4, DigiMesh, and Zigbee, deleted files are marked as
+        as unusable space unless they are at the "end" of the file system
+        (most-recently created). On these products, deleting a file triggers
+        recovery of any deleted file space at the end of the file system, and
+        can lead to a delayed response.
+
+        Args:
+            entry (:class:`.FileSystemElement` or String): File system entry to
+                remove or its absolute path.
+            rm_children (Boolean, optional, default=`True`): `True` to remove
+                directory children if they exist, `False` otherwise.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(entry, (str, FileSystemElement)):
+            raise ValueError("Entry must be a string or a FileSystemElement")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        path_id = 0
+        entry_path = entry
+        if isinstance(entry, FileSystemElement):
+            entry_path = entry.path
+
+        if entry_path in ("", ".", None):
+            entry_path = "/flash"
+        elif entry_path == "..":
+            entry_path = "/"
+        entry_path = os.path.normpath(entry_path.replace('\\', '/'))
+
+        _log.debug(self._log_str("Removing entry '%s'", entry_path))
+
+        start = time.time()
+
+        try:
+            # Check length of path, if is too big try to change to a parent
+            path_id, to_rm = self._cd_to_execute(entry_path, path_id, timeout)
+
+            status = self.premove(to_rm, path_id=path_id,
+                                  timeout=(timeout - (time.time() - start)))
+
+            # To remove a directory, it must be empty beforehand:
+            # https://jira.digi.com/browse/XBHAWK-525
+            if rm_children and status == FSCommandStatus.DIR_NOT_EMPTY.code:
+                # Release the path id
+                if path_id:
+                    self.prelease_path_id(path_id, timeout)
+                    path_id = 0
+                # Remove the directory content
+                files = self.list_directory(
+                    entry_path, timeout=(timeout - (time.time() - start)))
+                for file in files:
+                    self.remove(file, rm_children=True,
+                                timeout=(timeout - (time.time() - start)))
+                # Remove the directory
+                path_id, to_rm = self._cd_to_execute(entry_path, path_id,
+                                                     timeout, refresh=False)
+                status = self.premove(to_rm, path_id=path_id,
+                                      timeout=(timeout - (time.time() - start)))
+        finally:
+            if path_id:
+                self.prelease_path_id(path_id, timeout)
+
+        if status != FSCommandStatus.SUCCESS.code:
+            _raise_exception(status, "Error removing entry '%s'" % entry_path)
+
+    def read_file(self, file, offset=0, progress_cb=None):
+        """
+        Reads from the provided file starting at the given offset.
+        If there is no progress callback the function blocks
+        until the required amount of bytes is read.
+
+        Args:
+            file (:class:`.FileSystemElement` or String): File to read or its
+                absolute path.
+            offset (Integer, optional, default=0): File offset to start
+                reading.
+            progress_cb (Function, optional, default=`None`): Function called
+                when new data is read. Receives three arguments:
+                    * The chunk of data read as byte array.
+                    * The progress percentage as float.
+                    * The total size of the file.
+                    * The status when process finishes.
+
+        Returns:
+            :class:`.FileProcess`: The process to read data from the file.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                and `progress_cb` is `None`.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :meth:`.get_file`
+        """
+        return _ReadFileProcess(self, file, offset, self.DEFAULT_TIMEOUT,
+                                read_callback=progress_cb)
+
+    def write_file(self, file, offset=0, secure=False, options=None, progress_cb=None):
+        """
+        Writes to the provided file the data starting at the given offset. The
+        function blocks until the all data is written.
+
+        Args:
+            file (:class:`.FileSystemElement` or String): File to write or its
+                absolute path.
+            offset (Integer, optional, default=0): File offset to start writing.
+            secure (Boolean, optional, default=`False`):`True` to store the file
+                securely (no read access), `False` otherwise.
+            options (Dictionary, optional): Other write options as list:
+                `exclusive`, `truncate`, `append`.
+            progress_cb (Function, optional, default=`None`): Function call
+                when data is written. Receives three arguments:
+                    * The amount of bytes written (for each chunk).
+                    * The progress percentage as float.
+                    * The status when process finishes.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                and `progress_cb` is `None`.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :meth:`.put_file`
+        """
+        if options is None:
+            options = []
+
+        wr_options = FileOpenRequestOption.WRITE
+        if secure:
+            wr_options |= FileOpenRequestOption.SECURE
+        if "exclusive" in options:
+            wr_options |= FileOpenRequestOption.EXCLUSIVE
+        else:
+            wr_options |= FileOpenRequestOption.CREATE
+        if "truncate" in options:
+            wr_options |= FileOpenRequestOption.TRUNCATE
+        if "append" in options:
+            wr_options |= FileOpenRequestOption.APPEND
+
+        return _WriteFileProcess(self, file, offset, wr_options,
+                                 self.DEFAULT_TIMEOUT, write_callback=progress_cb)
+
+    def get_file(self, src, dest, progress_cb=None):
+        """
+        Downloads the given XBee file in the specified destination path.
+
+        Args:
+            src (:class:`.FileSystemElement` or String): File to download or its
+                absolute path.
+            dest (String): The absolute path of the destination file.
+            progress_cb (Function, optional): Function call when data is being
+                downloaded. Receives one argument:
+                    * The progress percentage as float.
+                    * Destination file path.
+                    * Source file path.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                and `progress_cb` is `None`.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(dest, str):
+            raise ValueError("Destination path must be a non-empty string")
+
+        src_path = src
+        if isinstance(src, FileSystemElement):
+            src_path = src.path
+        src_path = os.path.normpath(src_path.replace('\\', '/'))
+
+        total_read = 0
+
+        def p_cb(chunk, _perc, size, status):
+            nonlocal total_read
+            if status not in (None, FSCommandStatus.SUCCESS.code):
+                _raise_exception(status, "Error getting file '%s'" % src_path)
+            total_read += len(chunk)
+            if progress_cb:
+                progress_cb(total_read * 100.0 / size, dest, src_path)
+
+        with open(dest, "wb+") as dst_file:
+            r_proc = self.read_file(src, offset=0, progress_cb=p_cb)
+            size = r_proc.block_size
+            while True:
+                try:
+                    data = r_proc.next(size=size, last=False)
+                    if not data:
+                        break
+                    dst_file.write(data)
+                except EnvironmentError as exc:
+                    r_proc.next(size=0, last=True)
+                    raise exc
+
+    def put_file(self, src, dest, secure=False, overwrite=False, mk_parents=True, progress_cb=None):
+        """
+        Uploads the given file to the specified destination path of the XBee.
+
+        Args:
+            src (String): Absolute path of the File to upload.
+            dest (:class:`.FileSystemElement` or String): The file in the XBee
+                or its absolute path.
+            secure (Boolean, optional, default=`False`): `True` if the file
+                should be stored securely, `False` otherwise.
+            overwrite (Boolean, optional, default=`False`): `True` to overwrite
+                the file if it exists, `False` otherwise.
+            mk_parents (Boolean, optional, default=`True`): `True` to make
+                parent directories as needed, `False` otherwise.
+            progress_cb (Function, optional): Function call when data is being
+                uploaded. Receives one argument:
+                    * The progress percentage as float.
+                    * Destination file path.
+                    * Source file path.
+
+        Returns:
+            :class:`.FileSystemElement`: The new created file.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                and `progress_cb` is `None`.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(src, str):
+            raise ValueError("Source path must be a non-empty string")
+
+        dst_path = dest
+        if isinstance(dest, FileSystemElement):
+            dst_path = dest.path
+        dst_path = os.path.normpath(dst_path.replace('\\', '/'))
+
+        f_size = os.stat(src).st_size
+        wr_bytes = 0
+
+        def p_cb(n_bytes, _percent, status):
+            nonlocal wr_bytes
+            if status not in (None, FSCommandStatus.SUCCESS.code):
+                _raise_exception(status, "Error putting file '%s'" % src)
+            wr_bytes += n_bytes
+            if progress_cb:
+                progress_cb(wr_bytes * 100.0 / f_size, dst_path, src)
+
+        # Create intermediate directories if required
+        dest_parent = os.path.dirname(dst_path)
+        if mk_parents and dest_parent != "/flash":
+            self.make_directory(dest_parent, mk_parents=True)
+
+        with open(src, "rb+") as src_file:
+            wr_opts = []
+            if overwrite:
+                wr_opts.append("truncate")
+            w_proc = self.write_file(dest, offset=0, secure=secure,
+                                     options=wr_opts, progress_cb=p_cb)
+            try:
+                size = w_proc.block_size
+                data = src_file.read(size)
+                while data:
+                    try:
+                        w_proc.next(data, last=False)
+                    except FileSystemException as exc:
+                        # If write options worked as they are described, we
+                        # would not need to remove the file previously
+                        # https://jira.digi.com/browse/XBHAWK-531
+                        if not overwrite or exc.status != FSCommandStatus.ALREADY_EXISTS.code:
+                            raise exc
+                        self.remove(dest, rm_children=False)
+                        w_proc = self.write_file(dest, offset=0, secure=secure,
+                                                 options=wr_opts, progress_cb=p_cb)
+                        w_proc.next(data, last=False)
+                    data = src_file.read(size)
+            finally:
+                w_proc.next("", last=True)
+
+        return FileSystemElement(os.path.basename(dst_path), path=dst_path,
+                                 is_dir=False, size=os.stat(src).st_size,
+                                 is_secure=secure)
+
+    def put_dir(self, src, dest="/flash", verify=True, progress_cb=None):
+        """
+        Uploads the given source directory contents into the given destination
+        directory in the XBee.
+
+        Args:
+            src (String): Local directory to upload its contents.
+            dest (:class:`.FileSystemElement` or String): The destination dir
+                in the XBee or its absolute path. Defaults to '/flash'.
+            verify (Boolean, optional, default=`True`): `True` to check the
+                hash of the uploaded content.
+            progress_cb (Function, optional): Function call when data is being
+                uploaded. Receives two argument:
+                    * The progress percentage as float.
+                    * Destination file path.
+                    * The absolute path of the local being uploaded as string.
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                and `progress_cb` is `None`.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(src, str):
+            raise ValueError("Source path must be a non-empty string")
+        if dest:
+            if isinstance(dest, FileSystemElement):
+                if not dest.is_dir:
+                    raise ValueError("Destination must be a directory")
+                dest_path = dest.path
+            elif isinstance(dest, str):
+                dest_path = dest
+            else:
+                raise ValueError("Destination must be string or a FileSystemElement")
+        else:
+            dest_path = "/flash"
+
+        # Create destination directory
+        if dest_path != "/flash":
+            self.make_directory(dest_path, mk_parents=True)
+
+        # Upload directory contents
+        for file in listdir(src):
+            src_file_path = os.path.join(src, file)
+            dst_file_path = os.path.join(dest_path, file)
+            if isfile(src_file_path):
+                self.put_file(src_file_path, dst_file_path, overwrite=True,
+                              mk_parents=True, progress_cb=progress_cb)
+                if not verify:
+                    continue
+                xb_hash = self.get_file_hash(dst_file_path)
+                local_hash = get_local_file_hash(src_file_path)
+                if xb_hash == local_hash:
+                    continue
+                msg = "Error uploading file '%s': Local hash different from " \
+                      "remote hash (%s != %s)" % \
+                      (src_file_path, utils.hex_to_string(local_hash, pretty=False),
+                       utils.hex_to_string(xb_hash, pretty=False))
+                _log.error(msg)
+                _raise_exception(None, msg)
+            else:
+                self.put_dir(src_file_path, dst_file_path, progress_cb=progress_cb)
+
+    def get_file_hash(self, file, timeout=DEFAULT_TIMEOUT):
+        """
+        Returns the SHA256 hash of the given file.
+
+        Args:
+            file (:class:`.FileSystemElement` or String): File to get its hash
+                or its absolute path.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Bytearray: SHA256 hash of the given file.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(file, (str, FileSystemElement)):
+            raise ValueError("File must be a string or a FileSystemElement")
+        if isinstance(file, FileSystemElement):
+            if not file.is_dir:
+                raise ValueError("Cannot hash a directory")
+            if file.path in ("/", "\\", ".", ".."):
+                raise ValueError("Invalid file path")
+        if isinstance(file, str) and file in ("/", "\\", ".", ".."):
+            raise ValueError("Invalid file path")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        path_id = 0
+        file_path = file
+        if isinstance(file, FileSystemElement):
+            file_path = file.path
+        file_path = os.path.normpath(file_path.replace('\\', '/'))
+
+        _log.debug(self._log_str("Retrieving SHA256 hash of '%s'", file_path))
+
+        start = time.time()
+
+        try:
+            # Check length of path, if is too big try to change to a parent
+            path_id, to_hash = self._cd_to_execute(file_path, path_id, timeout)
+
+            status, hash_val = self.pget_file_hash(
+                to_hash, path_id=path_id, timeout=(timeout - (time.time() - start)))
+        finally:
+            if path_id:
+                self.prelease_path_id(path_id, timeout)
+
+        if status != FSCommandStatus.SUCCESS.code:
+            _raise_exception(status,
+                             "Error getting hash of file '%s'" % file_path)
+
+        return hash_val
+
+    def move(self, source, dest, timeout=DEFAULT_TIMEOUT):
+        """
+        Moves the given source element to the given destination path.
+
+        Args:
+            source (:class:`.FileSystemElement` or String): Source entry to move.
+            dest (String): Destination path of the element to move.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+        """
+        if not isinstance(source, (str, FileSystemElement)):
+            raise ValueError("Source must be a string or a FileSystemElement")
+        if not isinstance(dest, str) or not dest:
+            raise ValueError("Destination must be a non-empty string")
+        src_path = source
+        if isinstance(source, FileSystemElement):
+            src_path = source.path
+        if src_path in ("/", "\\", ".", ".."):
+            raise ValueError("Invalid source path")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        path_id = 0
+        src_path = os.path.normpath(src_path.replace('\\', '/'))
+        dst_path = os.path.normpath(src_path.replace('\\', '/'))
+        common_dir = os.path.normpath(os.path.commonprefix([src_path, dst_path]))
+
+        _log.debug(self._log_str("Moving '%s' to '%s' (path id: %d)", src_path,
+                                 dst_path, path_id))
+
+        start = time.time()
+
+        # Change to a common directory
+        if common_dir not in ('.', '/'):
+            status, path_id, _f_path = self.pget_path_id(
+                common_dir, path_id=path_id, timeout=timeout)
+            if status != FSCommandStatus.SUCCESS.code:
+                _raise_exception(status,
+                                 "Error changing to directory '%s'" % common_dir)
+
+            src_path = os.path.relpath(src_path, common_dir)
+            dst_path = os.path.relpath(dst_path, common_dir)
+
+        status = self.prename(src_path, dst_path, path_id=path_id,
+                              timeout=(timeout - (time.time() - start)))
+        if path_id:
+            self.prelease_path_id(path_id, timeout)
+
+        if status != FSCommandStatus.SUCCESS.code:
+            _raise_exception(
+                status, "Error moving file '%s' to '%s'" % (src_path, dst_path))
+
+    def get_volume_info(self, vol="/flash", timeout=DEFAULT_TIMEOUT):
+        """
+        Returns the file system volume information.
+        Currently '/flash' is the only supported value.
+
+        Args:
+            vol (:class:`.FileSystemElement`or String, optional, default=`/flash`): Volume name.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Dictionary: Collection of pair values describing volume information.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(vol, (str, FileSystemElement)):
+            raise ValueError("Volume must be a string or a FileSystemElement")
+
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        name = vol
+        if isinstance(vol, FileSystemElement):
+            name = vol.path
+        name = os.path.normpath(name.replace('\\', '/'))
+
+        _log.info(self._log_str("Reading volume information '%s'", name))
+
+        to_send = FileSystemManager._create_fs_frame(self.__xbee,
+                                                     VolStatCmdRequest(name))
+
+        sender = _FSFrameSender(self.__xbee)
+        status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        if status != FSCommandStatus.SUCCESS.code:
+            _raise_exception(status, "Error getting volume info '%s'" % name)
+
+        _log.info(self._log_str(
+            "Volume info '%s': %s (used), %s (free), %s (bad)",
+            name, r_cmd.bytes_used, r_cmd.bytes_free, r_cmd.bytes_bad))
+
+        return {"used": r_cmd.bytes_used,
+                "free": r_cmd.bytes_free,
+                "bad": r_cmd.bytes_bad}
+
+    def format(self, vol="/flash", timeout=DEFAULT_FORMAT_TIMEOUT):
+        """
+        Formats provided volume.
+        Currently '/flash' is the only supported value.
+        Formatting the file system takes time, and any other requests will fail
+        until it completes and sends a response.
+
+        Args:
+            vol (:class:`.FileSystemElement`or String, optional, default=`/flash`): Volume name.
+            timeout (Float, optional, default=`DEFAULT_FORMAT_TIMEOUT`):
+                Maximum number Of seconds to wait for the operation completion.
+
+        Returns:
+            Dictionary: Collection of pair values describing volume information.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(vol, (str, FileSystemElement)):
+            raise ValueError("Volume must be a string or a FileSystemElement")
+
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_FORMAT_TIMEOUT
+
+        # Sanitize path
+        name = vol
+        if isinstance(vol, FileSystemElement):
+            name = vol.path
+        name = os.path.normpath(name.replace('\\', '/'))
+
+        _log.info(self._log_str("Formatting volume '%s'", name))
+
+        to_send = FileSystemManager._create_fs_frame(self.__xbee,
+                                                     VolFormatCmdRequest(name))
+
+        sender = _FSFrameSender(self.__xbee)
+        status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        if status != FSCommandStatus.SUCCESS.code:
+            _raise_exception(status, "Error formatting volume '%s'" % name)
+
+        _log.info(self._log_str(
+            "After format, volume info '%s': %s (used), %s (free), %s (bad)",
+            name, r_cmd.bytes_used, r_cmd.bytes_free, r_cmd.bytes_bad))
+
+        return {"used": r_cmd.bytes_used,
+                "free": r_cmd.bytes_free,
+                "bad": r_cmd.bytes_bad}
+
+    def pget_path_id(self, dir_path, path_id=0, timeout=DEFAULT_TIMEOUT):
+        """
+        Returns the directory path id of the given path. Returned directory path
+        id expires if not referenced in 2 minutes.
+
+        Args:
+            dir_path (String): Path of the directory to get its id. It is
+                relative to the directory path id.
+            path_id (Integer, optional, default=0): Directory path id. 0 for
+                the root directory.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Tuple (Integer, Integer, String): Status of the file system command
+                execution, new directory path id (-1 if status is not 0) and
+                its absolute path (empty if status is not 0). The full path
+                may be `None` or empty if it is too long and exceeds the
+                communication frames length.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(dir_path, str):
+            raise ValueError("Directory path must be a non empty string")
+        if not isinstance(path_id, int) or path_id < 0:
+            raise ValueError("Directory path id must be a positive integer")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        if dir_path not in (".", ".."):
+            dir_path = os.path.normpath(dir_path.replace('\\', '/'))
+
+        _log.info(self._log_str("Getting ID of directory '%s' (path id: %d)", dir_path, path_id))
+
+        # Check length of path, if is too big try to change to a parent
+        to_cd = self._get_fit_parent_path(dir_path)
+
+        # Change to directory
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, GetPathIdCmdRequest(path_id, to_cd))
+        sender = _FSFrameSender(self.__xbee)
+        status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+        if status != FSCommandStatus.SUCCESS.code:
+            return status, -1, ""
+
+        f_id = r_cmd.fs_id
+        f_path = r_cmd.full_path
+
+        # If we changed to a parent dir, change now to the final dir
+        if len(dir_path) > len(to_cd):
+            rel_path = os.path.relpath(dir_path, to_cd)
+            status, f_id, f_path = self.pget_path_id(rel_path, path_id=f_id,
+                                                     timeout=timeout)
+            if status != FSCommandStatus.SUCCESS.code:
+                return status, -1, ""
+
+        _log.info(self._log_str("Path id '%d' (%s)", f_id, f_path))
+
+        return status, f_id, f_path
+
+    def pmake_directory(self, dir_path, path_id=0, timeout=DEFAULT_TIMEOUT):
+        """
+        Creates the provided directory. Parent directories of the one to be
+        created must exist. Separate requests must be dane to make intermediate
+        directories.
+
+        Args:
+            dir_path (String): Path of the new directory to create. It is
+                relative to the directory path id.
+            path_id (Integer, optional, default=0): Directory path id. 0 for
+                the root directory.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion. If `mk_parents`
+                this is the timeout per directory creation.
+
+        Returns:
+            Integer: Status of the file system command execution
+                (see :class:`.FSCommandStatus`).
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(dir_path, str):
+            raise ValueError("Directory path must be a non empty string")
+        if dir_path in ("/", "\\", ".", ".."):
+            raise ValueError("Invalid directory path")
+        if not isinstance(path_id, int) or path_id < 0:
+            raise ValueError("Directory path id must be a positive integer")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        path = PurePosixPath(os.path.normpath(dir_path.replace('\\', '/')))
+
+        _log.info(self._log_str("Creating directory '%s' (path id: %d)",
+                                str(path), path_id))
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, CreateDirCmdRequest(path_id, str(path)))
+
+        sender = _FSFrameSender(self.__xbee)
+        rv_status, _r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        return rv_status
+
+    def plist_directory(self, dir_path, path_id=0, timeout=DEFAULT_TIMEOUT):
+        """
+        Lists the contents of the given directory.
+
+        Args:
+            dir_path (String): Path of the directory to list. It is relative to
+                the directory path id.
+            path_id (Integer, optional, default=0): Directory path id. 0 for
+                the root directory.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Tuple (Integer, List): Status of the file system command execution
+                and a list of `:class:`.FilesystemElement` objects contained in
+                the given directory, empty list if status is not 0.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(dir_path, str):
+            raise ValueError("Directory path must be a non empty string")
+        if not isinstance(path_id, int) or path_id < 0:
+            raise ValueError("Directory path id must be a positive integer")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        if dir_path not in (".", ".."):
+            dir_path = os.path.normpath(dir_path.replace('\\', '/'))
+
+        _log.info(self._log_str("Listing directory '%s' (path id: %d)",
+                                dir_path, path_id))
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, OpenDirCmdRequest(path_id, dir_path))
+
+        sender = _FSFrameSender(self.__xbee)
+        start = time.time()
+        rv_status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        if rv_status != FSCommandStatus.SUCCESS.code:
+            return rv_status, []
+
+        dir_list = r_cmd.fs_entries
+        while not r_cmd.is_last:
+            to_send = FileSystemManager._create_fs_frame(
+                self.__xbee, ReadDirCmdRequest(r_cmd.fs_id))
+            rv_status, r_cmd, _rv_opts = sender.send(
+                to_send, timeout=(timeout - (time.time() - start)))
+            if rv_status != FSCommandStatus.SUCCESS.code:
+                # Try to close the directory
+                to_send = FileSystemManager._create_fs_frame(
+                    self.__xbee, CloseDirCmdRequest(r_cmd.fs_id))
+                sender.send(to_send,
+                            timeout=(timeout - (time.time() - start)))
+                return rv_status, []
+            dir_list += r_cmd.fs_entries
+
+        # This will store the path relative to the directory path id
+        for entry in dir_list:
+            entry.path = os.path.join(dir_path.replace('\\', '/'), entry.name)
+
+        _log.info(self._log_str("List directory '%s' (%d):\n%s", dir_path,
+                                path_id, '\n'.join(map(str, dir_list))))
+
+        return rv_status, dir_list
+
+    def premove(self, entry_path, path_id=0, timeout=DEFAULT_TIMEOUT):
+        """
+        Removes the given file system entry.
+
+        All files in a directory must be deleted before removing the directory.
+        On XBee 3 802.15.4, DigiMesh, and Zigbee, deleted files are marked as
+        as unusable space unless they are at the "end" of the file system
+        (most-recently created). On these products, deleting a file triggers
+        recovery of any deleted file space at the end of the file system, and
+        can lead to a delayed response.
+
+        Args:
+            entry_path (String): Path of the entry to remove. It is relative to
+                the directory path id.
+            path_id (Integer, optional, default=0): Directory path id. 0 for
+                the root directory.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Integer: Status of the file system command execution
+                (see :class:`.FSCommandStatus`).
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(entry_path, str):
+            raise ValueError("Entry path must be a non empty string")
+        if not isinstance(path_id, int) or path_id < 0:
+            raise ValueError("Directory path id must be a positive integer")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        if entry_path not in (".", ".."):
+            entry_path = os.path.normpath(entry_path.replace('\\', '/'))
+
+        _log.info(self._log_str("Removing entry '%s' (path id: %d)", entry_path,
+                                path_id))
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, DeleteCmdRequest(path_id, entry_path))
+
+        sender = _FSFrameSender(self.__xbee)
+        rv_status, _r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        return rv_status
+
+    def popen_file(self, file_path, path_id=0, options=FileOpenRequestOption.READ,
+                   timeout=DEFAULT_TIMEOUT):
+        """
+        Open a file for reading and/or writing. Use the
+        `FileOpenRequestOption.SECURE` (0x80) bitmask for options to upload a
+        write-only file (one that cannot be downloaded or viewed), useful for
+        protecting files on the device.
+        Returned file id expires if not referenced in 2 minutes.
+
+        Args:
+            file_path (String): Path of the file to open. It is relative to the
+                directory path id.
+            path_id (Integer, optional, default=0): Directory path id. 0 for
+                the root directory.
+            options (Integer, optional, default=`FileOpenRequestOption.READ`):
+                Bitmask that specifies the options to open the file. It defaults
+                to `FileOpenRequestOption.READ` which means open for reading.
+                See :class:`.FileOpenRequestOption` for more options.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Tuple (Integer, Integer, Integer): Status of the file system command
+                execution (see :class:`.FSCommandStatus`), the file id to use
+                in later requests, and the size of the file (in bytes),
+                0xFFFFFFFF if unknown.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FileOpenRequestOption`
+           | :class:`.FSCommandStatus`
+           | :meth:`.pclose_file`
+        """
+        if not isinstance(file_path, str):
+            raise ValueError("File path must be a string")
+        if file_path in ("/", "\\", ".", ".."):
+            raise ValueError("Invalid file path")
+        if not isinstance(path_id, int) or path_id < 0:
+            raise ValueError("Directory path id must be a positive integer")
+        if not options:
+            options = FileOpenRequestOption.READ
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        path = PurePosixPath(os.path.normpath(file_path.replace('\\', '/')))
+
+        _log.info(self._log_str("Opening file '%s' (path id: %d) options: 0x%0.2X",
+                                str(path), path_id, options))
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, OpenFileCmdRequest(path_id, str(path), options))
+
+        sender = _FSFrameSender(self.__xbee)
+        rv_status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        _log.info(self._log_str("File open '%s' (%d) options 0x%0.2X", str(path),
+                                path_id, options))
+
+        return rv_status, r_cmd.fs_id, r_cmd.size
+
+    def pclose_file(self, file_id, timeout=DEFAULT_TIMEOUT):
+        """
+        Closes an open file and releases its file handle.
+
+        Args:
+            file_id (Integer): File id returned when opening.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Integer: Status of the file system command execution
+                (see :class:`.FSCommandStatus`).
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+           | :meth:`.popen_file`
+        """
+        if not isinstance(file_id, int):
+            raise ValueError("File id must be an integer")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        _log.info(self._log_str("Closing file '%d'", file_id))
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, CloseFileCmdRequest(file_id))
+
+        sender = _FSFrameSender(self.__xbee)
+        rv_status, _r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        _log.info(self._log_str("File closed (%d)", file_id))
+
+        return rv_status
+
+    def pread_file(self, file_id, offset=-1, size=-1, timeout=DEFAULT_TIMEOUT):
+        """
+        Reads from the provided file the given amount of bytes starting at the
+        given offset. The file must be opened for reading first.
+
+        Args:
+            file_id (Integer): File id returned when opening.
+            offset (Integer, optional, default=-1): File offset to start reading.
+                -1 to use current position.
+            size (Integer, optional, default=-1): Number of bytes to read.
+                -1 to read as many as possible.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Tuple (Integer, Integer, Integer, Bytearray): Status of the file
+                system command execution (see :class:`.FSCommandStatus`), the
+                file id, the offset of the read data, and the read data.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+           | :meth:`.popen_file`
+        """
+        if not isinstance(file_id, int):
+            raise ValueError("File id must be an integer")
+        if offset is not None and not isinstance(offset, int) or offset < -1:
+            raise ValueError("Offset must be -1 or greater")
+        if not isinstance(size, int) or not size or size < -1:
+            raise ValueError("Size must be -1 or greater than 0")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        _log.info(self._log_str("Reading file '%d' (offset: %d, size: %d)",
+                                file_id, offset, size))
+
+        if offset == -1:
+            offset = ReadFileCmdRequest.USE_CURRENT_OFFSET
+        if size == -1:
+            size = ReadFileCmdRequest.READ_AS_MANY
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, ReadFileCmdRequest(file_id, offset, size))
+
+        sender = _FSFrameSender(self.__xbee)
+        rv_status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        _log.info(self._log_str("Read %d bytes from '%d' (offset: %d)",
+                                len(r_cmd.data), file_id, r_cmd.offset))
+
+        return rv_status, r_cmd.fs_id, r_cmd.offset, r_cmd.data
+
+    def pwrite_file(self, file_id, data, offset=-1, timeout=DEFAULT_TIMEOUT):
+        """
+        Writes to the provided file the given data bytes starting at the given
+        offset. The file must be opened for writing first.
+
+        Args:
+            file_id (Integer): File id returned when opening.
+            data (Bytearray, bytes or String): Data to write.
+            offset (Integer, optional, default=-1): File offset to start writing.
+                -1 to use current position.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Tuple (Integer, Integer, Integer): Status of the file system
+                command execution (see :class:`.FSCommandStatus`), the file id,
+                and the current offset after writing.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+           | :meth:`.popen_file`
+        """
+        if not isinstance(file_id, int):
+            raise ValueError("File id must be an integer")
+        if not isinstance(data, (bytearray, bytes, str)):
+            raise ValueError("Data must be a bytearray, bytes or a string")
+        if not data:
+            raise ValueError("Data cannot be empty")
+        if offset is not None and not isinstance(offset, int) or offset < -1:
+            raise ValueError("Offset must be -1 or greater")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        if isinstance(data, str):
+            data = bytearray(data, 'utf-8')
+        elif isinstance(data, bytes):
+            data = bytearray(data)
+
+        _log.info(self._log_str("Writing to file '%d' (offset: %d, size: %d)",
+                                file_id, offset, len(data)))
+
+        if offset == -1:
+            offset = ReadFileCmdRequest.USE_CURRENT_OFFSET
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, WriteFileCmdRequest(file_id, offset, data=data))
+
+        sender = _FSFrameSender(self.__xbee)
+        rv_status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        if rv_status == FSCommandStatus.SUCCESS.code:
+            _log.info(self._log_str("Written %d bytes to '%d' (offset: %d)",
+                                    len(data), file_id, r_cmd.actual_offset))
+
+        return rv_status, r_cmd.fs_id, r_cmd.actual_offset
+
+    def pget_file_hash(self, file_path, path_id=0, timeout=DEFAULT_TIMEOUT):
+        """
+        Returns the SHA256 hash of the given file.
+
+        Args:
+            file_path (String): Path of the file to get its hash. It is
+                relative to the directory path id.
+            path_id (Integer, optional, default=0): Directory path id. 0 for
+                the root directory.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Tuple (Integer, Bytearray): Status of the file system command
+                execution and SHA256 hash of the given file (empty bytearray if
+                status is not 0).
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(file_path, str):
+            raise ValueError("File path must be a non empty string")
+        if file_path in ("/", "\\", ".", ".."):
+            raise ValueError("Invalid file path")
+        if not isinstance(path_id, int) or path_id < 0:
+            raise ValueError("Directory path id must be a positive integer")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        file_path = os.path.normpath(file_path.replace('\\', '/'))
+
+        _log.info(self._log_str("Retrieving SHA256 hash of '%s' (path id: %d)",
+                                file_path, path_id))
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, HashFileCmdRequest(path_id, file_path))
+
+        sender = _FSFrameSender(self.__xbee)
+        rv_status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        if rv_status != FSCommandStatus.SUCCESS.code:
+            return rv_status, bytearray()
+
+        _log.info(self._log_str("'%s' hash: %s", file_path,
+                                utils.hex_to_string(r_cmd.file_hash, pretty=False)))
+
+        return rv_status, r_cmd.file_hash
+
+    def prename(self, current_path, new_path, path_id=0, timeout=DEFAULT_TIMEOUT):
+        """
+        Rename provided file.
+
+        Args:
+            current_path (String): Current path name. It is relative to the
+                directory path id.
+            new_path (String): New name. It is relative to the directory path id.
+            path_id (Integer, optional, default=0): Directory path id. 0 for
+                the root directory.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Integer: Status of the file system command execution
+                (see :class:`.FSCommandStatus`).
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(current_path, str):
+            raise ValueError("Current path name must be a non empty string")
+        if not isinstance(new_path, str):
+            raise ValueError("New path name must be a non empty string")
+        if not isinstance(path_id, int) or path_id < 0:
+            raise ValueError("Directory path id must be a positive integer")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        # Sanitize path
+        if current_path not in (".", ".."):
+            current_path = os.path.normpath(current_path.replace('\\', '/'))
+        if new_path not in (".", ".."):
+            new_path = os.path.normpath(new_path.replace('\\', '/'))
+
+        _log.info(self._log_str("Renaming entry '%s' to '%s' (path id: %d)",
+                                current_path, new_path, path_id))
+
+        to_send = FileSystemManager._create_fs_frame(
+            self.__xbee, RenameCmdRequest(path_id, current_path, new_path))
+
+        sender = _FSFrameSender(self.__xbee)
+        rv_status, _r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
+
+        return rv_status
+
+    def prelease_path_id(self, path_id, timeout=DEFAULT_TIMEOUT):
+        """
+        Releases the provided directory path id.
+
+        Args:
+            path_id (Integer): Directory path id to release.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
+                of seconds to wait for the operation completion.
+
+        Returns:
+            Integer: Status of the file system command execution.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+            ValueError: If any of the parameters is invalid.
+
+        .. seealso::
+           | :class:`.FSCommandStatus`
+        """
+        if not isinstance(path_id, int) or path_id < 0:
+            raise ValueError("Directory path id must be a positive integer")
+        if not isinstance(timeout, int):
+            timeout = self.DEFAULT_TIMEOUT
+
+        status, _, _ = self.pget_path_id("/", path_id=path_id, timeout=timeout)
+        if status != FSCommandStatus.SUCCESS.code:
+            _log.error(self._log_str("Error releasing path id '%d'", path_id))
+
+        return status
+
+    def _cd_to_execute(self, path, path_id, timeout, refresh=True):
+        """
+        Changes to another directory in path if its longer than the allowed
+        length for the frame transmission.
+
+        Args:
+            path (String): The path to check and to use for changing.
+            path_id (Integer): Current directory path id.
+            timeout (Float): Maximum number of seconds to wait for the
+                operation completion.
+            refresh (Boolean, optional, default=`True`): `True` to read the
+                NP value of the local XBee, `False` to use the cached one.
+
+        Returns:
+             Tuple (Integer, String): The new directory path id and the
+                relative path of given path to that new directory path id.
+
+        Raises:
+            FileSystemException: If there is any error performing the operation
+                or the function is not supported.
+        """
+        max_len = self._get_np(refresh=refresh)
+        if not max_len:
+            max_len = _DEFAULT_BLOCK_SIZE
+        if len(path) <= max_len:
+            return path_id, path
+
+        rel_path = path
+        start = time.time()
+        while len(rel_path) > max_len:
+            to_cd = self._get_fit_parent_path(rel_path)
+            rel_path = os.path.relpath(rel_path, to_cd)
+            status, path_id, _f_path = self.pget_path_id(
+                to_cd, path_id=path_id, timeout=(timeout - (time.time() - start)))
+            if status != FSCommandStatus.SUCCESS.code:
+                _raise_exception(status,
+                                 "Error changing to directory '%s'" % to_cd)
+
+        return path_id, rel_path
+
+    def _get_np(self, refresh=False):
+        """
+        Returns the 'NP' value of the local XBee.
+
+        Args:
+            refresh (Boolean, optional, default=`False`): `True` to read the
+                NP value of the local XBee, `False` to use the cached one.
+
+        Returns:
+             Integer: 'NP' value.
+        """
+        if self.__np_val and not refresh:
+            return self.__np_val
+
+        xbee = self.__xbee
+        n_extra_bytes = 0
+        if xbee.is_remote():
+            xbee = xbee.get_local_xbee_device()
+            # 64-bit address (8), send/receive opts (1), and status (1) length
+            n_extra_bytes = 10
+
+        cmd = ATStringCommand.NP.command
+        try:
+            # Reserve 5 bytes for other frame data
+            self.__np_val = utils.bytes_to_int(xbee.get_parameter(cmd)) - 5
+            # Subtract extra bytes of remote frames
+            self.__np_val -= n_extra_bytes
+        except XBeeException as exc:
+            _log.error(self._log_str(
+                "Error getting maximum number of transmission bytes ('%s'): %s",
+                cmd, str(exc)))
+            self.__np_val = 0
+
+        return self.__np_val
+
+    def _get_fit_parent_path(self, path, refresh=False):
+        """
+        Returns a parent which length fits the maximum allowed size.
+
+        Args:
+            path (String): Path to get a fit parent.
+            refresh (Boolean, optional, default=`False`): `True` to read the
+                NP value of the local XBee, `False` to use the cached one.
+
+        Returns:
+            String: The path that fits the maximum allowed size.
+        """
+        np_val = self._get_np(refresh=refresh)
+        if not np_val:
+            np_val = _DEFAULT_BLOCK_SIZE
+        if len(path) <= np_val:
+            return path
+
+        # Reduce the path until is less than 'NP'
+        path = PurePosixPath(path)
+        for parent in path.parents:
+            if len(str(parent)) <= np_val:
+                return str(parent)
+
+        return path
+
+    @staticmethod
+    def _create_fs_frame(xbee, cmd, transmit_options=TransmitOptions.NONE.value):
+        """
+        Creates a local or remote File System Request packet.
+
+        Args:
+            xbee (:class:`.AbstractXBeeDevice`): The destination XBee.
+            cmd (:class:`.FSCmd` or Bytearray): The command to send.
+            transmit_options (Integer, optional, default=`TransmitOptions.NONE.value`):
+                Options to transmit the packet if `xbee` is remote.
+
+        Returns:
+            :class:`.XBeeAPIPacket`: class:`.FSRequestPacket` or
+                class:`.RemoteFSRequestPacket` already formed.
+
+        Raises:
+            ValueError: If `xbee` or `cmd` are invalid.
+        """
+        from digi.xbee.devices import AbstractXBeeDevice
+        if not isinstance(xbee, AbstractXBeeDevice):
+            raise ValueError("XBee must be a local or remote XBee class")
+        if not isinstance(cmd, (bytearray, FSCmd)):
+            raise ValueError("Command must be a bytearray or a FSCmd")
+
+        if xbee.is_remote():
+            if xbee.get_protocol() in (XBeeProtocol.DIGI_MESH, XBeeProtocol.SX):
+                transmit_options |= TransmitOptions.DIGIMESH_MODE.value
+            elif xbee.get_protocol() == XBeeProtocol.DIGI_POINT:
+                transmit_options |= TransmitOptions.POINT_MULTIPOINT_MODE.value
+
+            return RemoteFSRequestPacket(
+                xbee.get_local_xbee_device().get_next_frame_id(),
+                xbee.get_64bit_addr(), cmd, transmit_options=transmit_options)
+
+        return FSRequestPacket(xbee.get_next_frame_id(), cmd)
+
+    def _log_str(self, msg, *args):
+        return "%s: %s" % (str(self), msg % args)
 
 
 class LocalXBeeFileSystemManager(object):
@@ -380,7 +2532,7 @@ class LocalXBeeFileSystemManager(object):
             # In some scenarios where the read buffer is constantly being filled with remote data, it is
             # almost impossible to read the 'enter command mode' answer, so purge port before.
             self._serial_port.purge_port()
-            for i in range(3):
+            for _ in range(3):
                 self._serial_port.write(str.encode(_COMMAND_MODE_CHAR, encoding='utf-8'))
             answer = self._read_data(timeout=_GUARD_TIME, empty_retries=_READ_EMPTY_DATA_RETRIES)
 
@@ -1058,6 +3210,34 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file, max_block
     except FirmwareUpdateException as e:
         _log.error("ERROR: %s", str(e))
         raise FileSystemException(str(e))
+
+
+def get_local_file_hash(local_path):
+    """
+    Returns the SHA256 hash of the given local file.
+
+    Args:
+        local_path (String): Absolute path of the file to get its hash.
+
+    Returns:
+        Bytearray: SHA256 hash of the given file.
+    """
+    import hashlib
+    sha256_hash = hashlib.sha256()
+    with open(local_path, "rb") as file:
+        # Read and update hash string value in blocks of 4K
+        for byte_block in iter(lambda: file.read(4096), b""):
+            sha256_hash.update(byte_block)
+
+        return sha256_hash.digest()
+
+
+def _raise_exception(status, msg):
+    st_msg = ""
+    if status is not None:
+        fs_st = FSCommandStatus.get(status)
+        st_msg = ": %s" % str(fs_st) if fs_st else "Unknown status (0x%0.2X)" % status
+    raise FileSystemException("%s%s" % (msg, st_msg), fs_status=status)
 
 
 def _get_milliseconds():

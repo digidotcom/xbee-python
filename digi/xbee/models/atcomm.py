@@ -74,6 +74,7 @@ class ATStringCommand(Enum):
     NO = ("NO", "Node discover options")
     NR = ("NR", "Network reset")
     NS = ("NS", "DNS address")
+    NP = ("NP", "Maximum number of transmission bytes")
     NT = ("NT", "Node discover back-off")
     N_QUESTION = ("N?", "Network discovery timeout")
     OP = ("OP", "Operating extended PAN ID")

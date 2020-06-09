@@ -445,6 +445,25 @@ class EndDiscoveryScan(XBeeEvent):
     pass
 
 
+class FileSystemFrameReceived(XBeeEvent):
+    """
+    This event is fired when a file system packet is received.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. Source (:class:`.AbstractXBeeDevice`): The node that sent the
+           file system frame.
+        2. Frame id (Integer): The received frame id.
+        3. Command (:class:`.FSCmd`): The file system command.
+        4. Status (:class: `.FSCommandStatus`): The status code.
+        5. Receive options (Integer): Bitfield indicating receive options.
+           See :class:`.ReceiveOptions`.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+    pass
+
+
 class PacketListener(threading.Thread):
     """
     This class represents a packet listener, which is a thread that's always
@@ -517,6 +536,7 @@ class PacketListener(threading.Thread):
         self.__socket_data_received_from = SocketDataReceivedFrom()
         self.__route_record_indicator_received_from = RouteRecordIndicatorReceived()
         self.__dm_route_information_received_from = RouteInformationReceived()
+        self.__fs_frame_received = FileSystemFrameReceived()
 
         # API internal callbacks:
         self.__packet_received_API = xbee_device.get_xbee_device_callbacks()
@@ -861,7 +881,7 @@ class PacketListener(threading.Thread):
 
         Args:
             callback (Function or List of functions): the callback. Receives two
-            arguments.
+                arguments.
 
                 * Source (:class:`.RemoteXBeeDevice`): The remote node that sent
                     the route record.
@@ -880,7 +900,7 @@ class PacketListener(threading.Thread):
 
         Args:
             callback (Function or List of functions): the callback. Receives eight
-            arguments.
+                arguments.
 
                 * Source event (Integer): The source event (0x11: NACK,
                     0x12: Trace route)
@@ -904,6 +924,26 @@ class PacketListener(threading.Thread):
             self.__dm_route_information_received_from.extend(callback)
         elif callback:
             self.__dm_route_information_received_from += callback
+
+    def add_fs_frame_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.FileSystemFrameReceived`.
+
+        Args:
+            callback (Function or List of functions): the callback. Receives
+                four arguments.
+
+                * Source (:class:`.AbstractXBeeDevice`): The node that sent the
+                   file system frame.
+                * Frame id (Integer): The received frame id.
+                * Command (:class:`.FSCmd`): The file system command.
+                * Receive options (Integer): Bitfield indicating receive options.
+                  See :class:`.ReceiveOptions`.
+        """
+        if isinstance(callback, list):
+            self.__fs_frame_received.extend(callback)
+        elif callback:
+            self.__fs_frame_received += callback
 
     def del_packet_received_callback(self, callback):
         """
@@ -1113,6 +1153,20 @@ class PacketListener(threading.Thread):
         """
         self.__dm_route_information_received_from -= callback
 
+    def del_fs_frame_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`.FileSystemFrameReceived` event.
+
+        Args:
+            callback (Function): the callback to delete.
+
+        Raises:
+            ValueError: if ``callback`` is not in the callback list of
+                :class:`.FileSystemFrameReceived` event.
+        """
+        self.__fs_frame_received -= callback
+
     def get_packet_received_callbacks(self):
         """
         Returns the list of registered callbacks for received packets.
@@ -1257,6 +1311,16 @@ class PacketListener(threading.Thread):
             List: List of :class:`.RouteInformationReceived` events.
         """
         return self.__dm_route_information_received_from
+
+    def get_fs_frame_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received file system
+        packets.
+
+        Returns:
+            List: List of :class:`.FileSystemFrameReceived` events.
+        """
+        return self.__fs_frame_received
 
     def __execute_user_callbacks(self, xbee_packet, remote=None):
         """
@@ -1425,6 +1489,29 @@ class PacketListener(threading.Thread):
                                                        xbee_packet.src_event, xbee_packet.timestamp,
                                                        xbee_packet.ack_timeout_count,
                                                        xbee_packet.tx_block_count)))
+        # File system frame
+        elif xbee_packet.get_frame_type() in (ApiFrameType.FILE_SYSTEM_RESPONSE,
+                                              ApiFrameType.REMOTE_FILE_SYSTEM_RESPONSE):
+            node = self.__xbee_device
+            rcv_opts = None
+            if xbee_packet.get_frame_type() == ApiFrameType.REMOTE_FILE_SYSTEM_RESPONSE:
+                node = remote
+                rcv_opts = xbee_packet.receive_options
+            self.__fs_frame_received(node, xbee_packet.frame_id,
+                                     xbee_packet.command, rcv_opts)
+
+            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                    event="RECEIVED",
+                                                    fr_type="FILE SYSTEM RESPONSE",
+                                                    sender=str(remote.get_64bit_addr()) if remote else "Local",
+                                                    more_data=
+                                                    "frame id: %d - command: %s, status: %d (%s), "
+                                                    "receive options: %s"
+                                                    % (xbee_packet.frame_id,
+                                                       xbee_packet.command,
+                                                       xbee_packet.command.status_value,
+                                                       xbee_packet.command.status,
+                                                       rcv_opts)))
 
     @staticmethod
     def __get_remote_device_data_from_packet(xbee_packet):
