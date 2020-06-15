@@ -1633,6 +1633,10 @@ class AbstractXBeeDevice(object):
 
         Returns:
              :class:`.FileSystemManager`: The file system manager.
+
+        Raises:
+            FileSystemNotSupportedException: If the XBee does not support
+                filesystem.
         """
         if not self._file_manager:
             self._file_manager = FileSystemManager(self)

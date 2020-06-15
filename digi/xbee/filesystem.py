@@ -86,6 +86,18 @@ SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
                                HardwareVersion.XBEE3_SMT.code,
                                HardwareVersion.XBEE3_TH.code)
 
+XB3_MIN_FW_VERSION_FS_API_SUPPORT = {
+    XBeeProtocol.ZIGBEE: 0x100C,
+    XBeeProtocol.DIGI_MESH: 0x300C,
+    XBeeProtocol.RAW_802_15_4: 0x200C
+}
+
+XB3_MAX_FW_VERSION_FS_OTA_SUPPORT = {
+    XBeeProtocol.ZIGBEE: 0x100B,
+    XBeeProtocol.DIGI_MESH: 0x300B,
+    XBeeProtocol.RAW_802_15_4: 0x200B
+}
+
 _DEFAULT_BLOCK_SIZE = 64
 
 _TRANSFER_TIMEOUT = 5  # Seconds.
@@ -960,6 +972,9 @@ class FileSystemManager:
         from digi.xbee.devices import AbstractXBeeDevice
         if not isinstance(xbee, AbstractXBeeDevice):
             raise ValueError("XBee must be an XBee class")
+
+        if not check_fs_support(xbee, min_fw_vers=XB3_MIN_FW_VERSION_FS_API_SUPPORT):
+            raise FileSystemNotSupportedException(ERROR_FILESYSTEM_NOT_SUPPORTED)
 
         self.__xbee = xbee
         self.__np_val = None
@@ -2465,6 +2480,11 @@ class LocalXBeeFileSystemManager(object):
         if not xbee_device.serial_port:
             raise OperationNotSupportedException("Only supported in local XBee connected by serial.")
 
+        # Check target compatibility.
+        if not check_fs_support(xbee_device, max_fw_vers=XB3_MAX_FW_VERSION_FS_OTA_SUPPORT):
+            raise FileSystemNotSupportedException(
+                "LocalXBeeFileSystemManager is not supported, use FileSystemManager")
+
         self._xbee_device = xbee_device
         self._serial_port = xbee_device.serial_port
         self._supported_functions = []
@@ -3200,9 +3220,9 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file, max_block
     from digi.xbee.firmware import FirmwareUpdateException, update_remote_filesystem
 
     # Check target compatibility.
-    if remote_device and remote_device.get_hardware_version() and remote_device.get_hardware_version().code not in \
-            SUPPORTED_HARDWARE_VERSIONS:
-        raise FileSystemNotSupportedException(ERROR_FILESYSTEM_NOT_SUPPORTED)
+    if not check_fs_support(remote_device, max_fw_vers=XB3_MAX_FW_VERSION_FS_OTA_SUPPORT):
+        raise FileSystemNotSupportedException(
+            "Filesystem image support update is not supported, use standard file system access")
 
     try:
         update_remote_filesystem(remote_device, ota_filesystem_file, max_block_size=max_block_size,
@@ -3210,6 +3230,52 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file, max_block
     except FirmwareUpdateException as e:
         _log.error("ERROR: %s", str(e))
         raise FileSystemException(str(e))
+
+
+def check_fs_support(xbee, min_fw_vers=None, max_fw_vers=None):
+    """
+    Checks if filesystem API feature is supported.
+
+    Args:
+        xbee (:class:`:AbstractXBeeDevice`): The XBee to check.
+        min_fw_vers (Dictionary, optional, default=`None`): A dictionary with
+            protocol as key, and minimum firmware version with filesystem
+            support as value.
+        max_fw_vers (Dictionary, optional, default=`None`): A dictionary with
+            protocol as key, and maximum firmware version with filesystem
+            support as value.
+
+    Returns:
+        Boolean: `True` if filesystem is supported, `False` otherwise.
+    """
+    hw_version = xbee.get_hardware_version()
+    fw_version = xbee.get_firmware_version()
+    if not hw_version or (not fw_version and (min_fw_vers or max_fw_vers)):
+        try:
+            xbee.read_device_info(init=True, fire_event=False)
+            hw_version = xbee.get_hardware_version()
+            fw_version = xbee.get_firmware_version()
+        except XBeeException as exc:
+            _log.error(
+                "Unable to read XBee hardware/firmware version to check filesystem support: %s" % str(exc))
+
+    # Check compatibility
+    if hw_version and hw_version.code not in SUPPORTED_HARDWARE_VERSIONS:
+        return False
+
+    if not fw_version:
+        return True
+
+    min_fw_version = min_fw_vers[xbee.get_protocol()] if min_fw_vers else None
+    max_fw_version = max_fw_vers[xbee.get_protocol()] if max_fw_vers else None
+
+    version = utils.bytes_to_int(fw_version)
+    if min_fw_version and version < min_fw_version:
+        return False
+    if max_fw_version and version > max_fw_version:
+        return False
+
+    return True
 
 
 def get_local_file_hash(local_path):
