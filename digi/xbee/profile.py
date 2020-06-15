@@ -25,7 +25,9 @@ from digi.xbee import firmware, filesystem
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
 from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateException, ATCommandException, \
     InvalidOperatingModeException
-from digi.xbee.filesystem import LocalXBeeFileSystemManager, FileSystemException, FileSystemNotSupportedException
+from digi.xbee.filesystem import LocalXBeeFileSystemManager, \
+    FileSystemException, FileSystemNotSupportedException, check_fs_support, \
+    XB3_MIN_FW_VERSION_FS_API_SUPPORT
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.protocol import XBeeProtocol
@@ -1445,6 +1447,36 @@ class _ProfileUpdater(object):
             UpdateProfileException: if there is any error during updating the device file system.
         """
         _log.info("Updating device file system")
+        if (self._xbee_profile.has_local_filesystem
+                and check_fs_support(self._xbee_device, min_fw_vers=XB3_MIN_FW_VERSION_FS_API_SUPPORT)):
+            try:
+                fs_mng = self._xbee_device.get_file_manager()
+                # Format file system to ensure resulting file system is exactly
+                # the same as the profile one.
+                if self._progress_callback is not None:
+                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, None)
+                fs_mng.format()
+                # Transfer the file system folder.
+                fs_mng.put_dir(self._xbee_profile.file_system_path, dest=None,
+                               verify=True, progress_cb=lambda percent, src, _:
+                               self._progress_callback(_TASK_UPDATE_FILE % src, percent) if
+                               self._progress_callback is not None else None)
+            except FileSystemNotSupportedException:
+                raise UpdateProfileException(_ERROR_FILESYSTEM_NOT_SUPPORTED)
+            except FileSystemException as e:
+                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(e))
+        else:
+            self._legacy_update_file_system()
+
+    def _legacy_update_file_system(self):
+        """
+        Updates the device file system using the legacy mode, with AT commands
+        for local XBee and a OTA update for remote XBee modules.
+
+        Raises:
+            UpdateProfileException: if there is any error during updating the
+                device file system.
+        """
         if self._is_local and self._xbee_profile.has_local_filesystem:
             filesystem_manager = LocalXBeeFileSystemManager(self._xbee_device)
             try:
