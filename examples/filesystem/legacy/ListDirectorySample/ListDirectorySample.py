@@ -12,7 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from digi.xbee.filesystem import FileSystemException
+from digi.xbee.filesystem import LocalXBeeFileSystemManager, FileSystemElement, FileSystemException
 from digi.xbee.devices import XBeeDevice
 from digi.xbee.exception import XBeeException
 
@@ -20,9 +20,7 @@ from digi.xbee.exception import XBeeException
 PORT = "COM1"
 # TODO: Replace with the baud rate of your local module.
 BAUD_RATE = 9600
-# TODO: Replace with the name of the remote XBee to use. If empty, local is used.
-REMOTE_NODE_ID = None
-# TODO: Replace with the XBee file system path to list its contents. Leave as 'None' to use '/flash'.
+# TODO: Replace with the XBee file system path to list its contents. Leave as 'None' to use current dir.
 PATH_TO_LIST = None
 
 
@@ -31,36 +29,33 @@ def main():
     print(" | XBee Python Library List Directory Sample |")
     print(" +-------------------------------------------+\n")
 
-    local_xbee = XBeeDevice(PORT, BAUD_RATE)
-    fs_xbee = local_xbee
+    device = XBeeDevice(PORT, BAUD_RATE)
 
     try:
-        local_xbee.open()
-
-        if REMOTE_NODE_ID:
-            # Obtain the remote XBee from the network.
-            xbee_network = local_xbee.get_network()
-            fs_xbee = xbee_network.discover_device(REMOTE_NODE_ID)
-            if not fs_xbee:
-                print("Could not find remote device '%s'" % REMOTE_NODE_ID)
-                exit(1)
-
-        filesystem_manager = fs_xbee.get_file_manager()
-
+        device.open()
+        filesystem_manager = LocalXBeeFileSystemManager(device)
+        print("Starting file system manager...", end=" ")
+        filesystem_manager.connect()
+        print("OK\n")
+        current_directory = filesystem_manager.get_current_directory()
+        print("Current directory: %s" % current_directory)
         path_to_list = PATH_TO_LIST
-        if not path_to_list:
-            path_to_list = "/flash"
+        if path_to_list is None:
+            path_to_list = current_directory
         files = filesystem_manager.list_directory(path_to_list)
-        print("Contents of '%s' (%s):\n" %
-              (path_to_list, fs_xbee if fs_xbee.is_remote() else "local"))
+        print("Contents of '%s':" % path_to_list)
         for file in files:
-            print(file)
+            print(str(file))
     except (XBeeException, FileSystemException) as e:
         print("ERROR: %s" % str(e))
         exit(1)
     finally:
-        if local_xbee and local_xbee.is_open():
-            local_xbee.close()
+        if filesystem_manager.is_connected:
+            print("\nStopping file system manager...", end=" ")
+            filesystem_manager.disconnect()
+            print("OK")
+        if device is not None and device.is_open():
+            device.close()
 
 
 if __name__ == '__main__':

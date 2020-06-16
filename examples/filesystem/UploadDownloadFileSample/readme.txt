@@ -3,10 +3,9 @@
   This sample Python application shows how to upload and download a file from
   a local XBee device filesystem.
 
-  The application uses the LocalXBeeFileSystemManager to access the device
-  filesystem and provides the local file and the necessary paths to the
-  upload/download methods as well as callback functions to be notified of
-  progress.
+  The application uses the FileSystemManager to access the device filesystem
+  and provides the local file and the necessary paths to the upload/download
+  methods as well as callback functions to be notified of progress.
 
   NOTE: This example uses the generic XBee device (XBeeDevice) class, but it
         can be applied to any other local device class.
@@ -48,7 +47,10 @@
        will see the port number and baud rate in the 'Port' label of the device
        on the left view.
 
-    4) Configure the path of the file to upload as well as the remote and
+    4) To use a remote XBee, configure its node identifier (NI) in the sample
+       file. Leave it empty to use the local XBee.
+
+    5) Configure the path of the file to upload as well as the remote and
        local paths to upload and download the file to.
 
 

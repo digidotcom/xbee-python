@@ -3,8 +3,8 @@
   This sample Python application shows how to list the contents of an XBee
   device filesystem directory.
 
-  The application uses the FileSystemManager to access the device filesystem
-  and execute the required actions.
+  The application uses the LocalXBeeFileSystemManager to access the device
+  filesystem and execute the required actions.
 
   NOTE: This example uses the generic XBee device (XBeeDevice) class, but it
         can be applied to any other local device class.
@@ -45,10 +45,7 @@
        will see the port number and baud rate in the 'Port' label of the device
        on the left view.
 
-    4) To use a remote XBee, configure its node identifier (NI) in the sample
-       file. Leave it empty to use the local XBee.
-
-    5) Configure the path of the XBee directory to list.
+    4) Configure the path of the XBee directory to list.
 
 
   Running the example
@@ -56,12 +53,16 @@
   First, build and launch the application. To test the functionality, check
   that the console lists the selected directory contents like this:
 
-    Contents of '/flash' (local):
+    Starting file system manager... OK
 
+    Current directory: /flash
+    Contents of '/flash' (local):
     d  0.00B     lib                       /flash/lib
     d  0.00B     dir_1                     /flash/dir_1
     d  0.00B     dir_2                     /flash/dir_2
     - 47.00B     file.txt                  /flash/file.txt
     *  1.95KB    secure.txt                /flash/uploaded/secure.txt
+
+    Stopping file system manager... OK
 
   If any error occurs during the process, it will be displayed in the console.

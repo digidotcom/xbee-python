@@ -12,24 +12,34 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from digi.xbee.filesystem import LocalXBeeFileSystemManager, FileSystemException
+from digi.xbee.filesystem import FileSystemException
 from digi.xbee.devices import XBeeDevice
 from digi.xbee.exception import XBeeException
+from digi.xbee.models.status import FSCommandStatus
 
 # TODO: Replace with the serial port where your local module is connected to.
 PORT = "COM1"
 # TODO: Replace with the baud rate of your local module.
 BAUD_RATE = 9600
+# TODO: Replace with the name of the remote XBee to use. If empty, local is used.
+REMOTE_NODE_ID = None
 
 
-def get_fs_info(fs_manager):
+def get_volume_info(f_mng):
     try:
-        info = fs_manager.get_usage_information()
-        print("Filesystem information\n---------------------------")
-        for entry in info:
-            print("%s: %s bytes" % (entry, info[entry]))
-    except FileSystemException:
-        pass
+        info = f_mng.get_volume_info()
+        print_fs_info(f_mng.xbee, info)
+    except FileSystemException as e:
+        if e.status != FSCommandStatus.NO_DEVICE.code:
+            raise e
+
+
+def print_fs_info(xbee, info):
+    title_str = "'%s' XBee filesystem information" % \
+                (xbee if xbee.is_remote() else "local")
+    print("%s\n%s" % (title_str, "-" * len(title_str)))
+    for entry in info:
+        print("%s: %s bytes" % (entry, info[entry]))
 
 
 def main():
@@ -37,33 +47,37 @@ def main():
     print(" | XBee Python Library Format Filesystem Sample |")
     print(" +----------------------------------------------+\n")
 
-    device = XBeeDevice(PORT, BAUD_RATE)
+    local_xbee = XBeeDevice(PORT, BAUD_RATE)
+    fs_xbee = local_xbee
 
     try:
-        device.open()
-        filesystem_manager = LocalXBeeFileSystemManager(device)
-        print("Starting file system manager...", end=" ")
-        filesystem_manager.connect()
+        local_xbee.open()
+
+        if REMOTE_NODE_ID:
+            # Obtain the remote XBee from the network.
+            xbee_network = local_xbee.get_network()
+            fs_xbee = xbee_network.discover_device(REMOTE_NODE_ID)
+            if not fs_xbee:
+                print("Could not find remote device '%s'" % REMOTE_NODE_ID)
+                exit(1)
+
+        filesystem_manager = fs_xbee.get_file_manager()
+
+        get_volume_info(filesystem_manager)
+
+        print("\nFormatting filesystem of '%s' XBee..." %
+              (fs_xbee if fs_xbee.is_remote() else "local"), end=" ")
+        info = filesystem_manager.format()
         print("OK\n")
 
-        get_fs_info(filesystem_manager)
-
-        print("\nFormatting filesystem...", end=" ")
-        filesystem_manager.format_filesystem()
-        print("OK\n")
-
-        get_fs_info(filesystem_manager)
+        print_fs_info(fs_xbee, info)
 
     except (XBeeException, FileSystemException) as e:
         print("ERROR: %s" % str(e))
         exit(1)
     finally:
-        if filesystem_manager.is_connected:
-            print("\nStopping file system manager...", end=" ")
-            filesystem_manager.disconnect()
-            print("OK")
-        if device is not None and device.is_open():
-            device.close()
+        if local_xbee and local_xbee.is_open():
+            local_xbee.close()
 
 
 if __name__ == '__main__':
