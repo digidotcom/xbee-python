@@ -1,4 +1,4 @@
-# Copyright 2019, Digi International Inc.
+# Copyright 2019, 2020, Digi International Inc.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -38,7 +38,6 @@ def main():
     print(" +----------------------------------------------+\n")
 
     device = XBeeDevice(PORT, BAUD_RATE)
-    filesystem_manager = LocalXBeeFileSystemManager(device)
 
     try:
         device.open()
