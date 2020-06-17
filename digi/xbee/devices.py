@@ -2260,7 +2260,8 @@ class XBeeDevice(AbstractXBeeDevice):
                           flow_control=comm_port_data["flowControl"],
                           _sync_ops_timeout=comm_port_data["timeout"])
 
-    def open(self, force_settings=False):
+    def open(self, force_settings=False, initial_operating_mode=OperatingMode.API_MODE):
+
         """
         Opens the communication with the XBee device and loads some information about it.
         
@@ -2268,6 +2269,10 @@ class XBeeDevice(AbstractXBeeDevice):
             force_settings (Boolean, optional): ``True`` to open the device ensuring/forcing that the specified
                 serial settings are applied even if the current configuration is different,
                 ``False`` to open the device with the current configuration. Default to False.
+            initial_operating_mode (OperatingMode, optional): If the operating mode is known ahead of time (e.g.
+                when re-opening for serial setting updates) it can be explicitly specified. Useful if
+                operating in ESCAPED_API_MODE when the next frame may contain escaped characters. Default to
+                API_MODE.
 
         Raises:
             TimeoutException: if there is any problem with the communication.
@@ -2340,7 +2345,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self._packet_listener.add_route_record_received_callback(route_record_cbs)
         self._packet_listener.add_route_info_received_callback(route_info_cbs)
 
-        self._operating_mode = OperatingMode.API_MODE
+        self._operating_mode = initial_operating_mode
         self._packet_listener.start()
         self._packet_listener.wait_until_started()
 
