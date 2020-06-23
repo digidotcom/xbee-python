@@ -49,6 +49,7 @@ class ATStringCommand(Enum):
     DH = ("DH", "Destination address high")
     DJ = ("DJ", "Disable joining")
     DL = ("DL", "Destination address low")
+    DM = ("DM", "Disable device functionality")
     DO = ("DO", "Device options")
     D7 = ("D7", "CTS configuration")
     EE = ("EE", "Encryption enable")
