@@ -30,6 +30,7 @@ from digi.xbee.filesystem import LocalXBeeFileSystemManager, \
     XB3_MIN_FW_VERSION_FS_API_SUPPORT
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
+from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.util import utils
 from enum import Enum, unique
@@ -39,7 +40,7 @@ from xml.etree import ElementTree
 from xml.etree.ElementTree import ParseError
 
 _ERROR_ACCESS_FILESYSTEM = "Could not access XBee device file system"
-_ERROR_DEVICE_NOT_VALID = "The XBee device is not valid"
+_ERROR_TARGET_INVALID = "Invalid update target"
 _ERROR_FILESYSTEM_NOT_SUPPORTED = "XBee device does not have file system support"
 _ERROR_FIRMWARE_FOLDER_NOT_EXIST = "Firmware folder does not exist"
 _ERROR_FIRMWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with the device firmware"
@@ -664,7 +665,7 @@ class XBeeProfile(object):
         self._description = None
         self._reset_settings = True
         self._raw_settings = {}
-        self._profile_settings = []
+        self._profile_settings = {}
         self._firmware_binary_files = []
         self._file_system_path = None
         self._remote_file_system_image = None
@@ -877,12 +878,12 @@ class XBeeProfile(object):
                         setting_format = XBeeSettingFormat.NO_FORMAT
                         if setting_format_element is not None:
                             setting_format = XBeeSettingFormat.get(setting_format_element.text)
-                        profile_setting = XBeeProfileSetting(setting_element, setting_type, setting_format,
+                        profile_setting = XBeeProfileSetting(setting_element.upper(), setting_type, setting_format,
                                                              setting_value)
                         _log.debug("  - Setting '%s' - type: %s - format: %s - value: %s",
                                    profile_setting.name, profile_setting.type.description,
                                    profile_setting.format.description, profile_setting.value)
-                        self._profile_settings.append(profile_setting)
+                        self._profile_settings.update({profile_setting.name: profile_setting})
         except ParseError as e:
             self._throw_read_exception(_ERROR_FIRMWARE_XML_PARSE % str(e))
 
@@ -1013,7 +1014,7 @@ class XBeeProfile(object):
         Returns all the firmware settings that the profile configures.
 
         Returns:
-            List: a list with all the firmware settings that the profile configures (:class:`.XBeeProfileSetting`).
+            Dict: a list with all the firmware settings that the profile configures (:class:`.XBeeProfileSetting`).
          """
         return self._profile_settings
 
@@ -1049,6 +1050,19 @@ class XBeeProfile(object):
             self._uncompress_profile()
 
         return self._firmware_xml_file
+
+    @property
+    def firmware_binary_files(self):
+        """
+        Returns the path of the profile firmware binary files.
+
+        Returns:
+            List: List of paths of the profile firmware binary files.
+        """
+        if self._profile_folder is None:
+            self._uncompress_profile()
+
+        return self._firmware_binary_files
 
     @property
     def file_system_path(self):
@@ -1115,12 +1129,14 @@ class _ProfileUpdater(object):
     Helper class used to handle the update XBee profile process.
     """
 
-    def __init__(self, xbee_device, xbee_profile, timeout=None, progress_callback=None):
+    def __init__(self, target, xbee_profile, timeout=None, progress_callback=None):
         """
         Class constructor. Instantiates a new :class:`._ProfileUpdater` with the given parameters.
 
         Args:
-            xbee_device (:class:`.XBeeDevice` or :class:`.RemoteXBeeDevice`): The XBee device to apply profile to.
+            target (String or :class:`.AbstractXBeeDevice`): Target to apply
+                profile to. String: serial port identifier.
+                :class:`.AbstractXBeeDevice`: XBee to apply the profile.
             xbee_profile (:class:`.XBeeProfile`): The XBee profile to apply.
             timeout (Integer, optional): the maximum time to wait for target read operations during the apply profile.
             progress_callback (Function, optional): function to execute to receive progress information. Receives two
@@ -1130,17 +1146,19 @@ class _ProfileUpdater(object):
                 * The current update task percentage as an Integer
         """
         self._xbee_profile = xbee_profile
-        self._xbee_device = xbee_device
+        self._target = target
+        self._xbee_device = None
+        if not isinstance(target, str):
+            self._xbee_device = target
         self._timeout = timeout
         self._progress_callback = progress_callback
         self._was_connected = True
         self._device_firmware_version = None
         self._device_hardware_version = None
-        self._is_local = True
         self._protocol_changed_by_fw = False
         self._protocol_changed_by_settings = False
-        if isinstance(self._xbee_device, RemoteXBeeDevice):
-            self._is_local = False
+        self._is_local = bool(not isinstance(self._xbee_device, RemoteXBeeDevice))
+        self._xpro_ap = None
 
     def _progress_callback(self, task, percent):
         """
@@ -1248,6 +1266,14 @@ class _ProfileUpdater(object):
             UpdateProfileException: if there is any error updating the XBee firmware.
         """
         try:
+            if not self._xbee_device:  # Apply to a serial port (recovery)
+                from digi.xbee import firmware
+                firmware.update_local_firmware(self._target, self._xbee_profile.firmware_description_file,
+                                               bootloader_firmware_file=self._xbee_profile.bootloader_file,
+                                               timeout=self._timeout,
+                                               progress_callback=self._progress_callback)
+                return
+
             self._xbee_device.update_firmware(self._xbee_profile.firmware_description_file,
                                               bootloader_firmware_file=self._xbee_profile.bootloader_file,
                                               timeout=self._timeout,
@@ -1267,7 +1293,7 @@ class _ProfileUpdater(object):
         parity_changed = False
         stop_bits_changed = False
         cts_flow_control_changed = False
-        for setting in self._xbee_profile.profile_settings:
+        for setting in self._xbee_profile.profile_settings.values():
             if setting.name.upper() in _PARAMETERS_SERIAL_PORT:
                 if setting.name.upper() == ATStringCommand.BD.command:
                     baudrate_changed = True
@@ -1284,7 +1310,7 @@ class _ProfileUpdater(object):
                         port_parameters["rtscts"] = True
                     else:
                         port_parameters["rtscts"] = False
-        if self._xbee_profile.reset_settings:
+        if self._xbee_profile.reset_settings or isinstance(self._target, str):
             if not baudrate_changed:
                 baudrate_changed = True
                 default_baudrate = self._xbee_profile.get_setting_default_value(
@@ -1352,7 +1378,9 @@ class _ProfileUpdater(object):
             UpdateProfileException: if there is any error updating device settings from the profile.
         """
         # If there are no settings to apply or reset, skip this method.
-        if len(self._xbee_profile.profile_settings) == 0 and not self._xbee_profile.reset_settings:
+        if (len(self._xbee_profile.profile_settings) == 0
+                and not self._xbee_profile.reset_settings
+                and not isinstance(self._target, str)):
             return
 
         # For remote devices that have changed the protocol, raise an exception if there are
@@ -1374,8 +1402,8 @@ class _ProfileUpdater(object):
             _log.info("Updating device settings")
             if self._progress_callback is not None:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
-            # Check if reset settings is required.
-            if self._xbee_profile.reset_settings:
+            # Check if reset settings is required or if we are applying to a serial port (recovery).
+            if self._xbee_profile.reset_settings or isinstance(self._target, str):
                 num_settings += 1  # One more setting for 'RE'
                 percent = setting_index * 100 // num_settings
                 if self._progress_callback is not None and percent != previous_percent:
@@ -1387,8 +1415,9 @@ class _ProfileUpdater(object):
                 # Reset settings to defaults implies network and cache settings have changed
                 network_settings_changed = True
                 cache_settings_changed = True
+                self._xpro_ap = bytearray([OperatingMode.AT_MODE.code])
             # Set settings.
-            for setting in self._xbee_profile.profile_settings:
+            for setting in self._xbee_profile.profile_settings.values():
                 percent = setting_index * 100 // num_settings
                 if self._progress_callback is not None and percent != previous_percent:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
@@ -1400,6 +1429,16 @@ class _ProfileUpdater(object):
                     network_settings_changed = True
                 if setting.name.upper() in _PARAMETERS_CACHE:
                     cache_settings_changed = True
+                if setting.name.upper() == ATStringCommand.AP.command:
+                    self._xpro_ap = setting.bytearray_value
+
+            if (self._is_local and self._xpro_ap
+                    and self._xpro_ap[0] not in (OperatingMode.API_MODE.code,
+                                                 OperatingMode.ESCAPED_API_MODE.code)):
+                # Configure AP to be able to recover the XBee for the library
+                self._set_parameter_with_retries(ATStringCommand.AP.command,
+                                                 bytearray([1]), _PARAMETER_WRITE_RETRIES)
+
             # Write settings.
             percent = setting_index * 100 // num_settings
             if self._progress_callback is not None and percent != previous_percent:
@@ -1423,6 +1462,11 @@ class _ProfileUpdater(object):
         # Check if port settings have changed on local devices.
         if self._is_local:
             self._check_port_settings_changed()
+
+        # If the target is a serial port, we do not need to continue
+        if isinstance(self._target, str):
+            return
+
         # Check if network or cache settings have changed.
         if network_settings_changed or self._protocol_changed_by_settings:
             if self._is_local:
@@ -1523,19 +1567,30 @@ class _ProfileUpdater(object):
         Raises:
             UpdateProfileException: if there is any error during the update XBee profile operation.
         """
-        # Change sync ops timeout
-        old_sync_ops_timeout = self._xbee_device.get_sync_ops_timeout()
-        self._xbee_device.set_sync_ops_timeout(self._timeout)
+        old_sync_ops_timeout = None
+        if self._xbee_device:
+            # Change sync ops timeout
+            old_sync_ops_timeout = self._xbee_device.get_sync_ops_timeout()
+            self._xbee_device.set_sync_ops_timeout(self._timeout)
 
         try:
-            # Retrieve device parameters.
-            self._read_device_parameters()
-            # Verify hardware compatibility of the profile.
-            if self._device_hardware_version.code != self._xbee_profile.hardware_version:
-                raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE)
-            # Determine if protocol will be changed.
-            self._protocol_changed_by_fw = self._check_protocol_changed_by_fw()
-            self._protocol_changed_by_settings = self._check_protocol_changed_by_settings()
+            if self._xbee_device:
+                # Retrieve device parameters.
+                self._read_device_parameters()
+                # Verify hardware compatibility of the profile.
+                if self._device_hardware_version.code != self._xbee_profile.hardware_version:
+                    raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE)
+                # Determine if protocol will be changed.
+                self._protocol_changed_by_fw = self._check_protocol_changed_by_fw()
+                self._protocol_changed_by_settings = self._check_protocol_changed_by_settings()
+            else:
+                # Serial port given (recovery)
+                self._was_connected = False
+                self._device_firmware_version = 0
+                self._device_hardware_version = None
+                self._protocol_changed_by_fw = False
+                self._protocol_changed_by_settings = False
+
             # Check flash firmware option.
             flash_firmware = False
             firmware_is_the_same = self._device_firmware_version == self._xbee_profile.firmware_version
@@ -1546,21 +1601,42 @@ class _ProfileUpdater(object):
             elif self._xbee_profile.flash_firmware_option == FlashFirmwareOption.DONT_FLASH and not firmware_is_the_same:
                 raise UpdateProfileException(_ERROR_FIRMWARE_NOT_COMPATIBLE)
             # Update firmware if required.
-            if flash_firmware:
-                if self._device_hardware_version.code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
+            if not self._xbee_device or flash_firmware:
+                if (self._device_hardware_version is not None
+                        and self._device_hardware_version.code not in firmware.SUPPORTED_HARDWARE_VERSIONS):
                     raise UpdateProfileException(firmware.ERROR_HARDWARE_VERSION_NOT_SUPPORTED %
                                                  self._device_hardware_version.code)
                 self._update_firmware()
+            if not self._xbee_device:
+                self._xbee_device = XBeeDevice(port=self._target, baud_rate=9600)
+                self._xbee_device.open(force_settings=True)
+                self._device_hardware_version = self._xbee_device.get_hardware_version()
             # Update the settings.
             self._update_device_settings()
             # Update the file system if required.
             if self._xbee_profile.has_filesystem:
-                if self._device_hardware_version.code not in filesystem.SUPPORTED_HARDWARE_VERSIONS:
+                if (self._device_hardware_version is not None
+                        and self._device_hardware_version.code not in filesystem.SUPPORTED_HARDWARE_VERSIONS):
                     raise UpdateProfileException(filesystem.ERROR_FILESYSTEM_NOT_SUPPORTED)
                 self._update_file_system()
         finally:
+            # Restore AP mode only for local XBees (not for serial port,
+            # the goal is to recover them for the library)
+            if (not isinstance(self._target, str) and self._is_local and self._xpro_ap
+                    and self._xpro_ap[0] not in (OperatingMode.API_MODE.code,
+                                                 OperatingMode.ESCAPED_API_MODE.code)):
+                orig_ac_value = self._xbee_device.is_apply_changes_enabled
+                self._xbee_device.enable_apply_changes(False)
+                self._set_parameter_with_retries(ATStringCommand.AP.command,
+                                                 self._xpro_ap, _PARAMETER_WRITE_RETRIES)
+                self._set_parameter_with_retries(ATStringCommand.WR.command,
+                                                 self._xpro_ap, _PARAMETER_WRITE_RETRIES)
+                self._set_parameter_with_retries(ATStringCommand.AC.command,
+                                                 self._xpro_ap, _PARAMETER_WRITE_RETRIES)
+                self._xbee_device.enable_apply_changes(orig_ac_value)
             # Restore sync ops timeout
-            self._xbee_device.set_sync_ops_timeout(old_sync_ops_timeout)
+            if old_sync_ops_timeout is not None:
+                self._xbee_device.set_sync_ops_timeout(old_sync_ops_timeout)
 
             if self._is_local:
                 if self._was_connected and not self._xbee_device.is_open():
@@ -1569,12 +1645,20 @@ class _ProfileUpdater(object):
                     self._xbee_device.close()
 
 
-def apply_xbee_profile(xbee_device, profile_path, timeout=None, progress_callback=None):
+def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=None):
     """
     Applies the given XBee profile into the given XBee device.
+    If a serial port is provided as `target`, the XBee profile must include
+    the firmware binaries, that are always programmed. In this case, a restore
+    defaults is also performed before applying settings in the profile (no
+    matter if the profile is configured to do so or not). If the value of 'AP'
+    (operating mode) in the profile is not an API mode or it is not defined,
+    XBee is configured to use API 1.
 
     Args:
-        xbee_device (:class:`.XBeeDevice` or :class:`.RemoteXBeeDevice`): the XBee device to apply profile to.
+        target (String or :class:`.AbstractXBeeDevice`): Target to apply
+            profile to. String: serial port identifier.
+            :class:`.AbstractXBeeDevice`: XBee to apply the profile.
         profile_path (String): path of the XBee profile file to apply.
         timeout (Integer, optional): the maximum time to wait for target read operations during the apply profile.
         progress_callback (Function, optional): function to execute to receive progress information. Receives two
@@ -1588,13 +1672,12 @@ def apply_xbee_profile(xbee_device, profile_path, timeout=None, progress_callbac
         UpdateProfileException: if there is any error during the update XBee profile operation.
     """
     # Sanity checks.
-    if profile_path is None or not isinstance(profile_path, str):
+    if not isinstance(target, (str, XBeeDevice, RemoteXBeeDevice)):
+        _log.error("ERROR: %s", _ERROR_TARGET_INVALID)
+        raise ValueError(_ERROR_TARGET_INVALID)
+    if not isinstance(profile_path, str):
         _log.error("ERROR: %s", _ERROR_PROFILE_NOT_VALID)
         raise ValueError(_ERROR_PROFILE_NOT_VALID)
-    if xbee_device is None or (not isinstance(xbee_device, XBeeDevice) and
-                               not isinstance(xbee_device, RemoteXBeeDevice)):
-        _log.error("ERROR: %s", _ERROR_DEVICE_NOT_VALID)
-        raise ValueError(_ERROR_DEVICE_NOT_VALID)
 
     try:
         xbee_profile = XBeeProfile(profile_path)
@@ -1604,12 +1687,18 @@ def apply_xbee_profile(xbee_device, profile_path, timeout=None, progress_callbac
         raise UpdateProfileException(error)
 
     if not timeout:
-        timeout = _REMOTE_DEFAULT_TIMEOUT if xbee_device.is_remote() else _LOCAL_DEFAULT_TIMEOUT
+        timeout = _REMOTE_DEFAULT_TIMEOUT if isinstance(target, str) or target.is_remote() else _LOCAL_DEFAULT_TIMEOUT
 
-    if xbee_device._comm_iface and xbee_device._comm_iface.supports_apply_profile():
-        xbee_device._comm_iface.apply_profile(xbee_device, profile_path, timeout=timeout,
-                                              progress_callback=progress_callback)
+    # With a serial port as target the profile must include the firmware file
+    if isinstance(target, str) and not xbee_profile.firmware_binary_files:
+        error = _ERROR_PROFILE_INVALID % " Profile must include the firmware binary files to use with a serial port"
+        _log.error("ERROR: %s", error)
+        raise UpdateProfileException(error)
+
+    if not isinstance(target, str) and target._comm_iface and target._comm_iface.supports_apply_profile():
+        target._comm_iface.apply_profile(target, profile_path, timeout=timeout,
+                                         progress_callback=progress_callback)
         return
 
-    profile_updater = _ProfileUpdater(xbee_device, xbee_profile, timeout=timeout, progress_callback=progress_callback)
+    profile_updater = _ProfileUpdater(target, xbee_profile, timeout=timeout, progress_callback=progress_callback)
     profile_updater.update_profile()
