@@ -1562,6 +1562,12 @@ class _ProfileUpdater(object):
             # Restore sync ops timeout
             self._xbee_device.set_sync_ops_timeout(old_sync_ops_timeout)
 
+            if self._is_local:
+                if self._was_connected and not self._xbee_device.is_open():
+                    self._xbee_device.open()
+                elif not self._was_connected and self._xbee_device.is_open():
+                    self._xbee_device.close()
+
 
 def apply_xbee_profile(xbee_device, profile_path, timeout=None, progress_callback=None):
     """
