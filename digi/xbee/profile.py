@@ -1136,7 +1136,6 @@ class _ProfileUpdater(object):
         self._was_connected = True
         self._device_firmware_version = None
         self._device_hardware_version = None
-        self._old_port_parameters = None
         self._is_local = True
         self._protocol_changed_by_fw = False
         self._protocol_changed_by_settings = False
