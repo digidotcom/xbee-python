@@ -170,10 +170,12 @@ _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE = 0xE6
 _EXPLICIT_PACKET_PROFILE_DIGI = 0xC105
 _EXPLICIT_PACKET_EXTENDED_TIMEOUT = 0x40
 
-_EXTENSION_EBIN = ".ebin"
-_EXTENSION_GBL = ".gbl"
-_EXTENSION_OTA = ".ota"
-_EXTENSION_OTB = ".otb"
+EXTENSION_EBIN = ".ebin"
+EXTENSION_GBL = ".gbl"
+EXTENSION_EHX2 = ".ehx2"
+EXTENSION_OTA = ".ota"
+EXTENSION_OTB = ".otb"
+EXTENSION_XML = ".xml"
 
 _IMAGE_BLOCK_REQUEST_PACKET_PAYLOAD_SIZE = 17
 
@@ -401,8 +403,8 @@ class _OTAFile(object):
             _ParsingOTAException: if there is any problem parsing the OTA file.
         """
         _log.debug("Parsing OTA firmware file %s:", self._file_path)
-        if not _file_exists(self._file_path) or (not self._file_path.endswith(_EXTENSION_OTA) and
-                                                 not self._file_path.endswith(_EXTENSION_OTB)):
+        if not _file_exists(self._file_path) or (not self._file_path.endswith(EXTENSION_OTA) and
+                                                 not self._file_path.endswith(EXTENSION_OTB)):
             raise _ParsingOTAException(_ERROR_INVALID_OTA_FILE % self._file_path)
 
         try:
@@ -2153,7 +2155,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
         Returns:
             String: the firmware binary file extension.
         """
-        return _EXTENSION_GBL
+        return EXTENSION_GBL
 
     def _check_bootloader_binary_file(self):
         """
@@ -2172,7 +2174,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
                                                                             str(self._xml_bootloader_version[1]) +
                                                                             _BOOTLOADER_VERSION_SEPARATOR +
                                                                             str(self._xml_bootloader_version[2]) +
-                                                                            _EXTENSION_GBL))
+                                                                            EXTENSION_GBL))
 
         if not _file_exists(self._bootloader_firmware_file):
             self._exit_with_error(_ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND % self._bootloader_firmware_file)
@@ -2430,7 +2432,7 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         Returns:
             String: the firmware binary file extension.
         """
-        return _EXTENSION_EBIN
+        return EXTENSION_EBIN
 
     def _check_bootloader_binary_file(self):
         """
@@ -2795,7 +2797,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         # If not already specified, the binary firmware file is usually in the same folder as the XML firmware file.
         if self._ota_firmware_file is None:
             path = Path(self._xml_firmware_file)
-            self._ota_firmware_file = str(Path(path.parent).joinpath(path.stem + _EXTENSION_OTA))
+            self._ota_firmware_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_OTA))
 
         if not _file_exists(self._ota_firmware_file):
             self._exit_with_error(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % self._ota_firmware_file, restore_updater=False)
@@ -2815,7 +2817,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         """
         if self._otb_firmware_file is None:
             path = Path(self._xml_firmware_file)
-            self._otb_firmware_file = str(Path(path.parent).joinpath(path.stem + _EXTENSION_OTB))
+            self._otb_firmware_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_OTB))
 
         if not _file_exists(self._otb_firmware_file):
             self._exit_with_error(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % self._otb_firmware_file)
@@ -3905,7 +3907,7 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         # If not already specified, the binary firmware file is usually in the same folder as the XML firmware file.
         if self._xbee_firmware_file is None:
             path = Path(self._xml_firmware_file)
-            self._xbee_firmware_file = str(Path(path.parent).joinpath(path.stem + _EXTENSION_EBIN))
+            self._xbee_firmware_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_EBIN))
 
         if not _file_exists(self._xbee_firmware_file):
             self._exit_with_error(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % self._xbee_firmware_file, restore_updater=False)

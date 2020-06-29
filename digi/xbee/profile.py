@@ -77,7 +77,7 @@ _LOCAL_FILESYSTEM_FOLDER = "filesystem"
 _REMOTE_FILESYSTEM_FOLDER = "remote_filesystem"
 
 _FIRMWARE_FOLDER_NAME = "radio_fw"
-_FIRMWARE_XML_FILE_NAME = "radio_fw.xml"
+_FIRMWARE_XML_FILE_NAME = "radio_fw%s" % firmware.EXTENSION_XML
 
 _IPV4_SEPARATOR = "."
 _IPV6_SEPARATOR = ":"
@@ -102,7 +102,7 @@ _PARAMETERS_NETWORK = [ATStringCommand.ID.command,
                        ATStringCommand.KY.command]
 
 
-_PROFILE_XML_FILE_NAME = "profile.xml"
+_PROFILE_XML_FILE_NAME = "profile%s" % firmware.EXTENSION_XML
 
 _TASK_CONNECT_FILESYSTEM = "Connecting with device filesystem"
 _TASK_FORMAT_FILESYSTEM = "Formatting filesystem"
@@ -112,15 +112,15 @@ _TASK_UPDATE_SETTINGS = "Updating XBee settings"
 
 _VALUE_CTS_ON = "1"
 
-_WILDCARD_BOOTLOADER = "xb3-boot*.gbl"
+_WILDCARD_BOOTLOADER = "xb3-boot*%s" % firmware.EXTENSION_GBL
 _WILDCARD_CELLULAR_FIRMWARE = "fw_.*"
 _WILDCARD_CELLULAR_BOOTLOADER = "bl_.*"
-_WILDCARD_EBIN = "*.ebin"
-_WILDCARD_EHX2 = "*.ehx2"
-_WILDCARD_GBL = "*.gbl"
-_WILDCARD_OTA = "*.ota"
-_WILDCARD_OTB = "*.otb"
-_WILDCARD_XML = "*.xml"
+_WILDCARD_EBIN = "*%s" % firmware.EXTENSION_EBIN
+_WILDCARD_EHX2 = "*%s" % firmware.EXTENSION_EHX2
+_WILDCARD_GBL = "*%s" % firmware.EXTENSION_GBL
+_WILDCARD_OTA = "*%s" % firmware.EXTENSION_OTA
+_WILDCARD_OTB = "*%s" % firmware.EXTENSION_OTB
+_WILDCARD_XML = "*%s" % firmware.EXTENSION_XML
 _WILDCARDS_FIRMWARE_BINARY_FILES = [_WILDCARD_EBIN, _WILDCARD_EHX2, _WILDCARD_GBL, _WILDCARD_OTA, _WILDCARD_OTB]
 
 _XML_COMMAND = "command"
