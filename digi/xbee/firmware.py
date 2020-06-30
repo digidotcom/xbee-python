@@ -273,6 +273,10 @@ _XB3_PROTOCOL_FROM_FW_VERSION = {
 
 _POLYNOMINAL_DIGI_BL = 0x8005
 
+S2C_HARDWARE_VERSIONS = (HardwareVersion.XBP24C.code,
+                         HardwareVersion.XBP24C_S2C_SMT.code,
+                         HardwareVersion.XB24C.code)
+
 SX_HARDWARE_VERSIONS = (HardwareVersion.SX.code,
                         HardwareVersion.SX_PRO.code,
                         HardwareVersion.XB8X.code)
@@ -794,6 +798,7 @@ class _BootloaderType(Enum):
     """
     GEN3_BOOTLOADER = (0x01, "Generation 3 bootloader")
     GECKO_BOOTLOADER = (0x02, "Gecko bootloader")
+    EMBER_BOOTLOADER = (0x03, "Ember bootloader")
 
     def __init__(self, identifier, description):
         self.__identifier = identifier
@@ -833,6 +838,8 @@ class _BootloaderType(Enum):
             return _BootloaderType.GEN3_BOOTLOADER
         elif hardware_version in XBEE3_HARDWARE_VERSIONS:
             return _BootloaderType.GECKO_BOOTLOADER
+        elif hardware_version in S2C_HARDWARE_VERSIONS:
+            return _BootloaderType.EMBER_BOOTLOADER
         else:
             return None
 
