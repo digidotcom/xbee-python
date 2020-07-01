@@ -21,12 +21,15 @@ import time
 from abc import ABC, abstractmethod
 from digi.xbee.exception import XBeeException, FirmwareUpdateException, TimeoutException, ATCommandException
 from digi.xbee.devices import AbstractXBeeDevice, RemoteXBeeDevice, NetworkEventReason
+from digi.xbee.models.address import XBee16BitAddress
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
-from digi.xbee.models.protocol import XBeeProtocol
-from digi.xbee.models.status import TransmitStatus
+from digi.xbee.models.options import RemoteATCmdOptions
+from digi.xbee.models.protocol import XBeeProtocol, Role
+from digi.xbee.models.status import TransmitStatus, ATCommandStatus, EmberBootloaderMessageType
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.common import ExplicitAddressingPacket, TransmitStatusPacket, TransmitPacket
+from digi.xbee.packets.common import ExplicitAddressingPacket, TransmitStatusPacket, TransmitPacket,\
+    RemoteATCommandPacket, RemoteATCommandResponsePacket
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
 from digi.xbee.util import utils
@@ -107,11 +110,13 @@ _ERROR_BOOTLOADER_MODE = "Could not enter in bootloader mode"
 _ERROR_BOOTLOADER_NOT_SUPPORTED = "XBee does not support firmware update process"
 _ERROR_COMPATIBILITY_NUMBER = "Device compatibility number (%d) is greater than the firmware one (%d)"
 _ERROR_COMMUNICATION_LOST = "Communication with the device was lost"
+_ERROR_COMMUNICATION_TEST = "Communication test with the remote device failed"
 _ERROR_CONNECT_DEVICE = "Could not connect with XBee device after %s retries"
 _ERROR_CONNECT_SERIAL_PORT = "Could not connect with serial port: %s"
 _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR = "Unknown error"
 _ERROR_DETERMINE_BOOTLOADER_TYPE = "Could not determine the bootloader type: %s"
 _ERROR_DEVICE_PROGRAMMING_MODE = "Could not put XBee device into programming mode"
+_ERROR_END_DEVICE_ORPHAN = "Could not find the parent node of the end device"
 _ERROR_FILE_OTA_FILESYSTEM_NOT_FOUND = "OTA filesystem image file does not exist"
 _ERROR_FILE_OTA_FILESYSTEM_NOT_SPECIFIED = "OTA filesystem image file must be specified"
 _ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND = "Could not find XBee binary firmware file '%s'"
@@ -121,6 +126,7 @@ _ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND = "Could not find bootloader binary fi
 _ERROR_FINISH_PROCESS = "Could not finish firmware update process"
 _ERROR_FIRMWARE_START = "Could not start the new firmware"
 _ERROR_FIRMWARE_UPDATE_BOOTLOADER = "Bootloader update error: %s"
+_ERROR_FIRMWARE_UPDATE_RETRIES = "Firmware update failed after %s retries"
 _ERROR_FIRMWARE_UPDATE_XBEE = "XBee firmware update error: %s"
 _ERROR_GPM_ERASE_COMMAND = "An error occurred erasing the device flash"
 _ERROR_GPM_INFO_COMMAND = "An error occurred getting the platform information"
@@ -134,11 +140,13 @@ _ERROR_INVALID_OTA_FILE = "Invalid OTA file: %s"
 _ERROR_INVALID_BLOCK = "Requested block index '%s' does not exits"
 _ERROR_INVALID_GPM_ANSWER = "Invalid GPM frame answer"
 _ERROR_LOCAL_DEVICE_INVALID = "Invalid local XBee device"
+_ERROR_NO_UPDATER_AVAILABLE = "No valid updater available to perform the remote firmware update"
 _ERROR_NOT_OTA_FILE = "File '%s' is not an OTA file"
 _ERROR_PAGE_CHECKSUM = "Checksum error for page %d"
 _ERROR_PAGE_VERIFICATION = "Verification error for page %d"
 _ERROR_PARSING_OTA_FILE = "Error parsing OTA file: %s"
 _ERROR_RECEIVE_FRAME_TIMEOUT = "Timeout waiting for response"
+_ERROR_RECOVERY_MODE = "Could not put updater device in recovery mode"
 _ERROR_READ_OTA_FILE = "Error reading OTA file: %s"
 _ERROR_REGION_LOCK = "Device region (%d) differs from the firmware one (%d)"
 _ERROR_REMOTE_DEVICE_INVALID = "Invalid remote XBee device"
@@ -152,6 +160,7 @@ _ERROR_SEND_UPGRADE_END_RESPONSE = "Error sending 'Upgrade end response' frame: 
 _ERROR_SERIAL_COMMUNICATION = "Serial port communication error: %s"
 _ERROR_TARGET_INVALID = "Invalid update target"
 _ERROR_TRANSFER_OTA_FILE = "Error transferring OTA file: %s"
+_ERROR_UPDATE_FROM_S2C = "An S2C device can be only updated from another S2C device"
 _ERROR_UPDATE_TARGET_INFORMATION = "Error reading new target information: %s"
 _ERROR_UPDATE_TARGET_TIMEOUT = "Timeout communicating with target device after the firmware update"
 _ERROR_UPDATER_READ_PARAMETER = "Error reading updater '%s' parameter"
@@ -169,6 +178,8 @@ _EXPLICIT_PACKET_CLUSTER_GPM = 0x0023
 _EXPLICIT_PACKET_CLUSTER_LINK = 0x0014
 _EXPLICIT_PACKET_CLUSTER_LINK_ANSWER = 0x0094
 _EXPLICIT_PACKET_CLUSTER_LOOPBACK = 0x0012
+_EXPLICIT_PACKET_CLUSTER_UPDATE_LOCAL_UPDATER = 0x71FE
+_EXPLICIT_PACKET_CLUSTER_UPDATE_REMOTE_UPDATER = 0x71FF
 _EXPLICIT_PACKET_ENDPOINT_DATA = 0xE8
 _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE = 0xE6
 _EXPLICIT_PACKET_PROFILE_DIGI = 0xC105
@@ -177,6 +188,7 @@ _EXPLICIT_PACKET_EXTENDED_TIMEOUT = 0x40
 _TRANSMIT_PACKET_BROADCAST_RADIUS_MAX = 0x00
 
 EXTENSION_EBIN = ".ebin"
+EXTENSION_EBL = ".ebl"
 EXTENSION_GBL = ".gbl"
 EXTENSION_EHX2 = ".ehx2"
 EXTENSION_OTA = ".ota"
@@ -227,6 +239,9 @@ _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE = 12
 _VALUE_API_OUTPUT_MODE_EXPLICIT = 0x01
 _VALUE_BAUDRATE_230400 = 0x08
 _VALUE_BROADCAST_ADDRESS = bytearray([0xFF, 0xFF])
+_VALUE_END_OF_FILE_DATA = bytearray([0x01, 0x04])
+_VALUE_INITIALIZATION_DATA = bytearray([0x01, 0x51])
+_VALUE_PRESERVE_NEWTWORK_SETTINGS = bytearray([0x54, 0x41])
 _VALUE_UNICAST_RETRIES_MEDIUM = 0x06
 
 _XML_BOOTLOADER_VERSION = "firmware/bootloader_version"
@@ -280,8 +295,10 @@ _XB3_PROTOCOL_FROM_FW_VERSION = {
 _POLYNOMINAL_DIGI_BL = 0x8005
 
 S2C_HARDWARE_VERSIONS = (HardwareVersion.XBP24C.code,
+                         HardwareVersion.XB24C.code,
                          HardwareVersion.XBP24C_S2C_SMT.code,
-                         HardwareVersion.XB24C.code)
+                         HardwareVersion.XBP24C_TH_DIP.code,
+                         HardwareVersion.XB24C_TH_DIP.code)
 
 SX_HARDWARE_VERSIONS = (HardwareVersion.SX.code,
                         HardwareVersion.SX_PRO.code,
@@ -291,7 +308,7 @@ XBEE3_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
                            HardwareVersion.XBEE3_SMT.code,
                            HardwareVersion.XBEE3_TH.code)
 
-SUPPORTED_HARDWARE_VERSIONS = SX_HARDWARE_VERSIONS + XBEE3_HARDWARE_VERSIONS
+SUPPORTED_HARDWARE_VERSIONS = SX_HARDWARE_VERSIONS + XBEE3_HARDWARE_VERSIONS + S2C_HARDWARE_VERSIONS
 
 _log = logging.getLogger(__name__)
 
@@ -343,6 +360,77 @@ class _EbinFile(object):
                         padded_array.extend(repeat(0xFF, self._page_size - len(read_bytes)))
                         read_bytes = bytes(padded_array)
                     yield read_bytes
+                self._page_index += 1
+
+    @property
+    def num_pages(self):
+        """
+        Returns the total number of memory pages of this file.
+
+        Returns:
+            Integer: the total number of data chunks of this file.
+        """
+        return self._num_pages
+
+    @property
+    def page_index(self):
+        """
+        Returns the current memory page index.
+
+        Returns:
+            Integer: the current memory page index.
+        """
+        return self._page_index
+
+    @property
+    def percent(self):
+        """
+        Returns the transfer progress percent.
+
+        Returns:
+            Integer: the transfer progress percent.
+        """
+        return ((self._page_index + 1) * 100) // self._num_pages
+
+
+class _EBLFile(object):
+    """
+    Helper class that represents a local firmware file in 'ebl' format.
+    """
+
+    def __init__(self, file_path, page_size):
+        """
+        Class constructor. Instantiates a new :class:`._EBLFile` with the given parameters.
+
+        Args:
+            file_path (String): the path of the ebl file.
+            page_size (Integer): the size of the memory pages of the file.
+        """
+        self._file_path = file_path
+        self._page_size = page_size
+        self._page_index = 0
+        self._num_pages = os.path.getsize(file_path) // self._page_size
+        if os.path.getsize(file_path) % self._page_size != 0:
+            self._num_pages += 1
+
+    def get_next_mem_page(self):
+        """
+        Returns the next memory page of this file.
+
+        Returns:
+            Bytearray: the next memory page of the file as byte array.
+        """
+        with open(self._file_path, "rb") as file:
+            while True:
+                read_bytes = file.read(self._page_size)
+                if not read_bytes:
+                    break
+                # Page must have always full size. If not, extend with 0xFF until it is complete.
+                if len(read_bytes) < self._page_size:
+                    padded_array = bytearray(read_bytes)
+                    padded_array.extend(repeat(0xFF, self._page_size - len(read_bytes)))
+                    read_bytes = bytes(padded_array)
+                yield read_bytes
                 self._page_index += 1
 
     @property
@@ -4556,6 +4644,761 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         self._install_firmware()
 
 
+class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
+    """
+    Helper class used to handle the remote firmware update process of Ember devices.
+    """
+    __DEVICE_RESET_TIMEOUT = 10  # seconds
+    __DEFAULT_PAGE_SIZE = 64
+    __DEFAULT_TIMEOUT = 20  # Seconds.
+    __FIRMWARE_UPDATE_RETRIES = 2
+    __INITIALIZATION_RETRIES = 2
+    __FIRMWARE_DATA_RETRIES = 5
+    __CLEAR_UPDATER_RECOVERY_RETRIES = 3
+    __SET_UPDATER_RECOVERY_RETRIES = 3
+
+    def __init__(self, remote_device, xml_firmware_file, xbee_firmware_file=None, timeout=__DEFAULT_TIMEOUT,
+                 force_update=True, progress_callback=None):
+        """
+        Class constructor. Instantiates a new :class:`._RemoteEmberFirmwareUpdater` with the given parameters.
+
+        Args:
+            remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to upload its firmware.
+            xml_firmware_file (String): path of the XML file that describes the firmware to upload.
+            xbee_firmware_file (String, optional): path of the binary firmware file to upload.
+            timeout (Integer, optional): the timeout to wait for remote frame answers.
+            force_update (Boolean, optional): `True` to force firmware update even if connectivity tests fail,
+                                              `False` otherwise. Defaults to `True`.
+            progress_callback (Function, optional): function to execute to receive progress information. Receives two
+                                                    arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+        Raises:
+            FirmwareUpdateException: if there is any error performing the remote firmware update.
+        """
+        super(_RemoteEmberFirmwareUpdater, self).__init__(remote_device, xml_firmware_file, timeout=timeout,
+                                                          progress_callback=progress_callback)
+
+        self._xbee_firmware_file = xbee_firmware_file
+        self._force_update = force_update
+        self._updater_device = None
+        self._updater_dh_value = None
+        self._updater_dl_value = None
+        self._ota_packet_received = False
+        self._expected_ota_block = -1
+        self._ota_message_type = None
+        self._any_data_sent = False
+
+    def _get_default_reset_timeout(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._get_default_reset_timeout`
+        """
+        return self.__class__.__DEVICE_RESET_TIMEOUT
+
+    def _check_firmware_binary_file(self):
+        """
+        Verifies that the firmware binary file exists.
+
+        Raises:
+            FirmwareUpdateException: if the firmware binary file does not exist or is invalid.
+        """
+        # If not already specified, the binary firmware file is usually in the same folder as the XML firmware file.
+        if self._xbee_firmware_file is None:
+            path = Path(self._xml_firmware_file)
+            self._xbee_firmware_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_EBL))
+
+        if not _file_exists(self._xbee_firmware_file):
+            self._exit_with_error(_ERROR_FILE_XBEE_FIRMWARE_NOT_FOUND % self._xbee_firmware_file, restore_updater=False)
+
+    def _check_bootloader_binary_file(self):
+        """
+        Verifies that the bootloader binary file exists.
+
+        Raises:
+            FirmwareUpdateException: if the bootloader binary file does not exist.
+        """
+        # Ember devices do not have bootloader update file.
+        pass
+
+    def _configure_ao_parameter(self):
+        """
+        Determines whether the AO parameter should be configured during updater configuration or not.
+
+        Returns:
+            Boolean: `True` if AO parameter should be configured, `False` otherwise.
+        """
+        # AO parameter is configured in the updater device instead of the local one and only for 802.15.4 devices.
+        # Return False and configure it in the extra step, once local device connection is open and we can determine
+        # the real updater device.
+        return False
+
+    def _configure_updater_extra(self):
+        """
+        Performs extra updater device configuration before the firmware update operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error configuring the updater device.
+        """
+        # Determine updater device.
+        _log.debug("Looking for best updater device")
+        if self._local_device.get_protocol() == XBeeProtocol.ZIGBEE:
+            self._updater_device = self._determine_updater_device_zigbee()
+        elif self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
+            self._updater_device = self._determine_updater_device_digimesh()
+        elif self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
+            self._updater_device = self._determine_updater_device_802()
+        else:
+            self._updater_device = self._local_device
+        if not self._updater_device:
+            self._exit_with_error(_ERROR_NO_UPDATER_AVAILABLE, restore_updater=True)
+        _log.debug("Updater device: %s" % self._updater_device)
+        # Save DH parameter.
+        self._updater_dh_value = _read_device_parameter_with_retries(self._updater_device, ATStringCommand.DH.command)
+        if self._updater_dh_value is None:
+            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.DH.command)
+        # Set new DH value.
+        if not _set_device_parameter_with_retries(self._updater_device, ATStringCommand.DH.command,
+                                                  self._remote_device.get_64bit_addr().address[0:4]):
+            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.DH.command)
+        # Save DL parameter.
+        self._updater_dl_value = _read_device_parameter_with_retries(self._updater_device, ATStringCommand.DL.command)
+        if self._updater_dl_value is None:
+            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.DL.command)
+        # Set new DL value.
+        if not _set_device_parameter_with_retries(self._updater_device, ATStringCommand.DL.command,
+                                                  self._remote_device.get_64bit_addr().address[4:]):
+            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.DL.command)
+
+    def _restore_updater_extra(self):
+        """
+        Performs extra updater configuration to leave it in its original state as it was before the update operation.
+
+        Raises:
+            XBeeException: if there is any error restoring the device configuration.
+        """
+        # Restore DH parameter
+        if self._updater_dh_value:
+            _set_device_parameter_with_retries(self._updater_device, ATStringCommand.DH.command,
+                                               self._updater_dh_value)
+        # Restore DL parameter
+        if self._updater_dl_value:
+            _set_device_parameter_with_retries(self._updater_device, ATStringCommand.DL.command,
+                                               self._updater_dl_value)
+
+    def _determine_updater_device_zigbee(self):
+        """
+        Determines the updater device that will handle the update process of the remote device in a ZigBee network.
+
+        Returns:
+            :class:`.RemoteXBeeDevice`: The updater device that will handle the update process in a ZigBee network.
+
+        Raises:
+            FirmwareUpdateException: if there is any error determining the updater device.
+        """
+        # Check if the remote node is an end device and has a parent that will be the updater. If it has no parent,
+        # then the node cannot be updated.
+        if self._remote_device.get_role() == Role.END_DEVICE:
+            updater = self._remote_device.parent
+            if not updater:
+                # Discover parent device.
+                parent_16bit_address = _read_device_parameter_with_retries(self._remote_device,
+                                                                           ATStringCommand.MP.command)
+                if not parent_16bit_address:
+                    # The end device node is orphan, we cannot update it.
+                    self._exit_with_error(_ERROR_END_DEVICE_ORPHAN, restore_updater=True)
+                updater = self._local_device.get_network().get_device_by_16(XBee16BitAddress(parent_16bit_address))
+                if not updater:
+                    self._local_device.get_network().start_discovery_process()
+                    while self._local_device.get_network().is_discovery_running():
+                        time.sleep(0.5)
+                    updater = self._local_device.get_network().get_device_by_16(XBee16BitAddress(parent_16bit_address))
+                if not updater:
+                    # The end device node is orphan, we cannot update it.
+                    self._exit_with_error(_ERROR_END_DEVICE_ORPHAN, restore_updater=True)
+            # Verify the updater hardware version.
+            if not updater.get_hardware_version():
+                updater_hw_version = _read_device_parameter_with_retries(updater, ATStringCommand.HV.command)
+            else:
+                updater_hw_version = updater.get_hardware_version().code
+            if not updater_hw_version or updater_hw_version[0] not in S2C_HARDWARE_VERSIONS:
+                self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
+            return updater
+        # Look for updater using the current network connections.
+        updater_candidates = self._get_updater_candidates_from_network_connections()
+        updater = self._determine_best_updater_from_candidates_list_zigbee(updater_candidates)
+        if updater:
+            return updater
+        # Could not retrieve updater from current network connections, try discovering neighbors.
+        updater_candidates = self._get_updater_candidates_from_neighbor_discover()
+        updater = self._determine_best_updater_from_candidates_list_zigbee(updater_candidates)
+        return updater
+
+    def _determine_updater_device_digimesh(self):
+        """
+        Determines the updater device that will handle the update process of the remote device in a DigiMesh network.
+
+        Returns:
+            :class:`.RemoteXBeeDevice`: The updater device that will handle the update process in a DigiMesh network.
+
+        Raises:
+            FirmwareUpdateException: if there is any error determining the updater device.
+        """
+        # Look for updater using the current network connections.
+        updater_candidates = self._get_updater_candidates_from_network_connections()
+        updater = self._determine_best_updater_from_candidates_list_digimesh(updater_candidates)
+        if updater:
+            return updater
+        # Could not retrieve updater from current network connections, try discovering neighbors.
+        updater_candidates = self._get_updater_candidates_from_neighbor_discover()
+        updater = self._determine_best_updater_from_candidates_list_digimesh(updater_candidates)
+        return updater
+
+    def _determine_updater_device_802(self):
+        """
+        Determines the updater device that will handle the update process of the remote device in a 802.15.4 network.
+
+        Returns:
+            :class:`.RemoteXBeeDevice`: The updater device that will handle the update process in a 802.15.4 network.
+
+        Raises:
+            FirmwareUpdateException: if there is any error determining the updater device.
+        """
+        # In a 802.15.4 network, the updater device is the local device. The only restriction is that local and
+        # remote devices mut be of the same hardware type (S2C <> S2C)
+        if self._local_device.get_hardware_version().code in S2C_HARDWARE_VERSIONS and \
+                self._get_target_hardware_version() in S2C_HARDWARE_VERSIONS:
+            return self._local_device
+        self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
+
+    def _get_updater_candidates_from_network_connections(self):
+        """
+        Returns a list of updater candidates extracted from the current network connections.
+
+        Returns:
+            List: the list of possible XBee updater devices.
+        """
+        xbee_network = self._local_device.get_network()
+        connections = xbee_network.get_connections()
+        if not connections:
+            return None
+        # Sort the connections list by link quality from 'node a' to 'node b'.
+        connections.sort(key=lambda conn: conn.lq_a2b)
+        updater_candidates = []
+        for connection in connections:
+            # Only use connections that have remote device as 'node b'.
+            if not connection.node_b == self._remote_device:
+                continue
+            # Do not use connections that have 'node a' as end devices.
+            if connection.node_a.get_role() == Role.END_DEVICE:
+                continue
+            # Do not use connections that have 'node a' as the remote device.
+            if connection.node_a == self._remote_device:
+                continue
+            # The 'node a' must be an S2C.
+            if not connection.node_a.get_hardware_version():
+                updater_hw_version = _read_device_parameter_with_retries(connection.node_a, ATStringCommand.HV.command)
+            else:
+                updater_hw_version = connection.node_a.get_hardware_version().code
+            if not updater_hw_version or updater_hw_version[0] not in S2C_HARDWARE_VERSIONS:
+                continue
+            # If the 'node_a' is the local device, return only it.
+            if connection.node_a == self._local_device:
+                updater_candidates.append(self._local_device)
+                break
+            # The connection passed the tests, add connection 'node a' as updater candidate.
+            updater_candidates.append(connection.node_a)
+        return updater_candidates if updater_candidates else None
+
+    def _get_updater_candidates_from_neighbor_discover(self):
+        """
+        Returns a list of updater candidates extracted from a neighbor discover.
+
+        Returns:
+            List: the list of possible XBee updater devices.
+        """
+        neighbors = self._remote_device.get_neighbors()
+        if not neighbors:
+            return None
+        # Sort the connections list by link quality from 'node a' to 'node b'.
+        neighbors.sort(key=lambda neigh: neigh.lq)
+        updater_candidates = []
+        for neighbor in neighbors:
+            # Neighbor cannot be an end device.
+            if neighbor.node.get_role() == Role.END_DEVICE:
+                continue
+            # Neighbor cannot be the remote node itself.
+            if neighbor.node == self._remote_device:
+                continue
+            # The neighbor must be an S2C device.
+            if not neighbor.node.get_hardware_version():
+                neighbor_hw_version = _read_device_parameter_with_retries(neighbor.node, ATStringCommand.HV.command)
+            else:
+                neighbor_hw_version = neighbor.node.get_hardware_version().code
+            if not neighbor_hw_version or neighbor_hw_version[0] not in S2C_HARDWARE_VERSIONS:
+                continue
+            # If the neighbor is the local device, return only it.
+            if neighbor == self._local_device:
+                updater_candidates.append(self._local_device)
+                break
+            # The neighbor passed the tests, add it as an updater candidate.
+            updater_candidates.append(neighbor.node)
+        return updater_candidates if updater_candidates else None
+
+    def _determine_best_updater_from_candidates_list_zigbee(self, updater_candidates):
+        """
+        Determines which is the best updater node of the given list for a ZigBee network.
+
+        Params:
+            updater_candidates (List): the list of possible XBee updater devices.
+
+        Returns:
+            :class:`.AbstractXBeeDevice`: the best updater XBee device, `None` if no candidate found.
+        """
+        if updater_candidates:
+            # Check if it is the local device.
+            if len(updater_candidates) == 1 and updater_candidates[0] == self._local_device:
+                return self._local_device
+            # Iterate the list of updater candidates performing a loopback test. Return the first successful one.
+            for candidate in updater_candidates:
+                loopback_test = _LoopbackTest(self._local_device, candidate)
+                if loopback_test.execute_test():
+                    return candidate
+        return None
+
+    def _determine_best_updater_from_candidates_list_digimesh(self, updater_candidates):
+        """
+        Determines which is the best updater node of the given list for a DigiMesh network.
+
+        Params:
+            updater_candidates (List): the list of possible XBee updater devices.
+
+        Returns:
+            :class:`.AbstractXBeeDevice`: the best updater XBee device, `None` if no candidate found.
+        """
+        if updater_candidates:
+            # Check if it is the local device.
+            if len(updater_candidates) == 1 and updater_candidates[0] == self._local_device:
+                return self._local_device
+            # Iterate the list of updater candidates and test each one.
+            for candidate in updater_candidates:
+                # First perform a Trace Route test and skip the candidate if the remote device is in the route.
+                traceroute_test = _TraceRouteTest(self._local_device, candidate, self._remote_device)
+                if not traceroute_test.execute_test():
+                    continue
+                # Second perform a loopback test against the candidate and return it if the test passes.
+                loopback_test = _LoopbackTest(self._local_device, candidate)
+                if loopback_test.execute_test():
+                    return candidate
+        return None
+
+    def _clear_updater_recovery_mode(self):
+        """
+        Clears the recovery mode of the updater device.
+
+        Returns:
+            Boolean: `True` if recovery mode was successfully cleared in updater, `False` otherwise.
+        """
+        _log.debug("Clearing recovery mode from updater device...")
+        # Frame ID must be greater than 2 for OTA commands, otherwise response will be processed incorrectly.
+        packet = RemoteATCommandPacket(3,
+                                       self._updater_device.get_64bit_addr(),
+                                       self._updater_device.get_16bit_addr(),
+                                       RemoteATCmdOptions.NONE.value,
+                                       ATStringCommand.PERCENT_U.command,
+                                       parameter=bytearray([0]))
+        retries = self.__CLEAR_UPDATER_RECOVERY_RETRIES
+        recovery_cleared = False
+        while not recovery_cleared and retries > 0:
+            try:
+                response = self._local_device.send_packet_sync_and_get_response(packet)
+                if not response or not isinstance(response, RemoteATCommandResponsePacket) or not \
+                        response.status == ATCommandStatus.OK:
+                    _log.warning("Invalid 'clear recovery' command answer: %s" % response.status.description)
+                    retries -= 1
+                    time.sleep(1)
+                else:
+                    recovery_cleared = True
+            except XBeeException as e:
+                _log.warning("Could not send 'clear recovery' command: %s" % str(e))
+                retries -= 1
+                time.sleep(1)
+        if not recovery_cleared:
+            _log.warning("Could not send 'clear recovery' command after %s retries" %
+                         self.__CLEAR_UPDATER_RECOVERY_RETRIES)
+        return recovery_cleared
+
+    def _set_updater_recovery_mode(self):
+        """
+        Puts the updater device in recovery mode.
+
+        Returns:
+            Boolean: `True` if recovery mode was successfully set in updater, `False` otherwise.
+        """
+        _log.debug("Setting updater device in recovery mode...")
+        # Frame ID must be greater than 2 for OTA commands, otherwise response will be processed incorrectly.
+        packet = RemoteATCommandPacket(3,
+                                       self._updater_device.get_64bit_addr(),
+                                       self._updater_device.get_16bit_addr(),
+                                       RemoteATCmdOptions.NONE.value,
+                                       ATStringCommand.PERCENT_U.command,
+                                       self._remote_device.get_64bit_addr().address)
+        retries = self.__SET_UPDATER_RECOVERY_RETRIES
+        recovery_set = False
+        while not recovery_set and retries > 0:
+            # Clear vars.
+            self._receive_lock.clear()
+            self._ota_packet_received = False
+            self._expected_ota_block = -1
+            self._ota_message_type = None
+            try:
+                response = self._local_device.send_packet_sync_and_get_response(packet)
+                if not response or not isinstance(response, RemoteATCommandResponsePacket) or not \
+                        response.status == ATCommandStatus.OK:
+                    if not response:
+                        _log.warning("Answer for 'set recovery' command not received")
+                    else:
+                        _log.warning("Invalid 'set recovery' command answer: %s" % response.status.description)
+                    return False
+                else:
+                    # Register OTA callback.
+                    self._local_device.add_packet_received_callback(self._ota_callback)
+                    # Wait for answer.
+                    self._receive_lock.wait(self._timeout)
+                    # Remove frame listener.
+                    self._local_device.del_packet_received_callback(self._ota_callback)
+                    # Check if OTA answer was received.
+                    if self._packet_received and self._ota_message_type == EmberBootloaderMessageType.QUERY_RESPONSE:
+                        recovery_set = True
+                    else:
+                        _log.warning("Invalid OTA message type for 'set recovery' command: %s" %
+                                     self._ota_message_type.description)
+                        retries -= 1
+            except XBeeException as e:
+                _log.warning("Could not send 'set recovery' command: %s" % str(e))
+                return False
+        if not recovery_set:
+            _log.warning("Could not send 'set recovery' command after %s retries" %
+                         self.__SET_UPDATER_RECOVERY_RETRIES)
+        return recovery_set
+
+    def _set_remote_programming_mode(self):
+        """
+        Puts the remote (target) device in programming mode.
+
+        Returns:
+            Boolean: `True` if programming mode was successfully set in remote device, `False` otherwise.
+        """
+        _log.debug("Setting remote device in programming mode...")
+        # Frame ID must be greater than 2 for OTA commands, otherwise response will be processed incorrectly.
+        packet = RemoteATCommandPacket(3,
+                                       self._remote_device.get_64bit_addr(),
+                                       self._remote_device.get_16bit_addr(),
+                                       RemoteATCmdOptions.NONE.value,
+                                       ATStringCommand.PERCENT_P.command,
+                                       _VALUE_PRESERVE_NEWTWORK_SETTINGS)
+        try:
+            response = self._local_device.send_packet_sync_and_get_response(packet)
+            if not response or not isinstance(response, RemoteATCommandResponsePacket) or not \
+                    response.status == ATCommandStatus.OK:
+                if not response:
+                    _log.warning("Answer for 'programming mode' command not received")
+                else:
+                    _log.warning("Invalid 'programming mode' command answer: %s" % response.status.description)
+                return False
+            else:
+                return True
+        except XBeeException as e:
+            _log.warning("Could not send 'programming mode' command: %s" % str(e))
+            return False
+
+    def _ota_callback(self, xbee_frame):
+        """
+        Callback used to receive OTA firmware update process status frames.
+
+        Params:
+            :class:`.XBeePacket`: the received XBee packet
+        """
+        # If frame was already received, ignore this frame, just notify.
+        if self._packet_received:
+            self._receive_lock.set()
+            return
+        if xbee_frame.get_frame_type() == ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS:
+            # Check received data.
+            self._ota_message_type = xbee_frame.bootloader_msg_type
+            received_ota_block = xbee_frame.block_number
+        elif xbee_frame.get_frame_type() == ApiFrameType.RECEIVE_PACKET or \
+                xbee_frame.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR:
+            # Check received data.
+            data = xbee_frame.rf_data
+            if len(data) < 10:
+                return
+            self._ota_message_type = EmberBootloaderMessageType.get(data[0])
+            received_ota_block = data[1]
+        else:
+            return
+        if self._expected_ota_block != -1:
+            if self._expected_ota_block == received_ota_block:
+                self._packet_received = True
+            else:
+                return
+        else:
+            self._packet_received = True
+        self._receive_lock.set()
+
+    def _create_ota_explicit_packet(self, frame_id, payload):
+        """
+        Creates and returns an OTA firmware update explicit packet using the given parameters.
+
+        Params:
+            frame_id (Integer): the frame ID of the packet.
+            payload (Bytearray): the packet payload.
+
+        Returns:
+            :class:.`ExplicitAddressingPacket`: the generated OTA packet.
+        """
+        packet = ExplicitAddressingPacket(frame_id,
+                                          self._updater_device.get_64bit_addr(),
+                                          self._updater_device.get_16bit_addr(),
+                                          _EXPLICIT_PACKET_ENDPOINT_DATA,
+                                          _EXPLICIT_PACKET_ENDPOINT_DATA,
+                                          _EXPLICIT_PACKET_CLUSTER_UPDATE_LOCAL_UPDATER
+                                          if self._updater_device == self._local_device else
+                                          _EXPLICIT_PACKET_CLUSTER_UPDATE_REMOTE_UPDATER,
+                                          _EXPLICIT_PACKET_PROFILE_DIGI,
+                                          _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX,
+                                          _EXPLICIT_PACKET_EXTENDED_TIMEOUT if
+                                          self._local_device.get_protocol() == XBeeProtocol.ZIGBEE else 0x00,
+                                          payload)
+        return packet
+
+    def _send_initialization_command(self):
+        """
+        Sends the firmware transfer initialization command to the updater device.
+
+        Returns:
+            Boolean: `True` if the initialization command was sent successfully, `False` otherwise.
+        """
+        _log.debug("Sending firmware update initialization command...")
+        # Clear vars.
+        retries = self.__INITIALIZATION_RETRIES
+        initialization_succeed = False
+        # Generate initialization packet.
+        packet = self._create_ota_explicit_packet(0, _VALUE_INITIALIZATION_DATA)
+        # Send initialization command.
+        while not initialization_succeed and retries > 0:
+            # Clear vars.
+            self._receive_lock.clear()
+            self._packet_received = False
+            self._expected_ota_block = -1
+            self._ota_message_type = None
+            # Register OTA callback.
+            self._local_device.add_packet_received_callback(self._ota_callback)
+            try:
+                # Send frame.
+                self._local_device.send_packet(packet)
+                # Wait for answer.
+                self._receive_lock.wait(self._timeout)
+            except XBeeException as e:
+                _log.warning("Could not send initialization command: %s" % str(e))
+                return False
+            finally:
+                # Remove frame listener.
+                self._local_device.del_packet_received_callback(self._ota_callback)
+            # Check if OTA answer was received.
+            if not self._packet_received or self._ota_message_type != EmberBootloaderMessageType.QUERY_RESPONSE:
+                if not self._packet_received:
+                    _log.warning("Answer for data initialization command not received")
+                else:
+                    _log.warning("Invalid answer for initialization command: %s" % self._ota_message_type.description)
+                retries -= 1
+                if retries > 0:
+                    time.sleep(2)
+            else:
+                initialization_succeed = True
+        if not initialization_succeed:
+            _log.warning("Could not send initialization command after %s retries" % self.__INITIALIZATION_RETRIES)
+        return initialization_succeed
+
+    def _send_firmware(self):
+        """
+        Sends the firmware to the updater device.
+
+        Returns:
+            Boolean: `True` if the firmware was sent successfully, `False` otherwise.
+        """
+        # Initialize vars.
+        previous_percent = None
+        self._ebl_file = _EBLFile(self._xbee_firmware_file, self.__DEFAULT_PAGE_SIZE)
+        # Send firmware in chunks.
+        for data_chunk in self._ebl_file.get_next_mem_page():
+            if self._progress_callback is not None and self._ebl_file.percent != previous_percent:
+                self._progress_callback(self._progress_task, self._ebl_file.percent)
+                previous_percent = self._ebl_file.percent
+            _log.debug("Sending chunk %d/%d %d%%" % (self._ebl_file.page_index + 1,
+                                                     self._ebl_file.num_pages,
+                                                     self._ebl_file.percent))
+            if not self._send_firmware_data(data_chunk):
+                return False
+            self._any_data_sent = True
+        return True
+
+    def _send_firmware_data(self, data):
+        """
+        Sends the given firmware data to the updater device.
+
+        Params:
+            Bytearray: the firmware data to send.
+
+        Returns:
+            Boolean: `True` if the firmware data was sent successfully, `False` otherwise.
+        """
+        # Clear vars.
+        retries = self.__FIRMWARE_DATA_RETRIES
+        data_sent = False
+        ota_block_number = (self._ebl_file.page_index + 1) & 0xFF  # Block number matches page index + 1
+        # Build payload.
+        payload = bytearray([0x1])  # This byte is always 1.
+        payload.append(ota_block_number & 0xFF)  # This byte is the block number.
+        payload.extend(data)  # Append the given data.
+        # Build the packet.
+        packet = self._create_ota_explicit_packet((payload[1] + 2) & 0xFF, payload)
+        # Send the data.
+        while not data_sent and retries > 0:
+            # Clear vars.
+            self._receive_lock.clear()
+            self._packet_received = False
+            self._expected_ota_block = ota_block_number
+            self._ota_message_type = None
+            # Register OTA callback.
+            self._local_device.add_packet_received_callback(self._ota_callback)
+            try:
+                # Send frame.
+                self._local_device.send_packet(packet)
+                # Wait for answer.
+                self._receive_lock.wait(self._timeout)
+            except XBeeException as e:
+                _log.warning("Could not send firmware data block %s: %s" % (ota_block_number, str(e)))
+                return False
+            finally:
+                # Remove frame listener.
+                self._local_device.del_packet_received_callback(self._ota_callback)
+            # Check if OTA answer was received.
+            if not self._packet_received or self._ota_message_type != EmberBootloaderMessageType.ACK:
+                if not self._packet_received:
+                    _log.warning("Answer for data block %s not received" % ota_block_number)
+                else:
+                    _log.warning("Invalid answer for data block %s: %s" % (ota_block_number,
+                                                                           self._ota_message_type.description))
+                retries -= 1
+                if retries > 0:
+                    time.sleep(0.5)
+            else:
+                data_sent = True
+        if not data_sent:
+            _log.warning("Could not send data block %s after %s retries" % (ota_block_number,
+                                                                            self.__FIRMWARE_DATA_RETRIES))
+        return data_sent
+
+    def _start_firmware_update(self):
+        """
+        Starts the firmware update process. Called just before the transfer firmware operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error starting the remote firmware update process.
+        """
+        # Test connectivity with remote device.
+        if self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
+            # There is not a test for 802.15.4, assume connection with device works.
+            connectivity_test_success = True
+        elif self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
+            link_test = _LinkTest(self._local_device, self._remote_device, self._updater_device)
+            connectivity_test_success = link_test.execute_test()
+        else:
+            loopback_test = _LoopbackTest(self._local_device, self._remote_device)
+            connectivity_test_success = loopback_test.execute_test()
+        if not connectivity_test_success:
+            if not self._force_update:
+                self._exit_with_error(_ERROR_COMMUNICATION_TEST, restore_updater=True)
+            else:
+                _log.warning("Communication test with remote device failed, forcing update...")
+        # Clear recovery mode in updater device, ignore answer.
+        self._clear_updater_recovery_mode()
+        # Put remote device in programming mode, ignore answer.
+        self._set_remote_programming_mode()
+        # Wait some time for Ember bootloader to start.
+        time.sleep(5)
+
+    def _transfer_firmware(self):
+        """
+        Transfers the firmware to the target.
+
+        Raises:
+            FirmwareUpdateException: if there is any error transferring the firmware to the target device.
+        """
+        _log.info("Updating remote XBee firmware")
+        # Reset variables.
+        self._progress_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
+        retries = self.__FIRMWARE_UPDATE_RETRIES
+        firmware_updated = False
+        while not firmware_updated and retries > 0:
+            # Reset variables.
+            self._any_data_sent = False
+            # Initialize transfer.
+            if not self._send_initialization_command():
+                self._exit_with_error(_ERROR_INITIALIZE_PROCESS, restore_updater=True)
+            # Send the firmware.
+            if not self._send_firmware():
+                # Recover the module.
+                if self._any_data_sent:
+                    # Wait for the bootloader to reset.
+                    time.sleep(6)
+                if not self._set_updater_recovery_mode():
+                    self._clear_updater_recovery_mode()
+                    self._exit_with_error(_ERROR_RECOVERY_MODE, restore_updater=True)
+                retries -= 1
+            else:
+                firmware_updated = True
+        if not firmware_updated:
+            self._exit_with_error(_ERROR_FIRMWARE_UPDATE_RETRIES % self.__FIRMWARE_UPDATE_RETRIES,
+                                  restore_updater=True)
+
+    def _finish_firmware_update(self):
+        """
+        Finishes the firmware update process. Called just after the transfer firmware operation.
+
+        Raises:
+            FirmwareUpdateException: if there is any error finishing the firmware operation.
+        """
+        _log.debug("Finishing firmware update...")
+        # Clear vars.
+        both_frames_sent = True
+        # Generate finish packet 1.
+        packet_1 = self._create_ota_explicit_packet(5, _VALUE_INITIALIZATION_DATA)
+        # Generate finish packet 2.
+        packet_2 = self._create_ota_explicit_packet(5, _VALUE_END_OF_FILE_DATA)
+        # Send first frame, do not wait for answer.
+        try:
+            self._local_device.send_packet(packet_1)
+        except XBeeException as e:
+            _log.warning("Could not send first finalize update frame: %s" % str(e))
+            both_frames_sent = False
+        # Wait some time before sending the second frame.
+        time.sleep(2)
+        # Send second frame, do not wait for answer.
+        try:
+            self._local_device.send_packet(packet_2)
+        except XBeeException as e:
+            _log.warning("Could not send second finalize update frame: %s" % str(e))
+            both_frames_sent = False
+        if not both_frames_sent:
+            self._exit_with_error(_ERROR_FINISH_PROCESS, restore_updater=True)
+
+
 def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
                           timeout=None, progress_callback=None):
     """
@@ -4697,6 +5540,13 @@ def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None,
                                                    xbee_firmware_file=firmware_file,
                                                    timeout=timeout,
                                                    progress_callback=progress_callback)
+    elif bootloader_type == _BootloaderType.EMBER_BOOTLOADER:
+        update_process = _RemoteEmberFirmwareUpdater(remote_device,
+                                                     xml_firmware_file,
+                                                     xbee_firmware_file=firmware_file,
+                                                     timeout=timeout,
+                                                     force_update=True,
+                                                     progress_callback=progress_callback)
     else:
         # Bootloader not supported.
         _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
