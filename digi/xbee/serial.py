@@ -86,19 +86,11 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
         else:
             Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits, parity=parity, timeout=timeout)
-        self.__port_to_open = port
+        self.setPort(port)
         self._isReading = False
 
     def __str__(self):
         return '{name} {p.portstr!r}'.format(name=self.__class__.__name__, p=self)
-
-    def open(self):
-        """
-        Opens port with current settings. This may throw a SerialException
-        if the port cannot be opened.
-        """
-        self.port = self.__port_to_open
-        super().open()
 
     @property
     def is_interface_open(self):
