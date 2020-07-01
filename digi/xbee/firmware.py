@@ -26,7 +26,7 @@ from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.models.status import TransmitStatus
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.common import ExplicitAddressingPacket, TransmitStatusPacket
+from digi.xbee.packets.common import ExplicitAddressingPacket, TransmitStatusPacket, TransmitPacket
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
 from digi.xbee.util import utils
@@ -171,6 +171,8 @@ _EXPLICIT_PACKET_ENDPOINT_DATA = 0xE8
 _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE = 0xE6
 _EXPLICIT_PACKET_PROFILE_DIGI = 0xC105
 _EXPLICIT_PACKET_EXTENDED_TIMEOUT = 0x40
+
+_TRANSMIT_PACKET_BROADCAST_RADIUS_MAX = 0x00
 
 EXTENSION_EBIN = ".ebin"
 EXTENSION_GBL = ".gbl"
@@ -1176,6 +1178,49 @@ class _LoopbackTest(object):
         # Return test result.
         _log.debug("Loopback test result: %s loops failed out of %s" % (self._total_loops_failed, self._num_loops))
         return self._total_loops_failed <= self._failures_allowed
+
+
+class _TraceRouteTest(object):
+    """
+    Helper class used to perform a trace route test between a local device and a remote device to verify that a
+    third device is not in the route between them in DigiMesh networks.
+    """
+
+    def __init__(self, local_device, remote_device, test_device, timeout=20):
+        """
+        Class constructor. Instantiates a new :class:`._TraceRouteTest` with the given parameters.
+
+        Args:
+            local_device (:class:`.XBeeDevice`): local device to initiate the trace route test with.
+            remote_device (:class:`.RemoteXBeeDevice`): remote device against which to perform the trace route test.
+            test_device (:class:`.RemoteXBeeDevice`): remote device to verify that is not part of the route.
+            timeout (Integer, optional): the timeout in seconds to wait for the trace route answer.
+                                         Defaults to 20 seconds.
+        """
+        self._local_device = local_device
+        self._remote_device = remote_device
+        self._test_device = test_device
+        self._timeout = timeout
+
+    def execute_test(self):
+        """
+        Performs the trace route test.
+
+        Returns:
+            Boolean: `True` if the test succeed, `False` otherwise.
+        """
+        _log.debug("Executing trace route test against %s" % self._remote_device)
+        status, route = self._local_device.get_route_to_node(self._remote_device, timeout=self._timeout)
+        if not status:
+            _log.warning("Could not send trace route test packet")
+            return False
+        if status != TransmitStatus.SUCCESS:
+            _log.warning("Error sending trace route test packet: %s" % (str(status.description)))
+            return False
+        if not route or len(route) < 3:
+            _log.warning("Route not received")
+            return False
+        return self._test_device not in route[2]
 
 
 class _XBeeFirmwareUpdater(ABC):
