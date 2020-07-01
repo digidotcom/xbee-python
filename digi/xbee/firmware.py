@@ -4586,7 +4586,7 @@ def _set_device_parameter_with_retries(xbee_device, parameter, value, retries=_P
         Boolean: ``True`` if the parameter was correctly set, ``False`` otherwise.
     """
     if xbee_device is None:
-        return None
+        return False
 
     while retries > 0:
         try:
