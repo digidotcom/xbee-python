@@ -1496,7 +1496,7 @@ class NeighborFinder:
 
         Raises:
             OperationNotSupportedException: If the process is not supported in the XBee.
-            TypeError: If the `xbee` is not a `.AbstracXBeeDevice`.
+            TypeError: If the `xbee` is not a `.AbstractXBeeDevice`.
             ValueError: If `xbee` is `None`.
             ValueError: If `timeout` is less than 0.
         """
@@ -1708,13 +1708,13 @@ class NeighborFinder:
             rssi = utils.bytes_to_int(data[i+4:i+5])
         elif len(data) >= i + 4:
             # Only Digi device types
-            rssi = 0
+            rssi = -9999
         elif len(data) >= i + 1:
             # Only the RSSI
             rssi = utils.bytes_to_int(data[i:i+1])
         else:
             # None of them
-            rssi = 0
+            rssi = -9999
 
         if not self.__xbee.is_remote():
             node = self.__xbee
@@ -1728,7 +1728,8 @@ class NeighborFinder:
         neighbor = Neighbor(n_xb, NeighborRelationship.SIBLING, -1, rssi)
         self.__neighbors.append(neighbor)
 
-        self.__cb(self.__xbee, neighbor)
+        if self.__cb:
+            self.__cb(self.__xbee, neighbor)
 
     def __fn_packet_callback(self, frame):
         """

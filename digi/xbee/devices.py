@@ -10412,6 +10412,12 @@ class DigiMeshNetwork(XBeeNetwork):
 
         self._log.debug("[*] Preconfiguring %s", ATStringCommand.NO.command)
         try:
+            # Configured discovery options "APPEND_DD" and "APPEND_RSSI" in the
+            # local XBee affects also to the FN requests of the remotes.
+            # For example, if "APPEND_RSSI" is enabled in the local XBee, no
+            # matter what is configured in any remote, when 'FN' is sent as a
+            # remote command to a remote node, the RSSI is included in every
+            # received response. The same is applicable to "APPEND_DD".
             self.__saved_no = self.get_discovery_options()
 
             # Do not configure NO if it is already
