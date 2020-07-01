@@ -1920,14 +1920,15 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         _log.debug("Connecting device '%s'", self._local_device)
         if not _connect_device_with_retries(self._local_device, _DEVICE_CONNECTION_RETRIES):
             self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
-        # Store AO value.
-        self._updater_ao_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
-        if self._updater_ao_value is None:
-            self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.AO.command)
-        # Set new AO value.
-        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
-                                                  bytearray([_VALUE_API_OUTPUT_MODE_EXPLICIT])):
-            self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.AO.command)
+        if self._configure_ao_parameter():
+            # Store AO value.
+            self._updater_ao_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
+            if self._updater_ao_value is None:
+                self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.AO.command)
+            # Set new AO value.
+            if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
+                                                      bytearray([_VALUE_API_OUTPUT_MODE_EXPLICIT])):
+                self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.AO.command)
         # Perform extra configuration.
         self._configure_updater_extra()
 
@@ -1947,10 +1948,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         try:
             if not self._local_device.is_open():
                 self._local_device.open()
-            # Restore AO.
-            if self._updater_ao_value is not None:
-                _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
-                                                   self._updater_ao_value)
+            if self._configure_ao_parameter():
+                # Restore AO.
+                if self._updater_ao_value is not None:
+                    _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
+                                                       self._updater_ao_value)
             # Restore extra configuration.
             self._restore_updater_extra()
         except XBeeException as e:
@@ -2018,6 +2020,16 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         new_protocol = XBeeProtocol.determine_protocol(self._xml_hardware_version,
                                                        utils.int_to_bytes(self._xml_firmware_version))
         return orig_protocol != new_protocol
+
+    @abstractmethod
+    def _configure_ao_parameter(self):
+        """
+        Determines whether the AO parameter should be configured during updater configuration or not.
+
+        Returns:
+            Boolean: `True` if AO parameter should be configured, `False` otherwise.
+        """
+        pass
 
     @abstractmethod
     def _configure_updater_extra(self):
@@ -2842,6 +2854,15 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             self._ota_file.parse_file()
         except _ParsingOTAException as e:
             self._exit_with_error(str(e))
+
+    def _configure_ao_parameter(self):
+        """
+        Determines whether the AO parameter should be configured during updater configuration or not.
+
+        Returns:
+            Boolean: `True` if AO parameter should be configured, `False` otherwise.
+        """
+        return True
 
     def _configure_updater_extra(self):
         """
@@ -3935,6 +3956,15 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         """
         # General Purpose Memory devices do not have bootloader update file.
         pass
+
+    def _configure_ao_parameter(self):
+        """
+        Determines whether the AO parameter should be configured during updater configuration or not.
+
+        Returns:
+            Boolean: `True` if AO parameter should be configured, `False` otherwise.
+        """
+        return True
 
     def _configure_updater_extra(self):
         """
