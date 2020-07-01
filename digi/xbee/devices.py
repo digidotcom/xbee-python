@@ -2296,74 +2296,10 @@ class XBeeDevice(AbstractXBeeDevice):
         if self._is_open:
             raise XBeeException("XBee device already open.")
 
-        # Store already registered callbacks
-        packet_cbs = self._packet_listener.get_packet_received_callbacks() \
-            if self._packet_listener else None
-        packet_from_cbs = self._packet_listener.get_packet_received_from_callbacks() \
-            if self._packet_listener else None
-        data_cbs = self._packet_listener.get_data_received_callbacks() \
-            if self._packet_listener else None
-        modem_status_cbs = self._packet_listener.get_modem_status_received_callbacks() \
-            if self._packet_listener else None
-        io_cbs = self._packet_listener.get_io_sample_received_callbacks() \
-            if self._packet_listener else None
-        expl_data_cbs = self._packet_listener.get_explicit_data_received_callbacks() \
-            if self._packet_listener else None
-        ip_data_cbs = self._packet_listener.get_ip_data_received_callbacks() \
-            if self._packet_listener else None
-        sms_cbs = self._packet_listener.get_sms_received_callbacks() \
-            if self._packet_listener else None
-        user_data_relay_cbs = self._packet_listener.get_user_data_relay_received_callbacks() \
-            if self._packet_listener else None
-        bt_data_cbs = self._packet_listener.get_bluetooth_data_received_callbacks() \
-            if self._packet_listener else None
-        mp_data_cbs = self._packet_listener.get_micropython_data_received_callbacks() \
-            if self._packet_listener else None
-        socket_st_cbs = self._packet_listener.get_socket_state_received_callbacks() \
-            if self._packet_listener else None
-        socket_data_cbs = self._packet_listener.get_socket_data_received_callbacks() \
-            if self._packet_listener else None
-        socket_data_from_cbs = self._packet_listener.get_socket_data_received_from_callbacks() \
-            if self._packet_listener else None
-        route_record_cbs = self._packet_listener.get_route_record_received_callbacks() \
-            if self._packet_listener else None
-        route_info_cbs = self._packet_listener.get_route_info_callbacks() \
-            if self._packet_listener else None
-        fs_frame_cbs = self._packet_listener.get_fs_frame_received_callbacks() \
-            if self._packet_listener else None
-
         self._comm_iface.open()
         self._log.info("%s port opened", self._comm_iface)
-
-        # Initialize the packet listener.
-        self._packet_listener = None
-        self._packet_listener = PacketListener(self._comm_iface, self)
-        self.__packet_queue = self._packet_listener.get_queue()
-        self.__data_queue = self._packet_listener.get_data_queue()
-        self.__explicit_queue = self._packet_listener.get_explicit_queue()
-
-        # Restore callbacks if any
-        self._packet_listener.add_packet_received_callback(packet_cbs)
-        self._packet_listener.add_packet_received_from_callback(packet_from_cbs)
-        self._packet_listener.add_data_received_callback(data_cbs)
-        self._packet_listener.add_modem_status_received_callback(modem_status_cbs)
-        self._packet_listener.add_io_sample_received_callback(io_cbs)
-        self._packet_listener.add_explicit_data_received_callback(expl_data_cbs)
-        self._packet_listener.add_ip_data_received_callback(ip_data_cbs)
-        self._packet_listener.add_sms_received_callback(sms_cbs)
-        self._packet_listener.add_user_data_relay_received_callback(user_data_relay_cbs)
-        self._packet_listener.add_bluetooth_data_received_callback(bt_data_cbs)
-        self._packet_listener.add_micropython_data_received_callback(mp_data_cbs)
-        self._packet_listener.add_socket_state_received_callback(socket_st_cbs)
-        self._packet_listener.add_socket_data_received_callback(socket_data_cbs)
-        self._packet_listener.add_socket_data_received_from_callback(socket_data_from_cbs)
-        self._packet_listener.add_route_record_received_callback(route_record_cbs)
-        self._packet_listener.add_route_info_received_callback(route_info_cbs)
-        self._packet_listener.add_fs_frame_received_callback(fs_frame_cbs)
-
         self._operating_mode = OperatingMode.API_MODE
-        self._packet_listener.start()
-        self._packet_listener.wait_until_started()
+        self._restart_packet_listener()
 
         if force_settings:
             try:
@@ -3507,6 +3443,75 @@ class XBeeDevice(AbstractXBeeDevice):
 
         return self._network
 
+    def _restart_packet_listener(self):
+        """
+        Restarts the XBee packet listener.
+        """
+        # Store already registered callbacks
+        packet_cbs = self._packet_listener.get_packet_received_callbacks() \
+            if self._packet_listener else None
+        packet_from_cbs = self._packet_listener.get_packet_received_from_callbacks() \
+            if self._packet_listener else None
+        data_cbs = self._packet_listener.get_data_received_callbacks() \
+            if self._packet_listener else None
+        modem_status_cbs = self._packet_listener.get_modem_status_received_callbacks() \
+            if self._packet_listener else None
+        io_cbs = self._packet_listener.get_io_sample_received_callbacks() \
+            if self._packet_listener else None
+        expl_data_cbs = self._packet_listener.get_explicit_data_received_callbacks() \
+            if self._packet_listener else None
+        ip_data_cbs = self._packet_listener.get_ip_data_received_callbacks() \
+            if self._packet_listener else None
+        sms_cbs = self._packet_listener.get_sms_received_callbacks() \
+            if self._packet_listener else None
+        user_data_relay_cbs = self._packet_listener.get_user_data_relay_received_callbacks() \
+            if self._packet_listener else None
+        bt_data_cbs = self._packet_listener.get_bluetooth_data_received_callbacks() \
+            if self._packet_listener else None
+        mp_data_cbs = self._packet_listener.get_micropython_data_received_callbacks() \
+            if self._packet_listener else None
+        socket_st_cbs = self._packet_listener.get_socket_state_received_callbacks() \
+            if self._packet_listener else None
+        socket_data_cbs = self._packet_listener.get_socket_data_received_callbacks() \
+            if self._packet_listener else None
+        socket_data_from_cbs = self._packet_listener.get_socket_data_received_from_callbacks() \
+            if self._packet_listener else None
+        route_record_cbs = self._packet_listener.get_route_record_received_callbacks() \
+            if self._packet_listener else None
+        route_info_cbs = self._packet_listener.get_route_info_callbacks() \
+            if self._packet_listener else None
+        fs_frame_cbs = self._packet_listener.get_fs_frame_received_callbacks() \
+            if self._packet_listener else None
+
+        # Initialize the packet listener
+        self._packet_listener = None
+        self._packet_listener = PacketListener(self._comm_iface, self)
+        self.__packet_queue = self._packet_listener.get_queue()
+        self.__data_queue = self._packet_listener.get_data_queue()
+        self.__explicit_queue = self._packet_listener.get_explicit_queue()
+
+        # Restore callbacks if any
+        self._packet_listener.add_packet_received_callback(packet_cbs)
+        self._packet_listener.add_packet_received_from_callback(packet_from_cbs)
+        self._packet_listener.add_data_received_callback(data_cbs)
+        self._packet_listener.add_modem_status_received_callback(modem_status_cbs)
+        self._packet_listener.add_io_sample_received_callback(io_cbs)
+        self._packet_listener.add_explicit_data_received_callback(expl_data_cbs)
+        self._packet_listener.add_ip_data_received_callback(ip_data_cbs)
+        self._packet_listener.add_sms_received_callback(sms_cbs)
+        self._packet_listener.add_user_data_relay_received_callback(user_data_relay_cbs)
+        self._packet_listener.add_bluetooth_data_received_callback(bt_data_cbs)
+        self._packet_listener.add_micropython_data_received_callback(mp_data_cbs)
+        self._packet_listener.add_socket_state_received_callback(socket_st_cbs)
+        self._packet_listener.add_socket_data_received_callback(socket_data_cbs)
+        self._packet_listener.add_socket_data_received_from_callback(socket_data_from_cbs)
+        self._packet_listener.add_route_record_received_callback(route_record_cbs)
+        self._packet_listener.add_route_info_received_callback(route_info_cbs)
+        self._packet_listener.add_fs_frame_received_callback(fs_frame_cbs)
+
+        self._packet_listener.start()
+        self._packet_listener.wait_until_started()
+
     def _init_network(self):
         """
         Initializes a new network.
@@ -3826,8 +3831,7 @@ class XBeeDevice(AbstractXBeeDevice):
                 self._exit_at_command_mode()
                 # Restore the packets listening.
                 if listening:
-                    self._packet_listener = PacketListener(self._comm_iface, self)
-                    self._packet_listener.start()
+                    self._restart_packet_listener()
         return OperatingMode.UNKNOWN
 
     def send_packet_sync_and_get_response(self, packet_to_send, timeout=None):
