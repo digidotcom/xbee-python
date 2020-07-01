@@ -163,8 +163,10 @@ _ERROR_XMODEM_START = "Could not start XModem firmware upload process"
 ERROR_HARDWARE_VERSION_NOT_SUPPORTED = "XBee hardware version (%d) does not support firmware update process"
 
 _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX = 0x00
+_EXPLICIT_PACKET_CLUSTER_DATA = 0x0011
 _EXPLICIT_PACKET_CLUSTER_ID = 0x0019
 _EXPLICIT_PACKET_CLUSTER_GPM = 0x0023
+_EXPLICIT_PACKET_CLUSTER_LOOPBACK = 0x0012
 _EXPLICIT_PACKET_ENDPOINT_DATA = 0xE8
 _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE = 0xE6
 _EXPLICIT_PACKET_PROFILE_DIGI = 0xC105
@@ -1049,6 +1051,131 @@ class _GPMCommand(Enum):
             String: the execution error message of the _GPMCommand element.
         """
         return self.__execution_error
+
+
+class _LoopbackTest(object):
+    """
+    Helper class used to perform a loopback test between a local and a remote device.
+    """
+
+    _LOOPBACK_DATA = "Loopback test %s"
+
+    def __init__(self, local_device, remote_device, loops=10, failures_allowed=2, timeout=2):
+        """
+        Class constructor. Instantiates a new :class:`._LoopbackTest` with the given parameters.
+
+        Args:
+            local_device (:class:`.XBeeDevice`): local device to perform the loopback test with.
+            remote_device (:class:`.RemoteXBeeDevice`): remote device against which to perform the loopback test.
+            loops (Integer, optional): number of loops to execute in the test. Defaults to 10.
+            failures_allowed (Integer, optional): number of allowed failed loops before considering the test failed.
+                                                  Defaults to 1.
+            timeout (Integer, optional): the timeout in seconds to wait for the loopback answer. Defaults to 2 seconds.
+        """
+        self._local_device = local_device
+        self._remote_device = remote_device
+        self._num_loops = loops
+        self._failures_allowed = failures_allowed
+        self._loopback_timeout = timeout
+        self._receive_lock = Event()
+        self._packet_sent = False
+        self._packet_received = False
+        self._loop_failed = False
+        self._total_loops_failed = 0
+        self._frame_id = 1
+
+    def _generate_loopback_packet(self):
+        packet = ExplicitAddressingPacket(self._frame_id,
+                                          self._remote_device.get_64bit_addr(),
+                                          self._remote_device.get_16bit_addr(),
+                                          _EXPLICIT_PACKET_ENDPOINT_DATA,
+                                          _EXPLICIT_PACKET_ENDPOINT_DATA,
+                                          _EXPLICIT_PACKET_CLUSTER_LOOPBACK,
+                                          _EXPLICIT_PACKET_PROFILE_DIGI,
+                                          _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX,
+                                          _EXPLICIT_PACKET_EXTENDED_TIMEOUT if
+                                          self._local_device.get_protocol() == XBeeProtocol.ZIGBEE else 0x00,
+                                          (self._LOOPBACK_DATA % self._frame_id).encode())
+        return packet
+
+    def _loopback_callback(self, xbee_frame):
+        if xbee_frame.get_frame_type() == ApiFrameType.TRANSMIT_STATUS and xbee_frame.frame_id == self._frame_id:
+            if xbee_frame.transmit_status == TransmitStatus.SUCCESS:
+                self._packet_sent = True
+            else:
+                self._receive_lock.set()
+        elif (xbee_frame.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR
+              and xbee_frame.source_endpoint == _EXPLICIT_PACKET_ENDPOINT_DATA
+              and xbee_frame.dest_endpoint == _EXPLICIT_PACKET_ENDPOINT_DATA
+              and xbee_frame.cluster_id == _EXPLICIT_PACKET_CLUSTER_DATA
+              and xbee_frame.profile_id == _EXPLICIT_PACKET_PROFILE_DIGI
+              and xbee_frame.x64bit_source_addr == self._remote_device.get_64bit_addr()):
+            # If frame was already received, ignore this frame, just notify.
+            if self._packet_received:
+                self._receive_lock.set()
+                return
+            # Check received payload.
+            payload = xbee_frame.rf_data
+            if not payload or len(payload) < 2:
+                return
+            if payload.decode('utf-8') == (self._LOOPBACK_DATA % self._frame_id):
+                self._packet_received = True
+                self._receive_lock.set()
+
+    def execute_test(self):
+        """
+        Performs the loopback test.
+
+        Returns:
+            Boolean: `True` if the test succeed, `False` otherwise.
+        """
+        _log.debug("Executing loopback test against %s" % self._remote_device)
+        # Clear vars.
+        self._frame_id = 1
+        self._total_loops_failed = 0
+        # Store AO value.
+        old_ao = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
+        if old_ao is None:
+            return False
+        # Set AO value.
+        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command, bytearray([1])):
+            return False
+        # Perform the loops test.
+        for loop in range(self._num_loops):
+            # Clear vars
+            self._receive_lock.clear()
+            self._packet_sent = False
+            self._packet_received = False
+            self._loop_failed = False
+            # Add loopback callback.
+            self._local_device.add_packet_received_callback(self._loopback_callback)
+            try:
+                # Send frame.
+                self._local_device.send_packet(self._generate_loopback_packet())
+                # Wait for answer.
+                self._receive_lock.wait(self._loopback_timeout)
+            except XBeeException as e:
+                _log.warning("Could not send loopback test packet %s: %s" % (loop, str(e)))
+                self._loop_failed = True
+            finally:
+                # Remove frame listener.
+                self._local_device.del_packet_received_callback(self._loopback_callback)
+            # Check if packet was sent and answer received.
+            if not self._packet_sent or not self._packet_received:
+                self._loop_failed = True
+            # Increase failures count in case of failure.
+            if self._loop_failed:
+                self._total_loops_failed += 1
+                # Do no continue with the test if there are already too many failures.
+                if self._total_loops_failed > self._failures_allowed:
+                    break
+            self._frame_id += 1
+        # Restore AO value.
+        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command, old_ao):
+            return False
+        # Return test result.
+        _log.debug("Loopback test result: %s loops failed out of %s" % (self._total_loops_failed, self._num_loops))
+        return self._total_loops_failed <= self._failures_allowed
 
 
 class _XBeeFirmwareUpdater(ABC):
