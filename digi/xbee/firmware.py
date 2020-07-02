@@ -166,6 +166,8 @@ _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX = 0x00
 _EXPLICIT_PACKET_CLUSTER_DATA = 0x0011
 _EXPLICIT_PACKET_CLUSTER_ID = 0x0019
 _EXPLICIT_PACKET_CLUSTER_GPM = 0x0023
+_EXPLICIT_PACKET_CLUSTER_LINK = 0x0014
+_EXPLICIT_PACKET_CLUSTER_LINK_ANSWER = 0x0094
 _EXPLICIT_PACKET_CLUSTER_LOOPBACK = 0x0012
 _EXPLICIT_PACKET_ENDPOINT_DATA = 0xE8
 _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE = 0xE6
@@ -1221,6 +1223,120 @@ class _TraceRouteTest(object):
             _log.warning("Route not received")
             return False
         return self._test_device not in route[2]
+
+
+class _LinkTest(object):
+    """
+    Helper class used to perform a link test between the updater device and a remote device to verify connectivity
+    in DigiMesh networks.
+    """
+
+    _LINK_TEST_ANSWER_PAYLOAD_LEN = 21
+
+    def __init__(self, local_device, target_device, updater_device, loops=10, data_length=16, failures_allowed=1,
+                 timeout=20):
+        """
+        Class constructor. Instantiates a new :class:`._LinkTest` with the given parameters.
+
+        Args:
+            local_device (:class:`.XBeeDevice`): local device to initiate the test.
+            target_device (:class:`.RemoteXBeeDevice`): remote device to communicate with.
+            updater_device (:class:`.RemoteXBeeDevice`): remote device that will communicate with the target node.
+            loops (Integer, optional): number of loops to execute in the test. Defaults to 10.
+            data_length (Integer, optional): number data bytes to use in the test. Defaults to 16.
+            failures_allowed (Integer, optional): number of allowed failed loops before considering the test failed.
+                                                  Defaults to 1.
+            timeout (Integer, optional): the timeout in seconds to wait for the link test answer. Defaults to 2 seconds.
+        """
+        self._local_device = local_device
+        self._target_device = target_device
+        self._updater_device = updater_device
+        self._num_loops = loops
+        self._data_length = data_length
+        self._failures_allowed = failures_allowed
+        self._loopback_timeout = timeout
+        self._receive_lock = Event()
+        self._packet_received = False
+        self._test_succeed = False
+        self._total_loops_failed = 0
+
+    def _generate_link_test_packet(self):
+        payload = bytearray()
+        payload.extend(self._target_device.get_64bit_addr().address)
+        payload.extend(utils.int_to_bytes(self._data_length, 2))
+        payload.extend(utils.int_to_bytes(self._num_loops, 2))
+        packet = ExplicitAddressingPacket(1,
+                                          self._updater_device.get_64bit_addr(),
+                                          self._updater_device.get_16bit_addr(),
+                                          _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE,
+                                          _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE,
+                                          _EXPLICIT_PACKET_CLUSTER_LINK,
+                                          _EXPLICIT_PACKET_PROFILE_DIGI,
+                                          _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX,
+                                          0x00,
+                                          payload)
+        return packet
+
+    def _link_test_callback(self, xbee_frame):
+        if (xbee_frame.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR
+                and xbee_frame.source_endpoint == _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE
+                and xbee_frame.dest_endpoint == _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE
+                and xbee_frame.cluster_id == _EXPLICIT_PACKET_CLUSTER_LINK_ANSWER
+                and xbee_frame.profile_id == _EXPLICIT_PACKET_PROFILE_DIGI
+                and xbee_frame.x64bit_source_addr == self._updater_device.get_64bit_addr()):
+            # If frame was already received, ignore this frame, just notify.
+            if self._packet_received:
+                self._receive_lock.set()
+                return
+            # Check received payload.
+            payload = xbee_frame.rf_data
+            if not payload or len(payload) < self._LINK_TEST_ANSWER_PAYLOAD_LEN:
+                return
+            self._test_succeed = payload[16] == 0
+            self._total_loops_failed = self._num_loops - utils.bytes_to_int(payload[12:14])
+            self._packet_received = True
+            self._receive_lock.set()
+
+    def execute_test(self):
+        """
+        Performs the link test.
+
+        Returns:
+            Boolean: `True` if the test succeed, `False` otherwise.
+        """
+        _log.debug("Executing link test between %s and %s" % (self._updater_device, self._target_device))
+        # Clear vars.
+        self._packet_received = False
+        self._test_succeed = False
+        self._total_loops_failed = 0
+        # Store AO value.
+        old_ao = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
+        if old_ao is None:
+            return False
+        # Set AO value.
+        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command, bytearray([1])):
+            return False
+        # Add trace route callback.
+        self._local_device.add_packet_received_callback(self._link_test_callback)
+        try:
+            # Send frame.
+            self._local_device.send_packet(self._generate_link_test_packet())
+            # Wait for answer.
+            self._receive_lock.wait(self._loopback_timeout)
+        except XBeeException as e:
+            _log.error("Could not send Link test packet: %s" % (str(e)))
+            self._test_succeed = False
+        finally:
+            # Remove frame listener.
+            self._local_device.del_packet_received_callback(self._link_test_callback)
+        # Restore AO value.
+        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command, old_ao):
+            return False
+        if not self._packet_received or not self._test_succeed:
+            return False
+        # Return test result.
+        _log.debug("Link test result: %s loops failed out of %s" % (self._total_loops_failed, self._num_loops))
+        return self._total_loops_failed <= self._failures_allowed
 
 
 class _XBeeFirmwareUpdater(ABC):
