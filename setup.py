@@ -34,8 +34,10 @@ setup(
     python_requires='>=3',
     install_requires=[
         'pyserial>=3',
-        'srp',
     ],
+    extras_require={
+        "SRP":  ["srp"],
+    },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
