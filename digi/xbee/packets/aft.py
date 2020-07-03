@@ -70,6 +70,7 @@ class ApiFrameType(Enum):
     IO_DATA_SAMPLE_RX_INDICATOR = (0x92, "IO Data Sample RX Indicator")
     REMOTE_AT_COMMAND_RESPONSE = (0x97, "Remote Command Response")
     RX_SMS = (0x9F, "RX SMS")
+    OTA_FIRMWARE_UPDATE_STATUS = (0xA0, "OTA Firmware Update Status")
     ROUTE_RECORD_INDICATOR = (0xA1, "Route Record Indicator")
     REGISTER_JOINING_DEVICE_STATUS = (0xA4, "Register Joining Device Status")
     USER_DATA_RELAY_OUTPUT = (0xAD, "User Data Relay Output")

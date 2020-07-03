@@ -117,7 +117,7 @@ from digi.xbee.packets.socket import SocketCreatePacket, \
 from digi.xbee.packets.wifi import RemoteATCommandWifiPacket, \
     RemoteATCommandResponseWifiPacket, IODataSampleRxIndicatorWifiPacket
 from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket,\
-    RegisterDeviceStatusPacket, RouteRecordIndicatorPacket
+    RegisterDeviceStatusPacket, RouteRecordIndicatorPacket, OTAFirmwareUpdateStatusPacket
 
 
 def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
@@ -310,6 +310,9 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
 
     if frame_type == ApiFrameType.REMOTE_FILE_SYSTEM_RESPONSE:
         return RemoteFSResponsePacket.create_packet(packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS:
+        return OTAFirmwareUpdateStatusPacket.create_packet(packet_bytearray, operating_mode)
 
     return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)
 

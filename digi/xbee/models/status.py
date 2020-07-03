@@ -907,6 +907,63 @@ ZigbeeRegisterStatus.__doc__ += utils.doc_enum(ZigbeeRegisterStatus)
 
 
 @unique
+class EmberBootloaderMessageType(Enum):
+    """
+    Enumerates the different types of the Ember bootloader messages.
+    """
+    ACK = (0x06, "ACK message")
+    NACK = (0x15, "NACK message")
+    NO_MAC_ACK = (0x40, "No MAC ACK message")
+    QUERY = (0x51, "Query message")
+    QUERY_RESPONSE = (0x52, "Query response message")
+    UNKNOWN = (0xFF, "Unknown")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__description = description
+
+    @property
+    def code(self):
+        """
+        Returns the code of the `EmberBootloaderMessageType` element.
+
+        Returns:
+            Integer: the code of the `EmberBootloaderMessageType` element.
+        """
+        return self.__code
+
+    @property
+    def description(self):
+        """
+        Returns the description of the `EmberBootloaderMessageType` element.
+
+        Returns:
+            String: the description of the `EmberBootloaderMessageType` element.
+        """
+        return self.__description
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the Ember bootloader message type for the given code.
+
+        Args:
+            code (Integer): the code of the Ember bootloader message type to get.
+
+        Returns:
+            :class:`.EmberBootloaderMessageType`: the `EmberBootloaderMessageType` with the
+                given code, `EmberBootloaderMessageType.UNKNOWN` if not found.
+        """
+        for status in cls:
+            if code == status.code:
+                return status
+        return EmberBootloaderMessageType.UNKNOWN
+
+
+EmberBootloaderMessageType.__doc__ += utils.doc_enum(EmberBootloaderMessageType)
+
+
+@unique
 class SocketStatus(Enum):
     """
     Enumerates the different Socket statuses.

@@ -15,7 +15,7 @@ from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketExce
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.options import RegisterKeyOptions
-from digi.xbee.models.status import ZigbeeRegisterStatus
+from digi.xbee.models.status import ZigbeeRegisterStatus, EmberBootloaderMessageType
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.base import XBeeAPIPacket, DictKeys
 from digi.xbee.util import utils
@@ -900,3 +900,289 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
            | :class:`.XBee16BitAddress`
         """
         self.__hops = hops if hops else []
+
+
+class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
+    """
+    This class represents a an Over The Air Firmware Update Status packet.
+    Packet is built using the parameters of the constructor or providing
+    a valid API payload.
+
+    This frame provides a status indication of a firmware update
+    transmission.
+
+    If a query request returns a 0x15 (NACK) status, the target is likely
+    waiting for a firmware update image. If no messages are sent to it for
+    about 75 seconds, the target will timeout and accept new query messages.
+
+    If a query status returns a 0x51 (QUERY) status, then the target's
+    bootloader is not active and will not respond to query messages.
+
+    .. seealso::
+       | :class:`.EmberBootloaderMessageType`
+       | :class:`.XBeeAPIPacket`
+    """
+
+    __MIN_PACKET_LENGTH = 26
+
+    def __init__(self, source_address_64, updater_address_16, receive_options,
+                 message_type, block_number, target_address_64):
+        """
+        Class constructor. Instantiates a new
+        :class:`.OTAFirmwareUpdateStatusPacket` object with the
+        provided parameters.
+
+        Args:
+            source_address_64 (:class:`.XBee64BitAddress`): the 64-bit address of the device returning this answer.
+            updater_address_16 (:class:`.XBee16BitAddress`): the 16-bit address of the updater device.
+            receive_options (Integer): bitfield indicating the receive options.
+            message_type (:class:`.EmberBootloaderMessageType`): Ember bootloader message type
+            block_number (Integer): block number used in the update request.
+            target_address_64 (:class:`.XBee64BitAddress`): the 64-bit address of the device that is being updated.
+
+        .. seealso::
+           | :class:`.XBeeAPIPacket`
+           | :class:`.XBee16BitAddress`
+           | :class:`.XBee64BitAddress`
+           | :class:`.ReceiveOptions`
+           | :class:`.EmberBootloaderMessageType`
+        """
+        super().__init__(ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS)
+        self.__source_x64bit_addr = source_address_64
+        self.__updater_x16bit_addr = updater_address_16
+        self.__receive_options = receive_options
+        self.__message_type = message_type
+        self.__block_number = block_number
+        self.__target_x64bit_addr = target_address_64
+
+    @staticmethod
+    def create_packet(raw, operating_mode):
+        """
+        Override method.
+
+        Returns:
+            :class:`.OTAFirmwareUpdateStatusPacket`.
+
+        Raises:
+            InvalidPacketException: if the bytearray length is less than 17.
+                (start delim. + length (2 bytes) + frame type
+                + source 64bit addr. (8 bytes) + updater 16bit addr. (2 bytes)
+                + receive options + bootloader message type + block number
+                + source 64bit addr. (8 bytes) + checksum = 27 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 1 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
+
+        .. seealso::
+           | :meth:`.XBeePacket.create_packet`
+           | :meth:`.XBeeAPIPacket._check_api_packet`
+        """
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
+            raise InvalidOperatingModeException(
+                operating_mode.name + " is not supported.")
+
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=OTAFirmwareUpdateStatusPacket.__MIN_PACKET_LENGTH)
+
+        if raw[3] != ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS.code:
+            raise InvalidPacketException(
+                "This packet is not an OTA Firmware Update Status packet.")
+
+        return OTAFirmwareUpdateStatusPacket(
+            XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]), raw[14],
+            EmberBootloaderMessageType.get(raw[15]), raw[16], XBee64BitAddress(raw[17:25]))
+
+    def needs_id(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.needs_id`
+        """
+        return False
+
+    def _get_api_packet_spec_data(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
+        """
+        raw = self.__source_x64bit_addr.address
+        raw += self.__updater_x16bit_addr.address
+        raw.append(self.__receive_options & 0xFF)
+        raw.append(self.__message_type.code & 0xFF)
+        raw.append(self.__block_number & 0xFF)
+        raw += self.__target_x64bit_addr.address
+        return raw
+
+    def _get_api_packet_spec_data_dict(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
+        """
+        return {DictKeys.SRC_64BIT_ADDR:        self.__source_x64bit_addr.address,
+                DictKeys.UPDATER_16BIT_ADDR:    self.__updater_x16bit_addr.address,
+                DictKeys.RECEIVE_OPTIONS:       self.__receive_options,
+                DictKeys.BOOTLOADER_MSG_TYPE:   self.__message_type,
+                DictKeys.BLOCK_NUMBER:          self.__block_number,
+                DictKeys.TARGET_64BIT_ADDR:     self.__target_x64bit_addr.address}
+
+    @property
+    def x64bit_source_addr(self):
+        """
+        Returns the 64-bit source address.
+
+        Returns:
+            :class:`.XBee64BitAddress`: the 64-bit source address.
+
+        .. seealso::
+           | :class:`.XBee64BitAddress`
+        """
+        return self.__source_x64bit_addr
+
+    @x64bit_source_addr.setter
+    def x64bit_source_addr(self, x64bit_source_addr):
+        """
+        Sets the 64-bit source address.
+
+        Args:
+            x64bit_source_addr (:class:`.XBee64BitAddress`): the new 64-bit source address.
+
+        .. seealso::
+           | :class:`.XBee64BitAddress`
+        """
+        self.__source_x64bit_addr = x64bit_source_addr
+
+    @property
+    def x16bit_updater_addr(self):
+        """
+        Returns the 16-bit updater address.
+
+        Returns:
+            :class:`.XBee16BitAddress`: the 16-bit updater address.
+
+        .. seealso::
+           | :class:`.XBee16BitAddress`
+        """
+        return self.__updater_x16bit_addr
+
+    @x16bit_updater_addr.setter
+    def x16bit_updater_addr(self, x16bit_updater_addr):
+        """
+        Sets the 16-bit updater address.
+
+        Args:
+            x16bit_updater_addr (:class:`.XBee16BitAddress`): the new 16-bit updater address.
+
+        .. seealso::
+           | :class:`.XBee16BitAddress`
+        """
+        self.__updater_x16bit_addr = x16bit_updater_addr
+
+    @property
+    def receive_options(self):
+        """
+        Returns the receive options bitfield.
+
+        Returns:
+            Integer: the receive options bitfield.
+
+        .. seealso::
+           | :class:`.ReceiveOptions`
+        """
+        return self.__receive_options
+
+    @receive_options.setter
+    def receive_options(self, receive_options):
+        """
+        Sets the receive options bitfield.
+
+        Args:
+            receive_options (Integer): the new receive options bitfield.
+
+        .. seealso::
+           | :class:`.ReceiveOptions`
+        """
+        self.__receive_options = receive_options
+
+    @property
+    def bootloader_msg_type(self):
+        """
+        Returns the bootloader message type.
+
+        Returns:
+            :class:`.EmberBootloaderMessageType`: the bootloader message type.
+
+        .. seealso::
+           | :class:`.EmberBootloaderMessageType`
+        """
+        return self.__message_type
+
+    @bootloader_msg_type.setter
+    def bootloader_msg_type(self, bootloader_message_type):
+        """
+        Sets the receive options bitfield.
+
+        Args:
+            bootloader_message_type (:class:`.EmberBootloaderMessageType`): the new bootloader message type.
+
+        .. seealso::
+           | :class:`.EmberBootloaderMessageType`
+        """
+        self.__message_type = bootloader_message_type
+
+    @property
+    def block_number(self):
+        """
+        Returns the block number of the request.
+
+        Returns:
+            Integer: the block number of the request.
+        """
+        return self.__block_number
+
+    @block_number.setter
+    def block_number(self, block_number):
+        """
+        Sets the block number.
+
+        Args:
+            block_number (Integer): the new block number.
+        """
+        self.__block_number = block_number
+
+    @property
+    def x64bit_target_addr(self):
+        """
+        Returns the 64-bit target address.
+
+        Returns:
+            :class:`.XBee64BitAddress`: the 64-bit target address.
+
+        .. seealso::
+           | :class:`.XBee64BitAddress`
+        """
+        return self.__target_x64bit_addr
+
+    @x64bit_target_addr.setter
+    def x64bit_target_addr(self, x64bit_target_addr):
+        """
+        Sets the 64-bit source address.
+
+        Args:
+            x64bit_target_addr (:class:`.XBee64BitAddress`): the new 64-bit target address.
+
+        .. seealso::
+           | :class:`.XBee64BitAddress`
+        """
+        self.__target_x64bit_addr = x64bit_target_addr
