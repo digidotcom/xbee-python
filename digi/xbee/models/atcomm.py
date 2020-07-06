@@ -67,6 +67,7 @@ class ATStringCommand(Enum):
     KY = ("KY", "Link/Encryption key")
     MA = ("MA", "IP addressing mode")
     MK = ("MK", "IP address mask")
+    MP = ("MP", "16-bit parent address")
     MY = ("MY", "16-bit address/IP address")
     NB = ("NB", "Parity")
     NI = ("NI", "Node identifier")
@@ -106,6 +107,7 @@ class ATStringCommand(Enum):
     DOLLAR_Y = ("$Y", "SRP salt verifier")
     PERCENT_C = ("%C", "Hardware/software compatibility")
     PERCENT_P = ("%P", "Invoke bootloader")
+    PERCENT_U = ("%U", "Recover")
 
     def __init__(self, command, description):
         self.__command = command
