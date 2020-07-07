@@ -122,7 +122,11 @@ _WILDCARD_GBL = "*%s" % firmware.EXTENSION_GBL
 _WILDCARD_OTA = "*%s" % firmware.EXTENSION_OTA
 _WILDCARD_OTB = "*%s" % firmware.EXTENSION_OTB
 _WILDCARD_XML = "*%s" % firmware.EXTENSION_XML
-_WILDCARDS_FIRMWARE_BINARY_FILES = [_WILDCARD_EBIN, _WILDCARD_EHX2, _WILDCARD_GBL, _WILDCARD_OTA, _WILDCARD_OTB]
+_WILDCARDS_FW_LOCAL_BINARY_FILES = (firmware.EXTENSION_EBIN,
+                                    firmware.EXTENSION_EHX2,
+                                    firmware.EXTENSION_GBL)
+_WILDCARDS_FW_REMOTE_BINARY_FILES = (firmware.EXTENSION_OTA,
+                                     firmware.EXTENSION_OTB)
 
 _XML_COMMAND = "command"
 _XML_CONTROL_TYPE = "control_type"
@@ -658,7 +662,6 @@ class XBeeProfile(object):
         self._profile_folder = None
         self._profile_xml_file = None
         self._firmware_xml_file = None
-        self._firmware_xml_file_name = None
         self._bootloader_file = None
         self._version = 0
         self._flash_firmware_option = FlashFirmwareOption.FLASH_DIFFERENT
@@ -666,7 +669,6 @@ class XBeeProfile(object):
         self._reset_settings = True
         self._raw_settings = {}
         self._profile_settings = {}
-        self._firmware_binary_files = []
         self._file_system_path = None
         self._remote_file_system_image = None
         self._cellular_firmware_files = []
@@ -675,6 +677,8 @@ class XBeeProfile(object):
         self._hardware_version = None
         self._has_local_filesystem = False
         self._has_remote_filesystem = False
+        self._has_local_firmware = False
+        self._has_remote_firmware = False
         self._protocol = XBeeProtocol.UNKNOWN
 
         self._initialize_profile()
@@ -704,8 +708,8 @@ class XBeeProfile(object):
             if firmware_xml_file_element is None:
                 self._throw_read_exception(_ERROR_PROFILE_XML_INVALID % "missing firmware file element")
             # Store XML firmware file name.
-            self._firmware_xml_file_name = _FIRMWARE_FOLDER_NAME + "/" + firmware_xml_file_element.text
-            _log.debug(" - XML firmware file: %s", self._firmware_xml_file_name)
+            self._firmware_xml_file = _FIRMWARE_FOLDER_NAME + "/" + firmware_xml_file_element.text
+            _log.debug(" - XML firmware file: %s", self._firmware_xml_file)
             # Version. Optional.
             version_element = root.find(_XML_PROFILE_VERSION)
             if version_element is not None:
@@ -760,7 +764,7 @@ class XBeeProfile(object):
         # Fill paths.
         firmware_path = Path(os.path.join(self._profile_folder, _FIRMWARE_FOLDER_NAME))
         # Firmware XML file.
-        self._firmware_xml_file = os.path.join(self._profile_folder, self._firmware_xml_file_name)
+        self._firmware_xml_file = os.path.join(self._profile_folder, self._firmware_xml_file)
         # Profile XML file.
         self._profile_xml_file = os.path.join(self._profile_folder, _PROFILE_XML_FILE_NAME)
         # Local filesystem folder.
@@ -774,10 +778,6 @@ class XBeeProfile(object):
         # Bootloader file.
         if len(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))) is not 0:
             self._bootloader_file = str(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))[0])
-        # Firmware binary files.
-        for wildcard in _WILDCARDS_FIRMWARE_BINARY_FILES:
-            for file in list(firmware_path.rglob(wildcard)):
-                self._firmware_binary_files.append(str(file))
         # Cellular firmware files.
         for file in list(firmware_path.rglob(_WILDCARD_CELLULAR_FIRMWARE)):
             self._cellular_firmware_files.append(str(file))
@@ -797,6 +797,12 @@ class XBeeProfile(object):
                 self._check_profile_integrity(zip_file)
                 self._parse_xml_profile_file(zip_file)
                 self._parse_xml_firmware_file(zip_file)
+                files = [name for name in zip_file.namelist() if
+                         name.endswith(_WILDCARDS_FW_LOCAL_BINARY_FILES)]
+                self._has_local_firmware = bool(files)
+                files = [name for name in zip_file.namelist() if
+                         name.endswith(_WILDCARDS_FW_REMOTE_BINARY_FILES)]
+                self._has_remote_firmware = bool(files)
         except Exception as e:
             self._throw_read_exception(_ERROR_PROFILE_READ % str(e))
 
@@ -838,7 +844,7 @@ class XBeeProfile(object):
         """
         _log.debug("Parsing XML firmware file %s:", self._firmware_xml_file)
         try:
-            root = ElementTree.parse(zip_file.open(self._firmware_xml_file_name)).getroot()
+            root = ElementTree.parse(zip_file.open(self._firmware_xml_file)).getroot()
             # Firmware version.
             firmware_element = root.find(_XML_FIRMWARE_FIRMWARE)
             if firmware_element is None:
@@ -931,7 +937,7 @@ class XBeeProfile(object):
 
         Returns:
             String: the profile file.
-         """
+        """
         return self._profile_file
 
     @property
@@ -941,7 +947,7 @@ class XBeeProfile(object):
 
         Returns:
             String: the profile version.
-         """
+        """
         return self._version
 
     @property
@@ -954,7 +960,7 @@ class XBeeProfile(object):
 
         .. seealso::
            | :class:`.FlashFirmwareOption`
-         """
+        """
         return self._flash_firmware_option
 
     @property
@@ -964,7 +970,7 @@ class XBeeProfile(object):
 
         Returns:
             String: the profile description.
-         """
+        """
         return self._description
 
     @property
@@ -975,7 +981,7 @@ class XBeeProfile(object):
         Returns:
             Boolean: ``True`` if the settings of the XBee device will be reset before applying the profile ones,
                      ``False`` otherwise.
-         """
+        """
         return self._reset_settings
 
     @property
@@ -995,7 +1001,7 @@ class XBeeProfile(object):
 
         Returns:
             Boolean: ``True`` if the profile has remote filesystem information, ``False`` otherwise.
-         """
+        """
         return self._has_remote_filesystem
 
     @property
@@ -1005,8 +1011,41 @@ class XBeeProfile(object):
 
         Returns:
             Boolean: ``True`` if the profile has filesystem information (local or remote), ``False`` otherwise.
-         """
+        """
         return self._has_local_filesystem or self._has_remote_filesystem
+
+    @property
+    def has_local_firmware_files(self):
+        """
+        Returns whether the profile has local firmware binaries.
+
+        Returns:
+            Boolean: `True` if the profile has local firmware files,
+                `False` otherwise.
+        """
+        return self._has_local_firmware
+
+    @property
+    def has_remote_firmware_files(self):
+        """
+        Returns whether the profile has remote firmware binaries.
+
+        Returns:
+            Boolean: `True` if the profile has remote firmware files,
+                `False` otherwise.
+        """
+        return self._has_remote_firmware
+
+    @property
+    def has_firmware_files(self):
+        """
+        Returns whether the profile has firmware binaries (local or remote).
+
+        Returns:
+            Boolean: `True` if the profile has local or remote firmware files,
+                `False` otherwise.
+        """
+        return self.has_local_firmware_files or self.has_remote_firmware_files
 
     @property
     def profile_settings(self):
@@ -1015,7 +1054,7 @@ class XBeeProfile(object):
 
         Returns:
             Dict: a list with all the firmware settings that the profile configures (:class:`.XBeeProfileSetting`).
-         """
+        """
         return self._profile_settings
 
     @property
@@ -1050,19 +1089,6 @@ class XBeeProfile(object):
             self._uncompress_profile()
 
         return self._firmware_xml_file
-
-    @property
-    def firmware_binary_files(self):
-        """
-        Returns the path of the profile firmware binary files.
-
-        Returns:
-            List: List of paths of the profile firmware binary files.
-        """
-        if self._profile_folder is None:
-            self._uncompress_profile()
-
-        return self._firmware_binary_files
 
     @property
     def file_system_path(self):
@@ -1690,7 +1716,7 @@ def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=Non
         timeout = _REMOTE_DEFAULT_TIMEOUT if isinstance(target, str) or target.is_remote() else _LOCAL_DEFAULT_TIMEOUT
 
     # With a serial port as target the profile must include the firmware file
-    if isinstance(target, str) and not xbee_profile.firmware_binary_files:
+    if isinstance(target, str) and not xbee_profile.has_local_firmware_files:
         error = _ERROR_PROFILE_INVALID % " Profile must include the firmware binary files to use with a serial port"
         _log.error("ERROR: %s", error)
         raise UpdateProfileException(error)
