@@ -1428,7 +1428,7 @@ class _ProfileUpdater(object):
         network_settings_changed = False
         cache_settings_changed = False
         # Disable apply settings so Queue AT commands are issued instead of AT commands
-        old_apply_settings_value = self._xbee_device.is_apply_changes_enabled
+        old_apply_settings_value = self._xbee_device.is_apply_changes_enabled()
         self._xbee_device.enable_apply_changes(False)
         try:
             previous_percent = 0
@@ -1469,11 +1469,12 @@ class _ProfileUpdater(object):
                     self._xpro_ap = setting.bytearray_value
 
             if (self._is_local and self._xpro_ap
-                    and self._xpro_ap[0] not in (OperatingMode.API_MODE.code,
-                                                 OperatingMode.ESCAPED_API_MODE.code)):
+                    and self._xpro_ap[0] != self._xbee_device.operating_mode.code):
                 # Configure AP to be able to recover the XBee for the library
-                self._set_parameter_with_retries(ATStringCommand.AP.command,
-                                                 bytearray([1]), _PARAMETER_WRITE_RETRIES)
+                self._set_parameter_with_retries(
+                    ATStringCommand.AP.command,
+                    bytearray([self._xbee_device.operating_mode.code]),
+                    _PARAMETER_WRITE_RETRIES)
 
             # Write settings.
             percent = setting_index * 100 // num_settings
@@ -1656,19 +1657,20 @@ class _ProfileUpdater(object):
                     raise UpdateProfileException(filesystem.ERROR_FILESYSTEM_NOT_SUPPORTED)
                 self._update_file_system()
         finally:
-            # Restore AP mode only for local XBees (not for serial port,
-            # the goal is to recover them for the library)
-            if (not isinstance(self._target, str) and self._is_local and self._xpro_ap
-                    and self._xpro_ap[0] not in (OperatingMode.API_MODE.code,
-                                                 OperatingMode.ESCAPED_API_MODE.code)):
-                orig_ac_value = self._xbee_device.is_apply_changes_enabled
-                self._xbee_device.enable_apply_changes(False)
+            # Restore AP mode only for local XBees, only if target is an XBee
+            # not a serial port (a serial port means we are doing a recovery, so
+            # leave it with a valid operating mode)
+            if (self._is_local and self._xpro_ap
+                    and self._xpro_ap[0] != self._xbee_device.operating_mode.code
+                    and (not isinstance(self._target, str)
+                         or self._xpro_ap[0] in (OperatingMode.API_MODE.code,
+                                                 OperatingMode.ESCAPED_API_MODE.code))):
+                orig_ac_value = self._xbee_device.is_apply_changes_enabled()
+                self._xbee_device.enable_apply_changes(True)
                 self._set_parameter_with_retries(ATStringCommand.AP.command,
                                                  self._xpro_ap, _PARAMETER_WRITE_RETRIES)
                 self._set_parameter_with_retries(ATStringCommand.WR.command,
-                                                 self._xpro_ap, _PARAMETER_WRITE_RETRIES)
-                self._set_parameter_with_retries(ATStringCommand.AC.command,
-                                                 self._xpro_ap, _PARAMETER_WRITE_RETRIES)
+                                                 bytearray(0), _PARAMETER_WRITE_RETRIES)
                 self._xbee_device.enable_apply_changes(orig_ac_value)
             # Restore sync ops timeout
             if old_sync_ops_timeout is not None:
