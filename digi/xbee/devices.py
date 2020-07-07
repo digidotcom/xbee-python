@@ -189,6 +189,15 @@ class AbstractXBeeDevice(object):
         """
         updated = False
 
+        if not device.is_remote() or device.get_local_xbee_device() == self:
+            new_op_mode = device._operating_mode
+            if new_op_mode and new_op_mode != self._operating_mode:
+                if self.is_apply_changes_enabled():
+                    self._operating_mode = new_op_mode
+                    updated = True
+                else:
+                    self._future_operating_mode = new_op_mode
+
         new_ni = device.get_node_id()
         if new_ni is not None and new_ni != self._node_id:
             self._node_id = new_ni
@@ -334,14 +343,6 @@ class AbstractXBeeDevice(object):
         response = self._send_at_command(at_command)
 
         self._check_at_cmd_response_is_valid(response)
-
-        # Check if the parameter matches the apply changes or write settings command
-        # and we have the operation mode pending to update.
-        if not self.is_remote() \
-                and (parameter.upper() in (ATStringCommand.AC.command, ATStringCommand.WR.command)) \
-                and self._future_operating_mode is not None:
-            self._operating_mode = self._future_operating_mode
-            self._future_operating_mode = None
 
         return response.response
 
@@ -1679,7 +1680,7 @@ class AbstractXBeeDevice(object):
         """
         self.execute_command(ATStringCommand.DA.command)
 
-    def _refresh_if_cached(self, parameter, value):
+    def _refresh_if_cached(self, parameter, value, apply=True):
         """
         Refreshes the proper cached parameter depending on ``parameter`` value.
         
@@ -1688,6 +1689,8 @@ class AbstractXBeeDevice(object):
         Args:
             parameter (String): the parameter to refresh its value.
             value (Bytearray): the new value of the parameter.
+            apply (Boolean, optional, default=`True`): `True` to apply
+                immediately, `False` otherwise.
         """
         updated = False
 
@@ -1705,10 +1708,12 @@ class AbstractXBeeDevice(object):
         elif parameter.upper() == ATStringCommand.AP.command:
             # Only update the cached operating mode if the setting has been written. If not,
             # just store the new value and update it after applying or writing settings.
-            if self.is_apply_changes_enabled():
-                self._operating_mode = OperatingMode.get(utils.bytes_to_int(value))
-            else:
-                self._future_operating_mode = OperatingMode.get(utils.bytes_to_int(value))
+            new_op_mode = OperatingMode.get(utils.bytes_to_int(value))
+            if apply:
+                updated = bool(new_op_mode != self._operating_mode)
+                self._operating_mode = new_op_mode
+            elif new_op_mode != self._operating_mode:
+                self._future_operating_mode = new_op_mode
 
         if updated:
             network = self.get_local_xbee_device().get_network() if self.is_remote() \
@@ -2012,19 +2017,50 @@ class AbstractXBeeDevice(object):
                                                 content=utils.hex_to_string(out)))
 
         # Refresh cached parameters if this method modifies some of them.
-        if packet.get_frame_type() in [ApiFrameType.AT_COMMAND,
-                                       ApiFrameType.AT_COMMAND_QUEUE,
-                                       ApiFrameType.REMOTE_AT_COMMAND_REQUEST]:
+        f_type = packet.get_frame_type()
+        if f_type in (ApiFrameType.AT_COMMAND, ApiFrameType.AT_COMMAND_QUEUE,
+                      ApiFrameType.REMOTE_AT_COMMAND_REQUEST):
             xbee_node = self
-            if (packet.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST
+            # Get remote node in case of a remote at command
+            if (f_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST
                     and packet.x64bit_dest_addr not in (XBee64BitAddress.UNKNOWN_ADDRESS,
                                                         XBee64BitAddress.BROADCAST_ADDRESS)):
                 xbee_node = self.get_network().get_device_by_64(packet.x64bit_dest_addr)
 
-            if (xbee_node and packet.parameter
-                    and packet.command.upper() in [ATStringCommand.NI.command,
-                                                   ATStringCommand.MY.command]):
-                xbee_node._refresh_if_cached(packet.command.upper(), packet.parameter)
+            # Refresh cached parameters if node is found and the command
+            # is a setter (with parameter) or AC is being performed
+            cmd = packet.command.upper()
+            value = packet.parameter
+            if xbee_node and (value or cmd == ATStringCommand.AC.command
+                              or self._future_operating_mode):
+                is_nimy = (cmd in (ATStringCommand.NI.command,
+                                   ATStringCommand.MY.command)
+                           and value)
+                is_ap = bool(cmd == ATStringCommand.AP.command and value)
+
+                # Refresh NI and MY parameters of remote nodes
+                if xbee_node.is_remote() and is_nimy:
+                    xbee_node._refresh_if_cached(cmd, value)
+                # Refresh NI, MY, and AP (applied or queued) parameters or local nodes
+                elif not xbee_node.is_remote():
+                    is_future_op_mode = False
+                    # Set the previous saved operating mode, if frame is an AT
+                    # command frame or if it is a queued with AC
+                    if (self._future_operating_mode is not None
+                            and (f_type == ApiFrameType.AT_COMMAND
+                                 or cmd == ATStringCommand.AC.command)):
+                        self._operating_mode = self._future_operating_mode
+                        self._future_operating_mode = None
+                        is_future_op_mode = True
+
+                    if is_nimy or is_ap:
+                        xbee_node._refresh_if_cached(
+                            cmd, value,
+                            apply=bool(is_nimy or f_type == ApiFrameType.AT_COMMAND))
+                    elif is_future_op_mode:
+                        self.get_network()._network_modified(
+                            NetworkEventType.UPDATE, NetworkEventReason.READ_INFO,
+                            node=xbee_node)
 
         return self._get_packet_by_id(packet.frame_id) if sync else None
 
@@ -8635,7 +8671,7 @@ class XBeeNetwork(object):
         return remote_xbee
 
     def _add_remote_from_attr(self, reason, x64bit_addr=None, x16bit_addr=None, node_id=None,
-                              role=Role.UNKNOWN, hw_version=None, fw_version=None):
+                              role=Role.UNKNOWN, hw_version=None, fw_version=None, op_mode=None):
         """
         Creates a new XBee using the provided data and adds it to the network if it is not
         included yet.
@@ -8650,10 +8686,12 @@ class XBeeNetwork(object):
             x16bit_addr (:class:`digi.xbee.models.address.XBee16BitAddress`, optional,
                 default=``None``): The 16-bit address of the remote XBee.
             node_id (String, optional, default=``None``): The node identifier of the remote XBee.
-            role (:class:`digi.xbee.models.protocol.Role`, optional, default=``Role.UNKNOWN``):
-                The role of the remote XBee
+            role (:class:`.Role`, optional, default=``Role.UNKNOWN``): The role
+                of the remote XBee
             hw_version (:class:`.HardwareVersion`, optional, default=`None`): The hardware version.
             fw_version (bytearray, optional, default=`None`): The firmware version.
+            op_mode (:class:`.OperatingMode`, optional, default=`None`): The
+                operating mode, useful to update the local XBee.
 
         Returns:
             :class:`.RemoteXBeeDevice`: the remote XBee device generated from the provided data if
@@ -8666,6 +8704,7 @@ class XBeeNetwork(object):
             | :class:`digi.xbee.models.address.XBee64BitAddress`
             | :class:`digi.xbee.models.hw.HardwareVersion`
             | :class:`digi.xbee.models.protocol.Role`
+            | :class:`digi.xbee.models.mode.OperatingMode`
 
         Returns:
             :class:`.AbstractXBeeDevice`: The created XBee with the updated parameters.
@@ -8673,7 +8712,7 @@ class XBeeNetwork(object):
         return self._add_remote(
             self.__create_remote(x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
                                  node_id=node_id, role=role, hw_version=hw_version,
-                                 fw_version=fw_version), reason)
+                                 fw_version=fw_version, op_mode=op_mode), reason)
 
     def add_remotes(self, remote_xbee_devices):
         """
@@ -9432,7 +9471,7 @@ class XBeeNetwork(object):
     def __create_remote(self, x64bit_addr=XBee64BitAddress.UNKNOWN_ADDRESS,
                         x16bit_addr=XBee16BitAddress.UNKNOWN_ADDRESS, node_id=None,
                         role=Role.UNKNOWN, parent_addr=None, hw_version=None,
-                        fw_version=None):
+                        fw_version=None, op_mode=None):
         """
         Creates and returns a :class:`.RemoteXBeeDevice` from the provided data,
         if the data contains the required information and in the required
@@ -9444,12 +9483,14 @@ class XBeeNetwork(object):
             x16bit_addr (:class:`digi.xbee.models.address.XBee16BitAddress`, optional,
                 default=``XBee16BitAddress.UNKNOWN_ADDRESS``): The 16-bit address of the remote XBee.
             node_id (String, optional, default=``None``): The node identifier of the remote XBee.
-            role (:class:`digi.xbee.models.protocol.Role`, optional, default=``Role.UNKNOWN``):
-                The role of the remote XBee
+            role (:class:`.Role`, optional, default=``Role.UNKNOWN``): The role
+                of the remote XBee
             parent_addr (:class:`.XBee64BitAddress`, optional, default=``None``):
                 The 64-bit address of the parent.
             hw_version (:class:`.HardwareVersion`, optional, default=`None`): The hardware version.
             fw_version (bytearray, optional, default=`None`): The firmware version.
+            op_mode (:class:`.OperatingMode`, optional, default=`None`): The
+                operating mode, useful to update the local XBee.
 
         Returns:
             :class:`.RemoteXBeeDevice`: the remote XBee device generated from the provided data if
@@ -9461,6 +9502,7 @@ class XBeeNetwork(object):
             | :class:`digi.xbee.models.address.XBee64BitAddress`
             | :class:`digi.xbee.models.hw.HardwareVersion`
             | :class:`digi.xbee.models.protocol.Role`
+            | :class:`digi.xbee.models.mode.OperatingMode`
         """
         if x64bit_addr == "local":
             x64bit_addr = self._local_xbee.get_64bit_addr()
@@ -9493,6 +9535,8 @@ class XBeeNetwork(object):
         xb._role = role
         xb._hardware_version = hw_version
         xb._firmware_version = fw_version
+        xb._operating_mode = op_mode
+
         return xb
 
     def __get_data_for_remote(self, data):
