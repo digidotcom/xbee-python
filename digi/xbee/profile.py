@@ -903,16 +903,26 @@ class XBeeProfile(object):
         Returns:
             String: the default value of the setting, ``None`` if the setting is not found or it has no default value.
         """
+        xml_file = self._firmware_xml_file
+        zip_file = None
         try:
-            firmware_root = ElementTree.parse(self._firmware_xml_file).getroot()
+            # Profile folder is only filled if profile has been uncompressed,
+            # if not uncompressed read from the zip file
+            if not self._profile_folder:
+                zip_file = zipfile.ZipFile(self._profile_file, "r")
+                xml_file = zip_file.open(self._firmware_xml_file)
+            firmware_root = ElementTree.parse(xml_file).getroot()
             for firmware_setting_element in firmware_root.findall(_XML_FIRMWARE_SETTING):
                 if firmware_setting_element.get(_XML_COMMAND) == setting_name:
                     default_value_element = firmware_setting_element.find(_XML_DEFAULT_VALUE)
                     if default_value_element is None:
                         return None
                     return default_value_element.text
-        except ParseError as e:
+        except (ParseError, zipfile.BadZipFile, zipfile.LargeZipFile) as e:
             _log.exception(e)
+        finally:
+            if zip_file:
+                zip_file.close()
 
         return None
 
