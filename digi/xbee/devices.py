@@ -2016,7 +2016,9 @@ class AbstractXBeeDevice(object):
                                        ApiFrameType.AT_COMMAND_QUEUE,
                                        ApiFrameType.REMOTE_AT_COMMAND_REQUEST]:
             xbee_node = self
-            if packet.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
+            if (packet.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST
+                    and packet.x64bit_dest_addr not in (XBee64BitAddress.UNKNOWN_ADDRESS,
+                                                        XBee64BitAddress.BROADCAST_ADDRESS)):
                 xbee_node = self.get_network().get_device_by_64(packet.x64bit_dest_addr)
 
             if (xbee_node and packet.parameter
