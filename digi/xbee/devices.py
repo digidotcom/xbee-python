@@ -498,6 +498,9 @@ class AbstractXBeeDevice(object):
         if self.is_remote():
             if not self._local_xbee_device.comm_iface.is_interface_open:
                 raise XBeeException("Local XBee device's communication interface closed")
+            if init:
+                # Clear the 16-bit address, it might be obsolete which is a problem for ZigBee devices.
+                self._16bit_addr = None
         else:
             if (self._operating_mode != OperatingMode.API_MODE and
                self._operating_mode != OperatingMode.ESCAPED_API_MODE):
