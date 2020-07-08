@@ -1974,6 +1974,10 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
 
         was_open = self._local_device.is_open()
         try:
+            # Change sync options timeout. Remote device might be an end device, so use the firmware update
+            # timeout instead of the default one for this operation.
+            self._old_sync_ops_timeout = self._local_device.get_sync_ops_timeout()
+            self._local_device.set_sync_ops_timeout(self._timeout)
             if not was_open:
                 self._local_device.open()
             # We need to update target information. Give it some time to be back into the network.
@@ -1984,13 +1988,15 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                     self._remote_device._read_device_info(NetworkEventReason.FIRMWARE_UPDATE,
                                                           init=True, fire_event=True)
                     initialized = True
-                except XBeeException:
+                except XBeeException as e:
+                    _log.warning("Could not initialize remote device: %s" % str(e))
                     time.sleep(1)
             if not initialized:
                 self._exit_with_error(_ERROR_UPDATE_TARGET_TIMEOUT)
         except XBeeException as e:
             raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFORMATION % str(e))
         finally:
+            self._local_device.set_sync_ops_timeout(self._old_sync_ops_timeout)
             if not was_open:
                 self._local_device.close()
 
