@@ -1451,30 +1451,32 @@ class _ProfileUpdater(object):
                 # Reset settings to defaults implies network and cache settings have changed
                 network_settings_changed = True
                 cache_settings_changed = True
-                self._xpro_ap = bytearray([OperatingMode.AT_MODE.code])
+                if self._is_local:
+                    self._xpro_ap = bytearray([OperatingMode.AT_MODE.code])
+                    # Restore the previous operating mode to be able to continue
+                    self._set_parameter_with_retries(
+                        ATStringCommand.AP.command,
+                        bytearray([self._xbee_device.operating_mode.code]),
+                        _PARAMETER_WRITE_RETRIES)
             # Set settings.
             for setting in self._xbee_profile.profile_settings.values():
                 percent = setting_index * 100 // num_settings
                 if self._progress_callback is not None and percent != previous_percent:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
-                self._set_parameter_with_retries(setting.name, setting.bytearray_value, _PARAMETER_WRITE_RETRIES)
+                name = setting.name.upper()
+                # Do not apply operating mode until the end of the process
+                if self._is_local and name == ATStringCommand.AP.command:
+                    self._xpro_ap = setting.bytearray_value
+                else:
+                    self._set_parameter_with_retries(
+                        name, setting.bytearray_value, _PARAMETER_WRITE_RETRIES)
                 setting_index += 1
                 # Check if the setting was sensitive for network or cache information
-                if setting.name.upper() in _PARAMETERS_NETWORK:
+                if name in _PARAMETERS_NETWORK:
                     network_settings_changed = True
-                if setting.name.upper() in _PARAMETERS_CACHE:
+                if name in _PARAMETERS_CACHE:
                     cache_settings_changed = True
-                if setting.name.upper() == ATStringCommand.AP.command:
-                    self._xpro_ap = setting.bytearray_value
-
-            if (self._is_local and self._xpro_ap
-                    and self._xpro_ap[0] != self._xbee_device.operating_mode.code):
-                # Configure AP to be able to recover the XBee for the library
-                self._set_parameter_with_retries(
-                    ATStringCommand.AP.command,
-                    bytearray([self._xbee_device.operating_mode.code]),
-                    _PARAMETER_WRITE_RETRIES)
 
             # Write settings.
             percent = setting_index * 100 // num_settings
@@ -1657,14 +1659,12 @@ class _ProfileUpdater(object):
                     raise UpdateProfileException(filesystem.ERROR_FILESYSTEM_NOT_SUPPORTED)
                 self._update_file_system()
         finally:
-            # Restore AP mode only for local XBees, only if target is an XBee
-            # not a serial port (a serial port means we are doing a recovery, so
-            # leave it with a valid operating mode)
+            # Restore AP mode only for local XBees and valid operating modes.
+            # If the value is not 1 (API mode) or 2 (escaped API mode)
             if (self._is_local and self._xpro_ap
                     and self._xpro_ap[0] != self._xbee_device.operating_mode.code
-                    and (not isinstance(self._target, str)
-                         or self._xpro_ap[0] in (OperatingMode.API_MODE.code,
-                                                 OperatingMode.ESCAPED_API_MODE.code))):
+                    and (self._xpro_ap[0] in (OperatingMode.API_MODE.code,
+                                              OperatingMode.ESCAPED_API_MODE.code))):
                 orig_ac_value = self._xbee_device.is_apply_changes_enabled()
                 self._xbee_device.enable_apply_changes(True)
                 self._set_parameter_with_retries(ATStringCommand.AP.command,
@@ -1676,7 +1676,7 @@ class _ProfileUpdater(object):
             if old_sync_ops_timeout is not None:
                 self._xbee_device.set_sync_ops_timeout(old_sync_ops_timeout)
 
-            if self._is_local:
+            if self._is_local and self._xbee_device:
                 if self._was_connected and not self._xbee_device.is_open():
                     self._xbee_device.open()
                 elif not self._was_connected and self._xbee_device.is_open():
