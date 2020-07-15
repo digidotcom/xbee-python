@@ -278,13 +278,19 @@ class _ZDOCommand(metaclass=ABCMeta):
         try:
             self.__saved_ao = node.get_api_output_mode_value()
 
-            # Do not configure AO if it is already
-            if utils.is_bit_enabled(self.__saved_ao[0], 0):
+            # Do not configure AO if it is already:
+            #   * Bit 0: Native/Explicit API output (1)
+            #   * Bit 5: Prevent ZDO msgs from going out the serial port (0)
+            value = bytearray([self.__saved_ao[0]]) if self.__saved_ao \
+                else bytearray([APIOutputModeBit.EXPLICIT.code])
+            if (value[0] & APIOutputModeBit.EXPLICIT.code
+                    and not value[0] & APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code):
                 self.__saved_ao = None
                 return
 
-            value = APIOutputModeBit.calculate_api_output_mode_value(
-                self._xbee.get_protocol(), {APIOutputModeBit.EXPLICIT})
+            value[0] = value[0] | APIOutputModeBit.EXPLICIT.code
+            value[0] = value[0] & ~APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code
+
             node.set_api_output_mode_value(value)
 
         except XBeeException as exc:

@@ -9968,21 +9968,10 @@ class ZigBeeNetwork(XBeeNetwork):
         """
         self._log.debug("[*] Preconfiguring %s", ATStringCommand.AO.command)
         try:
-            self.__saved_ao = self._local_xbee.get_api_output_mode_value()
-
-            # Do not configure AO if it is already
-            if utils.is_bit_enabled(self.__saved_ao[0], 0):
-                self.__saved_ao = None
-
-                return
-
-            value = APIOutputModeBit.calculate_api_output_mode_value(
-                self._local_xbee.get_protocol(), {APIOutputModeBit.EXPLICIT})
-
-            self._local_xbee.set_api_output_mode_value(value)
-
+            self.__enable_explicit_mode()
         except XBeeException as e:
-            raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
+            raise XBeeException(
+                "Could not prepare XBee for network discovery: %s" % str(e))
 
     def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
         """
@@ -10087,13 +10076,36 @@ class ZigBeeNetwork(XBeeNetwork):
         if error == "ZDO command answer not received":
             # 'AO' value is misconfigured, restore it
             self._log.debug("     [***] Local XBee misconfigured: restoring 'AO' value")
-            value = APIOutputModeBit.calculate_api_output_mode_value(
-                self._local_xbee.get_protocol(), {APIOutputModeBit.EXPLICIT})
-
-            self._local_xbee.set_api_output_mode_value(value)
+            try:
+                self.__enable_explicit_mode()
+            except XBeeException as e:
+                raise XBeeException("Unable to restore 'AO0 value: %s" % str(e))
 
             # Add the node to the FIFO to try again
             self._nodes_queue.put(requester)
+
+    def __enable_explicit_mode(self):
+        """
+        Enables explicit mode by modifying the value of 'AO' parameter if it
+        is needed.
+        """
+        self.__saved_ao = self._local_xbee.get_api_output_mode_value()
+
+        # Do not configure AO if it is already:
+        #   * Bit 0: Native/Explicit API output (1)
+        #   * Bit 5: Prevent ZDO msgs from going out the serial port (0)
+        value = bytearray([self.__saved_ao[0]]) if self.__saved_ao \
+            else bytearray([APIOutputModeBit.EXPLICIT.code])
+        if (value[0] & APIOutputModeBit.EXPLICIT.code
+                and not value[0] & APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code):
+            self.__saved_ao = None
+
+            return
+
+        value[0] = value[0] | APIOutputModeBit.EXPLICIT.code
+        value[0] = value[0] & ~APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code
+
+        self._local_xbee.set_api_output_mode_value(value[0])
 
     def __get_route_table(self, requester, nodes_queue, node_timeout):
         """

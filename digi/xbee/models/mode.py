@@ -151,9 +151,17 @@ class APIOutputModeBit(Enum):
     """
 
     EXPLICIT = (0x01, "Output in Native/Explicit API format")
-    UNSUPPORTED_ZDO_PASSTHRU = (0x02, "Unsupported ZDO request pass-through")
-    SUPPORTED_ZDO_PASSTHRU = (0x04, "Supported ZDO request pass-through")
-    BINDING_PASSTHRU = (0x08, "Binding request pass-through")
+    SUPPORTED_ZDO_PASSTHRU = (0x02, "Zigbee: Supported ZDO request "
+                                    "pass-through\n802.15.4/DigiMesh: Legacy "
+                                    "API Indicator")
+    UNSUPPORTED_ZDO_PASSTHRU = (0x04, "Unsupported ZDO request pass-through."
+                                      " Only Zigbee")
+    BINDING_PASSTHRU = (0x08, "Binding request pass-through. Only Zigbee")
+    ECHO_RCV_SUPPORTED_ZDO = (0x10, "Echo received supported ZDO requests out "
+                                    "the serial port. Only Zigbee")
+    SUPPRESS_ALL_ZDO_MSG = (0x20, "Suppress all ZDO messages from being sent "
+                                  "out the serial port and disable "
+                                  "pass-through. Only Zigbee")
 
     def __init__(self, code, description):
         self.__code = code
@@ -218,8 +226,10 @@ class APIOutputModeBit(Enum):
         if protocol == XBeeProtocol.ZIGBEE:
             return sum(op.code for op in options)
         if protocol in (XBeeProtocol.DIGI_MESH, XBeeProtocol.DIGI_POINT,
-                        XBeeProtocol.XLR, XBeeProtocol.XLR_DM):
-            return sum(op.code for op in options if lambda option: option != cls.EXPLICIT)
+                        XBeeProtocol.XLR, XBeeProtocol.XLR_DM,
+                        XBeeProtocol.RAW_802_15_4):
+            return sum(op.code for op in options
+                       if lambda option: option < cls.UNSUPPORTED_ZDO_PASSTHRU)
 
         return 0
 

@@ -24,6 +24,7 @@ from digi.xbee.devices import AbstractXBeeDevice, RemoteXBeeDevice, NetworkEvent
 from digi.xbee.models.address import XBee16BitAddress
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
+from digi.xbee.models.mode import APIOutputModeBit
 from digi.xbee.models.options import RemoteATCmdOptions
 from digi.xbee.models.protocol import XBeeProtocol, Role
 from digi.xbee.models.status import TransmitStatus, ATCommandStatus, EmberBootloaderMessageType
@@ -1226,11 +1227,8 @@ class _LoopbackTest(object):
         self._frame_id = 1
         self._total_loops_failed = 0
         # Store AO value.
-        old_ao = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
-        if old_ao is None:
-            return False
-        # Set AO value.
-        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command, bytearray([1])):
+        success, old_ao = _enable_explicit_mode(self._local_device)
+        if not success:
             return False
         # Perform the loops test.
         for loop in range(self._num_loops):
@@ -1263,7 +1261,8 @@ class _LoopbackTest(object):
                     break
             self._frame_id += 1
         # Restore AO value.
-        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command, old_ao):
+        if old_ao is not None and not _set_device_parameter_with_retries(
+                self._local_device, ATStringCommand.AO.command, old_ao):
             return False
         # Return test result.
         _log.debug("Loopback test result: %s loops failed out of %s" % (self._total_loops_failed, self._num_loops))
@@ -1398,11 +1397,8 @@ class _LinkTest(object):
         self._test_succeed = False
         self._total_loops_failed = 0
         # Store AO value.
-        old_ao = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
-        if old_ao is None:
-            return False
-        # Set AO value.
-        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command, bytearray([1])):
+        success, old_ao = _enable_explicit_mode(self._local_device)
+        if not success:
             return False
         # Add trace route callback.
         self._local_device.add_packet_received_callback(self._link_test_callback)
@@ -1418,7 +1414,8 @@ class _LinkTest(object):
             # Remove frame listener.
             self._local_device.del_packet_received_callback(self._link_test_callback)
         # Restore AO value.
-        if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command, old_ao):
+        if old_ao is not None and not _set_device_parameter_with_retries(
+                self._local_device, ATStringCommand.AO.command, old_ao):
             return False
         if not self._packet_received or not self._test_succeed:
             return False
@@ -2298,13 +2295,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
         if self._configure_ao_parameter():
             # Store AO value.
-            self._updater_ao_value = _read_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command)
-            if self._updater_ao_value is None:
-                self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.AO.command)
-            # Set new AO value.
-            if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
-                                                      bytearray([_VALUE_API_OUTPUT_MODE_EXPLICIT])):
-                self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.AO.command)
+            success, self._updater_ao_value = _enable_explicit_mode(
+                self._local_device)
+            if not success:
+                self._exit_with_error(
+                    _ERROR_UPDATER_READ_PARAMETER % ATStringCommand.AO.command)
         # Perform extra configuration.
         self._configure_updater_extra()
 
@@ -2324,11 +2319,11 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         try:
             if not self._local_device.is_open():
                 self._local_device.open()
-            if self._configure_ao_parameter():
-                # Restore AO.
-                if self._updater_ao_value is not None:
-                    _set_device_parameter_with_retries(self._local_device, ATStringCommand.AO.command,
-                                                       self._updater_ao_value)
+            # Restore AO.
+            if self._configure_ao_parameter() and self._updater_ao_value is not None:
+                _set_device_parameter_with_retries(
+                    self._local_device, ATStringCommand.AO.command,
+                    self._updater_ao_value)
             # Restore extra configuration.
             self._restore_updater_extra()
         except XBeeException as e:
@@ -6001,3 +5996,42 @@ def _determine_bootloader_type(target):
 
         serial_port.close()
         return bootloader_type
+
+
+def _enable_explicit_mode(xbee):
+    """
+    Enables explicit mode by modifying the value of 'AO' parameter if it is
+    needed.
+
+    Args:
+        xbee (:class:`.AbstractXBeeDevice`): The XBee device to configure
+
+    Returns:
+        Tuple (Boolean, Bytearray): A tuple with a boolean value indicating
+            if the operation finished successfully, and a bytearray with the
+            original value of 'AO' parameter. If the last is `None` means the
+            value has not been changed.
+    """
+    # Store AO value.
+    ao_value = _read_device_parameter_with_retries(
+        xbee, ATStringCommand.AO.command)
+    if ao_value is None:
+        return False, None
+
+    # Set new AO value.
+    # Do not configure AO if it is already:
+    #   * Bit 0: Native/Explicit API output (1)
+    #   * Bit 5: Prevent ZDO msgs from going out the serial port (0)
+    value = bytearray([ao_value[0]])
+    if (value[0] & APIOutputModeBit.EXPLICIT.code
+            and not value[0] & APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code):
+        return True, None
+
+    # Set new AO value.
+    value[0] = value[0] | APIOutputModeBit.EXPLICIT.code
+    value[0] = value[0] & ~APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code
+    if not _set_device_parameter_with_retries(
+            xbee, ATStringCommand.AO.command, value):
+        return False, ao_value
+
+    return True, ao_value
