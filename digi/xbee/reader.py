@@ -1343,34 +1343,34 @@ class PacketListener(threading.Thread):
             data = xbee_packet.rf_data
             is_broadcast = xbee_packet.is_broadcast()
             self.__data_received(XBeeMessage(data, remote, time.time(), broadcast=is_broadcast))
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="DATA",
-                                                    sender=str(remote.get_64bit_addr()) if remote is not None
-                                                    else "None",
-                                                    more_data=utils.hex_to_string(data)))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="DATA",
+                                                     sender=str(remote.get_64bit_addr()) if remote is not None
+                                                     else "None",
+                                                     more_data=utils.hex_to_string(data)))
 
         # Modem status callbacks
         elif xbee_packet.get_frame_type() == ApiFrameType.MODEM_STATUS:
             self.__modem_status_received(xbee_packet.modem_status)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="MODEM STATUS",
-                                                    sender=str(remote.get_64bit_addr()) if remote is not None
-                                                    else "None",
-                                                    more_data=xbee_packet.modem_status))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="MODEM STATUS",
+                                                     sender=str(remote.get_64bit_addr()) if remote is not None
+                                                     else "None",
+                                                     more_data=xbee_packet.modem_status))
 
         # IO_sample callbacks
         elif (xbee_packet.get_frame_type() == ApiFrameType.RX_IO_16 or
               xbee_packet.get_frame_type() == ApiFrameType.RX_IO_64 or
               xbee_packet.get_frame_type() == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR):
             self.__io_sample_received(xbee_packet.io_sample, remote, time.time())
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="IOSAMPLE",
-                                                    sender=str(remote.get_64bit_addr()) if remote is not None
-                                                    else "None",
-                                                    more_data=str(xbee_packet.io_sample)))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="IOSAMPLE",
+                                                     sender=str(remote.get_64bit_addr()) if remote is not None
+                                                     else "None",
+                                                     more_data=str(xbee_packet.io_sample)))
 
         # Explicit packet callbacks
         elif xbee_packet.get_frame_type() == ApiFrameType.EXPLICIT_RX_INDICATOR:
@@ -1382,32 +1382,32 @@ class PacketListener(threading.Thread):
             elif self.__is_explicit_io_packet(xbee_packet):
                 self.__io_sample_received(IOSample(data), remote, time.time())
             self.__explicit_packet_received(PacketListener.__expl_to_message(remote, is_broadcast, xbee_packet))
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="EXPLICIT DATA",
-                                                    sender=str(remote.get_64bit_addr()) if remote is not None
-                                                    else "None",
-                                                    more_data=utils.hex_to_string(data)))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="EXPLICIT DATA",
+                                                     sender=str(remote.get_64bit_addr()) if remote is not None
+                                                     else "None",
+                                                     more_data=utils.hex_to_string(data)))
 
         # IP data
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_IPV4:
             self.__ip_data_received(
                 IPMessage(xbee_packet.source_address, xbee_packet.source_port,
                           xbee_packet.dest_port, xbee_packet.ip_protocol, xbee_packet.data))
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="IP DATA",
-                                                    sender=str(xbee_packet.source_address),
-                                                    more_data=utils.hex_to_string(xbee_packet.data)))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="IP DATA",
+                                                     sender=str(xbee_packet.source_address),
+                                                     more_data=utils.hex_to_string(xbee_packet.data)))
 
         # SMS
         elif xbee_packet.get_frame_type() == ApiFrameType.RX_SMS:
             self.__sms_received(SMSMessage(xbee_packet.phone_number, xbee_packet.data))
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="SMS",
-                                                    sender=str(xbee_packet.phone_number),
-                                                    more_data=xbee_packet.data))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="SMS",
+                                                     sender=str(xbee_packet.phone_number),
+                                                     more_data=xbee_packet.data))
 
         # Relay
         elif xbee_packet.get_frame_type() == ApiFrameType.USER_DATA_RELAY_OUTPUT:
@@ -1418,51 +1418,51 @@ class PacketListener(threading.Thread):
                 self.__bluetooth_data_received(xbee_packet.data)
             elif xbee_packet.src_interface == XBeeLocalInterface.MICROPYTHON:
                 self.__micropython_data_received(xbee_packet.data)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="RELAY DATA",
-                                                    sender=xbee_packet.src_interface.description,
-                                                    more_data=utils.hex_to_string(xbee_packet.data)))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="RELAY DATA",
+                                                     sender=xbee_packet.src_interface.description,
+                                                     more_data=utils.hex_to_string(xbee_packet.data)))
 
         # Socket state
         elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_STATE:
             self.__socket_state_received(xbee_packet.socket_id, xbee_packet.state)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="SOCKET STATE",
-                                                    sender=str(xbee_packet.socket_id),
-                                                    more_data=xbee_packet.state))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="SOCKET STATE",
+                                                     sender=str(xbee_packet.socket_id),
+                                                     more_data=xbee_packet.state))
 
         # Socket receive data
         elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_RECEIVE:
             self.__socket_data_received(xbee_packet.socket_id, xbee_packet.payload)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="SOCKET DATA",
-                                                    sender=str(xbee_packet.socket_id),
-                                                    more_data=utils.hex_to_string(xbee_packet.payload)))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="SOCKET DATA",
+                                                     sender=str(xbee_packet.socket_id),
+                                                     more_data=utils.hex_to_string(xbee_packet.payload)))
 
         # Socket receive data from
         elif xbee_packet.get_frame_type() == ApiFrameType.SOCKET_RECEIVE_FROM:
             address = (str(xbee_packet.source_address), xbee_packet.source_port)
             self.__socket_data_received_from(xbee_packet.socket_id, address, xbee_packet.payload)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="SOCKET DATA",
-                                                    sender=str(xbee_packet.socket_id),
-                                                    more_data="%s - %s" % (address,
-                                                                           utils.hex_to_string(xbee_packet.payload))))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="SOCKET DATA",
+                                                     sender=str(xbee_packet.socket_id),
+                                                     more_data="%s - %s" % (address,
+                                                                            utils.hex_to_string(xbee_packet.payload))))
 
         # Route record indicator
         elif xbee_packet.get_frame_type() == ApiFrameType.ROUTE_RECORD_INDICATOR:
             self.__route_record_indicator_received_from(remote,
                                                         xbee_packet.hops)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="ROUTE RECORD INDICATOR",
-                                                    sender=str(remote.get_64bit_addr())
-                                                    if remote else "None",
-                                                    more_data="Hops: %s" % ' - '.join(map(str, xbee_packet.hops))))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="ROUTE RECORD INDICATOR",
+                                                     sender=str(remote.get_64bit_addr())
+                                                     if remote else "None",
+                                                     more_data="Hops: %s" % ' - '.join(map(str, xbee_packet.hops))))
 
         # Route information
         elif xbee_packet.get_frame_type() == ApiFrameType.DIGIMESH_ROUTE_INFORMATION:
@@ -1474,22 +1474,22 @@ class PacketListener(threading.Thread):
                                                       xbee_packet.src_addr,
                                                       xbee_packet.responder_addr,
                                                       xbee_packet.successor_addr)
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="ROUTE INFORMATION",
-                                                    sender=str(xbee_packet.responder_addr),
-                                                    more_data=
-                                                    "src: %s - dst: %s - responder: %s - "
-                                                    "successor: %s - src event: %d - "
-                                                    "timestamp: %d - ack timeouts: %d - "
-                                                    "tx blocked: %d"
-                                                    % (xbee_packet.src_addr,
-                                                       xbee_packet.dst_addr,
-                                                       xbee_packet.responder_addr,
-                                                       xbee_packet.successor_addr,
-                                                       xbee_packet.src_event, xbee_packet.timestamp,
-                                                       xbee_packet.ack_timeout_count,
-                                                       xbee_packet.tx_block_count)))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="ROUTE INFORMATION",
+                                                     sender=str(xbee_packet.responder_addr),
+                                                     more_data=
+                                                     "src: %s - dst: %s - responder: %s - "
+                                                     "successor: %s - src event: %d - "
+                                                     "timestamp: %d - ack timeouts: %d - "
+                                                     "tx blocked: %d"
+                                                     % (xbee_packet.src_addr,
+                                                        xbee_packet.dst_addr,
+                                                        xbee_packet.responder_addr,
+                                                        xbee_packet.successor_addr,
+                                                        xbee_packet.src_event, xbee_packet.timestamp,
+                                                        xbee_packet.ack_timeout_count,
+                                                        xbee_packet.tx_block_count)))
         # File system frame
         elif xbee_packet.get_frame_type() in (ApiFrameType.FILE_SYSTEM_RESPONSE,
                                               ApiFrameType.REMOTE_FILE_SYSTEM_RESPONSE):
@@ -1501,18 +1501,18 @@ class PacketListener(threading.Thread):
             self.__fs_frame_received(node, xbee_packet.frame_id,
                                      xbee_packet.command, rcv_opts)
 
-            self._log.info(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                    event="RECEIVED",
-                                                    fr_type="FILE SYSTEM RESPONSE",
-                                                    sender=str(remote.get_64bit_addr()) if remote else "Local",
-                                                    more_data=
-                                                    "frame id: %d - command: %s, status: %d (%s), "
-                                                    "receive options: %s"
-                                                    % (xbee_packet.frame_id,
-                                                       xbee_packet.command,
-                                                       xbee_packet.command.status_value,
-                                                       xbee_packet.command.status,
-                                                       rcv_opts)))
+            self._log.debug(self._LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
+                                                     event="RECEIVED",
+                                                     fr_type="FILE SYSTEM RESPONSE",
+                                                     sender=str(remote.get_64bit_addr()) if remote else "Local",
+                                                     more_data=
+                                                     "frame id: %d - command: %s, status: %d (%s), "
+                                                     "receive options: %s"
+                                                     % (xbee_packet.frame_id,
+                                                        xbee_packet.command,
+                                                        xbee_packet.command.status_value,
+                                                        xbee_packet.command.status,
+                                                        rcv_opts)))
 
     @staticmethod
     def __get_remote_device_data_from_packet(xbee_packet):
