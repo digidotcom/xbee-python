@@ -791,8 +791,8 @@ class OpenFileCmdRequest(FileIdNameCmd):
             raise InvalidPacketException(message="Direction must be 0")
 
         return OpenFileCmdRequest(utils.bytes_to_int(raw[1:3]),
-                                  raw[5:].decode('utf-8'),
-                                  utils.bytes_to_int(raw[3:5]))
+                                  raw[4:].decode('utf-8'),
+                                  utils.bytes_to_int(raw[3:4]))
 
     @staticmethod
     def _get_name_max_len():
