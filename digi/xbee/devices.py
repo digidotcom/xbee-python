@@ -44,6 +44,7 @@ from digi.xbee.packets.network import TXIPv4Packet
 from digi.xbee.packets.raw import TX64Packet, TX16Packet
 from digi.xbee.packets.relay import UserDataRelayPacket
 from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, RegisterDeviceStatusPacket, CreateSourceRoutePacket
+from digi.xbee.sender import PacketSender
 from digi.xbee.util import utils
 from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatingModeException, \
     ATCommandException, OperationNotSupportedException, TransmitException
@@ -73,11 +74,6 @@ class AbstractXBeeDevice(object):
     _BLE_API_USERNAME = "apiservice"
     """
     The Bluetooth Low Energy API username.
-    """
-
-    LOG_PATTERN = "{comm_iface:s} - {event:s} - {opmode:s}: {content:s}"
-    """
-    Pattern used to log packet events.
     """
 
     _log = logging.getLogger(__name__)
@@ -115,8 +111,6 @@ class AbstractXBeeDevice(object):
 
         self._is_open = False
         self._operating_mode = None
-        self._at_cmds_sent = {}
-        self._future_apply = {}
 
         self._local_xbee_device = local_xbee_device
         self._comm_iface = serial_port if serial_port is not None else comm_iface
@@ -134,6 +128,7 @@ class AbstractXBeeDevice(object):
         self._role = Role.UNKNOWN
 
         self._packet_listener = None
+        self._packet_sender = None
 
         self._scan_counter = 0
         self._reachable = True
@@ -387,7 +382,7 @@ class AbstractXBeeDevice(object):
 
         if (not self.is_remote() and command.parameter
                 and command.command.upper() == ATStringCommand.AP.command
-                and not self._is_op_mode_valid(command.parameter)):
+                and not self._packet_sender.is_op_mode_valid(command.parameter)):
             return None
 
         operating_mode = self._get_operating_mode()
@@ -1690,98 +1685,6 @@ class AbstractXBeeDevice(object):
         """
         self.execute_command(ATStringCommand.DA.command)
 
-    def _refresh_if_cached(self, parameter, value, apply=True):
-        """
-        Refreshes the proper cached parameter depending on ``parameter`` value.
-
-        If ``parameter`` is not a cached parameter, this method does nothing.
-
-        Args:
-            parameter (String): the parameter to refresh its value.
-            value (Bytearray): the new value of the parameter.
-            apply (Boolean, optional, default=`True`): `True` to apply
-                immediately, `False` otherwise.
-        """
-        updated = False
-        param = parameter.upper()
-
-        # Node identifier
-        if param == ATStringCommand.NI.command:
-            node_id = value.decode()
-            changed = self._node_id != node_id
-            updated = changed and apply
-            if updated:
-                self._node_id = node_id
-                self._future_apply.pop(param, None)
-            elif changed:
-                self._future_apply.update({param: value})
-        # 16-bit address
-        elif param == ATStringCommand.MY.command:
-            x16bit_addr = XBee16BitAddress(value)
-            changed = self._16bit_addr != x16bit_addr
-            updated = changed and apply
-            if updated:
-                self._16bit_addr = x16bit_addr
-                self._future_apply.pop(param, None)
-            elif changed:
-                self._future_apply.update({param: value})
-        elif not self.is_remote():
-            ser_port = self.serial_port
-            if param == ATStringCommand.AP.command:
-                new_op_mode = OperatingMode.get(utils.bytes_to_int(value))
-                changed = bool(
-                    new_op_mode != self._operating_mode
-                    and new_op_mode in (OperatingMode.API_MODE,
-                                        OperatingMode.ESCAPED_API_MODE))
-                updated = changed and apply
-                if updated:
-                    self._operating_mode = new_op_mode
-                    self._future_apply.pop(param, None)
-                elif changed:
-                    self._future_apply.update({param: value})
-            elif ser_port and param in (ATStringCommand.BD.command,
-                                        ATStringCommand.NB.command,
-                                        ATStringCommand.SB.command):
-                if param == ATStringCommand.BD.command:
-                    from digi.xbee.profile import FirmwareBaudrate
-                    new_bd = utils.bytes_to_int(value)
-                    baudrate = FirmwareBaudrate.get(new_bd)
-                    new_bd = baudrate.baudrate if baudrate else new_bd
-                    changed = new_bd != ser_port.baudrate
-                    key = "baudrate" if changed and apply else param
-                    val = new_bd if changed and apply else value
-                elif param == ATStringCommand.NB.command:
-                    from digi.xbee.profile import FirmwareParity
-                    new_parity = FirmwareParity.get(utils.bytes_to_int(value))
-                    new_parity = new_parity.parity if new_parity else None
-                    changed = new_parity != ser_port.parity
-                    key = "parity" if changed and apply else param
-                    val = new_parity if changed and apply else value
-                else:
-                    from digi.xbee.profile import FirmwareStopbits
-                    new_sbits = FirmwareStopbits.get(utils.bytes_to_int(value))
-                    new_sbits = new_sbits.stop_bits if new_sbits else None
-                    changed = new_sbits != ser_port.stopbits
-                    key = "stopbits" if changed and apply else param
-                    val = new_sbits if changed and apply else value
-
-                settings = {key: val}
-                if changed and apply:
-                    ser_port.apply_settings(settings)
-                    self._future_apply.pop(param, None)
-                elif changed:
-                    self._future_apply.update(settings)
-
-        if updated:
-            network = self.get_local_xbee_device().get_network() if self.is_remote() \
-                else self.get_network()
-            if (network
-                    and (not self.is_remote()
-                         or network.get_device_by_64(self._64bit_addr)
-                         or network.get_device_by_16(self._16bit_addr))):
-                network._network_modified(
-                    NetworkEventType.UPDATE, NetworkEventReason.READ_INFO, node=self)
-
     def _get_next_frame_id(self):
         """
         Returns the next frame ID of the XBee device.
@@ -2065,120 +1968,9 @@ class AbstractXBeeDevice(object):
         if not self._packet_listener.is_running():
             raise XBeeException("Packet listener is not running.")
 
-        f_type = packet.get_frame_type()
-        # Do not allow to set a non API operating mode in the local XBee
-        if (f_type in (ApiFrameType.AT_COMMAND, ApiFrameType.AT_COMMAND_QUEUE)
-                and packet.parameter
-                and packet.command.upper() == ATStringCommand.AP.command
-                and not self._is_op_mode_valid(packet.parameter)):
-            return None
-
-        escape = self._operating_mode == OperatingMode.ESCAPED_API_MODE
-        out = packet.output(escaped=escape)
-        self._comm_iface.write_frame(out)
-        self._log.debug(self.LOG_PATTERN.format(comm_iface=str(self._comm_iface),
-                                                event="SENT",
-                                                opmode=self._operating_mode,
-                                                content=utils.hex_to_string(out)))
-
-        # Refresh cached parameters if this method modifies some of them.
-        if f_type in (ApiFrameType.AT_COMMAND, ApiFrameType.AT_COMMAND_QUEUE,
-                      ApiFrameType.REMOTE_AT_COMMAND_REQUEST):
-            node = self
-            # Get remote node in case of a remote at command
-            if (f_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST
-                    and packet.x64bit_dest_addr not in (XBee64BitAddress.UNKNOWN_ADDRESS,
-                                                        XBee64BitAddress.BROADCAST_ADDRESS)):
-                node = self.get_network().get_device_by_64(packet.x64bit_dest_addr)
-
-            # Store the sent AT command packet
-            if node:
-                key = str(node.get_64bit_addr())
-                if key not in node._at_cmds_sent:
-                    node._at_cmds_sent[key] = {}
-
-                node._at_cmds_sent[key].update({packet.frame_id: packet})
+        self._packet_sender.send_packet(packet)
 
         return self._get_packet_by_id(packet.frame_id) if sync else None
-
-    def _is_op_mode_valid(self, value):
-        """
-        Returns `True` if the provided value is a valid operating mode for
-        the library.
-
-        Params:
-            value (Bytearray): The value to check.
-
-        Returns:
-            Boolean: `True` for a valid value, `False` otherwise.
-        """
-        op_mode_value = utils.bytes_to_int(value)
-        op_mode = OperatingMode.get(op_mode_value)
-        if op_mode not in (OperatingMode.API_MODE,
-                           OperatingMode.ESCAPED_API_MODE):
-            self._log.error(
-                "Operating mode '%d' (%s) not set not to loose XBee connection",
-                op_mode_value, op_mode.description if op_mode else "Unknown")
-            return False
-
-        return True
-
-    def _at_response_received_cb(self, response):
-        """
-        Callback to deal with AT command responses and update the
-        corresponding node.
-        """
-        f_type = response.get_frame_type()
-        if f_type not in (ApiFrameType.AT_COMMAND_RESPONSE,
-                          ApiFrameType.REMOTE_AT_COMMAND_RESPONSE):
-            return
-
-        node = self
-        # Get remote node in case of a remote at command
-        if (f_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
-                and response.x64bit_source_addr not in (XBee64BitAddress.UNKNOWN_ADDRESS,
-                                                        XBee64BitAddress.BROADCAST_ADDRESS)):
-            node = self.get_network().get_device_by_64(response.x64bit_source_addr)
-
-        if not node:
-            return
-
-        key = str(node.get_64bit_addr())
-        requests = node._at_cmds_sent.get(key, {})
-        req = requests.pop(response.frame_id, None)
-
-        if not req or response.status != ATCommandStatus.OK:
-            return
-
-        def is_req_apply(at_req):
-            fr_type = at_req.get_frame_type()
-            return (at_req.command.upper() == ATStringCommand.AC.command
-                    or fr_type == ApiFrameType.AT_COMMAND
-                    or (fr_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST
-                        and at_req.transmit_options & RemoteATCmdOptions.APPLY_CHANGES.value))
-
-        def is_node_info_param(at_pkt):
-            at_cmd = at_pkt.command.upper()
-            return at_cmd in (ATStringCommand.NI.command,
-                              ATStringCommand.MY.command)
-
-        def is_port_param(at_pkt):
-            at_cmd = at_pkt.command.upper()
-            return at_cmd in (ATStringCommand.AP.command,
-                              ATStringCommand.BD.command,
-                              ATStringCommand.NB.command,
-                              ATStringCommand.SB.command)
-
-        apply = is_req_apply(req)
-        if apply:
-            node._future_apply.pop(req.parameter, None)
-            for key, value in list(node._future_apply.items()):
-                print("%s: %s" % (key, value))
-                node._refresh_if_cached(key, value, apply=True)
-
-        if req.parameter and (is_port_param(req) or is_node_info_param(req)):
-            node._refresh_if_cached(req.command.upper(), req.parameter,
-                                    apply=apply)
 
     def _get_routes(self, route_callback=None, process_finished_callback=None, timeout=None):
         """
@@ -2453,6 +2245,8 @@ class XBeeDevice(AbstractXBeeDevice):
         self._comm_iface.open()
         self._log.info("%s port opened", self._comm_iface)
         self._operating_mode = OperatingMode.API_MODE
+        if not self._packet_sender:
+            self._packet_sender = PacketSender(self)
         self._restart_packet_listener()
 
         if force_settings:
@@ -3548,7 +3342,7 @@ class XBeeDevice(AbstractXBeeDevice):
         api_callbacks = PacketReceived()
 
         if self.serial_port:
-            api_callbacks.append(self._at_response_received_cb)
+            api_callbacks.append(self._packet_sender.at_response_received_cb)
 
         if not self._network:
             return api_callbacks

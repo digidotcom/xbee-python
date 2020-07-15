@@ -502,6 +502,11 @@ class PacketListener(threading.Thread):
     Generic pattern for display received messages (high-level) with logger.
     """
 
+    _LOG_PACKET_PATTERN = "{comm_iface:s} - {event:s} - {opmode:s}: {content:s}"
+    """
+    Pattern used to log packet events.
+    """
+
     _log = logging.getLogger(__name__)
     """
     Logger.
@@ -592,10 +597,11 @@ class PacketListener(threading.Thread):
                                 "Error processing packet '%s': %s", utils.hex_to_string(raw_packet), str(e))
                         continue
 
-                    self._log.debug(self.__xbee_device.LOG_PATTERN.format(comm_iface=str(self.__xbee_device.comm_iface),
-                                                                          event="RECEIVED",
-                                                                          opmode=self.__xbee_device.operating_mode,
-                                                                          content=utils.hex_to_string(raw_packet)))
+                    self._log.debug(self._LOG_PACKET_PATTERN.format(
+                        comm_iface=str(self.__xbee_device.comm_iface),
+                        event="RECEIVED",
+                        opmode=self.__xbee_device.operating_mode,
+                        content=utils.hex_to_string(raw_packet)))
 
                     # Add the packet to the queue.
                     self.__add_packet_queue(read_packet)
