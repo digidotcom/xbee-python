@@ -4300,7 +4300,7 @@ class XBeeDevice(AbstractXBeeDevice):
 
             # Transmit a some information to the remote
             packet = TransmitPacket(
-                0x00,                          # Frame ID
+                0x01,                          # Frame ID
                 remote.get_64bit_addr(),       # 64-bit address of the remote
                 remote.get_16bit_addr(),       # 16-bit address of the remote
                 0x00,                          # Broadcast radius (0x00 - Maximum)
@@ -4311,7 +4311,7 @@ class XBeeDevice(AbstractXBeeDevice):
         elif self._protocol in [XBeeProtocol.DIGI_MESH, XBeeProtocol.SX]:
             # Transmit a some information to the remote
             packet = TransmitPacket(
-                0x00,                     # Frame ID
+                0x01,                     # Frame ID
                 remote.get_64bit_addr(),  # 64-bit address of the remote
                 remote.get_16bit_addr(),  # 16-bit address of the remote
                 0x00,                     # Broadcast radius (0x00 - Maximum)
