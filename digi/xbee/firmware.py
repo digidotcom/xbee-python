@@ -2897,7 +2897,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                                           _EXPLICIT_PACKET_CLUSTER_ID,
                                           _EXPLICIT_PACKET_PROFILE_DIGI,
                                           _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX,
-                                          _EXPLICIT_PACKET_EXTENDED_TIMEOUT,
+                                          _EXPLICIT_PACKET_EXTENDED_TIMEOUT if
+                                          self._local_device.get_protocol() == XBeeProtocol.ZIGBEE else 0x00,
                                           payload)
         return packet
 
