@@ -1280,15 +1280,18 @@ class _ProfileUpdater(object):
         Raises:
             XBeeException: if there is any error setting the parameter.
         """
-        _log.debug("Setting parameter '%s' to '%s'", parameter, value)
         msg = ""
+        total = retries
         while retries > 0:
             try:
+                _log.debug("Setting parameter '%s' to '%s' (%d/%d)",
+                           parameter, value, (total + 1 - retries), total)
                 return self._xbee_device.set_parameter(parameter, value)
             except (TimeoutException, ATCommandException) as e:
                 msg = str(e)
                 retries -= 1
-                time.sleep(0.2)
+                if retries:
+                    time.sleep(0.2 if self._is_local else 5)
             except XBeeException:
                 raise
 
@@ -1490,8 +1493,19 @@ class _ProfileUpdater(object):
             percent = setting_index * 100 // num_settings
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
-            self._set_parameter_with_retries(ATStringCommand.AC.command, bytearray(0),
-                                             _PARAMETER_WRITE_RETRIES)
+            # Retry several times: in remote nodes when network settings change
+            # to the same values, the node disassociates and associates again
+            retries = _PARAMETER_READ_RETRIES
+            while retries > 0:
+                try:
+                    self._set_parameter_with_retries(
+                        ATStringCommand.AC.command, bytearray(0),
+                        _PARAMETER_WRITE_RETRIES)
+                    break
+                except XBeeException as exc:
+                    retries -= 1
+                    if not retries:
+                        raise exc
         except XBeeException as e:
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(e))
 
@@ -1515,11 +1529,23 @@ class _ProfileUpdater(object):
                 # Remove node from the network as it might be no longer part of it.
                 self._xbee_device.get_local_xbee_device().get_network().remove_device(self._xbee_device)
         if cache_settings_changed or self._protocol_changed_by_settings:
+            if not self._is_local and network_settings_changed:
+                # Wait for association of the remote
+                time.sleep(15)
             # Read cache settings again.
-            try:
-                self._xbee_device.read_device_info(init=True, fire_event=True)
-            except XBeeException as e:
-                raise UpdateProfileException(_ERROR_UPDATE_TARGET_INFORMATION % str(e))
+            retries = _PARAMETER_READ_RETRIES
+            while retries > 0:
+                try:
+                    _log.debug("Reading node info (%d/%d)",
+                               (_PARAMETER_READ_RETRIES + 1 - retries),
+                               _PARAMETER_READ_RETRIES)
+                    self._xbee_device.read_device_info(init=True, fire_event=True)
+                    break
+                except XBeeException as exc:
+                    retries -= 1
+                    if not retries:
+                        raise UpdateProfileException(_ERROR_UPDATE_TARGET_INFORMATION % str(exc))
+                    time.sleep(0.2 if self._is_local else 5)
 
     def _update_file_system(self):
         """
