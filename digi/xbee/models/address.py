@@ -166,7 +166,7 @@ class XBee16BitAddress:
         Returns:
             String: "informal" representation of this XBee16BitAddress.
         """
-        return utils.hex_to_string(self.__address)
+        return utils.hex_to_string(self.__address, pretty=False)
 
     def __hash__(self):
         """
