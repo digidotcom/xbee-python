@@ -1524,7 +1524,7 @@ class PacketListener(threading.Thread):
         # TX failure: it is not possible to know if the remote does not exists or is sleeping
         if (xbee_packet.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
                 and xbee_packet.status == ATCommandStatus.TX_FAILURE):
-            return None, None, None, None, None
+            return None, None, None, None, None, None
 
         x64bit_addr = None
         x16bit_addr = None
