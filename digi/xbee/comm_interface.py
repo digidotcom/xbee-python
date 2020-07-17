@@ -18,7 +18,8 @@ from abc import abstractmethod
 
 class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
     """
-    This class represents the way the communication with the local XBee is established.
+    This class represents the way the communication with the local XBee is
+    established.
     """
 
     @abstractmethod
@@ -26,31 +27,29 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         """
         Establishes the underlying hardware communication interface.
 
-        Subclasses may throw specific exceptions to signal implementation specific
-        errors.
+        Subclasses may throw specific exceptions to signal implementation
+        specific errors.
         """
-        pass
 
     @abstractmethod
     def close(self):
         """
         Terminates the underlying hardware communication interface.
 
-        Subclasses may throw specific exceptions to signal implementation specific
-        hardware errors.
+        Subclasses may throw specific exceptions to signal implementation
+        specific hardware errors.
         """
-        pass
 
     @property
     @abstractmethod
     def is_interface_open(self):
         """
-        Returns whether the underlying hardware communication interface is active or not.
+        Returns whether the underlying hardware communication interface is
+        active or not.
 
         Returns:
-            Boolean. ``True`` if the interface is active, ``False`` otherwise.
+            Boolean: `True` if the interface is active, `False` otherwise.
         """
-        pass
 
     @abstractmethod
     def wait_for_frame(self, operating_mode):
@@ -59,63 +58,67 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
 
         This method blocks until:
          * A complete frame is read, in which case returns it.
-         * The configured timeout goes by, in which case returns None.
-         * Another thread calls quit_reading, in which case returns None.
+         * The configured timeout goes by, in which case returns `None`.
+         * Another thread calls quit_reading, in which case returns `None`.
 
-        This method is not thread-safe, so no more than one thread should invoke it at the same time.
+        This method is not thread-safe, so no more than one thread should
+        invoke it at the same time.
 
-        Subclasses may throw specific exceptions to signal implementation specific
-        hardware errors.
+        Subclasses may throw specific exceptions to signal implementation
+        specific hardware errors.
 
         Args:
-            operating_mode (:class:`.OperatingMode`): the operating mode of the XBee connected to this hardware
-                interface.
-                Note: if this parameter does not match the connected XBee configuration, the behavior is undefined.
+            operating_mode (:class:`.OperatingMode`): The operating mode of the
+                XBee connected to this hardware interface.
+                Note: If this parameter does not match the connected XBee
+                configuration, the behavior is undefined.
 
         Returns:
-            Bytearray: the read packet as bytearray if a packet is read, ``None`` otherwise.
+            Bytearray: The read packet as bytearray if a packet is read,
+                `None` otherwise.
         """
-        pass
 
     @abstractmethod
     def quit_reading(self):
         """
         Makes the thread (if any) blocking on wait_for_frame return.
 
-        If a thread was blocked on wait_for_frame, this method blocks (for a maximum of 'timeout' seconds) until
-        the blocked thread is resumed.
+        If a thread was blocked on wait_for_frame, this method blocks (for a
+        maximum of 'timeout' seconds) until the blocked thread is resumed.
         """
-        pass
 
     @abstractmethod
     def write_frame(self, frame):
         """
         Writes an XBee frame to the underlying hardware interface.
 
-        Subclasses may throw specific exceptions to signal implementation specific
-        hardware errors.
+        Subclasses may throw specific exceptions to signal implementation
+        specific hardware errors.
 
         Args:
-            frame (:class:`.Bytearray`): The XBee API frame packet to write. If the bytearray does not
-                correctly represent an XBee frame, the behaviour is undefined.
+            frame (Bytearray): The XBee API frame packet to write.
+                If the bytearray does not correctly represent an XBee frame,
+                the behaviour is undefined.
         """
-        pass
 
     def get_network(self, local_xbee):
         """
-        Returns the XBeeNetwork object associated to the XBeeDevice associated to this XBeeCommunicationInterface.
+        Returns the XBeeNetwork object associated to the XBeeDevice associated
+        to this `XBeeCommunicationInterface`.
 
-        Some XBeeCommunicationInterface implementations may need to handle the XBeeNetwork assoociated to the XBeeDevice
-        themselves. If that is the case, a implementation-specific XBeeNetwork object that complains to the generic
-        XBeeNetwork class will be returned.
-        Otherwise this method returns None and the XBeeNetwork associated is handled as for a serial-connected
-        XBeeDevice.
+        Some `XBeeCommunicationInterface implementations may need to handle the
+        `XBeeNetwork` associated to the `XBeeDevice` themselves. If that is the
+        case, a implementation-specific XBeeNetwork object that complains to
+        the generic `XBeeNetwork` class will be returned. Otherwise, this
+        method returns `None` and the associated `XBeeNetwork` is handled as
+        for a serial-connected `XBeeDevice`.
 
         Args:
-            local_xbee (:class:`.XBeeDevice`): The local XBee device
+            local_xbee (:class:`.XBeeDevice`): The local XBee device.
 
         Returns:
-            XBeeNetwork: ``None`` if the XBeeNetwork should handled as usual, otherwise a XBeeNetwork object.
+            :class: `.XBeeNetwork`: `None` if the XBeeNetwork should handled as
+                usual, otherwise a `XBeeNetwork` object.
         """
         return None
 
@@ -123,9 +126,9 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         """
         Returns a tuple with the local XBee information.
 
-        This is used when opening the local XBee device. If this information is provided,
-        it is used as internal XBee data, if not provided, the data is requested to the
-        XBee.
+        This is used when opening the local XBee. If this information is
+        provided, it is used as internal XBee data, if not provided, the data
+        is requested to the XBee.
 
         Returns:
             Tuple: Tuple with local XBee information: operation mode (int),
@@ -144,29 +147,37 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         """
         return False
 
-    def update_firmware(self, xbee, xml_fw_file, xbee_fw_file=None, bootloader_fw_file=None,
-                        timeout=None, progress_callback=None):
+    def update_firmware(self, xbee, xml_fw_file, xbee_fw_file=None,
+                        bootloader_fw_file=None, timeout=None,
+                        progress_callback=None):
         """
         Performs a firmware update operation of the provided XBee.
 
         Args:
-            xbee (:class:`.AbstractXBeeDevice`): Local or remote XBee node to be updated.
-            xml_fw_file (String): path of the XML file that describes the firmware to upload.
-            xbee_fw_file (String, optional): location of the XBee binary firmware file.
-            bootloader_fw_file (String, optional): location of the bootloader binary firmware file.
-            timeout (Integer, optional): the maximum time to wait for target read operations
-                during the update process.
-            progress_callback (Function, optional): function to execute to receive progress information.
-                Receives two arguments:
+            xbee (:class:`.AbstractXBeeDevice`): Local or remote XBee node to
+                be updated.
+            xml_fw_file (String): Path of the XML file that describes the
+                firmware to upload.
+            xbee_fw_file (String, optional): Location of the XBee binary
+                firmware file.
+            bootloader_fw_file (String, optional): Location of the bootloader
+                binary firmware file.
+            timeout (Integer, optional): Maximum time to wait for target read
+                operations during the update process.
+            progress_callback (Function, optional): Function to execute to
+                receive progress information. Receives two arguments:
 
                 * The current update task as a String
                 * The current update task percentage as an Integer
 
         Raises:
-            XBeeException: if the device is not open.
-            InvalidOperatingModeException: if the device operating mode is invalid.
-            OperationNotSupportedException: if the firmware update is not supported in the XBee.
-            FirmwareUpdateException: if there is any error performing the firmware update.
+            XBeeException: If the local XBee is not open.
+            InvalidOperatingModeException: If the local XBee operating mode is
+                invalid.
+            OperationNotSupportedException: If the firmware update is not
+                supported in the XBee.
+            FirmwareUpdateException: If there is any error performing the
+                firmware update.
         """
 
     def supports_apply_profile(self):
@@ -183,21 +194,25 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         Applies the given XBee profile to the XBee device.
 
         Args:
-            xbee (:class:`.AbstractXBeeDevice`): Local or remote XBee node to be updated.
-            profile_path (String): path of the XBee profile file to apply.
-            timeout (Integer, optional): the maximum time to wait for target read operations during
-                the apply profile.
-            progress_callback (Function, optional): function to execute to receive progress information.
-                Receives two arguments:
+            xbee (:class:`.AbstractXBeeDevice`): Local or remote XBee node to
+                be updated.
+            profile_path (String): Path of the XBee profile file to apply.
+            timeout (Integer, optional): Maximum time to wait for target read
+                operations during the apply profile.
+            progress_callback (Function, optional): Function to execute to
+                receive progress information. Receives two arguments:
 
                 * The current apply profile task as a String
                 * The current apply profile task percentage as an Integer
 
         Raises:
-            XBeeException: if the device is not open.
-            InvalidOperatingModeException: if the device operating mode is invalid.
-            UpdateProfileException: if there is any error applying the XBee profile.
-            OperationNotSupportedException: if XBee profiles are not supported in the XBee.
+            XBeeException: If the local XBee is not open.
+            InvalidOperatingModeException: If the local XBee operating mode is
+                invalid.
+            UpdateProfileException: If there is any error applying the XBee
+                profile.
+            OperationNotSupportedException: If XBee profiles are not supported
+                in the XBee.
         """
 
     @property
@@ -207,9 +222,8 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         Returns the read timeout.
 
         Returns:
-            Integer: read timeout in seconds.
+            Integer: Read timeout in seconds.
         """
-        pass
 
     @timeout.setter
     @abstractmethod
@@ -218,6 +232,5 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
         Sets the read timeout in seconds.
 
         Args:
-            timeout (Integer): the new read timeout in seconds.
+            timeout (Integer): The new read timeout in seconds.
         """
-        pass

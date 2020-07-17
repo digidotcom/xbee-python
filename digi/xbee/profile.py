@@ -17,14 +17,22 @@ import logging
 import os
 import shutil
 import tempfile
-import serial
 import time
+
+from enum import Enum, unique
+from pathlib import Path
+from xml.etree import ElementTree
+from xml.etree.ElementTree import ParseError
+
 import zipfile
+import serial
+
+from serial.serialutil import SerialException
 
 from digi.xbee import firmware, filesystem
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
-from digi.xbee.exception import XBeeException, TimeoutException, FirmwareUpdateException, ATCommandException, \
-    InvalidOperatingModeException
+from digi.xbee.exception import XBeeException, TimeoutException, \
+    FirmwareUpdateException, ATCommandException, InvalidOperatingModeException
 from digi.xbee.filesystem import LocalXBeeFileSystemManager, \
     FileSystemException, FileSystemNotSupportedException, check_fs_support, \
     XB3_MIN_FW_VERSION_FS_API_SUPPORT
@@ -33,22 +41,19 @@ from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.util import utils
-from enum import Enum, unique
-from pathlib import Path
-from serial.serialutil import SerialException
-from xml.etree import ElementTree
-from xml.etree.ElementTree import ParseError
 
 _ERROR_ACCESS_FILESYSTEM = "Could not access XBee device file system"
 _ERROR_TARGET_INVALID = "Invalid update target"
 _ERROR_FILESYSTEM_NOT_SUPPORTED = "XBee device does not have file system support"
 _ERROR_FIRMWARE_FOLDER_NOT_EXIST = "Firmware folder does not exist"
-_ERROR_FIRMWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with the device firmware"
+_ERROR_FIRMWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with " \
+                                 "the device firmware"
 _ERROR_FIRMWARE_SETTING_NOT_EXIST = "Firmware setting '%s' does not exist"
 _ERROR_FIRMWARE_XML_INVALID = "Invalid firmware XML file contents: %s"
 _ERROR_FIRMWARE_XML_NOT_EXIST = "Firmware XML file does not exist"
 _ERROR_FIRMWARE_XML_PARSE = "Error parsing firmware XML file: %s"
-_ERROR_HARDWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with the device hardware"
+_ERROR_HARDWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with " \
+                                 "the device hardware"
 _ERROR_OPEN_DEVICE = "Error opening XBee device: %s"
 _ERROR_PROFILE_NOT_VALID = "The XBee profile is not valid"
 _ERROR_PROFILE_INVALID = "Invalid XBee profile: %s"
@@ -59,16 +64,20 @@ _ERROR_PROFILE_TEMP_DIR = "Error creating temporary directory: %s"
 _ERROR_PROFILE_XML_NOT_EXIST = "Profile XML file does not exist"
 _ERROR_PROFILE_XML_INVALID = "Invalid profile XML file contents: %s"
 _ERROR_PROFILE_XML_PARSE = "Error parsing profile XML file: %s"
-_ERROR_PROFILES_NOT_SUPPORTED = "XBee profiles are only supported in XBee 3 devices"
+_ERROR_PROFILES_NOT_SUPPORTED = "XBee profiles are only supported in XBee 3 " \
+                                "devices"
 _ERROR_READ_REMOTE_PARAMETER = "Error reading remote parameter: %s"
 _ERROR_UPDATE_FILESYSTEM = "Error updating XBee filesystem: %s"
-_ERROR_UPDATE_FILESYSTEM_PROTOCOL_CHANGE = "Cannot update the device filesystem as the device protocol has changed " \
-                                           "and it is no longer reachable"
+_ERROR_UPDATE_FILESYSTEM_PROTOCOL_CHANGE = "Cannot update the device " \
+                                           "filesystem as the device protocol" \
+                                           " has changed and it is no longer " \
+                                           "reachable"
 _ERROR_UPDATE_FIRMWARE = "Error updating XBee firmware: %s"
 _ERROR_UPDATE_SERIAL_PORT = "Error re-configuring XBee device serial port: %s"
 _ERROR_UPDATE_SETTINGS = "Error updating XBee settings: %s"
-_ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE = "Cannot apply profile settings as the device protocol has changed and it is " \
-                                         "no longer reachable"
+_ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE = "Cannot apply profile settings as " \
+                                         "the device protocol has changed and " \
+                                         "it is no longer reachable"
 _ERROR_UPDATE_TARGET_INFORMATION = "Error reading new target information: %s"
 
 _REMOTE_DEFAULT_TIMEOUT = 20  # Seconds
@@ -153,8 +162,8 @@ class FirmwareBaudrate(Enum):
     This class lists the available firmware baudrate options for XBee Profiles.
 
     | Inherited properties:
-    |     **name** (String): The name of this FirmwareBaudrate.
-    |     **value** (Integer): The ID of this FirmwareBaudrate.
+    |     **name** (String): The name of this `FirmwareBaudrate`.
+    |     **value** (Integer): The ID of this `FirmwareBaudrate`.
     """
     BD_1200 = (0x0, 1200)
     BD_2400 = (0x1, 2400)
@@ -175,14 +184,15 @@ class FirmwareBaudrate(Enum):
     @classmethod
     def get(cls, index):
         """
-        Returns the FirmwareBaudrate for the given index.
+        Returns the `FirmwareBaudrate` for the given index.
 
         Args:
-            index (Integer): the index of the FirmwareBaudrate to get.
+            index (Integer): Index of the `FirmwareBaudrate` to get.
 
         Returns:
-            :class:`.FirmwareBaudrate`: the FirmwareBaudrate with the given index, ``None`` if
-                                         there is not a FirmwareBaudrate with that index.
+            :class:`.FirmwareBaudrate`: `FirmwareBaudrate` with the given
+                index, `None` if there is not a `FirmwareBaudrate` with that
+                index.
         """
         if index is None:
             return FirmwareBaudrate.BD_9600
@@ -195,20 +205,20 @@ class FirmwareBaudrate(Enum):
     @property
     def index(self):
         """
-        Returns the index of the FirmwareBaudrate element.
+        Returns the index of the `FirmwareBaudrate` element.
 
         Returns:
-            Integer: the index of the FirmwareBaudrate element.
+            Integer: Index of the `FirmwareBaudrate` element.
         """
         return self.__index
 
     @property
     def baudrate(self):
         """
-        Returns the baudrate of the FirmwareBaudrate element.
+        Returns the baudrate of the `FirmwareBaudrate` element.
 
         Returns:
-            Integer: the baudrate of the FirmwareBaudrate element.
+            Integer: Baudrate of the `FirmwareBaudrate` element.
         """
         return self.__baudrate
 
@@ -222,8 +232,8 @@ class FirmwareParity(Enum):
     This class lists the available firmware parity options for XBee Profiles.
 
     | Inherited properties:
-    |     **name** (String): The name of this FirmwareParity.
-    |     **value** (Integer): The ID of this FirmwareParity.
+    |     **name** (String): The name of this `FirmwareParity`.
+    |     **value** (Integer): The ID of this `FirmwareParity`.
     """
     NONE = (0, serial.PARITY_NONE)
     EVEN = (1, serial.PARITY_EVEN)
@@ -238,14 +248,14 @@ class FirmwareParity(Enum):
     @classmethod
     def get(cls, index):
         """
-        Returns the FirmwareParity for the given index.
+        Returns the `FirmwareParity` for the given index.
 
         Args:
-            index (Integer): the index of the FirmwareParity to get.
+            index (Integer): the index of the `FirmwareParity` to get.
 
         Returns:
-            :class:`.FirmwareParity`: the FirmwareParity with the given index, ``None`` if
-                                       there is not a FirmwareParity with that index.
+            :class:`.FirmwareParity`: `FirmwareParity` with the given index,
+                `None` if there is not a `FirmwareParity` with that index.
         """
         if index is None:
             return FirmwareParity.NONE
@@ -258,20 +268,20 @@ class FirmwareParity(Enum):
     @property
     def index(self):
         """
-        Returns the index of the FirmwareParity element.
+        Returns the index of the `FirmwareParity` element.
 
         Returns:
-            Integer: the index of the FirmwareParity element.
+            Integer: Index of the `FirmwareParity` element.
         """
         return self.__index
 
     @property
     def parity(self):
         """
-        Returns the parity of the FirmwareParity element.
+        Returns the parity of the `FirmwareParity` element.
 
         Returns:
-            String: the parity of the FirmwareParity element.
+            String: Parity of the `FirmwareParity` element.
         """
         return self.__parity
 
@@ -285,8 +295,8 @@ class FirmwareStopbits(Enum):
     This class lists the available firmware stop bits options for XBee Profiles.
 
     | Inherited properties:
-    |     **name** (String): The name of this FirmwareStopbits.
-    |     **value** (Integer): The ID of this FirmwareStopbits.
+    |     **name** (String): The name of this `FirmwareStopbits`.
+    |     **value** (Integer): The ID of this `FirmwareStopbits`.
     """
     SB_1 = (0, serial.STOPBITS_ONE)
     SB_2 = (1, serial.STOPBITS_TWO)
@@ -299,14 +309,15 @@ class FirmwareStopbits(Enum):
     @classmethod
     def get(cls, index):
         """
-        Returns the FirmwareStopbits for the given index.
+        Returns the `FirmwareStopbits` for the given index.
 
         Args:
-            index (Integer): the index of the FirmwareStopbits to get.
+            index (Integer): Index of the `FirmwareStopbits` to get.
 
         Returns:
-            :class:`.FirmwareStopbits`: the FirmwareStopbits with the given index, ``None`` if
-                                         there is not a FirmwareStopbits with that index.
+            :class:`.FirmwareStopbits`: `FirmwareStopbits` with the given
+                index, `None` if there is not a `FirmwareStopbits` with that
+                index.
         """
         if index is None:
             return FirmwareStopbits.SB_1
@@ -319,20 +330,20 @@ class FirmwareStopbits(Enum):
     @property
     def index(self):
         """
-        Returns the index of the FirmwareStopbits element.
+        Returns the index of the `FirmwareStopbits` element.
 
         Returns:
-            Integer: the index of the FirmwareStopbits element.
+            Integer: Index of the `FirmwareStopbits` element.
         """
         return self.__index
 
     @property
     def stop_bits(self):
         """
-        Returns the stop bits of the FirmwareStopbits element.
+        Returns the stop bits of the `FirmwareStopbits` element.
 
         Returns:
-            Float: the stop bits of the FirmwareStopbits element.
+            Float: Stop bits of the `FirmwareStopbits` element.
         """
         return self.__stop_bits
 
@@ -346,8 +357,8 @@ class FlashFirmwareOption(Enum):
     This class lists the available flash firmware options for XBee Profiles.
 
     | Inherited properties:
-    |     **name** (String): The name of this FlashFirmwareOption.
-    |     **value** (Integer): The ID of this FlashFirmwareOption.
+    |     **name** (String): The name of this `FlashFirmwareOption`.
+    |     **value** (Integer): The ID of this `FlashFirmwareOption`.
     """
     FLASH_ALWAYS = (0, "Flash always")
     FLASH_DIFFERENT = (1, "Flash firmware if it is different")
@@ -360,14 +371,15 @@ class FlashFirmwareOption(Enum):
     @classmethod
     def get(cls, code):
         """
-        Returns the FlashFirmwareOption for the given code.
+        Returns the `FlashFirmwareOption` for the given code.
 
         Args:
-            code (Integer): the code of the flash firmware option to get.
+            code (Integer): Code of the flash firmware option to get.
 
         Returns:
-            :class:`.FlashFirmwareOption`: the FlashFirmwareOption with the given code, ``None`` if
-                                           there is not a FlashFirmwareOption with that code.
+            :class:`.FlashFirmwareOption`: `FlashFirmwareOption` with the
+                given code, `None` if there is not a `FlashFirmwareOption` with
+                that code.
         """
         for value in FlashFirmwareOption:
             if value.code == code:
@@ -378,20 +390,20 @@ class FlashFirmwareOption(Enum):
     @property
     def code(self):
         """
-        Returns the code of the FlashFirmwareOption element.
+        Returns the code of the `FlashFirmwareOption` element.
 
         Returns:
-            Integer: the code of the FlashFirmwareOption element.
+            Integer: Code of the `FlashFirmwareOption` element.
         """
         return self.__code
 
     @property
     def description(self):
         """
-        Returns the description of the FlashFirmwareOption element.
+        Returns the description of the `FlashFirmwareOption` element.
 
         Returns:
-            String: the description of the FlashFirmwareOption element.
+            String: Description of the `FlashFirmwareOption` element.
         """
         return self.__description
 
@@ -405,8 +417,8 @@ class XBeeSettingType(Enum):
     This class lists the available firmware setting types.
 
     | Inherited properties:
-    |     **name** (String): The name of this XBeeSettingType.
-    |     **value** (Integer): The ID of this XBeeSettingType.
+    |     **name** (String): The name of this `XBeeSettingType`.
+    |     **value** (Integer): The ID of this `XBeeSettingType`.
     """
     NUMBER = ("number", "Number")
     COMBO = ("combo", "Combo")
@@ -421,14 +433,14 @@ class XBeeSettingType(Enum):
     @classmethod
     def get(cls, tag):
         """
-        Returns the XBeeSettingType for the given tag.
+        Returns the `XBeeSettingType` for the given tag.
 
         Args:
-            tag (String): the tag of the XBeeSettingType to get.
+            tag (String): Tag of the `XBeeSettingType` to get.
 
         Returns:
-            :class:`.XBeeSettingType`: the XBeeSettingType with the given tag, ``None`` if
-                                       there is not a XBeeSettingType with that tag.
+            :class:`.XBeeSettingType`: `XBeeSettingType` with the given tag,
+                `None` if there is not a `XBeeSettingType` with that tag.
         """
         for value in XBeeSettingType:
             if value.tag == tag:
@@ -439,20 +451,20 @@ class XBeeSettingType(Enum):
     @property
     def tag(self):
         """
-        Returns the tag of the XBeeSettingType element.
+        Returns the tag of the `XBeeSettingType` element.
 
         Returns:
-            String: the tag of the XBeeSettingType element.
+            String: Tag of the `XBeeSettingType` element.
         """
         return self.__tag
 
     @property
     def description(self):
         """
-        Returns the description of the XBeeSettingType element.
+        Returns the description of the `XBeeSettingType` element.
 
         Returns:
-            String: the description of the XBeeSettingType element.
+            String: Description of the `XBeeSettingType` element.
         """
         return self.__description
 
@@ -466,8 +478,8 @@ class XBeeSettingFormat(Enum):
     This class lists the available text firmware setting formats.
 
     | Inherited properties:
-    |     **name** (String): The name of this XBeeSettingFormat.
-    |     **value** (Integer): The ID of this XBeeSettingFormat.
+    |     **name** (String): The name of this `XBeeSettingFormat`.
+    |     **value** (Integer): The ID of this `XBeeSettingFormat`.
     """
     HEX = ("HEX", "Hexadecimal")
     ASCII = ("ASCII", "ASCII")
@@ -483,14 +495,14 @@ class XBeeSettingFormat(Enum):
     @classmethod
     def get(cls, tag):
         """
-        Returns the XBeeSettingFormat for the given tag.
+        Returns the `XBeeSettingFormat` for the given tag.
 
         Args:
-            tag (String): the tag of the XBeeSettingFormat to get.
+            tag (String): Tag of the `XBeeSettingFormat` to get.
 
         Returns:
-            :class:`.XBeeSettingFormat`: the XBeeSettingFormat with the given tag, ``None`` if
-                                         there is not a XBeeSettingFormat with that tag.
+            :class:`.XBeeSettingFormat`: `XBeeSettingFormat` with the given
+                tag, `None` if there is not a `XBeeSettingFormat` with that tag.
         """
         for value in XBeeSettingFormat:
             if value.tag == tag:
@@ -501,20 +513,20 @@ class XBeeSettingFormat(Enum):
     @property
     def tag(self):
         """
-        Returns the tag of the XBeeSettingFormat element.
+        Returns the tag of the `XBeeSettingFormat` element.
 
         Returns:
-            String: the tag of the XBeeSettingFormat element.
+            String: Tag of the `XBeeSettingFormat` element.
         """
         return self.__tag
 
     @property
     def description(self):
         """
-        Returns the description of the XBeeSettingFormat element.
+        Returns the description of the `XBeeSettingFormat` element.
 
         Returns:
-            String: the description of the XBeeSettingFormat element.
+            String: Description of the `XBeeSettingFormat` element.
         """
         return self.__description
 
@@ -522,7 +534,7 @@ class XBeeSettingFormat(Enum):
 XBeeSettingFormat.__doc__ += utils.doc_enum(XBeeSettingFormat)
 
 
-class XBeeProfileSetting(object):
+class XBeeProfileSetting:
     """
     This class represents an XBee profile setting and provides information like
     the setting name, type, format and value.
@@ -530,13 +542,14 @@ class XBeeProfileSetting(object):
 
     def __init__(self, name, setting_type, setting_format, value):
         """
-        Class constructor. Instantiates a new :class:`.XBeeProfileSetting` with the given parameters.
+        Class constructor. Instantiates a new :class:`.XBeeProfileSetting`
+        with the given parameters.
 
         Args:
-            name (String): the setting name
-            setting_type (:class:`.XBeeSettingType`): the setting type
-            setting_format (:class:`.XBeeSettingType`): the setting format
-            value (String): the setting value
+            name (String): Setting name.
+            setting_type (:class:`.XBeeSettingType`): Setting type.
+            setting_format (:class:`.XBeeSettingType`): Setting format.
+            value (String): Setting value.
         """
         self._name = name
         self._type = setting_type
@@ -546,24 +559,24 @@ class XBeeProfileSetting(object):
 
     def _setting_value_to_bytearray(self):
         """
-        Transforms the setting value to a byte array to be written in the XBee device.
+        Transforms the setting value to a byte array to be written in the XBee.
 
         Returns:
-            (Bytearray): the setting value formatted as byte array
+            (Bytearray): Setting value formatted as byte array
         """
         if self._type in (XBeeSettingType.COMBO, XBeeSettingType.NUMBER):
             return utils.hex_string_to_bytes(self._value)
-        elif self._type is XBeeSettingType.TEXT:
+        if self._type is XBeeSettingType.TEXT:
             if self._format in (XBeeSettingFormat.ASCII, XBeeSettingFormat.PHONE):
                 return bytearray(self._value, 'utf8')
-            elif self._format in (XBeeSettingFormat.HEX, XBeeSettingFormat.NO_FORMAT):
+            if self._format in (XBeeSettingFormat.HEX, XBeeSettingFormat.NO_FORMAT):
                 return utils.hex_string_to_bytes(self._value)
-            elif self._format is XBeeSettingFormat.IPV4:
+            if self._format is XBeeSettingFormat.IPV4:
                 octets = list(map(int, self._value.split(_IPV4_SEPARATOR)))
                 return bytearray(octets)
-            elif self._format is XBeeSettingFormat.IPV6:
-                if _IPV6_SEPARATOR in self._value:
-                    return bytearray(self._value, 'utf8')
+            if (self._format is XBeeSettingFormat.IPV6
+                    and _IPV6_SEPARATOR in self._value):
+                return bytearray(self._value, 'utf8')
         elif self._type in (XBeeSettingType.BUTTON, XBeeSettingType.NO_TYPE):
             return bytearray(0)
 
@@ -575,7 +588,7 @@ class XBeeProfileSetting(object):
         Returns the XBee setting name.
 
         Returns:
-            String: the XBee setting name.
+            String: XBee setting name.
          """
         return self._name
 
@@ -585,7 +598,7 @@ class XBeeProfileSetting(object):
         Returns the XBee setting type.
 
         Returns:
-            :class:`.XBeeSettingType`: the XBee setting type.
+            :class:`.XBeeSettingType`: XBee setting type.
          """
         return self._type
 
@@ -595,7 +608,7 @@ class XBeeProfileSetting(object):
         Returns the XBee setting format.
 
         Returns:
-            :class:`.XBeeSettingFormat`: the XBee setting format.
+            :class:`.XBeeSettingFormat`: XBee setting format.
          """
         return self._format
 
@@ -605,7 +618,7 @@ class XBeeProfileSetting(object):
         Returns the XBee setting value as string.
 
         Returns:
-            String: the XBee setting value as string.
+            String: XBee setting value as string.
          """
         return self._value
 
@@ -615,46 +628,47 @@ class XBeeProfileSetting(object):
         Returns the XBee setting value as bytearray to be set in the device.
 
         Returns:
-            Bytearray: the XBee setting value as bytearray to be set in the device.
+            Bytearray: XBee setting value as bytearray to be set in the device.
          """
         return self._bytearray_value
 
 
 class ReadProfileException(XBeeException):
     """
-    This exception will be thrown when any problem reading the XBee profile occurs.
+    This exception will be thrown when any problem reading the XBee profile
+    occurs.
 
     All functionality of this class is the inherited from `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class UpdateProfileException(XBeeException):
     """
-    This exception will be thrown when any problem updating the XBee profile into a device occurs.
+    This exception will be thrown when any problem updating the XBee profile
+    into a device occurs.
 
     All functionality of this class is the inherited from `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
-class XBeeProfile(object):
+class XBeeProfile:
     """
     Helper class used to manage serial port break line in a parallel thread.
     """
 
     def __init__(self, profile_file):
         """
-        Class constructor. Instantiates a new :class:`.XBeeProfile` with the given parameters.
+        Class constructor. Instantiates a new :class:`.XBeeProfile` with the
+        given parameters.
 
         Args:
-            profile_file (String): path of the '.xpro' profile file.
+            profile_file (String): Path of the '.xpro' profile file.
 
         Raises:
-            ProfileReadException: if there is any error reading the profile file.
-            ValueError: if the provided profile file is not valid
+            ProfileReadException: If there is any error reading the profile file.
+            ValueError: If the provided profile file is not valid
         """
         if not os.path.isfile(profile_file):
             raise ValueError(_ERROR_PROFILE_PATH_INVALID % profile_file)
@@ -695,10 +709,11 @@ class XBeeProfile(object):
         Parses the XML profile file and stores the required parameters.
 
         Args:
-            zip_file (ZipFile): the profile read as zip file.
+            zip_file (ZipFile): Profile read as zip file.
 
         Raises:
-            ProfileReadException: if there is any error parsing the XML profile file.
+            ProfileReadException: If there is any error parsing the XML
+                profile file.
         """
         _log.debug("Parsing XML profile file")
         try:
@@ -706,9 +721,11 @@ class XBeeProfile(object):
             # XML firmware file. Mandatory.
             firmware_xml_file_element = root.find(_XML_PROFILE_XML_FIRMWARE_FILE)
             if firmware_xml_file_element is None:
-                self._throw_read_exception(_ERROR_PROFILE_XML_INVALID % "missing firmware file element")
+                self._throw_read_exception(_ERROR_PROFILE_XML_INVALID
+                                           % "missing firmware file element")
             # Store XML firmware file name.
-            self._firmware_xml_file = _FIRMWARE_FOLDER_NAME + "/" + firmware_xml_file_element.text
+            self._firmware_xml_file = _FIRMWARE_FOLDER_NAME \
+                                      + "/" + firmware_xml_file_element.text
             _log.debug(" - XML firmware file: %s", self._firmware_xml_file)
             # Version. Optional.
             version_element = root.find(_XML_PROFILE_VERSION)
@@ -718,9 +735,11 @@ class XBeeProfile(object):
             # Flash firmware option. Required.
             flash_firmware_option_element = root.find(_XML_PROFILE_FLASH_FIRMWARE_OPTION)
             if flash_firmware_option_element is not None:
-                self._flash_firmware_option = FlashFirmwareOption.get(int(flash_firmware_option_element.text))
+                self._flash_firmware_option = FlashFirmwareOption.get(
+                    int(flash_firmware_option_element.text))
             if self._flash_firmware_option is None:
-                self._throw_read_exception(_ERROR_PROFILE_XML_INVALID % "invalid flash firmware option")
+                self._throw_read_exception(
+                    _ERROR_PROFILE_XML_INVALID % "invalid flash firmware option")
             _log.debug(" - Flash firmware option: %s", self._flash_firmware_option.description)
             # Description. Optional.
             description_element = root.find(_XML_PROFILE_DESCRIPTION)
@@ -740,44 +759,52 @@ class XBeeProfile(object):
                 setting_name = setting_element.get(_XML_COMMAND)
                 setting_value = setting_element.text
                 self._raw_settings[setting_name] = setting_value
-        except ParseError as e:
-            self._throw_read_exception(_ERROR_PROFILE_XML_PARSE % str(e))
+        except ParseError as exc:
+            self._throw_read_exception(_ERROR_PROFILE_XML_PARSE % str(exc))
 
     def _uncompress_profile(self):
         """
-        Un-compresses the profile into a temporary folder and saves the folder and files locations.
+        Un-compresses the profile into a temporary folder and saves the folder
+        and files locations.
 
         Raises:
-            ProfileReadException: if there is any error un-compressing the profile file.
+            ProfileReadException: If there is any error un-compressing the
+                profile file.
         """
         try:
             self._profile_folder = tempfile.mkdtemp()
-        except (PermissionError, FileExistsError) as e:
-            self._throw_read_exception(_ERROR_PROFILE_TEMP_DIR % str(e))
+        except (PermissionError, FileExistsError) as exc:
+            self._throw_read_exception(_ERROR_PROFILE_TEMP_DIR % str(exc))
 
         _log.debug("Un-compressing profile into '%s'", self._profile_folder)
         try:
             with zipfile.ZipFile(self._profile_file, "r") as zip_ref:
                 zip_ref.extractall(self._profile_folder)
-        except Exception as e:
-            self._throw_read_exception(_ERROR_PROFILE_UNCOMPRESS % str(e))
+        except Exception as exc:
+            self._throw_read_exception(_ERROR_PROFILE_UNCOMPRESS % str(exc))
         # Fill paths.
-        firmware_path = Path(os.path.join(self._profile_folder, _FIRMWARE_FOLDER_NAME))
+        firmware_path = Path(os.path.join(self._profile_folder,
+                                          _FIRMWARE_FOLDER_NAME))
         # Firmware XML file.
-        self._firmware_xml_file = os.path.join(self._profile_folder, self._firmware_xml_file)
+        self._firmware_xml_file = os.path.join(self._profile_folder,
+                                               self._firmware_xml_file)
         # Profile XML file.
-        self._profile_xml_file = os.path.join(self._profile_folder, _PROFILE_XML_FILE_NAME)
+        self._profile_xml_file = os.path.join(self._profile_folder,
+                                              _PROFILE_XML_FILE_NAME)
         # Local filesystem folder.
         if self._has_local_filesystem:
-            self._file_system_path = os.path.join(self._profile_folder, _LOCAL_FILESYSTEM_FOLDER)
+            self._file_system_path = os.path.join(self._profile_folder,
+                                                  _LOCAL_FILESYSTEM_FOLDER)
         # Remote filesystem OTA file.
         if self._has_remote_filesystem:
-            self._remote_file_system_image = os.path.join(self._profile_folder, _REMOTE_FILESYSTEM_FOLDER,
-                                                          os.listdir(os.path.join(self._profile_folder,
-                                                                     _REMOTE_FILESYSTEM_FOLDER))[0])
+            self._remote_file_system_image = os.path.join(
+                self._profile_folder, _REMOTE_FILESYSTEM_FOLDER,
+                os.listdir(os.path.join(self._profile_folder,
+                                        _REMOTE_FILESYSTEM_FOLDER))[0])
         # Bootloader file.
         if len(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))) is not 0:
-            self._bootloader_file = str(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))[0])
+            self._bootloader_file = str(
+                list(firmware_path.rglob(_WILDCARD_BOOTLOADER))[0])
         # Cellular firmware files.
         for file in list(firmware_path.rglob(_WILDCARD_CELLULAR_FIRMWARE)):
             self._cellular_firmware_files.append(str(file))
@@ -787,10 +814,12 @@ class XBeeProfile(object):
 
     def _initialize_profile(self):
         """
-        Initializes the profile information by checking its integrity and parsing the XML files.
+        Initializes the profile information by checking its integrity and
+        parsing the XML files.
 
         Raises:
-            ProfileReadException: if there is any error checking the profile integrity.
+            ProfileReadException: If there is any error checking the profile
+                integrity.
         """
         try:
             with zipfile.ZipFile(self._profile_file, "r") as zip_file:
@@ -803,18 +832,19 @@ class XBeeProfile(object):
                 files = [name for name in zip_file.namelist() if
                          name.endswith(_WILDCARDS_FW_REMOTE_BINARY_FILES)]
                 self._has_remote_firmware = bool(files)
-        except Exception as e:
-            self._throw_read_exception(_ERROR_PROFILE_READ % str(e))
+        except Exception as exc:
+            self._throw_read_exception(_ERROR_PROFILE_READ % str(exc))
 
     def _check_profile_integrity(self, zip_file):
         """
         Checks the profile integrity.
 
         Args:
-            zip_file (ZipFile): the profile read as zip file.
+            zip_file (ZipFile): Profile read as zip file.
 
         Raises:
-            ProfileReadException: if there is any error checking the profile integrity.
+            ProfileReadException: If there is any error checking the profile
+                integrity.
         """
         # Profile XML file.
         files = list(map(lambda f: f.filename, zip_file.filelist))
@@ -828,19 +858,22 @@ class XBeeProfile(object):
         if len(fnmatch.filter(files, _FIRMWARE_FOLDER_NAME + _WILDCARD_XML)) == 0:
             self._throw_read_exception(_ERROR_FIRMWARE_XML_NOT_EXIST)
         # Check local file system.
-        self._has_local_filesystem = any(f.startswith(_LOCAL_FILESYSTEM_FOLDER) for f in files)
+        self._has_local_filesystem = any(
+            f.startswith(_LOCAL_FILESYSTEM_FOLDER) for f in files)
         # Check remote file system.
-        self._has_remote_filesystem = any(f.startswith(_REMOTE_FILESYSTEM_FOLDER) for f in files)
+        self._has_remote_filesystem = any(
+            f.startswith(_REMOTE_FILESYSTEM_FOLDER) for f in files)
 
     def _parse_xml_firmware_file(self, zip_file):
         """
         Parses the XML firmware file and stores the required parameters.
 
         Args:
-            zip_file (ZipFile): the profile read as zip file.
+            zip_file (ZipFile): Profile read as zip file.
 
         Raises:
-            ProfileReadException: if there is any error parsing the XML firmware file.
+            ProfileReadException: If there is any error parsing the XML
+                firmware file.
         """
         _log.debug("Parsing XML firmware file %s:", self._firmware_xml_file)
         try:
@@ -848,15 +881,18 @@ class XBeeProfile(object):
             # Firmware version.
             firmware_element = root.find(_XML_FIRMWARE_FIRMWARE)
             if firmware_element is None:
-                self._throw_read_exception(_ERROR_FIRMWARE_XML_INVALID % "missing firmware element")
+                self._throw_read_exception(
+                    _ERROR_FIRMWARE_XML_INVALID % "missing firmware element")
             self._firmware_version = int(firmware_element.get(_XML_FIRMWARE_FIRMWARE_VERSION), 16)
             if self._firmware_version is None:
-                self._throw_read_exception(_ERROR_FIRMWARE_XML_INVALID % "missing firmware version")
+                self._throw_read_exception(
+                    _ERROR_FIRMWARE_XML_INVALID % "missing firmware version")
             _log.debug(" - Firmware version: %s", self._firmware_version)
             # Hardware version.
             hardware_version_element = root.find(_XML_FIRMWARE_HARDWARE_VERSION)
             if hardware_version_element is None:
-                self._throw_read_exception(_ERROR_FIRMWARE_XML_INVALID % "missing hardware version element")
+                self._throw_read_exception(
+                    _ERROR_FIRMWARE_XML_INVALID % "missing hardware version element")
             self._hardware_version = int(hardware_version_element.text, 16)
             _log.debug(" - Hardware version: %s", self._hardware_version)
             # Determine protocol.
@@ -867,7 +903,8 @@ class XBeeProfile(object):
                 self._hardware_version,
                 utils.int_to_bytes(self._firmware_version),
                 br_value=int(br_value))
-            _log.debug(" - Protocol: %s", self._protocol.description if self.protocol else "None")
+            _log.debug(" - Protocol: %s",
+                       self._protocol.description if self.protocol else "None")
             # Parse AT settings.
             _log.debug(" - AT settings:")
             if not self._raw_settings:
@@ -884,24 +921,28 @@ class XBeeProfile(object):
                         setting_format = XBeeSettingFormat.NO_FORMAT
                         if setting_format_element is not None:
                             setting_format = XBeeSettingFormat.get(setting_format_element.text)
-                        profile_setting = XBeeProfileSetting(setting_element.upper(), setting_type, setting_format,
-                                                             setting_value)
-                        _log.debug("  - Setting '%s' - type: %s - format: %s - value: %s",
-                                   profile_setting.name, profile_setting.type.description,
-                                   profile_setting.format.description, profile_setting.value)
+                        profile_setting = XBeeProfileSetting(
+                            setting_element.upper(), setting_type,
+                            setting_format, setting_value)
+                        _log.debug(
+                            "  - Setting '%s' - type: %s - format: %s - value: %s",
+                            profile_setting.name, profile_setting.type.description,
+                            profile_setting.format.description, profile_setting.value)
                         self._profile_settings.update({profile_setting.name: profile_setting})
-        except ParseError as e:
-            self._throw_read_exception(_ERROR_FIRMWARE_XML_PARSE % str(e))
+        except ParseError as exc:
+            self._throw_read_exception(_ERROR_FIRMWARE_XML_PARSE % str(exc))
 
     def get_setting_default_value(self, setting_name):
         """
         Returns the default value of the given firmware setting.
 
         Args:
-            setting_name (String): the name of the setting to retrieve its default value.
+            setting_name (String): Name of the setting to retrieve its
+                default value.
 
         Returns:
-            String: the default value of the setting, ``None`` if the setting is not found or it has no default value.
+            String: Default value of the setting, `None` if the setting is not
+                found or it has no default value.
         """
         xml_file = self._firmware_xml_file
         zip_file = None
@@ -918,8 +959,8 @@ class XBeeProfile(object):
                     if default_value_element is None:
                         return None
                     return default_value_element.text
-        except (ParseError, zipfile.BadZipFile, zipfile.LargeZipFile) as e:
-            _log.exception(e)
+        except (ParseError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
+            _log.exception(exc)
         finally:
             if zip_file:
                 zip_file.close()
@@ -932,10 +973,10 @@ class XBeeProfile(object):
         Throws an XBee profile read exception with the given message and logs it.
 
         Args:
-            message (String): the exception message
+            message (String): Exception message
 
         Raises:
-            ProfileReadException: the exception thrown wit the given message.
+            ProfileReadException: Exception thrown wit the given message.
         """
         _log.error("ERROR: %s", message)
         raise ReadProfileException(message)
@@ -946,7 +987,7 @@ class XBeeProfile(object):
         Returns the profile file.
 
         Returns:
-            String: the profile file.
+            String: Profile file.
         """
         return self._profile_file
 
@@ -956,7 +997,7 @@ class XBeeProfile(object):
         Returns the profile version.
 
         Returns:
-            String: the profile version.
+            String: Profile version.
         """
         return self._version
 
@@ -966,7 +1007,7 @@ class XBeeProfile(object):
         Returns the profile flash firmware option.
 
         Returns:
-            :class:`.FlashFirmwareOption`: the profile flash firmware option.
+            :class:`.FlashFirmwareOption`: Profile flash firmware option.
 
         .. seealso::
            | :class:`.FlashFirmwareOption`
@@ -979,18 +1020,19 @@ class XBeeProfile(object):
         Returns the profile description.
 
         Returns:
-            String: the profile description.
+            String: Profile description.
         """
         return self._description
 
     @property
     def reset_settings(self):
         """
-        Returns whether the settings of the XBee device will be reset before applying the profile ones or not.
+        Returns whether the settings of the XBee will be reset before applying
+        the profile ones or not.
 
         Returns:
-            Boolean: ``True`` if the settings of the XBee device will be reset before applying the profile ones,
-                     ``False`` otherwise.
+            Boolean: `True` if the settings of the XBee will be reset before
+                applying the profile ones, `False` otherwise.
         """
         return self._reset_settings
 
@@ -1000,7 +1042,8 @@ class XBeeProfile(object):
         Returns whether the profile has local filesystem information or not.
 
         Returns:
-            Boolean: ``True`` if the profile has local filesystem information, ``False`` otherwise.
+            Boolean: `True` if the profile has local filesystem information,
+                `False` otherwise.
          """
         return self._has_local_filesystem
 
@@ -1010,17 +1053,20 @@ class XBeeProfile(object):
         Returns whether the profile has remote filesystem information or not.
 
         Returns:
-            Boolean: ``True`` if the profile has remote filesystem information, ``False`` otherwise.
+            Boolean: `True` if the profile has remote filesystem information,
+                `False` otherwise.
         """
         return self._has_remote_filesystem
 
     @property
     def has_filesystem(self):
         """
-        Returns whether the profile has filesystem information (local or remote) or not.
+        Returns whether the profile has filesystem information (local or
+        remote) or not.
 
         Returns:
-            Boolean: ``True`` if the profile has filesystem information (local or remote), ``False`` otherwise.
+            Boolean: `True` if the profile has filesystem information (local or
+                remote), `False` otherwise.
         """
         return self._has_local_filesystem or self._has_remote_filesystem
 
@@ -1063,7 +1109,8 @@ class XBeeProfile(object):
         Returns all the firmware settings that the profile configures.
 
         Returns:
-            Dict: a list with all the firmware settings that the profile configures (:class:`.XBeeProfileSetting`).
+            Dict: List with all the firmware settings that the profile
+                configures (:class:`.XBeeProfileSetting`).
         """
         return self._profile_settings
 
@@ -1073,7 +1120,7 @@ class XBeeProfile(object):
         Returns the compatible firmware version of the profile.
 
         Returns:
-            Integer: the compatible firmware version of the profile.
+            Integer: Compatible firmware version of the profile.
         """
         return self._firmware_version
 
@@ -1083,7 +1130,7 @@ class XBeeProfile(object):
         Returns the compatible hardware version of the profile.
 
         Returns:
-            Integer: the compatible hardware version of the profile.
+            Integer: Compatible hardware version of the profile.
         """
         return self._hardware_version
 
@@ -1093,7 +1140,7 @@ class XBeeProfile(object):
         Returns the path of the profile firmware description file.
 
         Returns:
-            String: the path of the profile firmware description file.
+            String: Path of the profile firmware description file.
         """
         if self._profile_folder is None:
             self._uncompress_profile()
@@ -1106,7 +1153,7 @@ class XBeeProfile(object):
         Returns the profile file system path.
 
         Returns:
-            String: the path of the profile file system directory.
+            String: Path of the profile file system directory.
         """
         if self._profile_folder is None:
             self._uncompress_profile()
@@ -1119,7 +1166,7 @@ class XBeeProfile(object):
         Returns the path of the remote OTA file system image.
 
         Returns:
-            String: the path of the remote OTA file system image.
+            String: Path of the remote OTA file system image.
         """
         if self._profile_folder is None:
             self._uncompress_profile()
@@ -1132,7 +1179,7 @@ class XBeeProfile(object):
         Returns the profile bootloader file path.
 
         Returns:
-             String: the path of the profile bootloader file.
+             String: Path of the profile bootloader file.
         """
         if self._profile_folder is None:
             self._uncompress_profile()
@@ -1145,7 +1192,7 @@ class XBeeProfile(object):
         Returns the profile XBee protocol.
 
         Returns:
-             XBeeProtocol: the profile XBee protocol.
+             XBeeProtocol: Profile XBee protocol.
         """
         return self._protocol
 
@@ -1155,28 +1202,30 @@ class XBeeProfile(object):
         Sets the profile XBee protocol.
 
         Args:
-             protocol (:class: `.XBeeProtocol`): the profile XBee protocol.
+             protocol (:class: `.XBeeProtocol`): Profile XBee protocol.
         """
         self._protocol = protocol
 
 
-class _ProfileUpdater(object):
+class _ProfileUpdater:
     """
     Helper class used to handle the update XBee profile process.
     """
 
     def __init__(self, target, xbee_profile, timeout=None, progress_callback=None):
         """
-        Class constructor. Instantiates a new :class:`._ProfileUpdater` with the given parameters.
+        Class constructor. Instantiates a new :class:`._ProfileUpdater` with
+        the given parameters.
 
         Args:
             target (String or :class:`.AbstractXBeeDevice`): Target to apply
                 profile to. String: serial port identifier.
                 :class:`.AbstractXBeeDevice`: XBee to apply the profile.
-            xbee_profile (:class:`.XBeeProfile`): The XBee profile to apply.
-            timeout (Integer, optional): the maximum time to wait for target read operations during the apply profile.
-            progress_callback (Function, optional): function to execute to receive progress information. Receives two
-                                                    arguments:
+            xbee_profile (:class:`.XBeeProfile`): XBee profile to apply.
+            timeout (Integer, optional): Maximum time to wait for target
+                read operations during the apply profile.
+            progress_callback (Function, optional): Function to execute to
+                receive progress information. Receives two arguments:
 
                 * The current update task as a String
                 * The current update task percentage as an Integer
@@ -1198,21 +1247,23 @@ class _ProfileUpdater(object):
 
     def _progress_callback(self, task, percent):
         """
-        Receives update progress information
+        Receives update progress information.
 
         Args:
-            task (String): the current update task.
-            percent (Integer): the current update progress percent.
+            task (String): Current update task.
+            percent (Integer): Current update progress percent.
         """
         if self._progress_callback is not None:
             self._progress_callback(task, percent)
 
     def _read_device_parameters(self):
         """
-        Reads and stores the required XBee device parameters in order to apply the XBee profile.
+        Reads and stores the required XBee parameters in order to apply the
+        XBee profile.
 
         Raises:
-            UpdateProfileException: if there is any error reading the required XBee device parameters.
+            UpdateProfileException: If there is any error reading the required
+                XBee parameters.
         """
         _log.debug("Reading device parameters:")
         if self._progress_callback is not None:
@@ -1223,39 +1274,42 @@ class _ProfileUpdater(object):
                 self._was_connected = False
                 try:
                     self._xbee_device.open()
-                except XBeeException as e:
-                    raise UpdateProfileException(_ERROR_OPEN_DEVICE % str(e))
-            # For local devices, required parameters are read on 'open()' method, just use them.
+                except XBeeException as exc:
+                    raise UpdateProfileException(_ERROR_OPEN_DEVICE % str(exc))
+            # For local devices, required parameters are read on 'open()'
+            # method, just use them.
             self._device_firmware_version = self._xbee_device.get_firmware_version()
             self._device_hardware_version = self._xbee_device.get_hardware_version()
         else:
             # For remote devices, parameters are read with 'get_parameter()' method.
             try:
-                self._device_firmware_version = self._read_parameter_with_retries(ATStringCommand.VR.command,
-                                                                                  _PARAMETER_READ_RETRIES)
-                self._device_hardware_version = HardwareVersion.get(self._read_parameter_with_retries(
-                    ATStringCommand.HV.command, _PARAMETER_READ_RETRIES)[0])
-            except XBeeException as e:
-                raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(e))
+                self._device_firmware_version = self._read_parameter_with_retries(
+                    ATStringCommand.VR.command, _PARAMETER_READ_RETRIES)
+                self._device_hardware_version = HardwareVersion.get(
+                    self._read_parameter_with_retries(
+                        ATStringCommand.HV.command, _PARAMETER_READ_RETRIES)[0])
+            except XBeeException as exc:
+                raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(exc))
 
         # Sanitize firmware version.
-        self._device_firmware_version = int(utils.hex_to_string(self._device_firmware_version).replace(" ", ""), 16)
+        self._device_firmware_version = int(utils.hex_to_string(
+            self._device_firmware_version).replace(" ", ""), 16)
         _log.debug("  - Firmware version: %s", self._device_firmware_version)
         _log.debug("  - Hardware version: %s", self._device_hardware_version.code)
 
     def _read_parameter_with_retries(self, parameter, retries):
         """
-        Reads the given parameter from the XBee device within the given number of retries.
+        Reads a parameter from the XBee within the given number of retries.
 
         Args:
-            parameter (String): the parameter to read.
-            retries (Integer): the number of retries to read the parameter.
+            parameter (String): Parameter to read.
+            retries (Integer): Number of retries to read the parameter.
 
         Returns:
-            Bytearray: the read parameter value.
+            Bytearray: Read parameter value.
 
         Raises:
-            XBeeException: if there is any error reading the parameter.
+            XBeeException: If there is any error reading the parameter.
         """
         while retries > 0:
             try:
@@ -1263,22 +1317,20 @@ class _ProfileUpdater(object):
             except TimeoutException:
                 retries -= 1
                 time.sleep(0.2)
-            except XBeeException:
-                raise
 
         raise XBeeException("Timeout reading parameter '%s'" % parameter)
 
     def _set_parameter_with_retries(self, parameter, value, retries):
         """
-        Sets the given parameter in the XBee device within the given number of retries.
+        Sets the given parameter in the XBee within the given number of retries.
 
         Args:
-            parameter (String): the parameter to set.
-            value (Bytearray): the parameter value to set.
-            retries (Integer): the number of retries to set the parameter.
+            parameter (String): Parameter to set.
+            value (Bytearray): Parameter value to set.
+            retries (Integer): Number of retries to set the parameter.
 
         Raises:
-            XBeeException: if there is any error setting the parameter.
+            XBeeException: If there is any error setting the parameter.
         """
         msg = ""
         total = retries
@@ -1287,13 +1339,11 @@ class _ProfileUpdater(object):
                 _log.debug("Setting parameter '%s' to '%s' (%d/%d)",
                            parameter, value, (total + 1 - retries), total)
                 return self._xbee_device.set_parameter(parameter, value)
-            except (TimeoutException, ATCommandException) as e:
-                msg = str(e)
+            except (TimeoutException, ATCommandException) as exc:
+                msg = str(exc)
                 retries -= 1
                 if retries:
                     time.sleep(0.2 if self._is_local else 5)
-            except XBeeException:
-                raise
 
         raise XBeeException("Error setting parameter '%s': %s" % (parameter, msg))
 
@@ -1302,30 +1352,32 @@ class _ProfileUpdater(object):
         Updates the XBee device firmware.
 
         Raises:
-            UpdateProfileException: if there is any error updating the XBee firmware.
+            UpdateProfileException: If there is any error updating the XBee
+                firmware.
         """
         try:
             if not self._xbee_device:  # Apply to a serial port (recovery)
-                from digi.xbee import firmware
-                firmware.update_local_firmware(self._target, self._xbee_profile.firmware_description_file,
-                                               bootloader_firmware_file=self._xbee_profile.bootloader_file,
-                                               timeout=self._timeout,
-                                               progress_callback=self._progress_callback)
+                firmware.update_local_firmware(
+                    self._target, self._xbee_profile.firmware_description_file,
+                    bootloader_firmware_file=self._xbee_profile.bootloader_file,
+                    timeout=self._timeout, progress_callback=self._progress_callback)
                 return
 
-            self._xbee_device.update_firmware(self._xbee_profile.firmware_description_file,
-                                              bootloader_firmware_file=self._xbee_profile.bootloader_file,
-                                              timeout=self._timeout,
-                                              progress_callback=self._progress_callback)
-        except FirmwareUpdateException as e:
-            raise UpdateProfileException(_ERROR_UPDATE_FIRMWARE % str(e))
+            self._xbee_device.update_firmware(
+                self._xbee_profile.firmware_description_file,
+                bootloader_firmware_file=self._xbee_profile.bootloader_file,
+                timeout=self._timeout, progress_callback=self._progress_callback)
+        except FirmwareUpdateException as exc:
+            raise UpdateProfileException(_ERROR_UPDATE_FIRMWARE % str(exc))
 
     def _check_port_settings_changed(self):
         """
-        Checks whether the port settings of the device have changed in order to update serial port connection.
+        Checks whether the port settings of the device have changed in order
+        to update serial port connection.
 
         Raises:
-            UpdateProfileException: if there is any error checking serial port settings changes.
+            UpdateProfileException: If there is any error checking serial port
+                settings changes.
         """
         port_parameters = self._xbee_device.serial_port.get_settings()
         baudrate_changed = False
@@ -1336,13 +1388,16 @@ class _ProfileUpdater(object):
             if setting.name.upper() in _PARAMETERS_SERIAL_PORT:
                 if setting.name.upper() == ATStringCommand.BD.command:
                     baudrate_changed = True
-                    port_parameters["baudrate"] = FirmwareBaudrate.get(int(setting.value, 16)).baudrate
+                    port_parameters["baudrate"] = FirmwareBaudrate.get(
+                        int(setting.value, 16)).baudrate
                 elif setting.name.upper() == ATStringCommand.NB.command:
                     parity_changed = True
-                    port_parameters["parity"] = FirmwareParity.get(int(setting.value, 16)).parity
+                    port_parameters["parity"] = FirmwareParity.get(
+                        int(setting.value, 16)).parity
                 elif setting.name.upper() == ATStringCommand.SB.command:
                     stop_bits_changed = True
-                    port_parameters["stopbits"] = FirmwareStopbits.get(int(setting.value, 16)).stop_bits
+                    port_parameters["stopbits"] = FirmwareStopbits.get(
+                        int(setting.value, 16)).stop_bits
                 elif setting.name.upper() == ATStringCommand.D7.command:
                     cts_flow_control_changed = True
                     if setting.value == _VALUE_CTS_ON:
@@ -1354,16 +1409,20 @@ class _ProfileUpdater(object):
                 baudrate_changed = True
                 default_baudrate = self._xbee_profile.get_setting_default_value(
                     ATStringCommand.BD.command)
-                port_parameters["baudrate"] = FirmwareBaudrate.get(int(default_baudrate, 16)).baudrate
+                port_parameters["baudrate"] = FirmwareBaudrate.get(
+                    int(default_baudrate, 16)).baudrate
             if not parity_changed:
                 parity_changed = True
-                default_parity = self._xbee_profile.get_setting_default_value(ATStringCommand.NB.command)
-                port_parameters["parity"] = FirmwareParity.get(int(default_parity, 16)).parity
+                default_parity = self._xbee_profile.get_setting_default_value(
+                    ATStringCommand.NB.command)
+                port_parameters["parity"] = FirmwareParity.get(
+                    int(default_parity, 16)).parity
             if not stop_bits_changed:
                 stop_bits_changed = True
                 default_stop_bits = self._xbee_profile.get_setting_default_value(
                     ATStringCommand.SB.command)
-                port_parameters["stopbits"] = FirmwareStopbits.get(int(default_stop_bits, 16)).stop_bits
+                port_parameters["stopbits"] = FirmwareStopbits.get(
+                    int(default_stop_bits, 16)).stop_bits
             if not cts_flow_control_changed:
                 cts_flow_control_changed = True
                 port_parameters["rtscts"] = True  # Default CTS value is always on.
@@ -1374,8 +1433,8 @@ class _ProfileUpdater(object):
                 self._xbee_device.close()  # This is necessary to stop the frames read thread.
                 self._xbee_device.serial_port.apply_settings(port_parameters)
                 self._xbee_device.open()
-            except (XBeeException, SerialException) as e:
-                raise UpdateProfileException(_ERROR_UPDATE_SERIAL_PORT % str(e))
+            except (XBeeException, SerialException) as exc:
+                raise UpdateProfileException(_ERROR_UPDATE_SERIAL_PORT % str(exc))
 
     def _check_protocol_changed_by_fw(self):
         """
@@ -1390,7 +1449,8 @@ class _ProfileUpdater(object):
         new_protocol = XBeeProtocol.determine_protocol(
             self._xbee_profile.hardware_version,
             utils.int_to_bytes(self._xbee_profile.firmware_version))
-        return (orig_protocol != new_protocol) and (self._xbee_profile.flash_firmware_option.code < 2)
+        return (orig_protocol != new_protocol
+                and self._xbee_profile.flash_firmware_option.code < 2)
 
     def _check_protocol_changed_by_settings(self):
         """
@@ -1414,7 +1474,8 @@ class _ProfileUpdater(object):
         Updates the device settings using the profile.
 
         Raises:
-            UpdateProfileException: if there is any error updating device settings from the profile.
+            UpdateProfileException: If there is any error updating device
+                settings from the profile.
         """
         # If there are no settings to apply or reset, skip this method.
         if (len(self._xbee_profile.profile_settings) == 0
@@ -1422,10 +1483,11 @@ class _ProfileUpdater(object):
                 and not isinstance(self._target, str)):
             return
 
-        # For remote devices that have changed the protocol, raise an exception if there are
-        # settings to apply or reset as the device is no longer reachable.
-        if self._xbee_device.is_remote() and self._protocol_changed_by_fw and (len(self._xbee_profile.profile_settings) > 0 or
-                                                                               self._xbee_profile.reset_settings):
+        # For remote nodes that changed the protocol, raise an exception if
+        # there are settings to apply or reset as the node is no longer reachable.
+        if (self._xbee_device.is_remote() and self._protocol_changed_by_fw
+                and (len(self._xbee_profile.profile_settings) > 0
+                     or self._xbee_profile.reset_settings)):
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE)
 
         network_settings_changed = False
@@ -1437,19 +1499,22 @@ class _ProfileUpdater(object):
             previous_percent = 0
             percent = 0
             setting_index = 1
-            num_settings = len(self._xbee_profile.profile_settings) + 2  # 2 more settings for 'WR' and 'AC'
+            # 2 more settings for 'WR' and 'AC'
+            num_settings = len(self._xbee_profile.profile_settings) + 2
             _log.info("Updating device settings")
             if self._progress_callback is not None:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
-            # Check if reset settings is required or if we are applying to a serial port (recovery).
+            # Check if reset settings is required or if we are applying to a
+            # serial port (recovery).
             if self._xbee_profile.reset_settings or isinstance(self._target, str):
                 num_settings += 1  # One more setting for 'RE'
                 percent = setting_index * 100 // num_settings
                 if self._progress_callback is not None and percent != previous_percent:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
-                self._set_parameter_with_retries(ATStringCommand.RE.command,
-                                                 bytearray(0), _PARAMETER_WRITE_RETRIES)
+                self._set_parameter_with_retries(
+                    ATStringCommand.RE.command, bytearray(0),
+                    _PARAMETER_WRITE_RETRIES)
                 setting_index += 1
                 # Reset settings to defaults implies network and cache settings have changed
                 network_settings_changed = True
@@ -1506,8 +1571,8 @@ class _ProfileUpdater(object):
                     retries -= 1
                     if not retries:
                         raise exc
-        except XBeeException as e:
-            raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(e))
+        except XBeeException as exc:
+            raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(exc))
 
         # Restore apply changes state.
         self._xbee_device.enable_apply_changes(old_apply_settings_value)
@@ -1527,7 +1592,8 @@ class _ProfileUpdater(object):
                 self._xbee_device.get_network().clear()
             else:
                 # Remove node from the network as it might be no longer part of it.
-                self._xbee_device.get_local_xbee_device().get_network().remove_device(self._xbee_device)
+                self._xbee_device.get_local_xbee_device().get_network().\
+                    remove_device(self._xbee_device)
         if cache_settings_changed or self._protocol_changed_by_settings:
             if not self._is_local and network_settings_changed:
                 # Wait for association of the remote
@@ -1552,11 +1618,14 @@ class _ProfileUpdater(object):
         Updates the device file system.
 
         Raises:
-            UpdateProfileException: if there is any error during updating the device file system.
+            UpdateProfileException: If there is any error during updating the
+                device file system.
         """
         _log.info("Updating device file system")
         if (self._xbee_profile.has_local_filesystem
-                and check_fs_support(self._xbee_device, min_fw_vers=XB3_MIN_FW_VERSION_FS_API_SUPPORT)):
+                and check_fs_support(
+                    self._xbee_device,
+                    min_fw_vers=XB3_MIN_FW_VERSION_FS_API_SUPPORT)):
             try:
                 fs_mng = self._xbee_device.get_file_manager()
                 # Format file system to ensure resulting file system is exactly
@@ -1565,14 +1634,15 @@ class _ProfileUpdater(object):
                     self._progress_callback(_TASK_FORMAT_FILESYSTEM, None)
                 fs_mng.format()
                 # Transfer the file system folder.
-                fs_mng.put_dir(self._xbee_profile.file_system_path, dest=None,
-                               verify=True, progress_cb=lambda percent, src, _:
-                               self._progress_callback(_TASK_UPDATE_FILE % src, percent) if
-                               self._progress_callback is not None else None)
+                fs_mng.put_dir(
+                    self._xbee_profile.file_system_path, dest=None, verify=True,
+                    progress_cb=lambda percent, src, _:
+                    self._progress_callback(_TASK_UPDATE_FILE % src, percent)
+                    if self._progress_callback is not None else None)
             except FileSystemNotSupportedException:
                 raise UpdateProfileException(_ERROR_FILESYSTEM_NOT_SUPPORTED)
-            except FileSystemException as e:
-                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(e))
+            except FileSystemException as exc:
+                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(exc))
         else:
             self._legacy_update_file_system()
 
@@ -1582,7 +1652,7 @@ class _ProfileUpdater(object):
         for local XBee and a OTA update for remote XBee modules.
 
         Raises:
-            UpdateProfileException: if there is any error during updating the
+            UpdateProfileException: If there is any error during updating the
                 device file system.
         """
         if self._is_local and self._xbee_profile.has_local_filesystem:
@@ -1592,45 +1662,50 @@ class _ProfileUpdater(object):
                     self._progress_callback(_TASK_CONNECT_FILESYSTEM, None)
                 time.sleep(0.2)
                 filesystem_manager.connect()
-                # Format file system to ensure resulting file system is exactly the same as the profile one.
+                # Format file system to ensure resulting file system is exactly
+                # the same as the profile one.
                 if self._progress_callback is not None:
                     self._progress_callback(_TASK_FORMAT_FILESYSTEM, None)
                 filesystem_manager.format_filesystem()
                 # Transfer the file system folder.
-                filesystem_manager.put_dir(self._xbee_profile.file_system_path, dest_dir=None,
-                                           progress_callback=lambda file, percent:
-                                           self._progress_callback(_TASK_UPDATE_FILE % file, percent) if
-                                           self._progress_callback is not None else None)
+                filesystem_manager.put_dir(
+                    self._xbee_profile.file_system_path, dest_dir=None,
+                    progress_callback=lambda file, percent:
+                    self._progress_callback(_TASK_UPDATE_FILE % file, percent)
+                    if self._progress_callback is not None else None)
             except FileSystemNotSupportedException:
                 raise UpdateProfileException(_ERROR_FILESYSTEM_NOT_SUPPORTED)
-            except FileSystemException as e:
-                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(e))
+            except FileSystemException as exc:
+                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(exc))
             finally:
                 try:
                     filesystem_manager.disconnect()
                 except InvalidOperatingModeException:
-                    # This exception is thrown while trying to reconnect the device after finishing
-                    # with the FileSystem Manager but the device Operating Mode was changed to '0'
-                    # or '4'. Just ignore it, profile has been successfully applied.
+                    # This exception is thrown while trying to reconnect the
+                    # device after finishing with the FileSystem Manager but
+                    # the device Operating Mode was changed to '0' or '4'. Just
+                    # ignore it, profile has been successfully applied.
                     pass
 
         elif not self._is_local and self._xbee_profile.has_remote_filesystem:
-            # If the protocol of the remote device has changed, it is no longer reachable. Raise exception.
+            # If the protocol of the remote device has changed, it is no longer
+            # reachable. Raise exception.
             if self._protocol_changed_by_fw or self._protocol_changed_by_settings:
                 raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM_PROTOCOL_CHANGE)
             try:
-                self._xbee_device.update_filesystem_image(self._xbee_profile.remote_file_system_image,
-                                                          timeout=self._timeout,
-                                                          progress_callback=self._progress_callback)
-            except FileSystemException as e:
-                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(e))
+                self._xbee_device.update_filesystem_image(
+                    self._xbee_profile.remote_file_system_image,
+                    timeout=self._timeout, progress_callback=self._progress_callback)
+            except FileSystemException as exc:
+                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(exc))
 
     def update_profile(self):
         """
         Starts the update profile process.
 
         Raises:
-            UpdateProfileException: if there is any error during the update XBee profile operation.
+            UpdateProfileException: If there is any error during the update
+                XBee profile operation.
         """
         old_sync_ops_timeout = None
         if self._xbee_device:
@@ -1663,14 +1738,16 @@ class _ProfileUpdater(object):
                 flash_firmware = True
             elif self._xbee_profile.flash_firmware_option == FlashFirmwareOption.FLASH_DIFFERENT:
                 flash_firmware = not firmware_is_the_same
-            elif self._xbee_profile.flash_firmware_option == FlashFirmwareOption.DONT_FLASH and not firmware_is_the_same:
+            elif (self._xbee_profile.flash_firmware_option == FlashFirmwareOption.DONT_FLASH
+                  and not firmware_is_the_same):
                 raise UpdateProfileException(_ERROR_FIRMWARE_NOT_COMPATIBLE)
             # Update firmware if required.
             if not self._xbee_device or flash_firmware:
                 if (self._device_hardware_version is not None
                         and self._device_hardware_version.code not in firmware.SUPPORTED_HARDWARE_VERSIONS):
-                    raise UpdateProfileException(firmware.ERROR_HARDWARE_VERSION_NOT_SUPPORTED %
-                                                 self._device_hardware_version.code)
+                    raise UpdateProfileException(
+                        firmware.ERROR_HARDWARE_VERSION_NOT_SUPPORTED %
+                        self._device_hardware_version.code)
                 self._update_firmware()
             if not self._xbee_device:
                 self._xbee_device = XBeeDevice(port=self._target, baud_rate=9600)
@@ -1693,10 +1770,12 @@ class _ProfileUpdater(object):
                                               OperatingMode.ESCAPED_API_MODE.code))):
                 orig_ac_value = self._xbee_device.is_apply_changes_enabled()
                 self._xbee_device.enable_apply_changes(True)
-                self._set_parameter_with_retries(ATStringCommand.AP.command,
-                                                 self._xpro_ap, _PARAMETER_WRITE_RETRIES)
-                self._set_parameter_with_retries(ATStringCommand.WR.command,
-                                                 bytearray(0), _PARAMETER_WRITE_RETRIES)
+                self._set_parameter_with_retries(
+                    ATStringCommand.AP.command, self._xpro_ap,
+                    _PARAMETER_WRITE_RETRIES)
+                self._set_parameter_with_retries(
+                    ATStringCommand.WR.command, bytearray(0),
+                    _PARAMETER_WRITE_RETRIES)
                 self._xbee_device.enable_apply_changes(orig_ac_value)
             # Restore sync ops timeout
             if old_sync_ops_timeout is not None:
@@ -1711,7 +1790,7 @@ class _ProfileUpdater(object):
 
 def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=None):
     """
-    Applies the given XBee profile into the given XBee device.
+    Applies the given XBee profile into the given XBee.
     If a serial port is provided as `target`, the XBee profile must include
     the firmware binaries, that are always programmed. In this case, a restore
     defaults is also performed before applying settings in the profile (no
@@ -1724,16 +1803,18 @@ def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=Non
             profile to. String: serial port identifier.
             :class:`.AbstractXBeeDevice`: XBee to apply the profile.
         profile_path (String): path of the XBee profile file to apply.
-        timeout (Integer, optional): the maximum time to wait for target read operations during the apply profile.
-        progress_callback (Function, optional): function to execute to receive progress information. Receives two
-                                                arguments:
+        timeout (Integer, optional): Maximum time to wait for target read
+            operations during the apply profile.
+        progress_callback (Function, optional): Function to execute to receive
+            progress information. Receives two arguments:
 
             * The current update task as a String
             * The current update task percentage as an Integer
 
     Raises:
-        ValueError: if the XBee profile or the XBee device is not valid.
-        UpdateProfileException: if there is any error during the update XBee profile operation.
+        ValueError: If the XBee profile or the XBee device is not valid.
+        UpdateProfileException: If there is any error during the update XBee
+            profile operation.
     """
     # Sanity checks.
     if not isinstance(target, (str, XBeeDevice, RemoteXBeeDevice)):
@@ -1745,24 +1826,28 @@ def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=Non
 
     try:
         xbee_profile = XBeeProfile(profile_path)
-    except (ValueError, ReadProfileException) as e:
-        error = _ERROR_PROFILE_INVALID % str(e)
+    except (ValueError, ReadProfileException) as exc:
+        error = _ERROR_PROFILE_INVALID % str(exc)
         _log.error("ERROR: %s", error)
         raise UpdateProfileException(error)
 
     if not timeout:
-        timeout = _REMOTE_DEFAULT_TIMEOUT if isinstance(target, str) or target.is_remote() else _LOCAL_DEFAULT_TIMEOUT
+        timeout = _REMOTE_DEFAULT_TIMEOUT \
+            if (isinstance(target, str) or target.is_remote()) else _LOCAL_DEFAULT_TIMEOUT
 
     # With a serial port as target the profile must include the firmware file
     if isinstance(target, str) and not xbee_profile.has_local_firmware_files:
-        error = _ERROR_PROFILE_INVALID % " Profile must include the firmware binary files to use with a serial port"
+        error = _ERROR_PROFILE_INVALID % " Profile must include the firmware " \
+                                         "binary files to use with a serial port"
         _log.error("ERROR: %s", error)
         raise UpdateProfileException(error)
 
-    if not isinstance(target, str) and target._comm_iface and target._comm_iface.supports_apply_profile():
-        target._comm_iface.apply_profile(target, profile_path, timeout=timeout,
-                                         progress_callback=progress_callback)
+    if (not isinstance(target, str) and target.comm_iface
+            and target.comm_iface.supports_apply_profile()):
+        target.comm_iface.apply_profile(target, profile_path, timeout=timeout,
+                                        progress_callback=progress_callback)
         return
 
-    profile_updater = _ProfileUpdater(target, xbee_profile, timeout=timeout, progress_callback=progress_callback)
+    profile_updater = _ProfileUpdater(target, xbee_profile, timeout=timeout,
+                                      progress_callback=progress_callback)
     profile_updater.update_profile()

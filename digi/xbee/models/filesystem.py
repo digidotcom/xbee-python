@@ -288,7 +288,7 @@ class FSCmd:
                 command cannot be built.
         """
         if not isinstance(raw, bytearray):
-            raise InvalidPacketException("Raw must be a bytearray")
+            raise InvalidPacketException(message="Raw must be a bytearray")
         if direction == cls.RESPONSE and len(raw) < 2:
             raise InvalidPacketException(
                 message="Command bytearray must have, at least, 2 bytes")
@@ -427,7 +427,7 @@ class UnknownFSCmd(FSCmd):
         try:
             return UnknownFSCmd(raw, direction=direction)
         except (ValueError, TypeError) as exc:
-            raise InvalidPacketException(str(exc))
+            raise InvalidPacketException(message=str(exc))
 
     def output(self):
         """

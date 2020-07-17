@@ -75,8 +75,9 @@ class _ZDOCommand(metaclass=ABCMeta):
             raise TypeError("The xbee must be an XBeeDevice or a RemoteXBeeDevice"
                             "not {!r}".format(xbee.__class__.__name__))
         if xbee.get_protocol() not in [XBeeProtocol.ZIGBEE, XBeeProtocol.SMART_ENERGY]:
-            raise OperationNotSupportedException("ZDO commands are not supported in %s"
-                                                 % xbee.get_protocol().description)
+            raise OperationNotSupportedException(
+                message="ZDO commands are not supported in %s"
+                        % xbee.get_protocol().description)
         if cluster_id < 0:
             raise ValueError("Cluster id cannot be negative")
         if receive_cluster_id < 0:
@@ -1513,8 +1514,9 @@ class NeighborFinder:
                             "not {!r}".format(xbee.__class__.__name__))
         if xbee.get_protocol() not in (XBeeProtocol.DIGI_MESH, XBeeProtocol.XLR_DM,
                                        XBeeProtocol.XTEND_DM, XBeeProtocol.SX):
-            raise OperationNotSupportedException("Find neighbors is not supported in %s"
-                                                 % xbee.get_protocol().description)
+            raise OperationNotSupportedException(
+                message="Find neighbors is not supported in %s"
+                        % xbee.get_protocol().description)
         if timeout < 0:
             raise ValueError("Timeout cannot be negative")
 

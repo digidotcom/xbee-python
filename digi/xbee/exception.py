@@ -21,18 +21,16 @@ class XBeeException(Exception):
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class CommunicationException(XBeeException):
     """
-    This exception will be thrown when any problem related to the communication 
+    This exception will be thrown when any problem related to the communication
     with the XBee device occurs.
 
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class ATCommandException(CommunicationException):
@@ -51,24 +49,22 @@ class ATCommandException(CommunicationException):
 
 class ConnectionException(XBeeException):
     """
-    This exception will be thrown when any problem related to the connection 
+    This exception will be thrown when any problem related to the connection
     with the XBee device occurs.
 
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class XBeeDeviceException(XBeeException):
     """
-    This exception will be thrown when any problem related to the XBee device 
+    This exception will be thrown when any problem related to the XBee device
     occurs.
 
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class InvalidConfigurationException(ConnectionException):
@@ -87,7 +83,7 @@ class InvalidConfigurationException(ConnectionException):
 
 class InvalidOperatingModeException(ConnectionException):
     """
-    This exception will be thrown if the operating mode is different than 
+    This exception will be thrown if the operating mode is different than
     *OperatingMode.API_MODE* and *OperatingMode.API_MODE*
 
     All functionality of this class is the inherited of `Exception
@@ -109,7 +105,7 @@ class InvalidOperatingModeException(ConnectionException):
 
 class InvalidPacketException(CommunicationException):
     """
-    This exception will be thrown when there is an error parsing an API packet 
+    This exception will be thrown when there is an error parsing an API packet
     from the input stream.
 
     All functionality of this class is the inherited of `Exception
@@ -123,7 +119,7 @@ class InvalidPacketException(CommunicationException):
 
 class OperationNotSupportedException(XBeeDeviceException):
     """
-    This exception will be thrown when the operation performed is not supported 
+    This exception will be thrown when the operation performed is not supported
     by the XBee device.
 
     All functionality of this class is the inherited of `Exception
@@ -138,7 +134,7 @@ class OperationNotSupportedException(XBeeDeviceException):
 
 class TimeoutException(CommunicationException):
     """
-    This exception will be thrown when performing synchronous operations and 
+    This exception will be thrown when performing synchronous operations and
     the configured time expires.
 
     All functionality of this class is the inherited of `Exception
@@ -152,7 +148,7 @@ class TimeoutException(CommunicationException):
 
 class TransmitException(CommunicationException):
     """
-    This exception will be thrown when receiving a transmit status different 
+    This exception will be thrown when receiving a transmit status different
     than *TransmitStatus.SUCCESS* after sending an XBee API packet.
 
     All functionality of this class is the inherited of `Exception
@@ -176,8 +172,8 @@ class XBeeSocketException(XBeeException):
     __DEFAULT_STATUS_MESSAGE = "There was a socket error: %s (%d)"
 
     def __init__(self, message=__DEFAULT_MESSAGE, status=None):
-        super().__init__(self.__DEFAULT_STATUS_MESSAGE % (status.description, status.code) if status is not None else
-                         message)
+        super().__init__(self.__DEFAULT_STATUS_MESSAGE % (
+            status.description, status.code) if status is not None else message)
         self.status = status
 
 
@@ -189,7 +185,6 @@ class FirmwareUpdateException(XBeeException):
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class RecoveryException(XBeeException):
@@ -200,4 +195,3 @@ class RecoveryException(XBeeException):
     All functionality of this class is the inherited of `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass

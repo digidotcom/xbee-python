@@ -22,8 +22,9 @@ from digi.xbee.exception import TimeoutException, XBeeSocketException, XBeeExcep
 from digi.xbee.models.protocol import IPProtocol
 from digi.xbee.models.status import SocketState, SocketStatus, TransmitStatus
 from digi.xbee.packets.raw import TXStatusPacket
-from digi.xbee.packets.socket import SocketConnectPacket, SocketCreatePacket, SocketSendPacket, SocketClosePacket, \
-    SocketBindListenPacket, SocketNewIPv4ClientPacket, SocketOptionRequestPacket, SocketSendToPacket
+from digi.xbee.packets.socket import SocketConnectPacket, SocketCreatePacket, \
+    SocketSendPacket, SocketClosePacket, SocketBindListenPacket, \
+    SocketNewIPv4ClientPacket, SocketOptionRequestPacket, SocketSendToPacket
 
 
 class socket:
@@ -37,15 +38,17 @@ class socket:
 
     def __init__(self, xbee_device, ip_protocol=IPProtocol.TCP):
         """
-        Class constructor. Instantiates a new XBee socket object for the given XBee device.
+        Class constructor. Instantiates a new XBee socket object for the given
+        XBee device.
 
         Args:
             xbee_device (:class:`.XBeeDevice`): XBee device of the socket.
             ip_protocol (:class:`.IPProtocol`): protocol of the socket.
 
         Raises:
-            ValueError: if ``xbee_device`` is ``None`` or if ``xbee_device`` is not an instance of ``CellularDevice``.
-            ValueError: if ``ip_protocol`` is ``None``.
+            ValueError: if `xbee_device` is `None` or if `xbee_device` is not
+                an instance of `CellularDevice`.
+            ValueError: if `ip_protocol` is `None`.
             XBeeException: if the connection with the XBee device is not open.
         """
         if xbee_device is None:
@@ -58,7 +61,7 @@ class socket:
             raise XBeeException("XBee device must be open")
 
         # Initialize internal vars.
-        self.__xbee_device = xbee_device
+        self.__xbee = xbee_device
         self.__ip_protocol = ip_protocol
         self.__socket_id = None
         self.__connected = False
@@ -86,26 +89,28 @@ class socket:
         Connects to a remote socket at the given address.
 
         Args:
-            address (Tuple): A pair ``(host, port)`` where ``host`` is the domain name or string representation of an
-                IPv4 and ``port`` is the numeric port value.
+            address (Tuple): A pair `(host, port)` where `host` is the domain
+                name or string representation of an IPv4 and `port` is the
+                numeric port value.
 
         Raises:
-            TimeoutException: if the connect response is not received in the configured timeout.
-            ValueError: if ``address`` is ``None`` or not a pair ``(host, port)``.
-            ValueError: if ``port`` is less than 1 or greater than 65535.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the connect status is not ``SUCCESS``.
+            TimeoutException: If the connect response is not received in the
+                configured timeout.
+            ValueError: If `address` is `None` or not a pair `(host, port)`.
+            ValueError: If `port` is less than 1 or greater than 65535.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the connect status is not `SUCCESS`.
         """
         # Check address and its contents.
         if address is None or len(address) != 2:
-            raise ValueError("Invalid address, it must be a pair (host, port).")
+            raise ValueError("Invalid address, it must be a pair (host, port)")
 
         host = address[0]
         port = address[1]
         if isinstance(host, IPv4Address):
             host = str(host)
         if port < 1 or port > 65535:
-            raise ValueError("Port number must be between 1 and 65535.")
+            raise ValueError("Port number must be between 1 and 65535")
 
         # If the socket is not created, create it first.
         if self.__socket_id is None:
@@ -127,14 +132,16 @@ class socket:
             lock.release()
 
         # Add the socket state received callback.
-        self.__xbee_device.add_socket_state_received_callback(socket_state_received_callback)
+        self.__xbee.add_socket_state_received_callback(
+            socket_state_received_callback)
 
         try:
             # Create, send and check the socket connect packet.
-            connect_packet = SocketConnectPacket(self.__xbee_device.get_next_frame_id(), self.__socket_id, port,
-                                                 SocketConnectPacket.DEST_ADDRESS_STRING, host)
-            response_packet = self.__xbee_device.send_packet_sync_and_get_response(connect_packet,
-                                                                                   timeout=self.__get_timeout())
+            connect_packet = SocketConnectPacket(
+                self.__xbee.get_next_frame_id(), self.__socket_id, port,
+                SocketConnectPacket.DEST_ADDRESS_STRING, host)
+            response_packet = self.__xbee.send_packet_sync_and_get_response(
+                connect_packet, timeout=self.__get_timeout())
             self.__check_response(response_packet)
 
             # Wait until the socket state frame is received confirming the connection.
@@ -145,7 +152,8 @@ class socket:
 
             # Check if the socket state has been received.
             if not received_state:
-                raise TimeoutException("Timeout waiting for the socket connection")
+                raise TimeoutException(
+                    message="Timeout waiting for the socket connection")
 
             # Check if the socket is connected successfully.
             if received_state[0] != SocketState.CONNECTED:
@@ -158,31 +166,32 @@ class socket:
             self.__register_data_received_callback()
         finally:
             # Always remove the socket state callback.
-            self.__xbee_device.del_socket_state_received_callback(socket_state_received_callback)
+            self.__xbee.del_socket_state_received_callback(socket_state_received_callback)
 
     def bind(self, address):
         """
         Binds the socket to the given address. The socket must not already be bound.
 
         Args:
-            address (Tuple): A pair ``(host, port)`` where ``host`` is the local interface (not used) and ``port`` is
-                the numeric port value.
+            address (Tuple): A pair `(host, port)` where `host` is the local
+                interface (not used) and `port` is the numeric port value.
 
         Raises:
-            TimeoutException: if the bind response is not received in the configured timeout.
-            ValueError: if ``address`` is ``None`` or not a pair ``(host, port)``.
-            ValueError: if ``port`` is less than 1 or greater than 65535.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the bind status is not ``SUCCESS``.
-            XBeeSocketException: if the socket is already bound.
+            TimeoutException: If the bind response is not received in the
+                configured timeout.
+            ValueError: If `address` is `None` or not a pair `(host, port)`.
+            ValueError: If `port` is less than 1 or greater than 65535.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the bind status is not `SUCCESS`.
+            XBeeSocketException: If the socket is already bound.
         """
         # Check address and its contents.
         if address is None or len(address) != 2:
-            raise ValueError("Invalid address, it must be a pair (host, port).")
+            raise ValueError("Invalid address, it must be a pair (host, port)")
 
         port = address[1]
         if port < 1 or port > 65535:
-            raise ValueError("Port number must be between 1 and 65535.")
+            raise ValueError("Port number must be between 1 and 65535")
         if self.__source_port:
             raise XBeeSocketException(status=SocketStatus.ALREADY_CONNECTED)
 
@@ -191,9 +200,10 @@ class socket:
             self.__create_socket()
 
         # Create, send and check the socket create packet.
-        bind_packet = SocketBindListenPacket(self.__xbee_device.get_next_frame_id(), self.__socket_id, port)
-        response_packet = self.__xbee_device.send_packet_sync_and_get_response(bind_packet,
-                                                                               timeout=self.__get_timeout())
+        bind_packet = SocketBindListenPacket(self.__xbee.get_next_frame_id(),
+                                             self.__socket_id, port)
+        response_packet = self.__xbee.send_packet_sync_and_get_response(
+            bind_packet, timeout=self.__get_timeout())
         self.__check_response(response_packet)
 
         # Register the internal data 'reception from' callback.
@@ -207,11 +217,12 @@ class socket:
         Enables a server to accept connections.
 
         Args:
-            backlog (Integer, optional): The number of unaccepted connections that the system will allow before refusing
-                new connections. If specified, it must be at least 0 (if it is lower, it is set to 0).
+            backlog (Integer, optional): The number of unaccepted connections
+                that the system will allow before refusing new connections. If
+                specified, it must be at least 0 (if it is lower, it is set to 0).
 
         Raises:
-            XBeeSocketException: if the socket is not bound.
+            XBeeSocketException: If the socket is not bound.
         """
         if self.__source_port is None:
             raise XBeeSocketException(message="Socket must be bound")
@@ -221,16 +232,18 @@ class socket:
 
     def accept(self):
         """
-        Accepts a connection. The socket must be bound to an address and listening for connections.
+        Accepts a connection. The socket must be bound to an address and
+        listening for connections.
 
         Returns:
-            Tuple: A pair ``(conn, address)`` where ``conn`` is a new socket object usable to send and receive data on
-                the connection, and ``address`` is a pair ``(host, port)`` with the address bound to the socket on the
-                other end of the connection.
+            Tuple: A pair `(conn, address)` where `conn` is a new socket object
+                usable to send and receive data on the connection, and
+                `address` is a pair `(host, port)` with the address bound to
+                the socket on the other end of the connection.
 
         Raises:
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the socket is not bound or not listening.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the socket is not bound or not listening.
         """
         if self.__source_port is None:
             raise XBeeSocketException(message="Socket must be bound")
@@ -242,7 +255,8 @@ class socket:
 
         # Define the IPv4 client callback.
         def ipv4_client_callback(packet):
-            if not isinstance(packet, SocketNewIPv4ClientPacket) or packet.socket_id != self.__socket_id:
+            if (not isinstance(packet, SocketNewIPv4ClientPacket)
+                    or packet.socket_id != self.__socket_id):
                 return
 
             # Add the packet to the list and notify the lock.
@@ -252,7 +266,7 @@ class socket:
             lock.release()
 
         # Add the socket IPv4 client callback.
-        self.__xbee_device.add_packet_received_callback(ipv4_client_callback)
+        self.__xbee.add_packet_received_callback(ipv4_client_callback)
 
         try:
             # Wait until an IPv4 client packet is received.
@@ -260,7 +274,7 @@ class socket:
             lock.wait()
             lock.release()
 
-            conn = socket(self.__xbee_device, self.__ip_protocol)
+            conn = socket(self.__xbee, self.__ip_protocol)
             conn.__socket_id = received_packet[0].client_socket_id
             conn.__connected = True
 
@@ -271,14 +285,14 @@ class socket:
             return conn, (received_packet[0].remote_address, received_packet[0].remote_port)
         finally:
             # Always remove the socket IPv4 client callback.
-            self.__xbee_device.del_packet_received_callback(ipv4_client_callback)
+            self.__xbee.del_packet_received_callback(ipv4_client_callback)
 
     def gettimeout(self):
         """
         Returns the configured socket timeout in seconds.
 
         Returns:
-            Integer: the configured timeout in seconds.
+            Integer: The configured timeout in seconds.
         """
         return self.__timeout
 
@@ -287,7 +301,7 @@ class socket:
         Sets the socket timeout in seconds.
 
         Args:
-            timeout (Integer): the new socket timeout in seconds.
+            timeout (Integer): The new socket timeout in seconds.
         """
         self.__timeout = timeout
 
@@ -296,7 +310,7 @@ class socket:
         Returns whether the socket is in blocking mode or not.
 
         Returns:
-            Boolean: ``True`` if the socket is in blocking mode, ``False`` otherwise.
+            Boolean: `True` if the socket is in blocking mode, `False` otherwise.
         """
         return self.gettimeout() is None
 
@@ -305,8 +319,9 @@ class socket:
         Sets the socket in blocking or non-blocking mode.
 
         Args:
-            flag (Boolean): ``True`` to set the socket in blocking mode, ``False`` to set it in no blocking mode and
-                configure the timeout with the default value (``5`` seconds).
+            flag (Boolean): `True` to set the socket in blocking mode, `False`
+                to set it in no blocking mode and configure the timeout with
+                the default value (`5` seconds).
         """
         self.settimeout(None if flag else self.__DEFAULT_TIMEOUT)
 
@@ -318,10 +333,10 @@ class socket:
             bufsize (Integer): The maximum amount of data to be received at once.
 
         Returns:
-            Bytearray: the data received.
+            Bytearray: The data received.
 
         Raises:
-            ValueError: if ``bufsize`` is less than ``1``.
+            ValueError: If `bufsize` is less than `1`.
         """
         if bufsize < 1:
             raise ValueError("Number of bytes to receive must be grater than 0")
@@ -350,15 +365,16 @@ class socket:
         Receives data from the socket.
 
         Args:
-            bufsize (Integer): the maximum amount of data to be received at once.
+            bufsize (Integer): The maximum amount of data to be received at once.
 
         Returns:
-            Tuple (Bytearray, Tuple): Pair containing the data received (Bytearray) and the address of the socket
-                sending the data. The address is also a pair ``(host, port)`` where ``host`` is the string
-                representation of an IPv4 and ``port`` is the numeric port value.
+            Tuple (Bytearray, Tuple): Pair containing the data received
+                (Bytearray) and the address of the socket sending the data. The
+                address is also a pair `(host, port)` where `host` is the string
+                representation of an IPv4 and `port` is the numeric port value.
 
         Raises:
-            ValueError: if ``bufsize`` is less than ``1``.
+            ValueError: If `bufsize` is less than `1`.
         """
         if bufsize < 1:
             raise ValueError("Number of bytes to receive must be grater than 0")
@@ -366,7 +382,8 @@ class socket:
         data_received = bytearray()
         address = None
 
-        # Wait until data is received from any address or the timeout configured in the socket expires.
+        # Wait until data is received from any address or the timeout
+        # configured in the socket expires.
         if self.getblocking():
             while len(self.__data_received_from_dict) == 0:
                 time.sleep(0.1)
@@ -391,72 +408,78 @@ class socket:
 
     def send(self, data):
         """
-        Sends data to the socket and returns the number of bytes sent. The socket must be connected to a remote socket.
-        Applications are responsible for checking that all data has been sent; if only some of the data was
-        transmitted, the application needs to attempt delivery of the remaining data.
+        Sends data to the socket and returns the number of bytes sent. The
+        socket must be connected to a remote socket. Applications are
+        responsible for checking that all data has been sent; if only some of
+        the data was transmitted, the application needs to attempt delivery of
+        the remaining data.
 
         Args:
-            data (Bytearray): the data to send.
+            data (Bytearray): The data to send.
 
         Returns:
-            Integer: the number of bytes sent.
+            Integer: The number of bytes sent.
 
         Raises:
-            ValueError: if the data to send is ``None``.
-            ValueError: if the number of bytes to send is ``0``.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the socket is not valid.
-            XBeeSocketException: if the socket is not open.
+            ValueError: If the data to send is `None`.
+            ValueError: If the number of bytes to send is `0`.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the socket is not valid.
+            XBeeSocketException: If the socket is not open.
         """
         self.__send(data, False)
 
     def sendall(self, data):
         """
-        Sends data to the socket. The socket must be connected to a remote socket. Unlike ``send()``, this method
-        continues to send data from bytes until either all data has been sent or an error occurs. None is returned
-        on success. On error, an exception is raised, and there is no way to determine how much data, if any, was
-        successfully sent.
+        Sends data to the socket. The socket must be connected to a remote
+        socket. Unlike `send()`, this method continues to send data from bytes
+        until either all data has been sent or an error occurs. `None` is
+        returned on success. On error, an exception is raised, and there is no
+        way to determine how much data, if any, was successfully sent.
 
         Args:
-            data (Bytearray): the data to send.
+            data (Bytearray): The data to send.
 
         Raises:
-            TimeoutException: if the send status response is not received in the configured timeout.
-            ValueError: if the data to send is ``None``.
-            ValueError: if the number of bytes to send is ``0``.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the socket is not valid.
-            XBeeSocketException: if the send status is not ``SUCCESS``.
-            XBeeSocketException: if the socket is not open.
+            TimeoutException: If the send status response is not received in
+                the configured timeout.
+            ValueError: If the data to send is `None`.
+            ValueError: If the number of bytes to send is `0`.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the socket is not valid.
+            XBeeSocketException: If the send status is not `SUCCESS`.
+            XBeeSocketException: If the socket is not open.
         """
         self.__send(data)
 
     def sendto(self, data, address):
         """
-        Sends data to the socket. The socket should not be connected to a remote socket, since the destination socket
-        is specified by ``address``.
+        Sends data to the socket. The socket should not be connected to a
+        remote socket, since the destination socket is specified by `address`.
 
         Args:
-            data (Bytearray): the data to send.
-            address (Tuple): the address of the destination socket. It must be a pair ``(host, port)`` where ``host``
-                is the domain name or string representation of an IPv4 and ``port`` is the numeric port value.
+            data (Bytearray): The data to send.
+            address (Tuple): The address of the destination socket. It must be
+                a pair `(host, port)` where `host` is the domain name or string
+                representation of an IPv4 and `port` is the numeric port value.
 
         Returns:
-            Integer: the number of bytes sent.
+            Integer: The number of bytes sent.
 
         Raises:
-            TimeoutException: if the send status response is not received in the configured timeout.
-            ValueError: if the data to send is ``None``.
-            ValueError: if the number of bytes to send is ``0``.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the socket is already open.
-            XBeeSocketException: if the send status is not ``SUCCESS``.
+            TimeoutException: If the send status response is not received in
+                the configured timeout.
+            ValueError: If the data to send is `None`.
+            ValueError: If the number of bytes to send is `0`.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the socket is already open.
+            XBeeSocketException: If the send status is not `SUCCESS`.
         """
         if data is None:
             raise ValueError("Data to send cannot be None")
         if len(data) == 0:
             raise ValueError("The number of bytes to send must be at least 1")
-        if not self.__xbee_device.is_open():
+        if not self.__xbee.is_open():
             raise XBeeException("XBee device must be open")
         if self.__connected:
             raise XBeeSocketException(message="Socket is already connected")
@@ -468,10 +491,11 @@ class socket:
             self.__create_socket()
         # Send as many packets as needed to deliver all the provided data.
         for chunk in self.__split_payload(data):
-            send_packet = SocketSendToPacket(self.__xbee_device.get_next_frame_id(), self.__socket_id,
-                                             IPv4Address(address[0]), address[1], chunk)
-            response_packet = self.__xbee_device.send_packet_sync_and_get_response(send_packet,
-                                                                                   timeout=self.__get_timeout())
+            send_packet = SocketSendToPacket(
+                self.__xbee.get_next_frame_id(), self.__socket_id,
+                IPv4Address(address[0]), address[1], chunk)
+            response_packet = self.__xbee.send_packet_sync_and_get_response(
+                send_packet, timeout=self.__get_timeout())
             self.__check_response(response_packet)
             sent_bytes += len(chunk)
         # Return the number of bytes sent.
@@ -482,18 +506,19 @@ class socket:
         Closes the socket.
 
         Raises:
-            TimeoutException: if the close response is not received in the configured timeout.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the close status is not ``SUCCESS``.
+            TimeoutException: If the close response is not received in the
+                configured timeout.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the close status is not `SUCCESS`.
         """
         if self.__socket_id is None or (not self.__connected and not self.__source_port):
             return
-        if not self.__xbee_device.is_open():
+        if not self.__xbee.is_open():
             raise XBeeException("XBee device must be open")
 
-        close_packet = SocketClosePacket(self.__xbee_device.get_next_frame_id(), self.__socket_id)
-        response_packet = self.__xbee_device.send_packet_sync_and_get_response(close_packet,
-                                                                               timeout=self.__get_timeout())
+        close_packet = SocketClosePacket(self.__xbee.get_next_frame_id(), self.__socket_id)
+        response_packet = self.__xbee.send_packet_sync_and_get_response(
+            close_packet, timeout=self.__get_timeout())
         self.__check_response(response_packet)
 
         self.__connected = False
@@ -510,21 +535,22 @@ class socket:
         Sets the value of the given socket option.
 
         Args:
-            option (:class:`.SocketOption`): the socket option to set its value.
-            value (Bytearray): the new value of the socket option.
+            option (:class:`.SocketOption`): The socket option to set its value.
+            value (Bytearray): The new value of the socket option.
 
         Raises:
-            TimeoutException: if the socket option response is not received in the configured timeout.
-            ValueError: if the option to set is ``None``.
-            ValueError: if the value of the option is ``None``.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the socket option response status is not ``SUCCESS``.
+            TimeoutException: If the socket option response is not received in
+                the configured timeout.
+            ValueError: If the option to set is `None`.
+            ValueError: If the value of the option is `None`.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the socket option response status is not `SUCCESS`.
         """
         if option is None:
             raise ValueError("Option to set cannot be None")
         if value is None:
             raise ValueError("Option value cannot be None")
-        if not self.__xbee_device.is_open():
+        if not self.__xbee.is_open():
             raise XBeeException("XBee device must be open")
 
         # If the socket is not created, create it first.
@@ -532,10 +558,10 @@ class socket:
             self.__create_socket()
 
         # Create, send and check the socket option packet.
-        option_packet = SocketOptionRequestPacket(self.__xbee_device.get_next_frame_id(), self.__socket_id,
-                                                  option, value)
-        response_packet = self.__xbee_device.send_packet_sync_and_get_response(option_packet,
-                                                                               timeout=self.__get_timeout())
+        option_packet = SocketOptionRequestPacket(
+            self.__xbee.get_next_frame_id(), self.__socket_id, option, value)
+        response_packet = self.__xbee.send_packet_sync_and_get_response(
+            option_packet, timeout=self.__get_timeout())
         self.__check_response(response_packet)
 
     def getsocketopt(self, option):
@@ -543,20 +569,21 @@ class socket:
         Returns the value of the given socket option.
 
         Args:
-            option (:class:`.SocketOption`): the socket option to get its value.
+            option (:class:`.SocketOption`): The socket option to get its value.
 
         Returns:
-            Bytearray: the value of the socket option.
+            Bytearray: The value of the socket option.
 
         Raises:
-            TimeoutException: if the socket option response is not received in the configured timeout.
-            ValueError: if the option to set is ``None``.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the socket option response status is not ``SUCCESS``.
+            TimeoutException: If the socket option response is not received in
+                the configured timeout.
+            ValueError: If the option to set is `None`.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the socket option response status is not `SUCCESS`.
         """
         if option is None:
             raise ValueError("Option to get cannot be None")
-        if not self.__xbee_device.is_open():
+        if not self.__xbee.is_open():
             raise XBeeException("XBee device must be open")
 
         # If the socket is not created, create it first.
@@ -564,9 +591,10 @@ class socket:
             self.__create_socket()
 
         # Create, send and check the socket option packet.
-        option_packet = SocketOptionRequestPacket(self.__xbee_device.get_next_frame_id(), self.__socket_id, option)
-        response_packet = self.__xbee_device.send_packet_sync_and_get_response(option_packet,
-                                                                               timeout=self.__get_timeout())
+        option_packet = SocketOptionRequestPacket(
+            self.__xbee.get_next_frame_id(), self.__socket_id, option)
+        response_packet = self.__xbee.send_packet_sync_and_get_response(
+            option_packet, timeout=self.__get_timeout())
         self.__check_response(response_packet)
 
         # Return the option data.
@@ -577,25 +605,26 @@ class socket:
         Adds a callback for the event :class:`digi.xbee.reader.SocketStateReceived`.
 
         Args:
-            callback (Function): the callback. Receives two arguments.
+            callback (Function): The callback. Receives two arguments.
 
                 * The socket ID as an Integer.
                 * The state received as a :class:`.SocketState`
         """
-        self.__xbee_device.add_socket_state_received_callback(callback)
+        self.__xbee.add_socket_state_received_callback(callback)
 
     def del_socket_state_callback(self, callback):
         """
-        Deletes a callback for the callback list of :class:`digi.xbee.reader.SocketStateReceived` event.
+        Deletes a callback for the callback list of
+        :class:`digi.xbee.reader.SocketStateReceived` event.
 
         Args:
-            callback (Function): the callback to delete.
+            callback (Function): The callback to delete.
 
         Raises:
-            ValueError: if ``callback`` is not in the callback list of
+            ValueError: If `callback` is not in the callback list of
                 :class:`digi.xbee.reader.SocketStateReceived` event.
         """
-        self.__xbee_device.del_socket_state_received_callback(callback)
+        self.__xbee.del_socket_state_received_callback(callback)
 
     def get_sock_info(self):
         """
@@ -605,28 +634,31 @@ class socket:
             :class:`.SocketInfo`: The socket information.
 
         Raises:
-            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
-                method only checks the cached value of the operating mode.
-            TimeoutException: if the response is not received before the read timeout expires.
-            XBeeException: if the XBee device's communication interface is closed.
+            InvalidOperatingModeException: If the XBee device's operating mode
+                is not API or ESCAPED API. This method only checks the cached
+                value of the operating mode.
+            TimeoutException: If the response is not received before the read
+                timeout expires.
+            XBeeException: If the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.SocketInfo`
         """
-        return self.__xbee_device.get_socket_info(self.__socket_id)
+        return self.__xbee.get_socket_info(self.__socket_id)
 
     def __create_socket(self):
         """
         Creates a new socket by sending a :class:`.SocketCreatePacket`.
 
         Raises:
-            TimeoutException: if the response is not received in the configured timeout.
-            XBeeSocketException: if the response contains any error.
+            TimeoutException: If the response is not received in the configured timeout.
+            XBeeSocketException: If the response contains any error.
         """
         # Create, send and check the socket create packet.
-        create_packet = SocketCreatePacket(self.__xbee_device.get_next_frame_id(), self.__ip_protocol)
-        response_packet = self.__xbee_device.send_packet_sync_and_get_response(create_packet,
-                                                                               timeout=self.__get_timeout())
+        create_packet = SocketCreatePacket(
+            self.__xbee.get_next_frame_id(), self.__ip_protocol)
+        response_packet = self.__xbee.send_packet_sync_and_get_response(
+            create_packet, timeout=self.__get_timeout())
         self.__check_response(response_packet)
 
         # Store the received socket ID.
@@ -653,7 +685,7 @@ class socket:
                 self.__unregister_data_received_from_callback()
 
         self.__socket_state_callback = socket_state_callback
-        self.__xbee_device.add_socket_state_received_callback(socket_state_callback)
+        self.__xbee.add_socket_state_received_callback(socket_state_callback)
 
     def __unregister_state_callback(self):
         """
@@ -662,12 +694,13 @@ class socket:
         if self.__socket_state_callback is None:
             return
 
-        self.__xbee_device.del_socket_state_received_callback(self.__socket_state_callback)
+        self.__xbee.del_socket_state_received_callback(self.__socket_state_callback)
         self.__socket_state_callback = None
 
     def __register_data_received_callback(self):
         """
-        Registers the data received callback to be notified when data is received in the socket.
+        Registers the data received callback to be notified when data is
+        received in the socket.
         """
         if self.__data_received_callback is not None:
             return
@@ -681,7 +714,7 @@ class socket:
             self.__data_received_lock.release()
 
         self.__data_received_callback = data_received_callback
-        self.__xbee_device.add_socket_data_received_callback(data_received_callback)
+        self.__xbee.add_socket_data_received_callback(data_received_callback)
 
     def __unregister_data_received_callback(self):
         """
@@ -690,13 +723,13 @@ class socket:
         if self.__data_received_callback is None:
             return
 
-        self.__xbee_device.del_socket_data_received_callback(self.__data_received_callback)
+        self.__xbee.del_socket_data_received_callback(self.__data_received_callback)
         self.__data_received_callback = None
 
     def __register_data_received_from_callback(self):
         """
-        Registers the data received from callback to be notified when data from a specific address is received
-        in the socket.
+        Registers the data received from callback to be notified when data from
+        a specific address is received in the socket.
         """
         if self.__data_received_from_callback is not None:
             return
@@ -706,7 +739,8 @@ class socket:
                 return
 
             payload_added = False
-            # Check if the address already exists in the dictionary to append the payload or insert a new entry.
+            # Check if the address already exists in the dictionary to append
+            # the payload or insert a new entry.
             self.__data_received_from_dict_lock.acquire()
             for addr in self.__data_received_from_dict.keys():
                 if addr[0] == address[0] and addr[1] == address[1]:
@@ -718,7 +752,7 @@ class socket:
             self.__data_received_from_dict_lock.release()
 
         self.__data_received_from_callback = data_received_from_callback
-        self.__xbee_device.add_socket_data_received_from_callback(data_received_from_callback)
+        self.__xbee.add_socket_data_received_from_callback(data_received_from_callback)
 
     def __unregister_data_received_from_callback(self):
         """
@@ -727,28 +761,31 @@ class socket:
         if self.__data_received_from_callback is None:
             return
 
-        self.__xbee_device.del_socket_data_received_from_callback(self.__data_received_from_callback)
+        self.__xbee.del_socket_data_received_from_callback(self.__data_received_from_callback)
         self.__data_received_from_callback = None
 
     def __send(self, data, send_all=True):
         """
-        Sends data to the socket. The socket must be connected to a remote socket. Depending on the value of
-        ``send_all``, the method will raise an exception or return the number of bytes sent when there is an error
+        Sends data to the socket. The socket must be connected to a remote
+        socket. Depending on the value of `send_all`, the method will raise an
+        exception or return the number of bytes sent when there is an error
         sending a data packet.
 
         Args:
-            data (Bytearray): the data to send.
-            send_all (Boolean): ``True`` to raise an exception when there is an error sending a data packet. ``False``
-                to return the number of bytes sent when there is an error sending a data packet.
+            data (Bytearray): The data to send.
+            send_all (Boolean): `True` to raise an exception when there is an
+                error sending a data packet. `False` to return the number of
+                bytes sent when there is an error sending a data packet.
 
         Raises:
-            TimeoutException: if the send status response is not received in the configured timeout.
-            ValueError: if the data to send is ``None``.
-            ValueError: if the number of bytes to send is ``0``.
-            XBeeException: if the connection with the XBee device is not open.
-            XBeeSocketException: if the socket is not valid.
-            XBeeSocketException: if the send status is not ``SUCCESS``.
-            XBeeSocketException: if the socket is not open.
+            TimeoutException: If the send status response is not received in
+                the configured timeout.
+            ValueError: If the data to send is `None`.
+            ValueError: If the number of bytes to send is `0`.
+            XBeeException: If the connection with the XBee device is not open.
+            XBeeSocketException: If the socket is not valid.
+            XBeeSocketException: If the send status is not `SUCCESS`.
+            XBeeSocketException: If the socket is not open.
         """
         if data is None:
             raise ValueError("Data to send cannot be None")
@@ -756,7 +793,7 @@ class socket:
             raise ValueError("The number of bytes to send must be at least 1")
         if self.__socket_id is None:
             raise XBeeSocketException(status=SocketStatus.BAD_SOCKET)
-        if not self.__xbee_device.is_open():
+        if not self.__xbee.is_open():
             raise XBeeException("XBee device must be open")
         if not self.__connected:
             raise XBeeSocketException(message="Socket is not connected")
@@ -765,15 +802,17 @@ class socket:
 
         # Send as many packets as needed to deliver all the provided data.
         for chunk in self.__split_payload(data):
-            send_packet = SocketSendPacket(self.__xbee_device.get_next_frame_id(), self.__socket_id, chunk)
+            send_packet = SocketSendPacket(self.__xbee.get_next_frame_id(),
+                                           self.__socket_id, chunk)
             try:
-                response_packet = self.__xbee_device.send_packet_sync_and_get_response(send_packet,
-                                                                                       timeout=self.__get_timeout())
+                response_packet = self.__xbee.send_packet_sync_and_get_response(
+                    send_packet, timeout=self.__get_timeout())
                 self.__check_response(response_packet)
-            except (TimeoutException, XBeeSocketException) as e:
-                # Raise the exception only if 'send_all' flag is set, otherwise return the number of bytes sent.
+            except (TimeoutException, XBeeSocketException) as exc:
+                # Raise the exception only if 'send_all' flag is set, otherwise
+                # return the number of bytes sent.
                 if send_all:
-                    raise e
+                    raise exc
                 return sent_bytes
             # Increase the number of bytes sent.
             if not send_all:
@@ -781,26 +820,27 @@ class socket:
         # Return the number of bytes sent.
         return sent_bytes
 
-    def __is_connected(self):
+    @property
+    def is_connected(self):
         """
         Returns whether the socket is connected or not.
 
         Returns:
-            Boolean: ``True`` if the socket is connected ``False`` otherwise.
+            Boolean: `True` if the socket is connected `False` otherwise.
         """
         return self.__connected
 
     @staticmethod
     def __check_response(response_packet):
         """
-        Checks the status of the given response packet and throws an :class:`.XBeeSocketException` if it is not
-        :attr:`SocketStatus.SUCCESS`.
+        Checks the status of the given response packet and throws an
+        :class:`.XBeeSocketException` if it is not :attr:`SocketStatus.SUCCESS`.
 
         Args:
-            response_packet (:class:`.XBeeAPIPacket`): the socket response packet.
+            response_packet (:class:`.XBeeAPIPacket`): The socket response packet.
 
         Raises:
-            XBeeSocketException: if the socket status is not ``SUCCESS``.
+            XBeeSocketException: If the socket status is not `SUCCESS`.
         """
         if isinstance(response_packet, TXStatusPacket):
             if response_packet.transmit_status != TransmitStatus.SUCCESS:
@@ -814,11 +854,11 @@ class socket:
         Splits the given array of bytes in chunks of the specified size.
 
         Args:
-            payload (Bytearray): the data to split.
-            size (Integer, Optional): the size of the chunks.
+            payload (Bytearray): The data to split.
+            size (Integer, Optional): The size of the chunks.
 
         Returns:
-            Generator: the generator with all the chunks.
+            Generator: The generator with all the chunks.
         """
         for i in range(0, len(payload), size):
             yield payload[i:i + size]
@@ -828,10 +868,7 @@ class socket:
         Returns the socket timeout in seconds based on the blocking state.
 
         Returns:
-             Integer: the socket timeout in seconds if the socket is configured to be non blocking or ``-1`` if the
-                socket is configured to be blocking.
+             Integer: The socket timeout in seconds if the socket is configured
+                to be non blocking or `-1` if the socket is configured to be blocking.
         """
         return -1 if self.getblocking() else self.__timeout
-
-    is_connected = property(__is_connected)
-    """Boolean. Indicates whether the socket is connected or not."""

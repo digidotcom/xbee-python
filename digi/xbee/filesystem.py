@@ -135,14 +135,15 @@ class _FilesystemFunction(Enum):
     @classmethod
     def get(cls, name):
         """
-        Returns the _FilesystemFunction for the given name.
+        Returns the `_FilesystemFunction` for the given name.
 
         Args:
-            name (String): the name of the _FilesystemFunction to get.
+            name (String): Name of the `_FilesystemFunction` to get.
 
         Returns:
-            :class:`._FilesystemFunction`: the _FilesystemFunction with the given name, ``None`` if
-                                           there is not a _FilesystemFunction with that name.
+            :class:`._FilesystemFunction`: `_FilesystemFunction` with the given
+                name, `None` if there is not a `_FilesystemFunction` with the
+                provided name.
         """
         for value in _FilesystemFunction:
             if value.name == name:
@@ -153,20 +154,20 @@ class _FilesystemFunction(Enum):
     @property
     def name(self):
         """
-        Returns the name of the _FilesystemFunction element.
+        Returns the name of the `_FilesystemFunction` element.
 
         Returns:
-            String: the name of the _FilesystemFunction element.
+            String: Name of the `_FilesystemFunction` element.
         """
         return self.__name
 
     @property
     def command(self):
         """
-        Returns the command of the _FilesystemFunction element.
+        Returns the command of the `_FilesystemFunction` element.
 
         Returns:
-            String: the command of the _FilesystemFunction element.
+            String: Command of the `_FilesystemFunction` element.
         """
         return self.__command
 
@@ -182,7 +183,7 @@ class FileSystemElement:
         object with the given parameters.
 
         Args:
-            name (String): The name of the file system element.
+            name (String): Name of the file system element.
             path (String, optional, default=`None`): Absolute path of the element.
             is_dir (Boolean, optional, default=`True`): `True` if the
                 element is a directory, `False` for a file.
@@ -218,7 +219,7 @@ class FileSystemElement:
         Returns the file system element name.
 
         Returns:
-            String: the file system element name.
+            String: File system element name.
          """
         return self._name
 
@@ -228,7 +229,7 @@ class FileSystemElement:
         Returns the file system element absolute path.
 
         Returns:
-            String: the file system element absolute path.
+            String: File system element absolute path.
          """
         return self._path
 
@@ -315,7 +316,8 @@ class FileSystemElement:
 
 class FileSystemException(XBeeException):
     """
-    This exception will be thrown when any problem related with the XBee device file system occurs.
+    This exception will be thrown when any problem related with the XBee
+     file system occurs.
 
     All functionality of this class is the inherited from `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
@@ -328,12 +330,12 @@ class FileSystemException(XBeeException):
 
 class FileSystemNotSupportedException(FileSystemException):
     """
-    This exception will be thrown when the file system feature is not supported in the device.
+    This exception will be thrown when the file system feature is not supported
+    in the device.
 
     All functionality of this class is the inherited from `Exception
     <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
     """
-    pass
 
 
 class _FSFrameSender:
@@ -449,7 +451,8 @@ class _FSFrameSender:
             local_xb.del_fs_frame_received_callback(self._fs_frame_cb)
 
         if not tr_status or not self.__resp_cmd:
-            self._throw_fs_exc(self.__frame.command, "Response not received in timeout")
+            self._throw_fs_exc(self.__frame.command,
+                               "Response not received in timeout")
 
         status = self.__resp_cmd.status_value
         if status != FSCommandStatus.SUCCESS.code:
@@ -480,7 +483,7 @@ class FileProcess(metaclass=ABCMeta):
         Args:
             f_mng (class:`.FileSystemManager`): The file system manager.
             file (:class:`.FileSystemElement` or String): File or its absolute path.
-            timeout(Float): The timeout in seconds.
+            timeout(Float): Timeout in seconds.
         """
         if not isinstance(file, (str, FileSystemElement)):
             raise ValueError("File must be a string or a FileSystemElement")
@@ -537,7 +540,7 @@ class FileProcess(metaclass=ABCMeta):
         Returns the size of the block for this file operation.
 
         Returns:
-             Integer: The size of the block for this file operation.
+             Integer: Size of the block for this file operation.
         """
         return self._get_block_size(0)
 
@@ -568,10 +571,12 @@ class FileProcess(metaclass=ABCMeta):
         self._cpid = 0
 
         # Check length of path, if is too big try to change to a parent
-        self._cpid, f_path = self._f_mng._cd_to_execute(self._f_path, self._cpid, self._timeout)
+        self._cpid, f_path = self._f_mng._cd_to_execute(self._f_path,
+                                                        self._cpid, self._timeout)
 
         self._status, self._fid, self._fsize = self._f_mng.popen_file(
-            f_path, options=self._get_open_flags(), path_id=self._cpid, timeout=self._timeout)
+            f_path, options=self._get_open_flags(), path_id=self._cpid,
+            timeout=self._timeout)
 
         self._opened = bool(self._status == FSCommandStatus.SUCCESS.code)
         if not self._opened:
@@ -621,7 +626,8 @@ class FileProcess(metaclass=ABCMeta):
         """
         Bitmask that specifies the options to open the file.
 
-        :class:`.FileOpenRequestOption`: Options to open the file.
+        Returns:
+            :class:`.FileOpenRequestOption`: Options to open the file.
         """
 
     @abstractmethod
@@ -768,10 +774,13 @@ class _ReadFileProcess(FileProcess):
         chunk_len = min(self.block_size, remain_to_read)
         _log.debug(self._log_str("Block size: %d", chunk_len))
 
-        while chunk_len and len(self.__data) < remain_to_read and self.__l_off < self._fsize:
-            _log.debug(self._log_str("Reading, offset: %d, size: %d", self.__l_off, chunk_len))
+        while (chunk_len and len(self.__data) < remain_to_read
+               and self.__l_off < self._fsize):
+            _log.debug(self._log_str("Reading, offset: %d, size: %d",
+                                     self.__l_off, chunk_len))
             self._status, _fid, _offst, chunk = self._f_mng.pread_file(
-                self._fid, offset=self.__l_off, size=chunk_len, timeout=self._timeout)
+                self._fid, offset=self.__l_off, size=chunk_len,
+                timeout=self._timeout)
 
             if self._status != FSCommandStatus.SUCCESS.code:
                 return True
@@ -840,7 +849,7 @@ class _WriteFileProcess(FileProcess):
         Returns the size of the block for this file operation.
 
         Returns:
-             Integer: The size of the block for this file operation.
+             Integer: Size of the block for this file operation.
         """
         # cmd_id (1) + f_id (2) + offset (4) = 7
         return self._get_block_size(7)
@@ -913,7 +922,8 @@ class _WriteFileProcess(FileProcess):
         _log.debug(self._log_str("Block size: %d", chunk_len))
 
         while chunk_len and data_offset < len(self.__data):
-            _log.debug(self._log_str("Writing, offset: %d, size: %d", last_offset, chunk_len))
+            _log.debug(self._log_str("Writing, offset: %d, size: %d",
+                                     last_offset, chunk_len))
             self._status, _fid, last_offset = self._f_mng.pwrite_file(
                 self._fid, data=self.__data[data_offset:data_offset + chunk_len],
                 offset=last_offset, timeout=self._timeout)
@@ -1071,7 +1081,8 @@ class FileSystemManager:
             # method generates them recursively:
             # https://jira.digi.com/browse/XBHAWK-523
             if mk_parents and str(path.parent) not in (path.root, '.', '/flash'):
-                dirs += self.make_directory(str(path.parent), mk_parents=True, timeout=timeout)
+                dirs += self.make_directory(str(path.parent), mk_parents=True,
+                                            timeout=timeout)
 
             # Check length of path, if is too big try to change to a parent
             path_id, to_create = self._cd_to_execute(
@@ -1101,8 +1112,8 @@ class FileSystemManager:
         Args:
             directory (:class:`.FileSystemElement` or String): Directory to
                 list or its absolute path.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             List: List of `:class:`.FilesystemElement` objects contained in
@@ -1172,8 +1183,8 @@ class FileSystemManager:
                 remove or its absolute path.
             rm_children (Boolean, optional, default=`True`): `True` to remove
                 directory children if they exist, `False` otherwise.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Raises:
             FileSystemException: If there is any error performing the operation
@@ -1315,8 +1326,8 @@ class FileSystemManager:
         Downloads the given XBee file in the specified destination path.
 
         Args:
-            src (:class:`.FileSystemElement` or String): File to download or its
-                absolute path.
+            src (:class:`.FileSystemElement` or String): File to download or
+                its absolute path.
             dest (String): The absolute path of the destination file.
             progress_cb (Function, optional): Function call when data is being
                 downloaded. Receives one argument:
@@ -1360,7 +1371,8 @@ class FileSystemManager:
                     r_proc.next(size=0, last=True)
                     raise exc
 
-    def put_file(self, src, dest, secure=False, overwrite=False, mk_parents=True, progress_cb=None):
+    def put_file(self, src, dest, secure=False, overwrite=False,
+                 mk_parents=True, progress_cb=None):
         """
         Uploads the given file to the specified destination path of the XBee.
 
@@ -1465,17 +1477,17 @@ class FileSystemManager:
         """
         if not isinstance(src, str):
             raise ValueError("Source path must be a non-empty string")
-        if dest:
-            if isinstance(dest, FileSystemElement):
-                if not dest.is_dir:
-                    raise ValueError("Destination must be a directory")
-                dest_path = dest.path
-            elif isinstance(dest, str):
-                dest_path = dest
-            else:
-                raise ValueError("Destination must be string or a FileSystemElement")
-        else:
+
+        if isinstance(dest, FileSystemElement):
+            if not dest.is_dir:
+                raise ValueError("Destination must be a directory")
+            dest_path = dest.path
+        elif isinstance(dest, str):
+            dest_path = dest
+        elif not dest:
             dest_path = "/flash"
+        else:
+            raise ValueError("Destination must be string or a FileSystemElement")
 
         # Create destination directory
         if dest_path != "/flash":
@@ -1510,8 +1522,8 @@ class FileSystemManager:
         Args:
             file (:class:`.FileSystemElement` or String): File to get its hash
                 or its absolute path.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Bytearray: SHA256 hash of the given file.
@@ -1625,8 +1637,8 @@ class FileSystemManager:
 
         Args:
             vol (:class:`.FileSystemElement`or String, optional, default=`/flash`): Volume name.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Dictionary: Collection of pair values describing volume information.
@@ -1726,16 +1738,16 @@ class FileSystemManager:
 
     def pget_path_id(self, dir_path, path_id=0, timeout=DEFAULT_TIMEOUT):
         """
-        Returns the directory path id of the given path. Returned directory path
-        id expires if not referenced in 2 minutes.
+        Returns the directory path id of the given path. Returned directory
+        path id expires if not referenced in 2 minutes.
 
         Args:
             dir_path (String): Path of the directory to get its id. It is
                 relative to the directory path id.
             path_id (Integer, optional, default=0): Directory path id. 0 for
                 the root directory.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Tuple (Integer, Integer, String): Status of the file system command
@@ -1763,7 +1775,8 @@ class FileSystemManager:
         if dir_path not in (".", ".."):
             dir_path = os.path.normpath(dir_path.replace('\\', '/'))
 
-        _log.info(self._log_str("Getting ID of directory '%s' (path id: %d)", dir_path, path_id))
+        _log.info(self._log_str("Getting ID of directory '%s' (path id: %d)",
+                                dir_path, path_id))
 
         # Check length of path, if is too big try to change to a parent
         to_cd = self._get_fit_parent_path(dir_path)
@@ -1802,9 +1815,9 @@ class FileSystemManager:
                 relative to the directory path id.
             path_id (Integer, optional, default=0): Directory path id. 0 for
                 the root directory.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion. If `mk_parents`
-                this is the timeout per directory creation.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion. If
+                `mk_parents` this is the timeout per directory creation.
 
         Returns:
             Integer: Status of the file system command execution
@@ -1850,8 +1863,8 @@ class FileSystemManager:
                 the directory path id.
             path_id (Integer, optional, default=0): Directory path id. 0 for
                 the root directory.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Tuple (Integer, List): Status of the file system command execution
@@ -1930,8 +1943,8 @@ class FileSystemManager:
                 the directory path id.
             path_id (Integer, optional, default=0): Directory path id. 0 for
                 the root directory.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Integer: Status of the file system command execution
@@ -1967,8 +1980,8 @@ class FileSystemManager:
 
         return rv_status
 
-    def popen_file(self, file_path, path_id=0, options=FileOpenRequestOption.READ,
-                   timeout=DEFAULT_TIMEOUT):
+    def popen_file(self, file_path, path_id=0,
+                   options=FileOpenRequestOption.READ, timeout=DEFAULT_TIMEOUT):
         """
         Open a file for reading and/or writing. Use the
         `FileOpenRequestOption.SECURE` (0x80) bitmask for options to upload a
@@ -1985,13 +1998,13 @@ class FileSystemManager:
                 Bitmask that specifies the options to open the file. It defaults
                 to `FileOpenRequestOption.READ` which means open for reading.
                 See :class:`.FileOpenRequestOption` for more options.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
-            Tuple (Integer, Integer, Integer): Status of the file system command
-                execution (see :class:`.FSCommandStatus`), the file id to use
-                in later requests, and the size of the file (in bytes),
+            Tuple (Integer, Integer, Integer): Status of the file system
+                command execution (see :class:`.FSCommandStatus`), the file id
+                to use in later requests, and the size of the file (in bytes),
                 0xFFFFFFFF if unknown.
 
         Raises:
@@ -2027,8 +2040,8 @@ class FileSystemManager:
         sender = _FSFrameSender(self.__xbee)
         rv_status, r_cmd, _rv_opts = sender.send(to_send, timeout=timeout)
 
-        _log.info(self._log_str("File open '%s' (%d) options 0x%0.2X", str(path),
-                                path_id, options))
+        _log.info(self._log_str("File open '%s' (%d) options 0x%0.2X",
+                                str(path), path_id, options))
 
         return rv_status, r_cmd.fs_id, r_cmd.size
 
@@ -2038,8 +2051,8 @@ class FileSystemManager:
 
         Args:
             file_id (Integer): File id returned when opening.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Integer: Status of the file system command execution
@@ -2082,8 +2095,8 @@ class FileSystemManager:
                 -1 to use current position.
             size (Integer, optional, default=-1): Number of bytes to read.
                 -1 to read as many as possible.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Tuple (Integer, Integer, Integer, Bytearray): Status of the file
@@ -2137,8 +2150,8 @@ class FileSystemManager:
             data (Bytearray, bytes or String): Data to write.
             offset (Integer, optional, default=-1): File offset to start writing.
                 -1 to use current position.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Tuple (Integer, Integer, Integer): Status of the file system
@@ -2197,8 +2210,8 @@ class FileSystemManager:
                 relative to the directory path id.
             path_id (Integer, optional, default=0): Directory path id. 0 for
                 the root directory.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Tuple (Integer, Bytearray): Status of the file system command
@@ -2252,8 +2265,8 @@ class FileSystemManager:
             new_path (String): New name. It is relative to the directory path id.
             path_id (Integer, optional, default=0): Directory path id. 0 for
                 the root directory.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Integer: Status of the file system command execution
@@ -2299,8 +2312,8 @@ class FileSystemManager:
 
         Args:
             path_id (Integer): Directory path id to release.
-            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum number
-                of seconds to wait for the operation completion.
+            timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
+                number of seconds to wait for the operation completion.
 
         Returns:
             Integer: Status of the file system command execution.
@@ -2465,23 +2478,27 @@ class FileSystemManager:
         return "%s: %s" % (str(self), msg % args)
 
 
-class LocalXBeeFileSystemManager(object):
+class LocalXBeeFileSystemManager:
     """
     Helper class used to manage the local XBee file system.
     """
 
     def __init__(self, xbee_device):
         """
-        Class constructor. Instantiates a new :class:`.LocalXBeeFileSystemManager` with the given parameters.
+        Class constructor. Instantiates a new
+        :class:`.LocalXBeeFileSystemManager` with the given parameters.
 
         Args:
-            xbee_device (:class:`.XBeeDevice`): the local XBee device to manage its file system.
+            xbee_device (:class:`.XBeeDevice`): The local XBee to manage its
+                file system.
         """
         if not xbee_device.serial_port:
-            raise OperationNotSupportedException("Only supported in local XBee connected by serial.")
+            raise OperationNotSupportedException(
+                message="Only supported in local XBee connected by serial.")
 
         # Check target compatibility.
-        if not check_fs_support(xbee_device, max_fw_vers=XB3_MAX_FW_VERSION_FS_OTA_SUPPORT):
+        if not check_fs_support(xbee_device,
+                                max_fw_vers=XB3_MAX_FW_VERSION_FS_OTA_SUPPORT):
             raise FileSystemNotSupportedException(
                 "LocalXBeeFileSystemManager is not supported, use FileSystemManager")
 
@@ -2492,26 +2509,30 @@ class LocalXBeeFileSystemManager(object):
         self._is_connected = False
         self._old_read_timeout = _READ_PORT_TIMEOUT
 
-    def _read_data(self, timeout=_READ_DATA_TIMEOUT, empty_retries=_READ_EMPTY_DATA_RETRIES_DEFAULT):
+    def _read_data(self, timeout=_READ_DATA_TIMEOUT,
+                   empty_retries=_READ_EMPTY_DATA_RETRIES_DEFAULT):
         """
         Reads data from the serial port waiting for the provided timeout.
 
         Args:
-            timeout (Integer, optional): the maximum time to wait for data (seconds). Defaults to 1 second.
-            empty_retries (Integer, optional): the number of consecutive zero-bytes read before considering no more
-                                               data is available.
+            timeout (Integer, optional): The maximum time to wait for data
+                (seconds). Defaults to 1 second.
+            empty_retries (Integer, optional): The number of consecutive
+                zero-bytes read before considering no more data is available.
 
         Returns:
-            String: the read data as string.
+            String: The read data as string.
 
         Raises:
-            SerialException: if there is any problem reading data from the serial port.
+            SerialException: If there is any problem reading data from the
+                serial port.
         """
         answer_string = ""
         empty_attempts = 0
         deadline = _get_milliseconds() + (timeout * 1000)
         read_bytes = self._serial_port.read(_READ_BUFFER)
-        while (len(answer_string) == 0 or empty_attempts < empty_retries) and _get_milliseconds() < deadline:
+        while ((len(answer_string) == 0 or empty_attempts < empty_retries)
+               and _get_milliseconds() < deadline):
             read_string = _filter_non_printable(read_bytes)
             answer_string += read_string
             # Continue reading, maybe there is more data.
@@ -2528,7 +2549,7 @@ class LocalXBeeFileSystemManager(object):
         Returns whether the command mode is active or not.
 
         Returns:
-            Boolean: ``True`` if the AT command mode is active, ``False`` otherwise.
+            Boolean: `True` if the AT command mode is active, `False` otherwise.
         """
         _log.debug("Checking AT command mode...")
         try:
@@ -2536,8 +2557,8 @@ class LocalXBeeFileSystemManager(object):
             answer = self._read_data(timeout=_GUARD_TIME)
 
             return answer is not None and _COMMAND_MODE_ANSWER_OK in answer
-        except SerialException as e:
-            _log.exception(e)
+        except SerialException as exc:
+            _log.exception(exc)
             return False
 
     def _enter_atcmd_mode(self):
@@ -2545,20 +2566,24 @@ class LocalXBeeFileSystemManager(object):
         Enters in AT command mode.
 
         Returns:
-             Boolean: ``True`` if entered command mode successfully, ``False`` otherwise.
+             Boolean: `True` if entered command mode successfully, `False`
+                otherwise.
         """
         _log.debug("Entering AT command mode...")
         try:
-            # In some scenarios where the read buffer is constantly being filled with remote data, it is
-            # almost impossible to read the 'enter command mode' answer, so purge port before.
+            # In some scenarios where the read buffer is constantly being
+            # filled with remote data, it is almost impossible to read the
+            # 'enter command mode' answer, so purge port before.
             self._serial_port.purge_port()
             for _ in range(3):
-                self._serial_port.write(str.encode(_COMMAND_MODE_CHAR, encoding='utf-8'))
-            answer = self._read_data(timeout=_GUARD_TIME, empty_retries=_READ_EMPTY_DATA_RETRIES)
+                self._serial_port.write(str.encode(_COMMAND_MODE_CHAR,
+                                                   encoding='utf-8'))
+            answer = self._read_data(timeout=_GUARD_TIME,
+                                     empty_retries=_READ_EMPTY_DATA_RETRIES)
 
             return answer is not None and _COMMAND_MODE_ANSWER_OK in answer
-        except SerialException as e:
-            _log.exception(e)
+        except SerialException as exc:
+            _log.exception(exc)
             return False
 
     def _exit_atcmd_mode(self):
@@ -2568,17 +2593,20 @@ class LocalXBeeFileSystemManager(object):
         _log.debug("Exiting AT command mode...")
         try:
             self._serial_port.write(str.encode(_COMMAND_MODE_EXIT, encoding='utf-8'))
-        except SerialException as e:
-            _log.exception(e)
+        except SerialException as exc:
+            _log.exception(exc)
         finally:
-            time.sleep(_GUARD_TIME)  # It is necessary to wait the guard time before sending data again.
+            # It is necessary to wait the guard time before sending data again
+            time.sleep(_GUARD_TIME)
 
     def _check_atcmd_mode(self):
         """
-        Checks whether AT command mode is active and if not tries to enter AT command mode.
+        Checks whether AT command mode is active and if not tries to enter AT
+        command mode.
 
         Returns:
-             Boolean: ``True`` if AT command mode is active or entered successfully, ``False`` otherwise.
+             Boolean: `True` if AT command mode is active or entered
+                successfully, `False` otherwise.
         """
         if not self._is_connected:
             return False
@@ -2594,7 +2622,7 @@ class LocalXBeeFileSystemManager(object):
         Returns whether the device supports file system or not.
 
         Returns:
-             Boolean: ``True`` if the device supports file system, ``False`` otherwise.
+             Boolean: `True` if the device supports file system, `False` otherwise.
         """
         _log.debug("Checking if device supports file system...")
         if not self._check_atcmd_mode():
@@ -2608,18 +2636,20 @@ class LocalXBeeFileSystemManager(object):
                 return True
 
             return False
-        except SerialException as e:
-            _log.exception(e)
+        except SerialException as exc:
+            _log.exception(exc)
             return False
 
     def _parse_filesystem_functions(self, filesystem_answer):
         """
-        Parses the file system command response to obtain a list of supported file system functions.
+        Parses the file system command response to obtain a list of supported
+        file system functions.
 
         Args:
-            filesystem_answer (String): the file system command answer to parse.
+            filesystem_answer (String): The file system command answer to parse.
         """
-        result = re.match(_PATTERN_FILE_SYSTEM_FUNCTIONS, filesystem_answer, flags=re.M | re.DOTALL)
+        result = re.match(_PATTERN_FILE_SYSTEM_FUNCTIONS, filesystem_answer,
+                          flags=re.M | re.DOTALL)
         if result is None or result.string is not result.group(0) or len(result.groups()) < 1:
             return
 
@@ -2630,10 +2660,12 @@ class LocalXBeeFileSystemManager(object):
         Returns whether the specified file system function is supported or not.
 
         Args:
-            function (:class:`._FilesystemFunction`): the file system function to check.
+            function (:class:`._FilesystemFunction`): The file system function
+                to check.
 
         Returns:
-            Boolean: ``True`` if the specified file system function is supported, ``False`` otherwise.
+            Boolean: `True` if the specified file system function is supported,
+                `False` otherwise.
         """
         if not isinstance(function, _FilesystemFunction):
             return False
@@ -2643,53 +2675,62 @@ class LocalXBeeFileSystemManager(object):
     @staticmethod
     def _check_function_error(answer, command):
         """
-        Checks the given file system command answer and throws an exception if it contains an error.
+        Checks the given file system command answer and throws an exception if
+        it contains an error.
 
         Args:
-            answer (String): the file system command answer to check for errors.
-            command (String): the file system command executed.
+            answer (String): The file system command answer to check for errors.
+            command (String): The file system command executed.
 
         Raises:
-            FileSystemException: if any error is found in the answer.
+            FileSystemException: If any error is found in the answer.
         """
         result = re.match(_PATTERN_FILE_SYSTEM_ERROR, answer, flags=re.M | re.DOTALL)
         if result is not None and len(result.groups()) > 1:
             if len(result.groups()) > 2:
-                raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), result.groups()[1] +
-                                                                    " >" + result.groups()[2]))
-            else:
-                raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), result.groups()[1]))
+                raise FileSystemException(
+                    _ERROR_EXECUTE_COMMAND % (
+                        command.replace("\r", ""),
+                        result.groups()[1] + " >" + result.groups()[2]))
+
+            raise FileSystemException(_ERROR_EXECUTE_COMMAND % (
+                command.replace("\r", ""), result.groups()[1]))
 
     def _xmodem_write_cb(self, data):
         """
-        Callback function used to write data to the serial port when requested from the XModem transfer.
+        Callback function used to write data to the serial port when requested
+        from the XModem transfer.
 
         Args:
-            data (Bytearray): the data to write to serial port from the XModem transfer.
+            data (Bytearray): The data to write to serial port from the XModem
+                transfer.
 
         Returns:
-            Boolean: ``True`` if the data was successfully written, ``False`` otherwise.
+            Boolean: `True` if the data was successfully written, `False`
+                otherwise.
         """
         try:
             self._serial_port.purge_port()
             self._serial_port.write(data)
             self._serial_port.flush()
             return True
-        except SerialException as e:
-            _log.exception(e)
+        except SerialException as exc:
+            _log.exception(exc)
 
         return False
 
     def _xmodem_read_cb(self, size, timeout=_READ_DATA_TIMEOUT):
         """
-        Callback function used to read data from the serial port when requested from the XModem transfer.
+        Callback function used to read data from the serial port when
+        requested from the XModem transfer.
 
         Args:
-            size (Integer): the size of the data to read.
-            timeout (Integer, optional): the maximum time to wait to read the requested data (seconds).
+            size (Integer): Size of the data to read.
+            timeout (Integer, optional): Maximum time to wait to read the
+                requested data (seconds).
 
         Returns:
-            Bytearray: the read data, ``None`` if data could not be read.
+            Bytearray: the read data, `None` if data could not be read.
         """
         deadline = _get_milliseconds() + (timeout * 1000)
         data = bytearray()
@@ -2699,8 +2740,8 @@ class LocalXBeeFileSystemManager(object):
                 if len(read_bytes) > 0:
                     data.extend(read_bytes)
             return data
-        except SerialException as e:
-            _log.exception(e)
+        except SerialException as exc:
+            _log.exception(exc)
 
         return None
 
@@ -2709,15 +2750,16 @@ class LocalXBeeFileSystemManager(object):
         Executes the given command type with its arguments.
 
         Args:
-            cmd_type (:class:`._FilesystemFunction`): the command type to execute.
-            args (): the command arguments
-            wait_for_answer (Boolean): ``True`` to wait for command answer, ``False`` otherwise.
+            cmd_type (:class:`._FilesystemFunction`): Command type to execute.
+            args (): Command arguments
+            wait_for_answer (Boolean): `True` to wait for command answer,
+                `False` otherwise.
 
         Returns:
             String: the command answer.
 
         Raises:
-            FileSystemException: if there is any error executing the command.
+            FileSystemException: If there is any error executing the command.
         """
         # Sanity checks.
         if not self._is_function_supported(cmd_type):
@@ -2736,8 +2778,9 @@ class LocalXBeeFileSystemManager(object):
                 self._check_function_error(answer, command)
 
             return answer
-        except SerialException as e:
-            raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), str(e)))
+        except SerialException as exc:
+            raise FileSystemException(_ERROR_EXECUTE_COMMAND %
+                                      (command.replace("\r", ""), str(exc)))
 
     @property
     def is_connected(self):
@@ -2745,7 +2788,8 @@ class LocalXBeeFileSystemManager(object):
         Returns whether the file system manager is connected or not.
 
         Returns:
-            Boolean: ``True`` if the file system manager is connected, ``False`` otherwise.
+            Boolean: `True` if the file system manager is connected, `False`
+                otherwise.
          """
         return self._is_connected
 
@@ -2754,14 +2798,17 @@ class LocalXBeeFileSystemManager(object):
         Connects the file system manager.
 
         Raises:
-            FileSystemException: if there is any error connecting the file system manager.
-            FileSystemNotSupportedException: if the device does not support filesystem feature.
+            FileSystemException: If there is any error connecting the file
+                system manager.
+            FileSystemNotSupportedException: If the device does not support
+                filesystem feature.
         """
         if self._is_connected:
             return
 
-        # The file system manager talks directly with the serial port in raw mode, so disconnect the device.
-        # Not disconnecting the device will cause the internal XBee device frame reader to consume the data
+        # The file system manager talks directly with the serial port in raw
+        # mode, so disconnect the device. Not disconnecting the device will
+        # cause the internal XBee device frame reader to consume the data
         # required by the file system manager from the serial port.
         if self._xbee_device.is_open:
             self._xbee_device.close()
@@ -2774,7 +2821,7 @@ class LocalXBeeFileSystemManager(object):
             self._is_connected = True
             if not self._supports_filesystem():
                 raise FileSystemNotSupportedException(ERROR_FILESYSTEM_NOT_SUPPORTED)
-        except (SerialException, FileSystemNotSupportedException) as e:
+        except (SerialException, FileSystemNotSupportedException) as exc:
             # Close port if it is open.
             if self._serial_port.isOpen():
                 self._serial_port.close()
@@ -2784,17 +2831,19 @@ class LocalXBeeFileSystemManager(object):
                 # Restore serial port timeout.
                 self._serial_port.set_read_timeout(self._old_read_timeout)
             except SerialException:
-                pass  # Ignore this error as it is not critical and will not provide much info but confusion.
-            if isinstance(e, SerialException):
-                raise FileSystemException(_ERROR_CONNECT_FILESYSTEM % str(e))
-            raise e
+                # Ignore this error as it is not critical and will not provide
+                # much info but confusion.
+                pass
+            if isinstance(exc, SerialException):
+                raise FileSystemException(_ERROR_CONNECT_FILESYSTEM % str(exc))
+            raise exc
 
     def disconnect(self):
         """
         Disconnects the file system manager and restores the device connection.
 
         Raises:
-            XBeeException: if there is any error restoring the XBee device connection.
+            XBeeException: If there is any error restoring the XBee connection.
         """
         if not self._is_connected:
             return
@@ -2818,10 +2867,11 @@ class LocalXBeeFileSystemManager(object):
         Returns the current device directory.
 
         Returns:
-             String: the current device directory.
+             String: Current device directory.
 
         Raises:
-            FileSystemException: if there is any error getting the current directory or the function is not supported.
+            FileSystemException: If there is any error getting the current
+                directory or the function is not supported.
         """
         _log.info("Retrieving working directory")
         return self._execute_command(_FilesystemFunction.PWD).replace("\r", "")
@@ -2831,17 +2881,18 @@ class LocalXBeeFileSystemManager(object):
         Changes the current device working directory to the given one.
 
         Args:
-            directory (String): the new directory to change to.
+            directory (String): New directory to change to.
 
         Returns:
-             String: the current device working directory after the directory change.
+             String: Current device working directory after the directory change.
 
         Raises:
-            FileSystemException: if there is any error changing the current directory or the function is not supported.
+            FileSystemException: If there is any error changing the current
+                directory or the function is not supported.
         """
         # Sanity checks.
         if not directory:
-            return
+            return self.get_current_directory()
 
         # Sanitize path.
         directory = directory.replace('\\', '/')
@@ -2854,10 +2905,11 @@ class LocalXBeeFileSystemManager(object):
         Creates the provided directory.
 
         Args:
-            directory (String): the new directory to create.
+            directory (String): New directory to create.
 
         Raises:
-            FileSystemException: if there is any error creating the directory or the function is not supported.
+            FileSystemException: If there is any error creating the directory
+                or the function is not supported.
         """
         # Sanity checks.
         if not directory or directory == "/" or directory == "\\":
@@ -2945,10 +2997,11 @@ class LocalXBeeFileSystemManager(object):
         Removes the given file system element path.
 
         Args:
-            element_path (String): path of the file system element to remove.
+            element_path (String): Path of the file system element to remove.
 
         Raises:
-            FileSystemException: if there is any error removing the element or the function is not supported.
+            FileSystemException: If there is any error removing the element or
+                the function is not supported.
         """
         # Sanity checks.
         if not element_path:
@@ -2965,11 +3018,12 @@ class LocalXBeeFileSystemManager(object):
         Moves the given source element to the given destination path.
 
         Args:
-            source_path (String): source path of the element to move.
-            dest_path (String): destination path of the element to move.
+            source_path (String): Source path of the element to move.
+            dest_path (String): Destination path of the element to move.
 
         Raises:
-            FileSystemException: if there is any error moving the element or the function is not supported.
+            FileSystemException: If there is any error moving the element or
+                the function is not supported.
         """
         # Sanity checks.
         if not source_path or not dest_path:
@@ -2984,27 +3038,29 @@ class LocalXBeeFileSystemManager(object):
 
     def put_file(self, source_path, dest_path, secure=False, progress_callback=None):
         """
-        Transfers the given file in the specified destination path of the XBee device.
+        Transfers the given file in the specified destination path of the XBee.
 
         Args:
             source_path (String): the path of the file to transfer.
             dest_path (String): the destination path to put the file in.
-            secure (Boolean, optional): ``True`` if the file should be stored securely, ``False`` otherwise. Defaults to
-                                        ``False``.
-            progress_callback (Function, optional): function to execute to receive progress information.
-
-                Takes the following arguments:
+            secure (Boolean, optional, default=`False`): `True` if the file
+                should be stored securely, `False` otherwise.
+            progress_callback (Function, optional): Function to execute to
+                receive progress information. Takes the following arguments:
 
                     * The progress percentage as integer.
 
         Raises:
-            FileSystemException: if there is any error transferring the file or the function is not supported.
+            FileSystemException: If there is any error transferring the file or
+                the function is not supported.
         """
         # Sanity checks.
         if secure and not self._is_function_supported(_FilesystemFunction.XPUT):
-            raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED % _FilesystemFunction.XPUT.name)
+            raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED
+                                      % _FilesystemFunction.XPUT.name)
         if not secure and not self._is_function_supported(_FilesystemFunction.PUT):
-            raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED % _FilesystemFunction.PUT.name)
+            raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED
+                                      % _FilesystemFunction.PUT.name)
 
         # Sanitize destination path.
         dest_path = dest_path.replace('\\', '/')
@@ -3031,35 +3087,42 @@ class LocalXBeeFileSystemManager(object):
         answer = self._execute_command(_FilesystemFunction.XPUT, dest_path) if secure else \
             self._execute_command(_FilesystemFunction.PUT, dest_path)
         if not answer.endswith(xmodem.XMODEM_CRC):
-            raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), "Transfer not ready"))
+            raise FileSystemException(_ERROR_EXECUTE_COMMAND %
+                                      (command.replace("\r", ""),
+                                       "Transfer not ready"))
         # Transfer the file.
         try:
-            xmodem.send_file_ymodem(source_path, self._xmodem_write_cb, self._xmodem_read_cb,
-                                    progress_cb=progress_callback, log=_log)
-        except XModemException as e:
-            raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), str(e)))
+            xmodem.send_file_ymodem(
+                source_path, self._xmodem_write_cb, self._xmodem_read_cb,
+                progress_cb=progress_callback, log=_log)
+        except XModemException as exc:
+            raise FileSystemException(_ERROR_EXECUTE_COMMAND %
+                                      (command.replace("\r", ""), str(exc)))
         # Read operation result.
-        answer = self._read_data(timeout=_READ_DATA_TIMEOUT, empty_retries=_READ_EMPTY_DATA_RETRIES)
+        answer = self._read_data(timeout=_READ_DATA_TIMEOUT,
+                                 empty_retries=_READ_EMPTY_DATA_RETRIES)
         if not answer:
             raise FileSystemException(_ERROR_TIMEOUT)
         self._check_function_error(answer, command)
 
     def put_dir(self, source_dir, dest_dir=None, progress_callback=None):
         """
-        Uploads the given source directory contents into the given destination directory in the device.
+        Uploads the given source directory contents into the given destination
+        directory in the device.
 
         Args:
-            source_dir (String): the local directory to upload its contents.
-            dest_dir (String, optional): the remote directory to upload the contents to. Defaults to current directory.
-            progress_callback (Function, optional): function to execute to receive progress information.
-
-                Takes the following arguments:
+            source_dir (String): Local directory to upload its contents.
+            dest_dir (String, optional): Remote directory to upload the
+                contents to. Defaults to current directory.
+            progress_callback (Function, optional): Function to execute to
+                receive progress information. Takes the following arguments:
 
                     * The file being uploaded as string.
                     * The progress percentage as integer.
 
         Raises:
-            FileSystemException: if there is any error uploading the directory or the function is not supported.
+            FileSystemException: If there is any error uploading the directory
+                or the function is not supported.
         """
         # Sanity checks.
         if not source_dir:
@@ -3074,11 +3137,14 @@ class LocalXBeeFileSystemManager(object):
         for file in listdir(source_dir):
             if isfile(os.path.join(source_dir, file)):
                 bound_callback = None if progress_callback is None \
-                    else functools.partial(progress_callback, *[str(os.path.join(dest_dir, file))])
-                self.put_file(str(os.path.join(source_dir, file)), str(os.path.join(dest_dir, file)),
+                    else functools.partial(progress_callback,
+                                           *[str(os.path.join(dest_dir, file))])
+                self.put_file(str(os.path.join(source_dir, file)),
+                              str(os.path.join(dest_dir, file)),
                               progress_callback=bound_callback)
             else:
-                self.put_dir(str(os.path.join(source_dir, file)), str(os.path.join(dest_dir, file)),
+                self.put_dir(str(os.path.join(source_dir, file)),
+                             str(os.path.join(dest_dir, file)),
                              progress_callback=progress_callback)
 
     def get_file(self, source_path, dest_path, progress_callback=None):
@@ -3086,22 +3152,23 @@ class LocalXBeeFileSystemManager(object):
         Downloads the given XBee device file in the specified destination path.
 
         Args:
-            source_path (String): the path of the XBee device file to download.
-            dest_path (String): the destination path to store the file in.
-            progress_callback (Function, optional): function to execute to receive progress information.
-
-                Takes the following arguments:
+            source_path (String): Path of the XBee device file to download.
+            dest_path (String): Destination path to store the file in.
+            progress_callback (Function, optional): Function to execute to
+                receive progress information. Takes the following arguments:
 
                     * The progress percentage as integer.
 
         Raises:
-            FileSystemException: if there is any error downloading the file or the function is not supported.
+            FileSystemException: If there is any error downloading the file or
+                the function is not supported.
         """
         command = _COMMAND_ATFS % (_FilesystemFunction.GET.command % source_path)
         # Sanitize path.
         source_path = source_path.replace('\\', '/')
         _log.info("Downloading file '%s' to '%s'", source_path, dest_path)
-        self._execute_command(_FilesystemFunction.GET, source_path, wait_for_answer=False)
+        self._execute_command(_FilesystemFunction.GET, source_path,
+                              wait_for_answer=False)
         try:
             # Consume data until 'NAK' is received.
             deadline = _get_milliseconds() + (_NAK_TIMEOUT * 1000)
@@ -3111,15 +3178,19 @@ class LocalXBeeFileSystemManager(object):
                 if data and data[0] == xmodem.XMODEM_NAK:
                     nak_received = True
             if not nak_received:
-                raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), "Transfer not ready"))
-        except SerialException as e:
-            raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), str(e)))
+                raise FileSystemException(_ERROR_EXECUTE_COMMAND %
+                                          (command.replace("\r", ""),
+                                           "Transfer not ready"))
+        except SerialException as exc:
+            raise FileSystemException(_ERROR_EXECUTE_COMMAND %
+                                      (command.replace("\r", ""), str(exc)))
         # Receive the file.
         try:
             xmodem.get_file_ymodem(dest_path, self._xmodem_write_cb, self._xmodem_read_cb,
                                    progress_cb=progress_callback, log=_log)
-        except XModemException as e:
-            raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), str(e)))
+        except XModemException as exc:
+            raise FileSystemException(_ERROR_EXECUTE_COMMAND %
+                                      (command.replace("\r", ""), str(exc)))
         # Read operation result.
         answer = self._read_data()
         if not answer:
@@ -3131,7 +3202,7 @@ class LocalXBeeFileSystemManager(object):
         Formats the device file system.
 
         Raises:
-            FileSystemException: if there is any error formatting the file system.
+            FileSystemException: If there is any error formatting the file system.
         """
         command = _COMMAND_ATFS % _FilesystemFunction.FORMAT.command
         _log.info("Formatting file system...")
@@ -3146,18 +3217,20 @@ class LocalXBeeFileSystemManager(object):
                     ok_received = True
             if not ok_received:
                 raise FileSystemException(_ERROR_TIMEOUT)
-        except SerialException as e:
-            raise FileSystemException(_ERROR_EXECUTE_COMMAND % (command.replace("\r", ""), str(e)))
+        except SerialException as exc:
+            raise FileSystemException(_ERROR_EXECUTE_COMMAND %
+                                      (command.replace("\r", ""), str(exc)))
 
     def get_usage_information(self):
         """
         Returns the file system usage information.
 
         Returns:
-            Dictionary: collection of pair values describing the usage information.
+            Dictionary: Collection of pair values describing the usage information.
 
         Raises:
-            FileSystemException: if there is any error retrieving the file system usage information.
+            FileSystemException: If there is any error retrieving the file
+                system usage information.
         """
         _log.info("Reading file system usage information...")
         answer = self._execute_command(_FilesystemFunction.INFO)
@@ -3175,13 +3248,13 @@ class LocalXBeeFileSystemManager(object):
         Returns the SHA256 hash of the given file path.
 
         Args:
-            file_path (String): path of the file to get its hash.
+            file_path (String): Path of the file to get its hash.
 
         Returns:
-            String: the SHA256 hash of the given file path.
+            String: SHA256 hash of the given file path.
 
         Raises:
-            FileSystemException: if there is any error retrieving the file hash.
+            FileSystemException: If there is any error retrieving the file hash.
         """
         # Sanitize path.
         file_path = file_path.replace('\\', '/')
@@ -3189,32 +3262,38 @@ class LocalXBeeFileSystemManager(object):
         answer = self._execute_command(_FilesystemFunction.HASH, file_path)
         parts = answer.split(_ANSWER_SHA256)
         if len(parts) <= 1:
-            raise FileSystemException(_ERROR_EXECUTE_COMMAND %
-                                      ((_COMMAND_ATFS % (_FilesystemFunction.HASH.command %
-                                                         file_path)).replace("\r", ""), "Invalid hash received"))
+            raise FileSystemException(
+                _ERROR_EXECUTE_COMMAND % (
+                    (_COMMAND_ATFS % (_FilesystemFunction.HASH.command %
+                                      file_path)).replace("\r", ""),
+                    "Invalid hash received"))
 
         return str.strip(parts[1])
 
 
-def update_remote_filesystem_image(remote_device, ota_filesystem_file, max_block_size=0, timeout=None,
+def update_remote_filesystem_image(remote_device, ota_filesystem_file,
+                                   max_block_size=0, timeout=None,
                                    progress_callback=None):
     """
     Performs a remote filesystem update operation in the given target.
 
     Args:
-        remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to update its filesystem image.
-        ota_filesystem_file (String): path of the OTA filesystem file to upload.
+        remote_device (:class:`.RemoteXBeeDevice`): Remote XBee to update its
+            filesystem image.
+        ota_filesystem_file (String): Path of the OTA filesystem file to upload.
         max_block_size (Integer, optional): Maximum size of the ota block to send.
-        timeout (Integer, optional): the timeout to wait for remote frame requests.
-        progress_callback (Function, optional): function to execute to receive progress information. Receives two
-                                                arguments:
+        timeout (Integer, optional): Timeout to wait for remote frame requests.
+        progress_callback (Function, optional): Function to execute to receiveç
+             progress information. Receives two arguments:
 
                 * The current update task as a String
                 * The current update task percentage as an Integer
 
     Raises:
-        FileSystemNotSupportedException: if the target does not support filesystem update.
-        FileSystemException: if there is any error updating the remote filesystem image.
+        FileSystemNotSupportedException: If the target does not support
+            filesystem update.
+        FileSystemException: If there is any error updating the remote
+            filesystem image.
     """
     # Import required firmware update components.
     from digi.xbee.firmware import FirmwareUpdateException, update_remote_filesystem
@@ -3225,11 +3304,12 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file, max_block
             "Filesystem image support update is not supported, use standard file system access")
 
     try:
-        update_remote_filesystem(remote_device, ota_filesystem_file, max_block_size=max_block_size,
-                                 timeout=timeout, progress_callback=progress_callback)
-    except FirmwareUpdateException as e:
-        _log.error("ERROR: %s", str(e))
-        raise FileSystemException(str(e))
+        update_remote_filesystem(
+            remote_device, ota_filesystem_file, max_block_size=max_block_size,
+            timeout=timeout, progress_callback=progress_callback)
+    except FirmwareUpdateException as exc:
+        _log.error("ERROR: %s", str(exc))
+        raise FileSystemException(str(exc))
 
 
 def check_fs_support(xbee, min_fw_vers=None, max_fw_vers=None):
@@ -3257,7 +3337,8 @@ def check_fs_support(xbee, min_fw_vers=None, max_fw_vers=None):
             fw_version = xbee.get_firmware_version()
         except XBeeException as exc:
             _log.error(
-                "Unable to read XBee hardware/firmware version to check filesystem support: %s" % str(exc))
+                "Unable to read XBee hardware/firmware version to check "
+                "filesystem support: %s", str(exc))
 
     # Check compatibility
     if hw_version and hw_version.code not in SUPPORTED_HARDWARE_VERSIONS:
@@ -3311,19 +3392,21 @@ def _get_milliseconds():
     Returns the current time in milliseconds.
 
     Returns:
-         Integer: the current time in milliseconds.
+         Integer: Current time in milliseconds.
     """
     return int(time.time() * 1000.0)
 
 
 def _filter_non_printable(byte_array):
     """
-    Filters the non printable characters of the given byte array and returns the resulting string.
+    Filters the non printable characters of the given byte array and returns
+    the resulting string.
 
     Args:
-        byte_array (Bytearray): the byte array to filter.
+        byte_array (Bytearray): Byte array to filter.
 
     Return:
-        String: the resulting string after filtering non printable characters of the byte array.
+        String: Resulting string after filtering non printable characters of
+            the byte array.
     """
     return bytes(x for x in byte_array if x in _printable_ascii_bytes).decode()
