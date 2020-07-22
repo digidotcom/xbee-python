@@ -143,6 +143,8 @@ _XML_DEFAULT_VALUE = "default_value"
 _XML_FIRMWARE_FIRMWARE = "firmware"
 _XML_FIRMWARE_FIRMWARE_VERSION = "fw_version"
 _XML_FIRMWARE_HARDWARE_VERSION = "firmware/hw_version"
+_XML_COMPATIBILITY_NUMBER = "firmware/compatibility_number"
+_XML_REGION_LOCK = "firmware/region"
 _XML_FIRMWARE_SETTING = ".//setting"
 _XML_FORMAT = "format"
 _XML_PROFILE_AT_SETTING = "profile/settings/setting"
@@ -689,6 +691,8 @@ class XBeeProfile:
         self._cellular_bootloader_files = []
         self._firmware_version = None
         self._hardware_version = None
+        self._compatibility_number = None
+        self._region_lock = None
         self._has_local_filesystem = False
         self._has_remote_filesystem = False
         self._has_local_firmware = False
@@ -895,6 +899,30 @@ class XBeeProfile:
                     _ERROR_FIRMWARE_XML_INVALID % "missing hardware version element")
             self._hardware_version = int(hardware_version_element.text, 16)
             _log.debug(" - Hardware version: %s", self._hardware_version)
+            # Compatibility number.
+            element = root.find(_XML_COMPATIBILITY_NUMBER)
+            if element is None:
+                self._throw_read_exception(
+                    _ERROR_FIRMWARE_XML_INVALID % "missing compatibility number element")
+            self._compatibility_number = int(element.text)
+            _log.debug(" - Compatibility number: %d", self._compatibility_number)
+            # Region lock, required.
+            element = root.find(_XML_REGION_LOCK)
+            if element is None:
+                self._throw_read_exception(
+                    _ERROR_FIRMWARE_XML_INVALID % "missing region lock element")
+            self._region_lock = int(element.text)
+            # 99: Unknown region
+            if self._region_lock == 99:
+                fw_version_str = utils.hex_to_string(
+                    utils.int_to_bytes(self._firmware_version,
+                                       num_bytes=2), pretty=False)
+                if len(fw_version_str) != 4:
+                    # 0: All regions
+                    self._region_lock = 0
+                else:
+                    self._region_lock = int(fw_version_str[1:2], base=0)
+            _log.debug(" - Region lock: %d", self._region_lock)
             # Determine protocol.
             br_value = self._raw_settings.get(ATStringCommand.BR.command, None)
             if br_value is None:
@@ -1133,6 +1161,26 @@ class XBeeProfile:
             Integer: Compatible hardware version of the profile.
         """
         return self._hardware_version
+
+    @property
+    def compatibility_number(self):
+        """
+        Returns the compatibility number of the profile.
+
+        Returns:
+            Integer: The compatibility number.
+        """
+        return self._compatibility_number
+
+    @property
+    def region_lock(self):
+        """
+        Returns the region lock of the profile.
+
+        Returns:
+            Integer: The region lock.
+        """
+        return self._region_lock
 
     @property
     def firmware_description_file(self):
