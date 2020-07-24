@@ -375,7 +375,7 @@ class DiscoveryOptions(Enum):
     Valid for the following protocols:
       * DigiMesh
       * Point-to-multipoint (Digi Point)
-      * ZigBee
+      * Zigbee
     """
 
     DISCOVER_MYSELF = (0x02, "Local device sends response frame")
@@ -385,7 +385,7 @@ class DiscoveryOptions(Enum):
     Valid for the following protocols:
       * DigiMesh
       * Point-to-multipoint (Digi Point)
-      * ZigBee
+      * Zigbee
       * 802.15.4
     """
 

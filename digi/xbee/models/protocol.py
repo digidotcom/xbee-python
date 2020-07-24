@@ -28,7 +28,7 @@ class XBeeProtocol(Enum):
     |     **value** (String): the value of this XBeeProtocol.
     """
 
-    ZIGBEE = (0, "ZigBee")
+    ZIGBEE = (0, "Zigbee")
     RAW_802_15_4 = (1, "802.15.4")
     XBEE_WIFI = (2, "Wi-Fi")
     DIGI_MESH = (3, "DigiMesh")

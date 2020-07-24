@@ -501,7 +501,7 @@ class AbstractXBeeDevice(object):
             if not self._local_xbee_device.comm_iface.is_interface_open:
                 raise XBeeException("Local XBee device's communication interface closed")
             if init:
-                # Clear the 16-bit address, it might be obsolete which is a problem for ZigBee devices.
+                # Clear the 16-bit address, it might be obsolete which is a problem for Zigbee devices.
                 self._16bit_addr = None
         else:
             if (self._operating_mode != OperatingMode.API_MODE and
@@ -1395,7 +1395,7 @@ class AbstractXBeeDevice(object):
             InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
                 method only checks the cached value of the operating mode.
             ATCommandException: if the response is not as expected.
-            OperationNotSupportedException: if the current protocol is ZigBee
+            OperationNotSupportedException: if the current protocol is Zigbee
 
         .. seealso::
            | :class:`.APIOutputMode`
@@ -4735,7 +4735,7 @@ class DigiPointDevice(XBeeDevice):
 
 class ZigBeeDevice(XBeeDevice):
     """
-    This class represents a local ZigBee XBee device.
+    This class represents a local Zigbee XBee device.
     """
 
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
@@ -7352,7 +7352,7 @@ class RemoteDigiPointDevice(RemoteXBeeDevice):
 
 class RemoteZigBeeDevice(RemoteXBeeDevice):
     """
-    This class represents a remote ZigBee XBee device.
+    This class represents a remote Zigbee XBee device.
     """
 
     def __init__(self, local_xbee_device, x64bit_addr=None, x16bit_addr=None, node_id=None):
@@ -9839,7 +9839,7 @@ class XBeeNetwork(object):
 
 class ZigBeeNetwork(XBeeNetwork):
     """
-    This class represents a ZigBee network.
+    This class represents a Zigbee network.
 
     The network allows the discovery of remote devices in the same network
     as the local one and stores them.
@@ -10729,7 +10729,7 @@ NetworkEventReason.__doc__ += utils.doc_enum(NetworkEventReason)
 class LinkQuality(object):
     """
     This class represents the link qualitity of a connection.
-    It can be a LQI (Link Quality Index) for ZigBee devices, or RSSI
+    It can be a LQI (Link Quality Index) for Zigbee devices, or RSSI
     (Received Signal Strength Indicator) for the rest.
     """
 

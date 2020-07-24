@@ -3421,7 +3421,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             Bytearray: the query next image response frame.
         """
         image_size = self._get_ota_size()
-        # If the remote module is an XBee3 using ZigBee protocol and the firmware version
+        # If the remote module is an XBee3 using Zigbee protocol and the firmware version
         # is 1003 or lower, use the OTA GBL size instead of total size (exclude header size).
         if self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE and \
                 self._target_hardware_version in XBEE3_HARDWARE_VERSIONS and \
@@ -4787,10 +4787,10 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
 
     def _determine_updater_device_zigbee(self):
         """
-        Determines the updater device that will handle the update process of the remote device in a ZigBee network.
+        Determines the updater device that will handle the update process of the remote device in a Zigbee network.
 
         Returns:
-            :class:`.RemoteXBeeDevice`: The updater device that will handle the update process in a ZigBee network.
+            :class:`.RemoteXBeeDevice`: The updater device that will handle the update process in a Zigbee network.
 
         Raises:
             FirmwareUpdateException: if there is any error determining the updater device.
@@ -4946,7 +4946,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
 
     def _determine_best_updater_from_candidates_list_zigbee(self, updater_candidates):
         """
-        Determines which is the best updater node of the given list for a ZigBee network.
+        Determines which is the best updater node of the given list for a Zigbee network.
 
         Params:
             updater_candidates (List): the list of possible XBee updater devices.

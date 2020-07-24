@@ -23,14 +23,14 @@ class XBee16BitAddress:
     This address is only applicable for:
 
     1. 802.15.4
-    2. ZigBee
+    2. Zigbee
     3. ZNet 2.5
     4. XTend (Legacy)
 
     DigiMesh and Point-to-multipoint does not support 16-bit addressing.
 
     Each device has its own 16-bit address which is unique in the network.
-    It is automatically assigned when the radio joins the network for ZigBee
+    It is automatically assigned when the radio joins the network for Zigbee
     and Znet 2.5, and manually configured in 802.15.4 radios.
 
     | Attributes:
