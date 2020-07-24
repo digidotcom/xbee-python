@@ -20,7 +20,7 @@ import time
 
 from abc import ABC, abstractmethod
 from digi.xbee.exception import XBeeException, FirmwareUpdateException, TimeoutException, ATCommandException
-from digi.xbee.devices import AbstractXBeeDevice, RemoteXBeeDevice, NetworkEventReason
+from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, NetworkEventReason
 from digi.xbee.models.address import XBee16BitAddress
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
@@ -5402,7 +5402,7 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     Args:
         target (String or :class:`.XBeeDevice`): target of the firmware upload operation.
             String: serial port identifier.
-            :class:`.AbstractXBeeDevice`: the XBee device to upload its firmware.
+            :class:`.XBeeDevice`: XBee to upload its firmware.
         xml_firmware_file (String): path of the XML file that describes the firmware to upload.
         xbee_firmware_file (String, optional): location of the XBee binary firmware file.
         bootloader_firmware_file (String, optional): location of the bootloader binary firmware file.
@@ -5417,7 +5417,7 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
         FirmwareUpdateException: if there is any error performing the firmware update.
     """
     # Sanity checks.
-    if not isinstance(target, str) and not isinstance(target, AbstractXBeeDevice):
+    if not isinstance(target, str) and not isinstance(target, XBeeDevice):
         _log.error("ERROR: %s", _ERROR_TARGET_INVALID)
         raise FirmwareUpdateException(_ERROR_TARGET_INVALID)
     if xml_firmware_file is None:
@@ -5437,12 +5437,13 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     if not timeout:
         timeout = _READ_DATA_TIMEOUT
 
-    if not isinstance(target, str) and target._comm_iface and target._comm_iface.supports_update_firmware():
-        target._comm_iface.update_firmware(target, xml_firmware_file,
-                                           xbee_fw_file=xbee_firmware_file,
-                                           bootloader_fw_file=bootloader_firmware_file,
-                                           timeout=timeout,
-                                           progress_callback=progress_callback)
+    if (isinstance(target, XBeeDevice) and target.comm_iface
+            and target.comm_iface.supports_update_firmware()):
+        target.comm_iface.update_firmware(target, xml_firmware_file,
+                                          xbee_fw_file=xbee_firmware_file,
+                                          bootloader_fw_file=bootloader_firmware_file,
+                                          timeout=timeout,
+                                          progress_callback=progress_callback)
         return
 
     bootloader_type = _determine_bootloader_type(target)
@@ -5512,12 +5513,13 @@ def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None,
     if not timeout:
         timeout = _REMOTE_FIRMWARE_UPDATE_DEFAULT_TIMEOUT
 
-    if remote_device._comm_iface and remote_device._comm_iface.supports_update_firmware():
-        remote_device._comm_iface.update_firmware(remote_device, xml_firmware_file,
-                                                  xbee_fw_file=firmware_file,
-                                                  bootloader_fw_file=bootloader_file,
-                                                  timeout=timeout,
-                                                  progress_callback=progress_callback)
+    comm_iface = remote_device.get_comm_iface()
+    if comm_iface and comm_iface.supports_update_firmware():
+        comm_iface.update_firmware(remote_device, xml_firmware_file,
+                                   xbee_fw_file=firmware_file,
+                                   bootloader_fw_file=bootloader_file,
+                                   timeout=timeout,
+                                   progress_callback=progress_callback)
         return
 
     bootloader_type = _determine_bootloader_type(remote_device)

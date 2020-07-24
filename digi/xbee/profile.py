@@ -1890,11 +1890,12 @@ def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=Non
         _log.error("ERROR: %s", error)
         raise UpdateProfileException(error)
 
-    if (not isinstance(target, str) and target.comm_iface
-            and target.comm_iface.supports_apply_profile()):
-        target.comm_iface.apply_profile(target, profile_path, timeout=timeout,
-                                        progress_callback=progress_callback)
-        return
+    if not isinstance(target, str):
+        comm_iface = target.get_comm_iface() if target.is_remote() else target.comm_iface
+        if comm_iface and comm_iface.supports_apply_profile():
+            comm_iface.apply_profile(target, profile_path, timeout=timeout,
+                                     progress_callback=progress_callback)
+            return
 
     profile_updater = _ProfileUpdater(target, xbee_profile, timeout=timeout,
                                       progress_callback=progress_callback)
