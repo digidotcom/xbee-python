@@ -7721,6 +7721,9 @@ class XBeeNetwork(object):
             if self.__discovering:
                 return
 
+        self._log.info("Start network discovery for '%s'%s", self._local_xbee,
+                       (" (%d scans)" % n_deep_scans) if deep else "")
+
         if deep:
             self.__stop_scan = n_deep_scans
 
@@ -8853,6 +8856,7 @@ class XBeeNetwork(object):
         else:
             status = self._discover_full_network()
 
+        self._log.info("End network discovery for '%s'", self._local_xbee)
         self.__device_discovery_finished(status if status else NetworkDiscoveryStatus.SUCCESS)
 
     def _discover_full_network(self):
