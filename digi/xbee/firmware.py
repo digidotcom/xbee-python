@@ -1474,13 +1474,15 @@ class _XBeeFirmwareUpdater(ABC):
             if element is None:
                 self._exit_with_error(_ERROR_XML_PARSE % self._xml_firmware_file, restore_updater=False)
             self._xml_firmware_version = int(element.get(_XML_FIRMWARE_VERSION_ATTRIBUTE), 16)
-            _log.debug(" - Firmware version: %d", self._xml_firmware_version)
+            _log.debug(" - Firmware version: %s",
+                       utils.hex_to_string([self._xml_firmware_version], pretty=False))
             # Hardware version, required.
             element = root.find(_XML_HARDWARE_VERSION)
             if element is None:
                 self._exit_with_error(_ERROR_XML_PARSE % self._xml_firmware_file, restore_updater=False)
             self._xml_hardware_version = int(element.text, 16)
-            _log.debug(" - Hardware version: %d", self._xml_hardware_version)
+            _log.debug(" - Hardware version: %s",
+                       utils.hex_to_string([self._xml_hardware_version], pretty=False))
             # Compatibility number, required.
             element = root.find(_XML_COMPATIBILITY_NUMBER)
             if element is None:
@@ -1549,9 +1551,11 @@ class _XBeeFirmwareUpdater(ABC):
         # Read device values required for verification steps prior to firmware update.
         _log.debug("Reading device settings:")
         self._target_firmware_version = self._get_target_firmware_version()
-        _log.debug(" - Firmware version: %s", self._target_firmware_version)
+        _log.debug(" - Firmware version: %s",
+                   utils.hex_to_string([self._target_firmware_version], pretty=False))
         self._target_hardware_version = self._get_target_hardware_version()
-        _log.debug(" - Hardware version: %s", self._target_hardware_version)
+        _log.debug(" - Hardware version: %s",
+                   utils.hex_to_string([self._target_hardware_version], pretty=False))
         self._target_compatibility_number = self._get_target_compatibility_number()
         _log.debug(" - Compatibility number: %s", self._target_compatibility_number)
         self._target_bootloader_version = self._get_target_bootloader_version()
@@ -4243,9 +4247,11 @@ class _RemoteFilesystemUpdater(_RemoteXBee3FirmwareUpdater):
         # Read device values required for verification steps prior to filesystem update.
         _log.debug("Reading device settings:")
         self._target_firmware_version = self._get_target_firmware_version()
-        _log.debug(" - Firmware version: %s", self._target_firmware_version)
+        _log.debug(" - Firmware version: %s",
+                   utils.hex_to_string([self._target_firmware_version], pretty=False))
         self._target_hardware_version = self._get_target_hardware_version()
-        _log.debug(" - Hardware version: %s", self._target_hardware_version)
+        _log.debug(" - Hardware version: %s",
+                   utils.hex_to_string([self._target_hardware_version], pretty=False))
 
         # Check if the hardware version is compatible with the filesystem update process.
         if self._target_hardware_version and self._target_hardware_version not in XBEE3_HARDWARE_VERSIONS:
