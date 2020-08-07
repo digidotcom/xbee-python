@@ -3283,7 +3283,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             # Restore RR value.
             _set_device_parameter_with_retries(self._local_device, ATStringCommand.RR.command,
                                                self._updater_rr_value)
-        elif self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
+        elif self._updater_my_value and self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # Restore MY value.
             _set_device_parameter_with_retries(self._local_device, ATStringCommand.MY.command,
                                                self._updater_my_value)
@@ -6021,8 +6021,8 @@ def _enable_explicit_mode(xbee):
             value has not been changed.
     """
     # Store AO value.
-    ao_value = _read_device_parameter_with_retries(
-        xbee, ATStringCommand.AO.command)
+    ao_value = _read_device_parameter_with_retries(xbee,
+                                                   ATStringCommand.AO.command)
     if ao_value is None:
         return False, None
 
@@ -6031,15 +6031,22 @@ def _enable_explicit_mode(xbee):
     #   * Bit 0: Native/Explicit API output (1)
     #   * Bit 5: Prevent ZDO msgs from going out the serial port (0)
     value = bytearray([ao_value[0]])
-    if (value[0] & APIOutputModeBit.EXPLICIT.code
-            and not value[0] & APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code):
-        return True, None
+    protocol = xbee.get_protocol()
+    if protocol == XBeeProtocol.ZIGBEE:
+        if (value[0] & APIOutputModeBit.EXPLICIT.code
+                and not value[0] & APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code):
+            return True, None
+        # Set new AO value.
+        value[0] = value[0] | APIOutputModeBit.EXPLICIT.code
+        value[0] = value[0] & ~APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code
+    else:
+        if value[0] == APIOutputModeBit.EXPLICIT.code:
+            return True, None
+        # Set new AO value.
+        value[0] = APIOutputModeBit.EXPLICIT.code
 
-    # Set new AO value.
-    value[0] = value[0] | APIOutputModeBit.EXPLICIT.code
-    value[0] = value[0] & ~APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code
-    if not _set_device_parameter_with_retries(
-            xbee, ATStringCommand.AO.command, value):
+    if not _set_device_parameter_with_retries(xbee, ATStringCommand.AO.command,
+                                              value):
         return False, ao_value
 
     return True, ao_value
