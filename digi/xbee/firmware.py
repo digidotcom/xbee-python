@@ -227,7 +227,6 @@ _PROGRESS_TASK_UPDATE_XBEE = "Updating XBee firmware"
 _REGION_ALL = 0
 
 _REMOTE_FIRMWARE_UPDATE_DEFAULT_TIMEOUT = 20  # Seconds
-_REMOTE_FIRMWARE_UPDATE_RESYNC_TIMEOUT = 60  # Seconds
 
 _SEND_BLOCK_RETRIES = 5
 
@@ -267,8 +266,6 @@ _ZDO_COMMAND_ID_UPGRADE_END_RESP = 0x07
 _ZDO_COMMAND_ID_DEFAULT_RESP = 0x0B
 
 _ZDO_FRAME_CONTROL_CLIENT_TO_SERVER = 0x01
-
-_XB3_ZIGBEE_FW_VERSION_LIMIT_FOR_GBL = 0x1003
 
 # Since the following versions (they included), the XBee firmware includes
 # client retries for the same block offset if, for any reason, the block is not
@@ -488,7 +485,6 @@ class _OTAFile(object):
         self._header_string = None
         self._total_size = None
         self._ota_size = None
-        self._gbl_size = None
         self._discard_size = 0
         self._file = None
         self._min_hw_version = 0
@@ -540,8 +536,8 @@ class _OTAFile(object):
                 else:
                     self._header_string = file.read(_BUFFER_SIZE_STRING).decode(encoding="utf-8")
                 _log.debug(" - Header string: %s", self._header_string)
-                self._ota_size = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
-                _log.debug(" - OTA size: %d", self._ota_size)
+                bad_ota_size = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
+                _log.debug(" - Discard OTA size field: %d", bad_ota_size)
                 if self._header_field_control & 0x01:
                     _log.debug(" - Security credential version: %d", utils.bytes_to_int(file.read(1)))
                 if self._header_field_control & 0x02:
@@ -552,8 +548,9 @@ class _OTAFile(object):
                     self._max_hw_version = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
                     _log.debug(" - Minimum hardware version: %02X (%d)", self._min_hw_version, self._min_hw_version)
                     _log.debug(" - Maximum hardware version: %02X (%d)", self._max_hw_version, self._max_hw_version)
-                self._gbl_size = self._ota_size - self._header_length - _OTA_GBL_SIZE_BYTE_COUNT
-                _log.debug(" - GBL size: %d", self._gbl_size)
+                file.seek(self._header_length + 2, 0)
+                self._ota_size = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
+                _log.debug(" - OTA size: %d", self._ota_size)
                 self._total_size = os.path.getsize(self._file_path)
                 _log.debug(" - File size: %d", self._total_size)
                 self._discard_size = self._header_length + _OTA_GBL_SIZE_BYTE_COUNT
@@ -690,16 +687,6 @@ class _OTAFile(object):
             Integer: the OTA file total size.
         """
         return self._total_size
-
-    @property
-    def gbl_size(self):
-        """
-        Returns the OTA file gbl size.
-
-        Returns:
-            Integer: the OTA file gbl size.
-        """
-        return self._gbl_size
 
     @property
     def discard_size(self):
@@ -2365,7 +2352,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             if not was_open:
                 self._local_device.open()
             # We need to update target information. Give it some time to be back into the network.
-            deadline = _get_milliseconds() + (_REMOTE_FIRMWARE_UPDATE_RESYNC_TIMEOUT * 1000)
+            deadline = _get_milliseconds() + 3 * self._timeout * 1000
             initialized = False
             while _get_milliseconds() < deadline and not initialized:
                 try:
@@ -3424,15 +3411,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         Returns:
             Bytearray: the query next image response frame.
         """
-        image_size = self._get_ota_size()
-        # If the remote module is an XBee3 using Zigbee protocol and the firmware version
-        # is 1003 or lower, use the OTA GBL size instead of total size (exclude header size).
-        if self._remote_device.get_protocol() == XBeeProtocol.ZIGBEE and \
-                self._target_hardware_version in XBEE3_HARDWARE_VERSIONS and \
-                self._target_firmware_version < _XB3_ZIGBEE_FW_VERSION_LIMIT_FOR_GBL:
-            image_size = self._ota_file.gbl_size
-
         payload = bytearray()
+
         # The status could be:
         #    * _XBee3OTAStatus.SUCCESS (0x00): An image is available
         #    * _XBee3OTAStatus.NOT_AUTHORIZED (0x7E): This server isn't authorized to perform an upgrade
@@ -3443,7 +3423,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.manufacturer_code, 2)))
             payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.image_type, 2)))
             payload.extend(_reverse_bytearray(utils.int_to_bytes(self._ota_file.file_version, 4)))
-            payload.extend(_reverse_bytearray(utils.int_to_bytes(image_size, 4)))
+            payload.extend(_reverse_bytearray(utils.int_to_bytes(self._get_ota_size(), 4)))
 
         return self._create_zdo_frame(
             self._calculate_frame_control(frame_type=1, manufac_specific=False,
@@ -3873,6 +3853,11 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 _log.debug("Received 'Query next image response' status frame: %s",
                            status_frame.transmit_status.description)
                 if status_frame.transmit_status != TransmitStatus.SUCCESS:
+                    # DigiMesh: Updating from 3004 to 300A/300B, we are
+                    # receiving Transmit status responses with 0x25 error
+                    # (Route not found). If we wait a little between retries,
+                    # the response contains a 0x00 (success) after 3 retries
+                    time.sleep(2)
                     retries -= 1
                     continue
                 return
@@ -4076,13 +4061,16 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 # Workaround for XBHAWKDM-796
                 #
                 #   - 'No ack' error on XBee 3 DigiMesh remote firmware update
+                #   - 'Route not found' error on XBee 3 DigiMesh remote firmware
+                #     update from 3004 to 300A/300B
                 #   - 'Address not found' on XBee 3 ZB remote firmware update
                 #
                 # The workaround considers those TX status as valid.
                 #
                 # See https://jira.digi.com/browse/XBHAWKDM-796
                 #
-                dm_ack_error = (status_frame.transmit_status == TransmitStatus.NO_ACK
+                dm_ack_error = (status_frame.transmit_status in (TransmitStatus.NO_ACK,
+                                                                 TransmitStatus.ROUTE_NOT_FOUND)
                                 and self._remote_device.get_protocol() == XBeeProtocol.DIGI_MESH
                                 and self._target_firmware_version <= 0x3004)
                 zb_addr_error = (status_frame.transmit_status == TransmitStatus.ADDRESS_NOT_FOUND
