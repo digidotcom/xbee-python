@@ -806,7 +806,7 @@ class XBeeProfile:
                 os.listdir(os.path.join(self._profile_folder,
                                         _REMOTE_FILESYSTEM_FOLDER))[0])
         # Bootloader file.
-        if len(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))) is not 0:
+        if len(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))) != 0:
             self._bootloader_file = str(
                 list(firmware_path.rglob(_WILDCARD_BOOTLOADER))[0])
         # Cellular firmware files.
