@@ -9241,6 +9241,7 @@ class XBeeNetwork(object):
         """
         if not error.endswith(TransmitStatus.NOT_JOINED_NETWORK.description) \
                 and not error.endswith(TransmitStatus.ADDRESS_NOT_FOUND.description) \
+                and not error.endswith(TransmitStatus.NETWORK_ACK_FAILURE.description) \
                 and not error.endswith("ZDO command not sent") \
                 and not error.endswith("ZDO command answer not received") \
                 and not error.endswith("FN command answer not received"):
