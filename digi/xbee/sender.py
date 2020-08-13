@@ -87,8 +87,7 @@ class PacketSender:
             node = self.__xbee
             # Get remote node in case of a remote at command
             if (f_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST
-                    and packet.x64bit_dest_addr not in (XBee64BitAddress.UNKNOWN_ADDRESS,
-                                                        XBee64BitAddress.BROADCAST_ADDRESS)):
+                    and XBee64BitAddress.is_known_node_addr(packet.x64bit_dest_addr)):
                 node = self.__xbee.get_network().get_device_by_64(packet.x64bit_dest_addr)
 
             # Store the sent AT command packet
@@ -137,8 +136,7 @@ class PacketSender:
         node = self.__xbee
         # Get remote node in case of a remote at command
         if (f_type == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
-                and response.x64bit_source_addr not in (XBee64BitAddress.UNKNOWN_ADDRESS,
-                                                        XBee64BitAddress.BROADCAST_ADDRESS)):
+                and XBee64BitAddress.is_known_node_addr(response.x64bit_source_addr)):
             node = self.__xbee.get_network().get_device_by_64(response.x64bit_source_addr)
 
         if not node:

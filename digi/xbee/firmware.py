@@ -29,7 +29,7 @@ from digi.xbee.models.options import RemoteATCmdOptions
 from digi.xbee.models.protocol import XBeeProtocol, Role
 from digi.xbee.models.status import TransmitStatus, ATCommandStatus, EmberBootloaderMessageType
 from digi.xbee.packets.aft import ApiFrameType
-from digi.xbee.packets.common import ExplicitAddressingPacket, TransmitStatusPacket, TransmitPacket,\
+from digi.xbee.packets.common import ExplicitAddressingPacket, TransmitStatusPacket,\
     RemoteATCommandPacket, RemoteATCommandResponsePacket
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
@@ -238,7 +238,6 @@ _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE = 12
 
 _VALUE_API_OUTPUT_MODE_EXPLICIT = 0x01
 _VALUE_BAUDRATE_230400 = 0x08
-_VALUE_BROADCAST_ADDRESS = bytearray([0xFF, 0xFF])
 _VALUE_END_OF_FILE_DATA = bytearray([0x01, 0x04])
 _VALUE_INITIALIZATION_DATA = bytearray([0x01, 0x51])
 _VALUE_PRESERVE_NEWTWORK_SETTINGS = bytearray([0x54, 0x41])
@@ -3252,7 +3251,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.MY.command)
             # Set new MY value.
             if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.MY.command,
-                                                      _VALUE_BROADCAST_ADDRESS):
+                                                      XBee16BitAddress.BROADCAST_ADDRESS.address):
                 self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.MY.command)
 
     def _restore_updater_extra(self):

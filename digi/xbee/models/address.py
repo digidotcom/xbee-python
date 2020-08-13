@@ -141,9 +141,30 @@ class XBee16BitAddress:
             return 1 <= len(address) <= 2
 
         if isinstance(address, str):
-            return cls.__REGEXP.match(address)
+            return bool(cls.__REGEXP.match(address))
 
         return False
+
+    @classmethod
+    def is_known_node_addr(cls, address):
+        """
+        Checks if a provided address is a known value. That is, if it is a
+        valid 16-bit address and it is not the unknown or the broadcast address.
+
+        Args:
+            address (String, Bytearray, or :class:`.XBee16BitAddress`): The 16-bit
+                address to check as a string, bytearray or
+                :class:`.XBee16BitAddress`.
+
+        Returns:
+            Boolean: `True` for a known node 16-bit address, `False` otherwise.
+        """
+        if isinstance(address, (str, bytearray)) and cls.is_valid(address):
+            address = XBee16BitAddress.from_hex_string(address)
+
+        return (isinstance(address, XBee16BitAddress)
+                and address not in (XBee16BitAddress.BROADCAST_ADDRESS,
+                                    XBee16BitAddress.UNKNOWN_ADDRESS))
 
     def __get_item__(self, index):
         """
@@ -345,9 +366,30 @@ class XBee64BitAddress:
             return 1 <= len(address) <= 8
 
         if isinstance(address, str):
-            return cls.__REGEXP.match(address)
+            return bool(cls.__REGEXP.match(address))
 
         return False
+
+    @classmethod
+    def is_known_node_addr(cls, address):
+        """
+        Checks if a provided address is a known value. That is, if it is a
+        valid 64-bit address and it is not the unknown or the broadcast address.
+
+        Args:
+            address (String, Bytearray, or :class:`.XBee64BitAddress`): The 64-bit
+                address to check as a string, bytearray or
+                :class:`.XBee64BitAddress`.
+
+        Returns:
+            Boolean: `True` for a known node 64-bit address, `False` otherwise.
+        """
+        if isinstance(address, (str, bytearray)) and cls.is_valid(address):
+            address = XBee64BitAddress.from_hex_string(address)
+
+        return (isinstance(address, XBee64BitAddress)
+                and address not in (XBee64BitAddress.BROADCAST_ADDRESS,
+                                    XBee64BitAddress.UNKNOWN_ADDRESS))
 
     def __str__(self):
         """

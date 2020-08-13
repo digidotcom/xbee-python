@@ -201,17 +201,14 @@ class AbstractXBeeDevice(object):
             updated = True
 
         new_addr64 = device.get_64bit_addr()
-        if (new_addr64 is not None
-                and new_addr64 != XBee64BitAddress.UNKNOWN_ADDRESS
+        if (XBee64BitAddress.is_known_node_addr(new_addr64)
                 and new_addr64 != self._64bit_addr
-                and (self._64bit_addr is None
-                     or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS)):
+                and not XBee64BitAddress.is_known_node_addr(self._64bit_addr)):
             self._64bit_addr = new_addr64
             updated = True
 
         new_addr16 = device.get_16bit_addr()
-        if (new_addr16 is not None
-                and new_addr16 != XBee16BitAddress.UNKNOWN_ADDRESS
+        if (XBee16BitAddress.is_known_node_addr(new_addr16)
                 and new_addr16 != self._16bit_addr):
             self._16bit_addr = new_addr16
             updated = True
@@ -538,7 +535,7 @@ class AbstractXBeeDevice(object):
                 self._hardware_version.code, self._firmware_version)
 
             # 64-bit address:
-            if init or self._64bit_addr is None or self._64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
+            if init or not XBee64BitAddress.is_known_node_addr(self._64bit_addr):
                 sh = self.get_parameter(ATStringCommand.SH.command)
                 sl = self.get_parameter(ATStringCommand.SL.command)
                 x64bit_addr = XBee64BitAddress(sh + sl)
@@ -546,7 +543,7 @@ class AbstractXBeeDevice(object):
                     self._64bit_addr = x64bit_addr
                     updated = True
             # Node ID:
-            if init or self._node_id is None:
+            if init or not self._node_id:
                 node_id = self.get_parameter(ATStringCommand.NI.command).decode()
                 if self._node_id != node_id:
                     self._node_id = node_id
@@ -554,8 +551,7 @@ class AbstractXBeeDevice(object):
             # 16-bit address:
             if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4, XBeeProtocol.XTEND,
                                    XBeeProtocol.SMART_ENERGY, XBeeProtocol.ZNET]
-                    and (init or self._16bit_addr is None
-                         or self._16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS)):
+                    and (init or not XBee16BitAddress.is_known_node_addr(self._16bit_addr))):
                 x16bit_addr = XBee16BitAddress(self.get_parameter(ATStringCommand.MY.command))
                 if self._16bit_addr != x16bit_addr:
                     self._16bit_addr = x16bit_addr
@@ -641,13 +637,11 @@ class AbstractXBeeDevice(object):
         if self._protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.ZIGBEE,
                               XBeeProtocol.XTEND, XBeeProtocol.SMART_ENERGY,
                               XBeeProtocol.ZNET]:
-            is_16bit_init = (self._16bit_addr is not None
-                             and self._16bit_addr != XBee16BitAddress.UNKNOWN_ADDRESS)
+            is_16bit_init = XBee16BitAddress.is_known_node_addr(self._16bit_addr)
 
         return (self._hardware_version is not None
                 and self._firmware_version is not None
-                and self._64bit_addr is not None
-                and self._64bit_addr != XBee64BitAddress.UNKNOWN_ADDRESS
+                and XBee64BitAddress.is_known_node_addr(self._64bit_addr)
                 and self._node_id is not None
                 and is_16bit_init
                 and self._role is not None and self._role != Role.UNKNOWN)
@@ -1866,11 +1860,9 @@ class AbstractXBeeDevice(object):
                 if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST \
                         and (received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
                              or packet_to_send.command.upper() != received_packet.command.upper()
-                             or (packet_to_send.x64bit_dest_addr != XBee64BitAddress.BROADCAST_ADDRESS
-                                 and packet_to_send.x64bit_dest_addr != XBee64BitAddress.UNKNOWN_ADDRESS
+                             or (XBee64BitAddress.is_known_node_addr(packet_to_send.x64bit_dest_addr)
                                  and packet_to_send.x64bit_dest_addr != received_packet.x64bit_source_addr)
-                             or (packet_to_send.x16bit_dest_addr != XBee16BitAddress.BROADCAST_ADDRESS
-                                 and packet_to_send.x16bit_dest_addr != XBee16BitAddress.UNKNOWN_ADDRESS
+                             or (XBee16BitAddress.is_known_node_addr(packet_to_send.x16bit_dest_addr)
                                  and packet_to_send.x16bit_dest_addr != received_packet.x16bit_source_addr)):
                     return
                 # If the packet sent is a Socket Create, verify that the received one is a Socket Create Response.
@@ -5268,15 +5260,15 @@ class ZigBeeDevice(XBeeDevice):
             raise ValueError("Invalid protocol of destination node")
 
         x64 = dest_node.get_64bit_addr()
-        if (x64 == XBee64BitAddress.BROADCAST_ADDRESS):
+        if x64 == XBee64BitAddress.BROADCAST_ADDRESS:
             raise ValueError("Invalid 64-bit address of destination node: %s" % x64)
 
         x16 = dest_node.get_16bit_addr()
-        if (x16 == XBee16BitAddress.BROADCAST_ADDRESS):
+        if x16 == XBee16BitAddress.BROADCAST_ADDRESS:
             raise ValueError("Invalid 16-bit address of destination node: %s" % x16)
 
-        if (x64 in [None, XBee64BitAddress.UNKNOWN_ADDRESS]
-                and x16 in [None, XBee16BitAddress.UNKNOWN_ADDRESS]):
+        if (not XBee64BitAddress.is_known_node_addr(x64)
+                and not XBee16BitAddress.is_known_node_addr(x16)):
             raise ValueError("64-bit and 16-bit addresses of destination node cannot be unknown")
 
         if hops is None:
@@ -5285,8 +5277,7 @@ class ZigBeeDevice(XBeeDevice):
         addresses = []
         for hop in hops:
             hop16 = hop.get_16bit_addr()
-            if (not hop16 or hop16 == XBee16BitAddress.UNKNOWN_ADDRESS
-                    or hop16 == XBee16BitAddress.BROADCAST_ADDRESS):
+            if not XBee16BitAddress.is_known_node_addr(hop16):
                 raise ValueError("Invalid 16-bit address of hop node: %s" % hop16)
             addresses.append(hop16)
 
@@ -8359,13 +8350,11 @@ class XBeeNetwork(object):
             raise ValueError("Node cannot be None")
 
         x64 = node.get_64bit_addr()
-        if x64 not in (None, XBee64BitAddress.UNKNOWN_ADDRESS,
-                       XBee64BitAddress.BROADCAST_ADDRESS):
+        if XBee64BitAddress.is_known_node_addr(x64):
             return self.get_device_by_64(x64) is not None
 
         x16 = node.get_16bit_addr()
-        if x16 not in (None, XBee16BitAddress.UNKNOWN_ADDRESS,
-                       XBee16BitAddress.BROADCAST_ADDRESS):
+        if XBee16BitAddress.is_known_node_addr(x16):
             return self.get_device_by_16(x16) is not None
 
         node_id = node.get_node_id()
@@ -8389,7 +8378,7 @@ class XBeeNetwork(object):
         """
         if x64bit_addr is None:
             raise ValueError("64-bit address cannot be None")
-        if x64bit_addr == XBee64BitAddress.UNKNOWN_ADDRESS:
+        if not XBee64BitAddress.is_known_node_addr(x64bit_addr):
             raise ValueError("64-bit address cannot be unknown")
 
         if self._local_xbee.get_64bit_addr() == x64bit_addr:
@@ -8421,7 +8410,7 @@ class XBeeNetwork(object):
             raise ValueError("Point-to-Multipoint protocol does not support 16-bit addressing")
         if x16bit_addr is None:
             raise ValueError("16-bit address cannot be None")
-        if x16bit_addr == XBee16BitAddress.UNKNOWN_ADDRESS:
+        if not XBee16BitAddress.is_known_node_addr(x16bit_addr):
             raise ValueError("16-bit address cannot be unknown")
 
         if self._local_xbee.get_16bit_addr() == x16bit_addr:
@@ -8475,6 +8464,10 @@ class XBeeNetwork(object):
             :class:`.AbstractXBeeDevice`: the remote XBee device with the updated parameters. If the XBee device
                 was not in the list yet, this method returns the given XBee device without changes.
         """
+        if not (XBee64BitAddress.is_known_node_addr(x64bit_addr)
+                or XBee16BitAddress.is_known_node_addr(x16bit_addr)):
+            return None
+
         if x64bit_addr == self._local_xbee.get_64bit_addr():
             return self._local_xbee
 
@@ -8526,17 +8519,16 @@ class XBeeNetwork(object):
 
             # If node to add does not have its 64-bit address, look for it
             # in the cached list by its 16-bit address
-            if not x64 or x64 == XBee64BitAddress.UNKNOWN_ADDRESS:
+            if not XBee64BitAddress.is_known_node_addr(x64):
                 x16 = remote_xbee.get_16bit_addr()
-                if x16 and x16 != XBee16BitAddress.UNKNOWN_ADDRESS \
-                        and x16 != XBee16BitAddress.BROADCAST_ADDRESS:
+                if XBee16BitAddress.is_known_node_addr(x16):
                     found = self.get_device_by_16(x16)
                     if found:
                         x64 = found.get_64bit_addr()
 
             # If not found by its 16-bit address or found but it still does
             # not have the 64-bit address, ask for it
-            if not x64 or x64 == XBee64BitAddress.UNKNOWN_ADDRESS:
+            if not XBee64BitAddress.is_known_node_addr(x64):
                 if found:
                     found._initializing = True
                 # Ask for the 64-bit address
@@ -8562,8 +8554,7 @@ class XBeeNetwork(object):
             # (Useful if the 64-bit address could not be read)
             if not found:
                 x16 = remote_xbee.get_16bit_addr()
-                if x16 and x16 != XBee16BitAddress.UNKNOWN_ADDRESS \
-                        and x16 != XBee16BitAddress.BROADCAST_ADDRESS:
+                if XBee16BitAddress.is_known_node_addr(x16):
                     found = self.get_device_by_16(x16)
 
         if found:
@@ -9427,8 +9418,8 @@ class XBeeNetwork(object):
         if x64bit_addr == "local":
             x64bit_addr = self._local_xbee.get_64bit_addr()
 
-        if (x64bit_addr in (None, XBee64BitAddress.UNKNOWN_ADDRESS, XBee64BitAddress.BROADCAST_ADDRESS)
-                and x16bit_addr in (None, XBee16BitAddress.UNKNOWN_ADDRESS, XBee16BitAddress.BROADCAST_ADDRESS)):
+        if not (XBee64BitAddress.is_known_node_addr(x64bit_addr)
+                or XBee16BitAddress.is_known_node_addr(x16bit_addr)):
             return None
 
         p = self._local_xbee.get_protocol()
@@ -9436,8 +9427,7 @@ class XBeeNetwork(object):
         if p == XBeeProtocol.ZIGBEE:
             xb = RemoteZigBeeDevice(self._local_xbee, x64bit_addr=x64bit_addr,
                                     x16bit_addr=x16bit_addr, node_id=node_id)
-            if not parent_addr or parent_addr in [XBee64BitAddress.BROADCAST_ADDRESS,
-                                                  XBee64BitAddress.UNKNOWN_ADDRESS]:
+            if not XBee64BitAddress.is_known_node_addr(parent_addr):
                 xb.parent = None
             else:
                 xb.parent = self.get_device_by_64(parent_addr)
