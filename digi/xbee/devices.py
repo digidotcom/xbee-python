@@ -8573,7 +8573,8 @@ class XBeeNetwork(object):
                 if not already_in_scan:
                     found._scan_counter = self.__scan_counter
 
-            if not found._initializing and found.update_device_data_from(remote_xbee):
+            is_init = found._initializing and reason == NetworkEventReason.RECEIVED_MSG
+            if not is_init and found.update_device_data_from(remote_xbee):
                 self._network_modified(NetworkEventType.UPDATE, reason, node=found)
                 found._reachable = True
 
