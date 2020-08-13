@@ -8511,51 +8511,69 @@ class XBeeNetwork(object):
         found = None
 
         # Check if it is the local device
-        if not remote_xbee.is_remote() or remote_xbee == remote_xbee.get_local_xbee_device():
-            found = remote_xbee if not remote_xbee.is_remote() else remote_xbee.get_local_xbee_device()
+        if (not remote_xbee.is_remote()
+                or remote_xbee == remote_xbee.get_local_xbee_device()):
+            found = remote_xbee if not remote_xbee.is_remote() \
+                else remote_xbee.get_local_xbee_device()
         # Look for the remote in the network list
         else:
             x64 = remote_xbee.get_64bit_addr()
+            x16 = remote_xbee.get_16bit_addr()
+            is_x64_known_addr = XBee64BitAddress.is_known_node_addr(x64)
+            is_x16_known_addr = XBee16BitAddress.is_known_node_addr(x16)
 
-            # If node to add does not have its 64-bit address, look for it
-            # in the cached list by its 16-bit address
-            if not XBee64BitAddress.is_known_node_addr(x64):
-                x16 = remote_xbee.get_16bit_addr()
-                if XBee16BitAddress.is_known_node_addr(x16):
-                    found = self.get_device_by_16(x16)
-                    if found:
-                        x64 = found.get_64bit_addr()
+            if not is_x64_known_addr and not is_x16_known_addr:
+                return None
 
-            # If not found by its 16-bit address or found but it still does
-            # not have the 64-bit address, ask for it
-            if not XBee64BitAddress.is_known_node_addr(x64):
-                if found:
-                    found._initializing = True
+            # If node does not have a valid 64-bit address, ask for it only if
+            # its 16-bit is valid
+            if not is_x64_known_addr and is_x16_known_addr:
+                # It may happen the node is in the network cache and can be
+                # found by its 16-bit address. In this case, this would not be
+                # necessary. But, by always asking, we are trying to keep the
+                # 64-bit address as the main key for nodes and reducing the
+                # possibilities of considering the same node what actually are
+                # different physical but maybe with the same 16-bit address
+                # (bad configured in case of 802.15.4) or with a not updated
+                # 16-bit address (in a Zigbee network)
+                remote_xbee._initializing = True
                 # Ask for the 64-bit address
                 try:
                     sh = remote_xbee.get_parameter(ATStringCommand.SH.command)
                     sl = remote_xbee.get_parameter(ATStringCommand.SL.command)
-                    remote_xbee._64bit_addr = XBee64BitAddress(sh + sl)
-                    if found:
-                        found._64bit_addr = remote_xbee.get_64bit_addr()
+                    x64 = XBee64BitAddress(sh + sl)
+                    is_x64_known_addr = XBee64BitAddress.is_known_node_addr(x64)
+                    remote_xbee._64bit_addr = x64
                 except XBeeException as e:
-                    self._log.debug("Error while trying to get 64-bit address of XBee (%s): %s",
-                                    remote_xbee.get_16bit_addr(), str(e))
-                if found:
-                    found._initializing = False
+                    self._log.debug(
+                        "Error while trying to get 64-bit address of XBee (%s - %s): %s",
+                        remote_xbee, x16, str(e))
+                remote_xbee._initializing = False
 
             # Look for the node in the cache by its 64-bit address
-            if not found:
+            if is_x64_known_addr:
                 with self.__lock:
                     if remote_xbee in self.__devices_list:
                         found = self.__devices_list[self.__devices_list.index(remote_xbee)]
 
             # If not found, look for the node in the cache by its 16-bit address
-            # (Useful if the 64-bit address could not be read)
             if not found:
-                x16 = remote_xbee.get_16bit_addr()
-                if XBee16BitAddress.is_known_node_addr(x16):
-                    found = self.get_device_by_16(x16)
+                found_16 = None
+                if is_x16_known_addr:
+                    found_16 = self.get_device_by_16(x16)
+
+                # For an invalid 64-bit address of the node to add, use the
+                # node found by its 16-bit address in the cache
+                if not is_x64_known_addr:
+                    found = found_16
+                # For a valid 64-bit address of the node to add, check if the
+                # node with the same 16-bit address in the cache has a valid
+                # 64-bit address. If not, consider this addition an update of
+                # the existing entry (found by the 16-bit address)
+                elif (found_16
+                      and not XBee64BitAddress.is_known_node_addr(
+                            found_16.get_64bit_addr())):
+                    found = found_16
 
         if found:
             already_in_scan = False
