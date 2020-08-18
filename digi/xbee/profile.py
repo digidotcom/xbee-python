@@ -891,14 +891,16 @@ class XBeeProfile:
             if self._firmware_version is None:
                 self._throw_read_exception(
                     _ERROR_FIRMWARE_XML_INVALID % "missing firmware version")
-            _log.debug(" - Firmware version: %s", self._firmware_version)
+            _log.debug(" - Firmware version: %s",
+                       utils.hex_to_string([self._firmware_version], pretty=False))
             # Hardware version.
             hardware_version_element = root.find(_XML_FIRMWARE_HARDWARE_VERSION)
             if hardware_version_element is None:
                 self._throw_read_exception(
                     _ERROR_FIRMWARE_XML_INVALID % "missing hardware version element")
             self._hardware_version = int(hardware_version_element.text, 16)
-            _log.debug(" - Hardware version: %s", self._hardware_version)
+            _log.debug(" - Hardware version: %s",
+                       utils.hex_to_string([self._hardware_version], pretty=False))
             # Compatibility number.
             element = root.find(_XML_COMPATIBILITY_NUMBER)
             if element is None:
@@ -1342,8 +1344,10 @@ class _ProfileUpdater:
         # Sanitize firmware version.
         self._device_firmware_version = int(utils.hex_to_string(
             self._device_firmware_version).replace(" ", ""), 16)
-        _log.debug("  - Firmware version: %s", self._device_firmware_version)
-        _log.debug("  - Hardware version: %s", self._device_hardware_version.code)
+        _log.debug("  - Firmware version: %s",
+                   utils.hex_to_string([self._device_firmware_version], pretty=False))
+        _log.debug("  - Hardware version: %s",
+                   utils.hex_to_string([self._device_hardware_version.code], pretty=False))
 
     def _read_parameter_with_retries(self, parameter, retries):
         """
