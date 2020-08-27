@@ -4228,23 +4228,22 @@ class XBeeDevice(AbstractXBeeDevice):
 
         lock.clear()
 
-        st_frame = None
+        status = None
+        timed_out = False
+
         self.add_route_received_callback(route_cb)
 
         try:
-            timed_out = False
             start = time.time()
 
             st_frame = self.send_packet_sync_and_get_response(packet, timeout=timeout)
-            if st_frame.transmit_status in [TransmitStatus.SUCCESS,
-                                            TransmitStatus.SELF_ADDRESSED]:
+            status = st_frame.transmit_status if st_frame else None
+            if status in (TransmitStatus.SUCCESS, TransmitStatus.SELF_ADDRESSED):
                 timed_out = not lock.wait(timeout - (time.time() - start))
         except TimeoutException:
             timed_out = True
         finally:
             self.del_route_received_callback(route_cb)
-
-        status = st_frame.transmit_status if st_frame else None
 
         # Check if the list of intermediate nodes is empty
         if timed_out or not node_list:
