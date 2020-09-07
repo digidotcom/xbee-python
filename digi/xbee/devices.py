@@ -9500,7 +9500,7 @@ class XBeeNetwork(object):
             node_id = data[10:i]
             i += 1
             # parent address: next 2 bytes from i
-            parent_addr = data[i:i+2]
+            parent_addr = XBee64BitAddress(data[i:i+2])
             i += 2
             # role is the next byte
             role = Role.get(utils.bytes_to_int(data[i:i+1]))
