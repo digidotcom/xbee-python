@@ -130,13 +130,17 @@ class XBee16BitAddress:
         Checks if the provided hex string is a valid 16-bit address.
 
         Args:
-            address (String or Bytearray): String: String containing the address.
-                Must be made by hex. digits without blanks. Minimum 1 character, maximum 4 (16-bit).
+            address (String or Bytearray, or :class:`.XBee16BitAddress`):
+                String: String with the address only with hex digits without
+                blanks. Minimum 1 character, maximum 4 (16-bit).
                 Bytearray: Address as byte array. Must be 1-2 digits.
 
         Returns:
             Boolean: `True` for a valid 16-bit address, `False` otherwise.
         """
+        if isinstance(address, XBee16BitAddress):
+            return True
+
         if isinstance(address, bytearray):
             return 1 <= len(address) <= 2
 
@@ -159,12 +163,16 @@ class XBee16BitAddress:
         Returns:
             Boolean: `True` for a known node 16-bit address, `False` otherwise.
         """
-        if isinstance(address, (str, bytearray)) and cls.is_valid(address):
-            address = XBee16BitAddress.from_hex_string(address)
+        if not cls.is_valid(address):
+            return False
 
-        return (isinstance(address, XBee16BitAddress)
-                and address not in (XBee16BitAddress.BROADCAST_ADDRESS,
-                                    XBee16BitAddress.UNKNOWN_ADDRESS))
+        if isinstance(address, str):
+            address = XBee16BitAddress.from_hex_string(address)
+        elif isinstance(address, bytearray):
+            address = XBee16BitAddress(address)
+
+        return address not in (XBee16BitAddress.BROADCAST_ADDRESS,
+                               XBee16BitAddress.UNKNOWN_ADDRESS)
 
     def __get_item__(self, index):
         """
@@ -357,11 +365,17 @@ class XBee64BitAddress:
         Checks if the provided hex string is a valid 64-bit address.
 
         Args:
-            address (String or Bytearray): The XBee 64-bit address as a string or bytearray.
+            address (String, Bytearray, or :class:`.XBee64BitAddress`):
+                String: String with the address only with hex digits without
+                blanks. Minimum 1 character, maximum 16 (64-bit).
+                Bytearray: Address as byte array. Must be 1-8 digits.
 
         Returns
             Boolean: `True` for a valid 64-bit address, `False` otherwise.
         """
+        if isinstance(address, XBee64BitAddress):
+            return True
+
         if isinstance(address, bytearray):
             return 1 <= len(address) <= 8
 
@@ -384,12 +398,16 @@ class XBee64BitAddress:
         Returns:
             Boolean: `True` for a known node 64-bit address, `False` otherwise.
         """
-        if isinstance(address, (str, bytearray)) and cls.is_valid(address):
-            address = XBee64BitAddress.from_hex_string(address)
+        if not cls.is_valid(address):
+            return False
 
-        return (isinstance(address, XBee64BitAddress)
-                and address not in (XBee64BitAddress.BROADCAST_ADDRESS,
-                                    XBee64BitAddress.UNKNOWN_ADDRESS))
+        if isinstance(address, str):
+            address = XBee64BitAddress.from_hex_string(address)
+        elif isinstance(address, bytearray):
+            address = XBee64BitAddress(address)
+
+        return address not in (XBee64BitAddress.BROADCAST_ADDRESS,
+                               XBee64BitAddress.UNKNOWN_ADDRESS)
 
     def __str__(self):
         """
