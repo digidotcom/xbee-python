@@ -204,6 +204,27 @@ class FirmwareBaudrate(Enum):
 
         return None
 
+    @classmethod
+    def get_by_baudrate(cls, baudrate):
+        """
+        Returns the `FirmwareBaudrate` for the given baudrate.
+
+        Args:
+            baudrate (Integer): Baudrate value of the `FirmwareBaudrate` to get.
+
+        Returns:
+            :class:`.FirmwareBaudrate`: `FirmwareBaudrate` with the given
+                baudrate, `None` if there is not a `FirmwareBaudrate` with that
+                baudrate.
+        """
+        if baudrate is None:
+            return FirmwareBaudrate.BD_9600
+        for value in FirmwareBaudrate:
+            if value.baudrate == baudrate:
+                return value
+
+        return None
+
     @property
     def index(self):
         """
@@ -267,6 +288,26 @@ class FirmwareParity(Enum):
 
         return None
 
+    @classmethod
+    def get_by_parity(cls, parity):
+        """
+        Returns the `FirmwareParity` for the given parity.
+
+        Args:
+            parity (String): Parity value of the `FirmwareParity` to get.
+
+        Returns:
+            :class:`.FirmwareParity`: `FirmwareParity` with the given parity,
+                `None` if there is not a `FirmwareParity` with that parity.
+        """
+        if parity is None:
+            return FirmwareParity.NONE
+        for value in FirmwareParity:
+            if value.parity == parity:
+                return value
+
+        return None
+
     @property
     def index(self):
         """
@@ -325,6 +366,26 @@ class FirmwareStopbits(Enum):
             return FirmwareStopbits.SB_1
         for value in FirmwareStopbits:
             if value.index == index:
+                return value
+
+        return None
+
+    @classmethod
+    def get_by_stopbits(cls, stopbits):
+        """
+        Returns the `FirmwareStopbits` for the given number of stop bits.
+
+        Args:
+            stopbits (Integer): Stop bis value of the `FirmwareStopbits` to get.
+
+        Returns:
+            :class:`.FirmwareStopbits`: `FirmwareStopbits` with the given stop
+                bits, `None` if there is not a `FirmwareStopbits` with that value.
+        """
+        if stopbits is None:
+            return FirmwareStopbits.NONE
+        for value in FirmwareStopbits:
+            if value.stop_bits == stopbits:
                 return value
 
         return None

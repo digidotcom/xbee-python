@@ -24,6 +24,7 @@ from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.profile import FirmwareBaudrate, FirmwareParity, FirmwareStopbits
 from digi.xbee.exception import RecoveryException, XBeeException
+from digi.xbee.serial import FlowControl
 from digi.xbee.util import utils
 
 
@@ -34,6 +35,9 @@ SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
 _BAUDRATE_KEY = "baudrate"
 _PARITY_KEY = "parity"
 _STOPBITS_KEY = "stopbits"
+_FLOW_CTRL_KEY = "flow_ctrl"
+_CTS_KEY = "cts"
+_RTS_KEY = "rts"
 _API_ENABLE_KEY = "api_enable"
 _CMD_SEQ_CHAR_KEY = "cmd_seq_char"
 _GUARD_TIME_KEY = "guard_time"
@@ -70,6 +74,8 @@ _BOOTLOADER_BAUDRATE = 115200
 _AT_COMMANDS = {_BAUDRATE_KEY: "at%s" % ATStringCommand.BD.command,
                 _PARITY_KEY: "at%s" % ATStringCommand.NB.command,
                 _STOPBITS_KEY: "at%s" % ATStringCommand.SB.command,
+                _CTS_KEY: "at%s" % ATStringCommand.D7.command,
+                _RTS_KEY: "at%s" % ATStringCommand.D6.command,
                 _API_ENABLE_KEY: "at%s" % ATStringCommand.AP.command,
                 _CMD_SEQ_CHAR_KEY: "at%s" % ATStringCommand.CC.command,
                 _GUARD_TIME_KEY: "at%s" % ATStringCommand.GT.command,
@@ -78,9 +84,6 @@ _AT_COMMANDS = {_BAUDRATE_KEY: "at%s" % ATStringCommand.BD.command,
                 _EXIT_MODE_KEY: "at%s\r" % ATStringCommand.CN.command
                 }
 AT_OK_RESPONSE = b'OK\r'
-_BAUDS_LIST = tuple(e.value[1] for e in FirmwareBaudrate)
-_PARITY_LIST = tuple(e.value[1] for e in FirmwareParity)
-_STOPBITS_LIST = tuple(e.value[1] for e in FirmwareStopbits)
 
 _log = logging.getLogger(__name__)
 
@@ -111,6 +114,15 @@ class _LocalRecoverDevice:
             self._device_was_connected = False
 
         self._desired_cfg = self._xbee_serial_port.get_settings()
+
+        self._desired_cfg[_FLOW_CTRL_KEY] = FlowControl.NONE
+        if self._desired_cfg["rtscts"]:
+            self._desired_cfg[_FLOW_CTRL_KEY] = FlowControl.HARDWARE_RTS_CTS
+        elif self._desired_cfg["dsrdtr"]:
+            self._desired_cfg[_FLOW_CTRL_KEY] = FlowControl.HARDWARE_DSR_DTR
+        elif self._desired_cfg["xonxoff"]:
+            self._desired_cfg[_FLOW_CTRL_KEY] = FlowControl.SOFTWARE
+
         self._desired_cfg[_CMD_SEQ_CHAR_KEY] = hex(ord('+'))[2:]
         self._desired_cfg[_GUARD_TIME_KEY] = hex(1000)[2:]  # 1000ms in hex
 
@@ -119,14 +131,130 @@ class _LocalRecoverDevice:
                 (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
             self._desired_cfg[_API_ENABLE_KEY] = self._xbee_device.operating_mode.code
         else:
-            self._desired_cfg[_API_ENABLE_KEY] = 1
+            self._desired_cfg[_API_ENABLE_KEY] = OperatingMode.API_MODE.code
+
+    def autorecover_device(self):
+        """
+        Recovers the XBee from an unknown state.
+
+        Raises:
+            RecoveryException: If there is any error performing the recovery action.
+        """
+        if self._xbee_device and self._xbee_device.is_open:
+            self._xbee_device.close()
+
+        self._xbee_serial_port.open()
+        self._xbee_serial_port.purge_port()
+
+        _log.debug("Autorecovering the device by entering in recovery mode")
+        recovery_baudrate = self._get_recovery_baudrate(_RECOVERY_DETECTION_TRIES)
+
+        # If we couldn't enter in recovery mode, assume we are in bootloader
+        # and retry
+        if recovery_baudrate is None:
+            _log.error("Could not determine the baudrate in recovery mode, "
+                       "assuming device is in bootloader mode and retrying")
+            # Only for XBee 3 modules
+            self._xbee_serial_port.apply_settings({_BAUDRATE_KEY: _BOOTLOADER_BAUDRATE})
+            self._xbee_serial_port.write(str.encode(_BOOTLOADER_CONTINUE_KEY))
+
+            _log.debug("Retrying to determine the baudrate in recovery mode")
+            recovery_baudrate = self._get_recovery_baudrate(_RECOVERY_DETECTION_TRIES)
+
+        if recovery_baudrate is None:
+            self._do_exception("Could not determine the baudrate in recovery mode")
+
+        # Here we are in recovery mode
+        _log.debug("Reconfiguring the serial port to recovery baudrate of %d",
+                   recovery_baudrate)
+        self._xbee_serial_port.apply_settings({_BAUDRATE_KEY: recovery_baudrate})
+
+        # Set the desired configuration permanently.
+        _log.debug("Forcing the current setup to %s", self._desired_cfg)
+
+        bauds = FirmwareBaudrate.get_by_baudrate(self._desired_cfg[_BAUDRATE_KEY])
+        if bauds:
+            bauds = format(bauds.index, 'x')
+        else:
+            bauds = format(self._desired_cfg[_BAUDRATE_KEY], 'x')
+
+        parity = FirmwareParity.get_by_parity(self._desired_cfg[_PARITY_KEY])
+        if not parity:
+            parity = FirmwareParity.NONE
+        parity = format(parity.index, 'x')
+
+        stop_bits = FirmwareStopbits.get_by_stopbits(self._desired_cfg[_STOPBITS_KEY])
+        if not stop_bits:
+            stop_bits = FirmwareStopbits.NONE
+        stop_bits = format(stop_bits.index, 'x')
+
+        cts = -1
+        rts = -1
+        if self._desired_cfg[_FLOW_CTRL_KEY] == FlowControl.HARDWARE_RTS_CTS:
+            cts = 1
+            rts = 1
+        elif self._desired_cfg[_FLOW_CTRL_KEY] == FlowControl.NONE:
+            # In fact, this should be any value but 1 in any of them
+            # For that, we should read the value and change to 0 only if it is 1
+            cts = 0
+            rts = 0
+
+        for command in (
+                "%s%s\r" % (_AT_COMMANDS[_BAUDRATE_KEY], bauds),
+                "%s%s\r" % (_AT_COMMANDS[_PARITY_KEY], parity),
+                "%s%s\r" % (_AT_COMMANDS[_STOPBITS_KEY], stop_bits),
+                "%s%s\r" % (_AT_COMMANDS[_CTS_KEY], cts),
+                "%s%s\r" % (_AT_COMMANDS[_RTS_KEY], rts),
+                "%s%s\r" % (_AT_COMMANDS[_API_ENABLE_KEY],
+                            self._desired_cfg[_API_ENABLE_KEY]),
+                "%s%s\r" % (_AT_COMMANDS[_CMD_SEQ_CHAR_KEY],
+                            self._desired_cfg[_CMD_SEQ_CHAR_KEY]),
+                "%s%s\r" % (_AT_COMMANDS[_GUARD_TIME_KEY],
+                            self._desired_cfg[_GUARD_TIME_KEY]),
+                _AT_COMMANDS[_APPLY_CHANGES_KEY],
+                _AT_COMMANDS[_WRITE_REGISTER_KEY],
+                _AT_COMMANDS[_EXIT_MODE_KEY]):
+            self._xbee_serial_port.write(str.encode(command))
+            if command == _AT_COMMANDS[_EXIT_MODE_KEY]:
+                time.sleep(_DEFAULT_GUARD_TIME)
+            timeout = time.time() + 2
+            while self._xbee_serial_port.inWaiting() == 0 and time.time() < timeout:
+                time.sleep(0.1)
+            read = self._xbee_serial_port.read(self._xbee_serial_port.inWaiting())
+            _log.debug("command %s = %s", command[:-1], read)
+            if AT_OK_RESPONSE not in read:
+                self._do_exception(
+                    "Command {!r} failed, non OK returned value of {!r}".format(command, read))
+            if command == _AT_COMMANDS[_APPLY_CHANGES_KEY]:
+                self._xbee_serial_port.apply_settings(self._desired_cfg)
+
+        self._restore_target_connection()
+
+    def _get_recovery_baudrate(self, retries):
+        """
+        Tries to get the recovery baudrate of the XBee.
+
+        Args:
+            retries (Integer): Number of retries to guess the baudrate.
+
+        Returns:
+            Integer: The baudrate if success, `None` in case of failure.
+        """
+        for retry in range(retries):
+            recovery_baudrate = self._enter_in_recovery()
+            if recovery_baudrate is not None:
+                _log.debug("XBee baudrate is %d", recovery_baudrate)
+                return recovery_baudrate
+
+            _log.debug("[try %d] Could not determine the baudrate to get the "
+                       "values in recovery mode", retry)
 
     def _enter_in_recovery(self):
         """
         Enters the device in recovery mode.
 
         Returns:
-             Int: The baudrate if success or `None` in case of failure.
+             Integer: The baudrate if success, `None` in case of failure.
         """
 
         # Set break line and baudrate
@@ -153,96 +281,6 @@ class _LocalRecoverDevice:
 
         self._xbee_serial_port.break_condition = False
         return recovery_baudrate
-
-    def autorecover_device(self):
-        """
-        Recovers the XBee from an unknown state.
-
-        Raises:
-            RecoveryException: If there is any error performing the recovery action.
-        """
-        if self._xbee_device and self._xbee_device.is_open:
-            self._xbee_device.close()
-
-        self._xbee_serial_port.open()
-        self._xbee_serial_port.purge_port()
-
-        _log.debug("Autorecovering the device by entering in recovery mode")
-        # Enter in recovery mode
-        recovery_baudrate = None
-        for tries in range(_RECOVERY_DETECTION_TRIES):
-            recovery_baudrate = self._enter_in_recovery()
-            if recovery_baudrate is not None:
-                _log.debug("Recovery baudrate is %d", recovery_baudrate)
-                break
-            _log.debug("[try %d] Could not determine the baudrate to get the "
-                       "values in recovery mode", tries)
-
-        # If we couldn't enter in recovery mode, assume we are in bootloader
-        # and retry
-        if recovery_baudrate is None:
-            _log.error("Could not determine the baudrate in recovery mode, "
-                       "assuming device is in bootloader mode and retrying")
-            self._xbee_serial_port.apply_settings({_BAUDRATE_KEY: _BOOTLOADER_BAUDRATE})
-            self._xbee_serial_port.write(str.encode(_BOOTLOADER_CONTINUE_KEY))
-
-            _log.debug("Retrying to determine the baudrate in recovery mode")
-            for tries in range(_RECOVERY_DETECTION_TRIES):
-                recovery_baudrate = self._enter_in_recovery()
-                if recovery_baudrate is not None:
-                    _log.debug("Recovery baudrate is %d", recovery_baudrate)
-                    break
-                _log.debug("[try %d] Could not determine the baudrate to get "
-                           "the values in recovery mode", tries)
-
-        if recovery_baudrate is None:
-            self._do_exception("Could not determine the baudrate in recovery mode")
-
-        # Here we are in recovery mode
-        _log.debug("Reconfiguring the serial port to recovery baudrate of %d",
-                   recovery_baudrate)
-        self._xbee_serial_port.apply_settings({_BAUDRATE_KEY: recovery_baudrate})
-
-        # Set the desired configuration permanently.
-        _log.debug("Forcing the current setup to %s", self._desired_cfg)
-
-        for command in (
-                "%s%s\r" % (
-                    _AT_COMMANDS[_BAUDRATE_KEY],
-                    _BAUDS_LIST.index(self._desired_cfg[_BAUDRATE_KEY])),
-                "%s%s\r" % (
-                    _AT_COMMANDS[_PARITY_KEY],
-                    _PARITY_LIST.index(self._desired_cfg[_PARITY_KEY])),
-                "%s%s\r" % (
-                    _AT_COMMANDS[_STOPBITS_KEY],
-                    _STOPBITS_LIST.index(self._desired_cfg[_STOPBITS_KEY])),
-                "%s%s\r" % (
-                    _AT_COMMANDS[_API_ENABLE_KEY],
-                    self._desired_cfg[_API_ENABLE_KEY]),
-                "%s%s\r" % (
-                    _AT_COMMANDS[_CMD_SEQ_CHAR_KEY],
-                    self._desired_cfg[_CMD_SEQ_CHAR_KEY]),
-                "%s%s\r" % (
-                    _AT_COMMANDS[_GUARD_TIME_KEY],
-                    self._desired_cfg[_GUARD_TIME_KEY]),
-                _AT_COMMANDS[_APPLY_CHANGES_KEY],
-                _AT_COMMANDS[_WRITE_REGISTER_KEY],
-                _AT_COMMANDS[_EXIT_MODE_KEY]):
-            self._xbee_serial_port.write(str.encode(command))
-            if command == _AT_COMMANDS[_EXIT_MODE_KEY]:
-                time.sleep(_DEFAULT_GUARD_TIME)
-            timeout = time.time() + 2
-            while self._xbee_serial_port.inWaiting() == 0 and time.time() < timeout:
-                time.sleep(0.1)
-            read = self._xbee_serial_port.read(self._xbee_serial_port.inWaiting())
-            _log.debug("command %s = %s", command, read)
-            if AT_OK_RESPONSE not in read:
-                self._do_exception(
-                    "Command {!r} failed, non OK returned value of {!r}".format(command, read))
-            if command == _AT_COMMANDS[_APPLY_CHANGES_KEY]:
-                self._xbee_serial_port.apply_settings(self._desired_cfg)
-
-        self._restore_target_connection()
 
     def _do_exception(self, msg):
         """

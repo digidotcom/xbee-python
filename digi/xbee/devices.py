@@ -1596,7 +1596,7 @@ class AbstractXBeeDevice(object):
         from digi.xbee import recovery
 
         if self.get_hardware_version() and self.get_hardware_version().code not in recovery.SUPPORTED_HARDWARE_VERSIONS:
-            raise OperationNotSupportedException("Autodetection is only supported in XBee3 devices")
+            raise OperationNotSupportedException("Autodetection is only supported in XBee 3 devices")
         recovery.recover_device(self)
 
     def apply_profile(self, profile_path, timeout=None, progress_callback=None):
@@ -2241,19 +2241,18 @@ class XBeeDevice(AbstractXBeeDevice):
             self._packet_sender = PacketSender(self)
         self._restart_packet_listener()
 
-        if force_settings:
-            try:
-                self._do_open()
-            except XBeeException as e:
-                self.log.debug("Could not open the port with default setting, "
-                               "forcing settings using recovery: %s", str(e))
-                if self._serial_port is None:
-                    raise XBeeException("Can not open the port by forcing the settings, "
-                                        "it is only supported for Serial")
-                self._autodetect_device()
-                self.open(force_settings=False)
-        else:
+        try:
             self._do_open()
+        except XBeeException as e:
+            if not force_settings:
+                raise e
+            self.log.debug("Could not open the port with default setting, "
+                           "forcing settings using recovery: %s", str(e))
+            if self._serial_port is None:
+                raise XBeeException("Can not open the port by forcing the settings, "
+                                    "it is only supported for Serial")
+            self._autodetect_device()
+            self.open(force_settings=False)
 
     def _do_open(self):
         """
