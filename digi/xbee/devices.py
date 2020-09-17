@@ -8952,9 +8952,8 @@ class XBeeNetwork(object):
 
         try:
             self._prepare_network_discovery()
-        except XBeeException as e:
-            self._log.debug(str(e))
-            return NetworkDiscoveryStatus.ERROR_GENERAL
+        except XBeeException as exc:
+            self._log.warning(str(exc))
 
         return NetworkDiscoveryStatus.SUCCESS
 
@@ -8977,8 +8976,9 @@ class XBeeNetwork(object):
                 return
 
             self.set_discovery_timeout(self._node_timeout)
-        except XBeeException as e:
-            raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
+        except XBeeException as exc:
+            raise XBeeException(
+                "Could not prepare XBee for network discovery: %s" % str(exc))
 
     def __init_scan(self):
         """
@@ -9892,9 +9892,9 @@ class ZigBeeNetwork(XBeeNetwork):
         self._log.debug("[*] Preconfiguring %s", ATStringCommand.AO.command)
         try:
             self.__enable_explicit_mode()
-        except XBeeException as e:
+        except XBeeException as exc:
             raise XBeeException(
-                "Could not prepare XBee for network discovery: %s" % str(e))
+                "Could not prepare XBee for network discovery: %s" % str(exc))
 
     def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
         """
@@ -9925,6 +9925,8 @@ class ZigBeeNetwork(XBeeNetwork):
         # in the cache is not the right one. Try to read the new value and,
         # if it is different from the old one, add the node to the FIFO again
         if error and TransmitStatus.ADDRESS_NOT_FOUND.description in error:
+            self._log.debug("[***** ERROR] '%s' for %s: refresh 16-bit address",
+                            requester, error)
             x16_orig = requester.get_16bit_addr()
             try:
                 x16 = XBee16BitAddress(requester.get_parameter(ATStringCommand.MY.command))
@@ -10001,8 +10003,8 @@ class ZigBeeNetwork(XBeeNetwork):
             self._log.debug("     [***] Local XBee misconfigured: restoring 'AO' value")
             try:
                 self.__enable_explicit_mode()
-            except XBeeException as e:
-                raise XBeeException("Unable to restore 'AO0 value: %s" % str(e))
+            except XBeeException as exc:
+                self._log.warning("Unable to restore 'AO0 value: %s", str(exc))
 
             # Add the node to the FIFO to try again
             self._nodes_queue.put(requester)
@@ -10423,8 +10425,9 @@ class DigiMeshNetwork(XBeeNetwork):
 
                 self._local_xbee.set_parameter(ATStringCommand.SO.command, value)
 
-        except XBeeException as e:
-            raise XBeeException("Could not prepare XBee for network discovery: " + str(e))
+        except XBeeException as exc:
+            raise XBeeException(
+                "Could not prepare XBee for network discovery: %s" % str(exc))
 
         # Calculate the real timeout to wait for responses, based on 'N?' and
         # the cyclic sleep times, if the node is configured for that.
