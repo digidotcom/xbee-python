@@ -4034,10 +4034,10 @@ class XBeeDevice(AbstractXBeeDevice):
             if hops_list[length - 1][1] != dst:
                 return False
 
-            for i in range(len(hops_list)):
-                if length < i + 2:
+            for idx in range(len(hops_list)):
+                if length < idx + 2:
                     break
-                if hops_list[i][1] != hops_list[i + 1][0]:
+                if hops_list[idx][1] != hops_list[idx + 1][0]:
                     return False
 
             return True
@@ -4113,14 +4113,23 @@ class XBeeDevice(AbstractXBeeDevice):
         # Remove the source node (first one in list) from the hops
         self.__route_received(self, dest_node, node_list[1:])
 
-    def get_route_to_node(self, remote, timeout=10):
+    def get_route_to_node(self, remote, timeout=10, force=True):
         """
         Gets the route from this XBee to the given remote node.
+
+        For Zigbee:
+            * 'AR' parameter of the local node must be configured with a value
+              different from 'FF'.
+            * Set `force` to `True` to force the Zigbee remote node to return
+              its route independently of the local node configuration as high
+              or low RAM concentrator ('DO' of the local value)
 
         Args:
             remote (:class:`.RemoteXBeeDevice`): The remote node.
             timeout (Float, optional, default=10): Maximum number of seconds to
                 wait for the route.
+            force (Boolean): `True` to force asking for the route, `False`
+                otherwise. Only for Zigbee.
 
         Returns:
             Tuple: Tuple containing route data:
@@ -4150,7 +4159,7 @@ class XBeeDevice(AbstractXBeeDevice):
         if self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                               XBeeProtocol.SMART_ENERGY, XBeeProtocol.DIGI_MESH,
                               XBeeProtocol.SX]:
-            status, route = self.__get_trace_route(remote, timeout)
+            status, route = self.__get_trace_route(remote, timeout, force=force)
         else:
             route = self, remote, []
             status = TransmitStatus.SUCCESS
@@ -4162,13 +4171,15 @@ class XBeeDevice(AbstractXBeeDevice):
 
         return status, route
 
-    def __get_trace_route(self, remote, timeout):
+    def __get_trace_route(self, remote, timeout, force=True):
         """
         Gets the route from this XBee to the given remote node.
 
         Args:
             remote (:class:`.RemoteXBeeDevice`): The remote node.
             timeout (Float): Maximum number of seconds to wait for the route.
+            force (Boolean): `True` to force asking for the route, `False`
+                otherwise. Only for Zigbee.
 
         Returns:
             Tuple: Tuple containing route data:
@@ -4210,6 +4221,20 @@ class XBeeDevice(AbstractXBeeDevice):
                 0x00,                          # Transmit options (0x00 - None)
                 bytearray([0])                 # Dummy payload
             )
+
+            # To force getting the route we have to send again the AR value
+            # configured in the local node (only if it is different from FF)
+            if force:
+                ar_value = None
+                try:
+                    ar_value = self.get_parameter(ATStringCommand.AR.command)
+                    if ar_value and utils.bytes_to_int(ar_value) != 0xFF:
+                        self.set_parameter(ATStringCommand.AR.command, ar_value)
+                except XBeeException as exc:
+                    self._log.debug(
+                        "Error getting route to node: unable to %s '%s' value: %s",
+                        "get" if not ar_value else "set",
+                        ATStringCommand.AR.command, str(exc))
 
         elif self._protocol in [XBeeProtocol.DIGI_MESH, XBeeProtocol.SX]:
             # Transmit a some information to the remote
