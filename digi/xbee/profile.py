@@ -37,7 +37,7 @@ from digi.xbee.filesystem import LocalXBeeFileSystemManager, \
     FileSystemException, FileSystemNotSupportedException, check_fs_support, \
     XB3_MIN_FW_VERSION_FS_API_SUPPORT
 from digi.xbee.models.atcomm import ATStringCommand
-from digi.xbee.models.hw import HardwareVersion
+from digi.xbee.models.hw import HardwareVersion, LegacyHardwareVersion
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.util import utils
@@ -959,7 +959,11 @@ class XBeeProfile:
             if hardware_version_element is None:
                 self._throw_read_exception(
                     _ERROR_FIRMWARE_XML_INVALID % "missing hardware version element")
-            self._hardware_version = int(hardware_version_element.text, 16)
+            try:
+                self._hardware_version = int(hardware_version_element.text, 16)
+            except ValueError:
+                self._hardware_version = LegacyHardwareVersion.get_by_letter(hardware_version_element.text).code if \
+                    LegacyHardwareVersion.get_by_letter(hardware_version_element.text) else None
             _log.debug(" - Hardware version: %s",
                        utils.hex_to_string([self._hardware_version], pretty=False))
             # Compatibility number.
