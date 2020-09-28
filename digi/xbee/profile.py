@@ -969,16 +969,16 @@ class XBeeProfile:
             # Compatibility number.
             element = root.find(_XML_COMPATIBILITY_NUMBER)
             if element is None:
-                self._throw_read_exception(
-                    _ERROR_FIRMWARE_XML_INVALID % "missing compatibility number element")
-            self._compatibility_number = int(element.text)
+                self._compatibility_number = None
+            else:
+                self._compatibility_number = int(element.text)
             _log.debug(" - Compatibility number: %d", self._compatibility_number)
             # Region lock, required.
             element = root.find(_XML_REGION_LOCK)
             if element is None:
-                self._throw_read_exception(
-                    _ERROR_FIRMWARE_XML_INVALID % "missing region lock element")
-            self._region_lock = int(element.text)
+                self._region_lock = None
+            else:
+                self._region_lock = int(element.text)
             # 99: Unknown region
             if self._region_lock == 99:
                 fw_version_str = utils.hex_to_string(
@@ -1235,7 +1235,7 @@ class XBeeProfile:
         Returns the compatibility number of the profile.
 
         Returns:
-            Integer: The compatibility number.
+            Integer: The compatibility number, `None` if not defined.
         """
         return self._compatibility_number
 
@@ -1245,7 +1245,7 @@ class XBeeProfile:
         Returns the region lock of the profile.
 
         Returns:
-            Integer: The region lock.
+            Integer: The region lock, `None` if not defined.
         """
         return self._region_lock
 
