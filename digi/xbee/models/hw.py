@@ -136,4 +136,82 @@ class HardwareVersion(Enum):
         return None
 
 
+class LegacyHardwareVersion(Enum):
+    """
+    This class lists all legacy hardware versions.
+
+    | Inherited properties:
+    |     **name** (String): The name of this LegacyHardwareVersion.
+    |     **value** (Integer): The ID of this LegacyHardwareVersion.
+    """
+    A = (0x01, "A")
+    B = (0x02, "B")
+    C = (0x03, "C")
+    D = (0x04, "D")
+    E = (0x05, "E")
+    F = (0x06, "F")
+    G = (0x07, "G")
+    H = (0x08, "H")
+    I = (0x09, "I")
+    J = (0x0A, "J")
+    K = (0x0B, "K")
+    L = (0x0C, "L")
+    M = (0x0D, "M")
+    N = (0x0E, "N")
+    O = (0x0F, "O")
+    P = (0x10, "P")
+    Q = (0x11, "Q")
+    R = (0x12, "R")
+    S = (0x13, "S")
+    T = (0x14, "T")
+    U = (0x15, "U")
+    V = (0x16, "V")
+    W = (0x17, "W")
+    X = (0x18, "X")
+    Y = (0x19, "Y")
+    Z = (0x1A, "Z")
+
+    def __init__(self, code, letter):
+        self.__code = code
+        self.__letter = letter
+
+    @property
+    def code(self):
+        """
+        Returns the code of the LegacyHardwareVersion element.
+
+        Returns:
+            Integer: the code of the LegacyHardwareVersion element.
+        """
+        return self.__code
+
+    @property
+    def letter(self):
+        """
+        Returns the letter of the LegacyHardwareVersion element.
+
+        Returns:
+            String: the letter of the LegacyHardwareVersion element.
+        """
+        return self.__letter
+
+    @classmethod
+    def get_by_letter(cls, letter):
+        """
+        Returns the LegacyHardwareVersion for the given letter.
+
+        Args:
+            letter (String): the letter of the legacy hardware version to get.
+
+        Returns:
+            :class:`LegacyHardwareVersion`: the LegacyHardwareVersion with the
+                                            given letter, `None` if not found.
+        """
+        for version in cls:
+            if version.letter == letter:
+                return version
+        return None
+
+
 HardwareVersion.__doc__ += utils.doc_enum(HardwareVersion)
+LegacyHardwareVersion.__doc__ += utils.doc_enum(LegacyHardwareVersion)
