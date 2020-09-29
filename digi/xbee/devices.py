@@ -405,7 +405,7 @@ class AbstractXBeeDevice(object):
                 packet = ATCommQueuePacket(self._get_next_frame_id(), command.command, parameter=command.parameter)
 
         if self.is_remote():
-            answer_packet = self._local_xbee_device.send_packet_sync_and_get_response(packet)
+            answer_packet = self._local_xbee_device.send_packet_sync_and_get_response(packet, timeout=self._timeout)
         else:
             answer_packet = self._send_packet_sync_and_get_response(packet)
 
