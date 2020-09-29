@@ -1863,6 +1863,7 @@ class AbstractXBeeDevice(object):
                              or (XBee64BitAddress.is_known_node_addr(packet_to_send.x64bit_dest_addr)
                                  and packet_to_send.x64bit_dest_addr != received_packet.x64bit_source_addr)
                              or (XBee16BitAddress.is_known_node_addr(packet_to_send.x16bit_dest_addr)
+                                 and XBee16BitAddress.is_known_node_addr(received_packet.x16bit_source_addr)
                                  and packet_to_send.x16bit_dest_addr != received_packet.x16bit_source_addr)):
                     return
                 # If the packet sent is a Socket Create, verify that the received one is a Socket Create Response.
