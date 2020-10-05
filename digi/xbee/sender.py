@@ -12,17 +12,23 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 import logging
+import threading
 
+from digi.xbee.exception import TimeoutException
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.options import RemoteATCmdOptions
 from digi.xbee.models.status import ATCommandStatus
 from digi.xbee.packets.aft import ApiFrameType
+from digi.xbee.packets.base import XBeeAPIPacket
 from digi.xbee.util import utils
 
 
 class PacketSender:
+    """
+    Class to send XBee packets.
+    """
 
     _LOG_PATTERN = "{comm_iface:s} - {event:s} - {opmode:s}: {content:s}"
     """
@@ -306,3 +312,261 @@ class PacketSender:
             node_fut_apply.update({parameter: value})
 
         return False
+
+
+class SyncRequestSender:
+    """
+    Class to synchronously send XBee packets. This means after sending
+    the packet it waits for its response, if the package includes a frame ID,
+    otherwise it does not wait.
+    """
+
+    def __init__(self, xbee, packet_to_send, timeout):
+        """
+        Class constructor. Instantiates a new :class:`.SyncRequestSender` object
+        with the provided parameters.
+
+        Args:
+            xbee (:class:`.XBeeDevice`): The local XBee to send the packet.
+            packet_to_send (:class:`.XBeePacket`): The packet to transmit.
+            timeout (Integer): Number of seconds to wait. -1 to wait indefinitely.
+        """
+        self._xbee = xbee
+        self._packet = packet_to_send
+        self._timeout = timeout
+        self._lock = threading.Condition()
+        self._response_list = list()
+
+    def send(self):
+        """
+        Sends the packet and waits for its corresponding response.
+
+        Returns:
+            :class:`.XBeePacket`: Received response packet.
+
+        Raises:
+            InvalidOperatingModeException: If the XBee device's operating mode
+                is not API or ESCAPED API. This method only checks the cached
+                value of the operating mode.
+            TimeoutException: If the response is not received in the configured
+                timeout.
+            XBeeException: If the XBee device's communication interface is closed.
+
+        .. seealso::
+           | :class:`.XBeePacket`
+        """
+        # Add the packet received callback.
+        if self._packet.needs_id():
+            self._xbee.add_packet_received_callback(self._packet_received_cb)
+
+        try:
+            # Send the packet.
+            self._xbee.send_packet(self._packet, sync=False)
+
+            if not self._packet.needs_id():
+                return None
+
+            # Wait for response or timeout.
+            self._lock.acquire()
+            if self._timeout == -1:
+                self._lock.wait()
+            else:
+                self._lock.wait(self._timeout)
+            self._lock.release()
+            # After waiting check if we received any response, if not throw a
+            # timeout exception.
+            if not self._response_list:
+                raise TimeoutException(
+                    message="Response not received in the configured timeout.")
+            # Return the received packet.
+            return self._response_list[0]
+        finally:
+            # Always remove the packet listener from the list.
+            if self._packet.needs_id():
+                self._xbee.del_packet_received_callback(self._packet_received_cb)
+
+    @property
+    def xbee(self):
+        """
+        Returns the local XBee to send the packet.
+
+        Returns:
+            :class:`.XBeeDevice`: Local XBee device.
+        """
+        return self._xbee
+
+    @property
+    def packet(self):
+        """
+        Returns the packet to send.
+
+        Returns:
+            :class:`.XBeePacket`: Packet to send.
+        """
+        return self._packet
+
+    @property
+    def timeout(self):
+        """
+        Returns the maximum number of seconds to wait for a response.
+
+        Returns:
+            Integer: Timeout to wait for a response.
+        """
+        return self._timeout
+
+    def _packet_received_cb(self, rcv_packet):
+        """
+        Callback to receive XBee packets. It filters the received packets to
+        find the response that corresponds to the sent packet: by id, by
+        command (for local or remote AT commands), by socket ID, etc.
+
+        Args:
+            rcv_packet (:class:`.XBeePacket`): Received packet.
+        """
+        # Verify that the sent packet is not the received one!
+        # This can happen when the echo mode is enabled in the serial port.
+        if self._packet == rcv_packet:
+            return
+
+        if (not isinstance(self._packet, XBeeAPIPacket)
+                or not isinstance(rcv_packet, XBeeAPIPacket)):
+            return
+
+        # Check if it is the packet we are waiting for.
+        if (not rcv_packet.needs_id()
+                or rcv_packet.frame_id != self._packet.frame_id):
+            return
+
+        s_f_type = self._packet.get_frame_type()
+        r_f_type = rcv_packet.get_frame_type()
+        if s_f_type in (ApiFrameType.AT_COMMAND, ApiFrameType.AT_COMMAND_QUEUE):
+            received_response = self._is_valid_at_response(rcv_packet)
+        elif s_f_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
+            received_response = self._is_valid_remote_at_response(rcv_packet)
+        elif s_f_type == ApiFrameType.SOCKET_CREATE:
+            received_response = (r_f_type == ApiFrameType.SOCKET_CREATE_RESPONSE)
+        elif s_f_type == ApiFrameType.SOCKET_OPTION_REQUEST:
+            received_response = self._is_valid_socket_opt_response(rcv_packet)
+        elif s_f_type == ApiFrameType.SOCKET_CONNECT:
+            received_response = self._is_valid_socket_conn_response(rcv_packet)
+        elif s_f_type == ApiFrameType.SOCKET_CLOSE:
+            received_response = self._is_valid_socket_close_response(rcv_packet)
+        elif s_f_type == ApiFrameType.SOCKET_BIND:
+            received_response = self._is_valid_socket_bind_response(rcv_packet)
+        else:
+            received_response = True
+
+        if received_response:
+            # Add the received packet to the list and notify the lock.
+            self._lock.acquire()
+            self._response_list.append(rcv_packet)
+            self._lock.notify()
+            self._lock.release()
+
+    def _is_valid_at_response(self, packet):
+        """
+        Checks if the provided packet is the AT command response packet that
+        matches the sent package.
+
+        Args:
+            packet (:class:`.XBeeAPIPacket`): Packet to check.
+
+        Returns:
+            Boolean: `True` if packet is the AT command response packet
+                corresponding to the sent package, `False` otherwise.
+        """
+        # If the sent packet is an AT command, verify that the received one is
+        # an AT command response and the command matches in both packets.
+        return (packet.get_frame_type() == ApiFrameType.AT_COMMAND_RESPONSE
+                and self._packet.command.upper() == packet.command.upper())
+
+    def _is_valid_remote_at_response(self, packet):
+        """
+        Checks if the provided packet is the remote AT command response packet
+        that matches the sent package.
+
+        Args:
+            packet (:class:`.XBeeAPIPacket`): Packet to check.
+
+        Returns:
+            Boolean: `True` if packet is the remote AT command response packet
+                corresponding to the sent package, `False` otherwise.
+        """
+        # If the sent packet is a remote AT command, verify that the received
+        # one is a remote AT command response and their commands match.
+        return (packet.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
+                and self._packet.command.upper() == packet.command.upper()
+                and (not XBee64BitAddress.is_known_node_addr(self._packet.x64bit_dest_addr)
+                     or self._packet.x64bit_dest_addr == packet.x64bit_source_addr)
+                and (not XBee16BitAddress.is_known_node_addr(self._packet.x16bit_dest_addr)
+                     or not XBee16BitAddress.is_known_node_addr(packet.x16bit_source_addr)
+                     or self._packet.x16bit_dest_addr == packet.x16bit_source_addr))
+
+    def _is_valid_socket_opt_response(self, packet):
+        """
+        Checks if the provided packet is the Socket Option Response packet
+        that matches the sent package.
+
+        Args:
+            packet (:class:`.XBeeAPIPacket`): Packet to check.
+
+        Returns:
+            Boolean: `True` if packet is the Socket Option Response packet
+                corresponding to the sent package, `False` otherwise.
+        """
+        # If the sent packet is a Socket Option request, verify that the
+        # received one is a Socket Option response and their commands match.
+        return (packet.get_frame_type() == ApiFrameType.SOCKET_OPTION_RESPONSE
+                and self._packet.socket_id == packet.socket_id)
+
+    def _is_valid_socket_conn_response(self, packet):
+        """
+        Checks if the provided packet is the Socket Connect Response packet
+        that matches the sent package.
+
+        Args:
+            packet (:class:`.XBeeAPIPacket`): Packet to check.
+
+        Returns:
+            Boolean: `True` if packet is the Socket Connect Response packet
+                corresponding to the sent package, `False` otherwise.
+        """
+        # If the sent packet is a Socket Connect, verify that the received one
+        # is a Socket Connect Response and their socket IDs match.
+        return (packet.get_frame_type() == ApiFrameType.SOCKET_CONNECT_RESPONSE
+                and self._packet.socket_id == packet.socket_id)
+
+    def _is_valid_socket_close_response(self, packet):
+        """
+        Checks if the provided packet is the Socket Close Response packet that
+        matches the sent package.
+
+        Args:
+            packet (:class:`.XBeeAPIPacket`): Packet to check.
+
+        Returns:
+            Boolean: `True` if packet is the Socket Close Response packet
+                corresponding to the sent package, `False` otherwise.
+        """
+        # If the sent packet is a Socket Close, verify that the received one is
+        # a Socket Close Response and their socket IDs match.
+        return (packet.get_frame_type() == ApiFrameType.SOCKET_CLOSE_RESPONSE
+                and self._packet.socket_id == packet.socket_id)
+
+    def _is_valid_socket_bind_response(self, packet):
+        """
+        Checks if the provided packet is the Socket Listen Response packet that
+        matches the sent package.
+
+        Args:
+            packet (:class:`.XBeeAPIPacket`): Packet to check.
+
+        Returns:
+            Boolean: `True` if packet is the Socket Listen Response packet
+                corresponding to the sent package, `False` otherwise.
+        """
+        # If the sent packet is a Socket Bind, verify that the received one is
+        # a Socket Listen Response and their socket IDs match.
+        return (packet.get_frame_type() == ApiFrameType.SOCKET_LISTEN_RESPONSE
+                and self._packet.socket_id == packet.socket_id)

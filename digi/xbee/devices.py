@@ -44,7 +44,7 @@ from digi.xbee.packets.network import TXIPv4Packet
 from digi.xbee.packets.raw import TX64Packet, TX16Packet
 from digi.xbee.packets.relay import UserDataRelayPacket
 from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, RegisterDeviceStatusPacket, CreateSourceRoutePacket
-from digi.xbee.sender import PacketSender
+from digi.xbee.sender import PacketSender, SyncRequestSender
 from digi.xbee.util import utils
 from digi.xbee.exception import XBeeException, TimeoutException, InvalidOperatingModeException, \
     ATCommandException, OperationNotSupportedException, TransmitException
@@ -1805,155 +1805,65 @@ class AbstractXBeeDevice(object):
 
     def _send_packet_sync_and_get_response(self, packet_to_send, timeout=None):
         """
-        Perform all operations needed for a synchronous operation when the packet
-        listener is online. This operations are:
-
-            1. Puts "_sync_packet" to ``None``, to discard the last sync. packet read.
-            2. Refresh "_sync_packet" to be used by the thread in charge of the synchronous read.
-            3. Tells the packet listener that this XBee device is waiting for a packet with a determined frame ID.
-            4. Sends the ``packet_to_send``.
-            5. Waits the configured timeout for synchronous operations.
-            6. Returns all attributes to a consistent state (except _sync_packet)
-                | 6.1. _sync_packet to ``None``.
-                | 6.2. notify the listener that we are no longer waiting for any packet.
-            7. Returns the received packet if it has arrived, ``None`` otherwise.
-
-        This method must be only used when the packet listener is online.
-
-        At the end of this method, the class attribute ``_sync_packet`` will be
-        the packet read by this method, or ``None`` if the previous was not possible.
-        Note that ``_sync_packet`` will remain being "the last packet read in a
-        synchronous operation" until you call this method again.
-        Then,  ``_sync_packet`` will be refreshed.
+        Sends the packet and waits for its corresponding response.
 
         Args:
-            packet_to_send (:class:`.XBeePacket`): the packet to send.
-            timeout (Integer, optional): timeout to wait. If no timeout is provided, the default one is used. To wait
-                indefinitely, set to ``-1``.
+            packet_to_send (:class:`.XBeePacket`): The packet to transmit.
+            timeout (Integer, optional, default=`None`): Number of seconds to
+                wait. -1 to wait indefinitely.
 
         Returns:
-            :class:`.XBeePacket`: the response packet obtained after sending the provided one.
+            :class:`.XBeePacket`: Received response packet.
 
         Raises:
-            TimeoutException: if the response is not received in the configured timeout.
+            InvalidOperatingModeException: If the XBee device's operating mode
+                is not API or ESCAPED API. This method only checks the cached
+                value of the operating mode.
+            TimeoutException: If the response is not received in the configured
+                timeout.
+            XBeeException: If the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBeePacket`
         """
-        lock = threading.Condition()
-        response_list = list()
+        if not self._packet_listener.is_running():
+            raise XBeeException("Packet listener is not running.")
 
-        # Create a packet received callback for the packet to be sent.
-        def packet_received_callback(received_packet):
-            # Check if it is the packet we are waiting for.
-            if received_packet.needs_id() and received_packet.frame_id == packet_to_send.frame_id:
-                if not isinstance(packet_to_send, XBeeAPIPacket) or not isinstance(received_packet, XBeeAPIPacket):
-                    return
-                # If the packet sent is an AT command, verify that the received one is an AT command response and
-                # the command matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.AT_COMMAND \
-                        and (received_packet.get_frame_type() != ApiFrameType.AT_COMMAND_RESPONSE
-                             or packet_to_send.command.upper() != received_packet.command.upper()):
-                    return
-                # If the packet sent is a remote AT command, verify that the received one is a remote AT command
-                # response and the command matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.REMOTE_AT_COMMAND_REQUEST \
-                        and (received_packet.get_frame_type() != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE
-                             or packet_to_send.command.upper() != received_packet.command.upper()
-                             or (XBee64BitAddress.is_known_node_addr(packet_to_send.x64bit_dest_addr)
-                                 and packet_to_send.x64bit_dest_addr != received_packet.x64bit_source_addr)
-                             or (XBee16BitAddress.is_known_node_addr(packet_to_send.x16bit_dest_addr)
-                                 and XBee16BitAddress.is_known_node_addr(received_packet.x16bit_source_addr)
-                                 and packet_to_send.x16bit_dest_addr != received_packet.x16bit_source_addr)):
-                    return
-                # If the packet sent is a Socket Create, verify that the received one is a Socket Create Response.
-                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_CREATE \
-                        and received_packet.get_frame_type() != ApiFrameType.SOCKET_CREATE_RESPONSE:
-                    return
-                # If the packet sent is a Socket Option Request, verify that the received one is a Socket Option
-                # Response and the socket ID matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_OPTION_REQUEST \
-                        and (received_packet.get_frame_type() != ApiFrameType.SOCKET_OPTION_RESPONSE
-                             or packet_to_send.socket_id != received_packet.socket_id):
-                    return
-                # If the packet sent is a Socket Connect, verify that the received one is a Socket Connect Response
-                # and the socket ID matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_CONNECT \
-                        and (received_packet.get_frame_type() != ApiFrameType.SOCKET_CONNECT_RESPONSE
-                             or packet_to_send.socket_id != received_packet.socket_id):
-                    return
-                # If the packet sent is a Socket Close, verify that the received one is a Socket Close Response
-                # and the socket ID matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_CLOSE \
-                        and (received_packet.get_frame_type() != ApiFrameType.SOCKET_CLOSE_RESPONSE
-                             or packet_to_send.socket_id != received_packet.socket_id):
-                    return
-                # If the packet sent is a Socket Bind, verify that the received one is a Socket Listen Response
-                # and the socket ID matches in both packets.
-                if packet_to_send.get_frame_type() == ApiFrameType.SOCKET_BIND \
-                        and (received_packet.get_frame_type() != ApiFrameType.SOCKET_LISTEN_RESPONSE
-                             or packet_to_send.socket_id != received_packet.socket_id):
-                    return
-                # Verify that the sent packet is not the received one! This can happen when the echo mode is enabled
-                # in the serial port.
-                if packet_to_send == received_packet:
-                    return
-
-                # Add the received packet to the list and notify the lock.
-                response_list.append(received_packet)
-                lock.acquire()
-                lock.notify()
-                lock.release()
-
-        # Add the packet received callback.
-        self._add_packet_received_callback(packet_received_callback)
-
-        try:
-            # Send the packet.
-            self._send_packet(packet_to_send)
-            # Wait for response or timeout.
-            lock.acquire()
-            if timeout == -1:
-                lock.wait()
-            else:
-                lock.wait(self._timeout if timeout is None else timeout)
-            lock.release()
-            # After the wait check if we received any response, if not throw timeout exception.
-            if not response_list:
-                raise TimeoutException(message="Response not received in the configured timeout.")
-            # Return the received packet.
-            return response_list[0]
-        finally:
-            # Always remove the packet listener from the list.
-            self._del_packet_received_callback(packet_received_callback)
+        sender = SyncRequestSender(self, packet_to_send,
+                                   self._timeout if timeout is None else timeout)
+        return sender.send()
 
     def _send_packet(self, packet, sync=False):
         """
-        Sends a packet to the XBee device and waits for the response.
-        The packet to send will be escaped or not depending on the current
-        operating mode.
+        Sends the packet and waits for the response. The packet to send is
+        escaped depending on the current operating mode.
 
         This method can be synchronous or asynchronous.
 
-        If is synchronous, this method  will discard all response
-        packets until it finds the one that has the appropriate frame ID,
-        that is, the sent packet's frame ID.
+        If synchronous, this method discards all response packets until it finds
+        the one that has the appropriate frame ID, that is, the sent packet's
+        frame ID.
 
-        If is asynchronous, this method does not wait for any packet. Returns ``None``.
+        If asynchronous, this method does not wait for any response and returns
+        `None`.
 
         Args:
             packet (:class:`.XBeePacket`): The packet to send.
-            sync (Boolean): ``True`` to wait for the response of the sent packet and return it, ``False`` otherwise.
+            sync (Boolean): `True` to wait for the response of the sent packet
+                and return it, `False` otherwise.
 
         Returns:
-            :class:`.XBeePacket`: The response packet if ``sync`` is ``True``, ``None`` otherwise.
+            :class:`.XBeePacket`: Response packet if `sync` is `True`, `None`
+                otherwise.
 
         Raises:
-            TimeoutException: if ``sync`` is ``True`` and the response packet for the sent one cannot be read.
-            InvalidOperatingModeException: if the XBee device's operating mode is not API or ESCAPED API. This
-                method only checks the cached value of the operating mode.
-            XBeeException: if the packet listener is not running.
-            XBeeException: if the XBee device's communication interface is closed.
+            TimeoutException: If `sync` is `True` and the response packet for
+                the sent one cannot be read.
+            InvalidOperatingModeException: If the XBee operating mode is not
+                API or ESCAPED API. This method only checks the cached value of
+                the operating mode.
+            XBeeException: If the packet listener is not running.
+            XBeeException: If the XBee device's communication interface is closed.
 
         .. seealso::
            | :class:`.XBeePacket`
