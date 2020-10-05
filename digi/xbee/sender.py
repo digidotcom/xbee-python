@@ -444,6 +444,21 @@ class SyncRequestSender:
             received_response = self._is_valid_at_response(rcv_packet)
         elif s_f_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST:
             received_response = self._is_valid_remote_at_response(rcv_packet)
+        elif s_f_type in (ApiFrameType.TRANSMIT_REQUEST,
+                          ApiFrameType.EXPLICIT_ADDRESSING):
+            received_response = (r_f_type == ApiFrameType.TRANSMIT_STATUS)
+        elif s_f_type in (ApiFrameType.TX_64, ApiFrameType.TX_16,
+                          ApiFrameType.USER_DATA_RELAY_REQUEST):
+            # User data relay requests only receive a tx status frame for errors
+            # This means successful user data relay requests throw a
+            # TimeoutException using this method
+            received_response = (r_f_type == ApiFrameType.TX_STATUS)
+        elif s_f_type in ApiFrameType.FILE_SYSTEM_REQUEST:
+            received_response = self._is_valid_fs_response(rcv_packet)
+        elif s_f_type in ApiFrameType.REMOTE_FILE_SYSTEM_REQUEST:
+            # A remote file system request may receive 2 frames: the remote file
+            # system response and a transmit status
+            received_response = self._is_valid_remote_fs_response(rcv_packet)
         elif s_f_type == ApiFrameType.SOCKET_CREATE:
             received_response = (r_f_type == ApiFrameType.SOCKET_CREATE_RESPONSE)
         elif s_f_type == ApiFrameType.SOCKET_OPTION_REQUEST:
@@ -454,6 +469,9 @@ class SyncRequestSender:
             received_response = self._is_valid_socket_close_response(rcv_packet)
         elif s_f_type == ApiFrameType.SOCKET_BIND:
             received_response = self._is_valid_socket_bind_response(rcv_packet)
+        elif s_f_type == ApiFrameType.REGISTER_JOINING_DEVICE:
+            received_response = (
+                    r_f_type == ApiFrameType.REGISTER_JOINING_DEVICE_STATUS)
         else:
             received_response = True
 
@@ -502,6 +520,42 @@ class SyncRequestSender:
                 and (not XBee16BitAddress.is_known_node_addr(self._packet.x16bit_dest_addr)
                      or not XBee16BitAddress.is_known_node_addr(packet.x16bit_source_addr)
                      or self._packet.x16bit_dest_addr == packet.x16bit_source_addr))
+
+    def _is_valid_fs_response(self, packet):
+        """
+        Checks if the provided packet is the file system response packet that
+        matches the sent package.
+
+        Args:
+            packet (:class:`.XBeeAPIPacket`): Packet to check.
+
+        Returns:
+            Boolean: `True` if packet is the file system response packet
+                corresponding to the sent package, `False` otherwise.
+        """
+        # If the sent packet is a file system command, verify that the received
+        # one is a file system response and their commands match.
+        return (packet.get_frame_type() == ApiFrameType.FILE_SYSTEM_RESPONSE
+                and self._packet.command.type == packet.command.type)
+
+    def _is_valid_remote_fs_response(self, packet):
+        """
+        Checks if the provided packet is the remote file system response packet
+        that matches the sent package.
+
+        Args:
+            packet (:class:`.XBeeAPIPacket`): Packet to check.
+
+        Returns:
+            Boolean: `True` if packet is the remote file system response packet
+                corresponding to the sent package, `False` otherwise.
+        """
+        # If the sent packet is a remote file system command, verify that the
+        # received one is a remote file system response and their commands match.
+        return (packet.get_frame_type() == ApiFrameType.REMOTE_FILE_SYSTEM_RESPONSE
+                and self._packet.command.type == packet.command.type
+                and (not XBee64BitAddress.is_known_node_addr(self._packet.x64bit_dest_addr)
+                     or self._packet.x64bit_dest_addr == packet.x64bit_source_addr))
 
     def _is_valid_socket_opt_response(self, packet):
         """
