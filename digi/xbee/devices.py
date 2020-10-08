@@ -1801,7 +1801,8 @@ class AbstractXBeeDevice(object):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.PacketReceived` event.
         """
-        self._packet_listener.del_packet_received_callback(callback)
+        if callback in self._packet_listener.get_packet_received_callbacks():
+            self._packet_listener.del_packet_received_callback(callback)
 
     def _send_packet_sync_and_get_response(self, packet_to_send, timeout=None):
         """
@@ -3079,7 +3080,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.DataReceived` event.
         """
-        self._packet_listener.del_data_received_callback(callback)
+        if callback in self._packet_listener.get_data_received_callbacks():
+            self._packet_listener.del_data_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_modem_status_received_callback(self, callback):
@@ -3094,7 +3096,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.ModemStatusReceived` event.
         """
-        self._packet_listener.del_modem_status_received_callback(callback)
+        if callback in self._packet_listener.get_modem_status_received_callbacks():
+            self._packet_listener.del_modem_status_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_io_sample_received_callback(self, callback):
@@ -3109,7 +3112,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.IOSampleReceived` event.
         """
-        self._packet_listener.del_io_sample_received_callback(callback)
+        if callback in self._packet_listener.get_io_sample_received_callbacks():
+            self._packet_listener.del_io_sample_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_expl_data_received_callback(self, callback):
@@ -3124,7 +3128,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.ExplicitDataReceived` event.
         """
-        self._packet_listener.del_explicit_data_received_callback(callback)
+        if callback in self._packet_listener.get_explicit_data_received_callbacks():
+            self._packet_listener.del_explicit_data_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_user_data_relay_received_callback(self, callback):
@@ -3139,7 +3144,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.RelayDataReceived` event.
         """
-        self._packet_listener.del_user_data_relay_received_callback(callback)
+        if callback in self._packet_listener.get_user_data_relay_received_callbacks():
+            self._packet_listener.del_user_data_relay_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_bluetooth_data_received_callback(self, callback):
@@ -3154,7 +3160,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.BluetoothDataReceived` event.
         """
-        self._packet_listener.del_bluetooth_data_received_callback(callback)
+        if callback in self._packet_listener.get_bluetooth_data_received_callbacks():
+            self._packet_listener.del_bluetooth_data_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_micropython_data_received_callback(self, callback):
@@ -3169,7 +3176,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.MicroPythonDataReceived` event.
         """
-        self._packet_listener.del_micropython_data_received_callback(callback)
+        if callback in self._packet_listener.get_micropython_data_received_callbacks():
+            self._packet_listener.del_micropython_data_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_socket_state_received_callback(self, callback):
@@ -3184,7 +3192,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.SocketStateReceived` event.
         """
-        self._packet_listener.del_socket_state_received_callback(callback)
+        if callback in self._packet_listener.get_socket_state_received_callbacks():
+            self._packet_listener.del_socket_state_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_socket_data_received_callback(self, callback):
@@ -3199,7 +3208,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.SocketDataReceived` event.
         """
-        self._packet_listener.del_socket_data_received_callback(callback)
+        if callback in self._packet_listener.get_socket_data_received_callbacks():
+            self._packet_listener.del_socket_data_received_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_socket_data_received_from_callback(self, callback):
@@ -3214,7 +3224,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.SocketDataReceivedFrom` event.
         """
-        self._packet_listener.del_socket_data_received_from_callback(callback)
+        if callback in self._packet_listener.get_socket_data_received_from_callbacks():
+            self._packet_listener.del_socket_data_received_from_callback(callback)
 
     @AbstractXBeeDevice._before_send_method
     def del_fs_frame_received_callback(self, callback):
@@ -3229,7 +3240,8 @@ class XBeeDevice(AbstractXBeeDevice):
             ValueError: if `callback` is not in the callback list of
                 :class:`digi.xbee.reader.FileSystemFrameReceived` event.
         """
-        self._packet_listener.del_fs_frame_received_callback(callback)
+        if callback in self._packet_listener.get_fs_frame_received_callbacks():
+            self._packet_listener.del_fs_frame_received_callback(callback)
 
     def get_xbee_device_callbacks(self):
         """
@@ -3865,7 +3877,8 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.add_route_received_callback`
         """
-        self.__route_received -= callback
+        if callback in self.__route_received:
+            self.__route_received -= callback
 
         if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                                XBeeProtocol.SMART_ENERGY]
@@ -5365,7 +5378,8 @@ class IPDevice(XBeeDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.IPDataReceived` event.
         """
-        self._packet_listener.del_ip_data_received_callback(callback)
+        if callback in self._packet_listener.get_ip_data_received_callbacks():
+            self._packet_listener.del_ip_data_received_callback(callback)
 
     def start_listening(self, source_port):
         """
@@ -5908,7 +5922,8 @@ class CellularDevice(IPDevice):
             ValueError: if ``callback`` is not in the callback list of
                 :class:`digi.xbee.reader.SMSReceived` event.
         """
-        self._packet_listener.del_sms_received_callback(callback)
+        if callback in self._packet_listener.get_sms_received_callbacks():
+            self._packet_listener.del_sms_received_callback(callback)
 
     def get_imei_addr(self):
         """
@@ -7893,7 +7908,8 @@ class XBeeNetwork(object):
         .. seealso::
            | :meth:`.XBeeNetwork.add_network_modified_callback`
         """
-        self._network_modified -= callback
+        if callback in self._network_modified:
+            self._network_modified -= callback
 
     def del_device_discovered_callback(self, callback):
         """
@@ -7910,7 +7926,8 @@ class XBeeNetwork(object):
            | :meth:`.XBeeNetwork.add_discovery_process_finished_callback`
            | :meth:`.XBeeNetwork.del_discovery_process_finished_callback`
         """
-        self._device_discovered -= callback
+        if callback in self._device_discovered:
+            self._device_discovered -= callback
 
     def del_init_discovery_scan_callback(self, callback):
         """
@@ -7923,7 +7940,8 @@ class XBeeNetwork(object):
         .. seealso::
            | :meth:`.XBeeNetwork.add_init_discovery_scan_callback`
         """
-        self.__init_scan_cbs -= callback
+        if callback in self.__init_scan_cbs:
+            self.__init_scan_cbs -= callback
 
     def del_end_discovery_scan_callback(self, callback):
         """
@@ -7936,7 +7954,8 @@ class XBeeNetwork(object):
         .. seealso::
            | :meth:`.XBeeNetwork.add_end_discovery_scan_callback`
         """
-        self.__end_scan_cbs -= callback
+        if callback in self.__end_scan_cbs:
+            self.__end_scan_cbs -= callback
 
     def del_discovery_process_finished_callback(self, callback):
         """
@@ -7953,44 +7972,38 @@ class XBeeNetwork(object):
            | :meth:`.XBeeNetwork.add_device_discovered_callback`
            | :meth:`.XBeeNetwork.del_device_discovered_callback`
         """
-        self.__device_discovery_finished -= callback
+        if callback in self.__device_discovery_finished:
+            self.__device_discovery_finished -= callback
 
-    def del_packet_received_from_callback(self, node, callback):
+    def del_packet_received_from_callback(self, node, callb=None):
         """
         Deletes a received packet callback from the provided node.
 
         Args:
             node (:class:`.RemoteXBeeDevice`): The node to listen for frames.
-            callback (Function): The callback to delete.
+            callb (Function, optional, default=`None`): The callback to delete,
+                `None` to delete all.
 
         .. seealso::
            | :meth:`.XBeeNetwork.add_packet_received_from_callback`
         """
-        cbs = self.__packet_received_from.get(str(node.get_64bit_addr()))
+        cbs = self.__packet_received_from.get(str(node.get_64bit_addr()), None)
         if not cbs:
             return
 
-        cbs -= callback
+        if not callb:
+            cbs.clear()
+        elif callb in cbs:
+            cbs -= callb
 
         if not cbs:
             self.__packet_received_from.pop(str(node.get_64bit_addr()), None)
 
-        if not self.__packet_received_from:
+        if (not self.__packet_received_from
+                and self.__received_packet_from_cb in
+                self._local_xbee._packet_listener.get_packet_received_from_callbacks()):
             self._local_xbee._packet_listener.del_packet_received_from_callback(
                 self.__received_packet_from_cb)
-
-    def _del_all_packet_received_callbacks(self, node):
-        """
-        Deletes all packet received callbacks for the provided node.
-
-        Args:
-            node (:class:`.RemoteXBeeDevice`): The node to remove callbacks.
-        """
-        cbs = self.__packet_received_from.get(str(node.get_64bit_addr()))
-        if not cbs:
-            return
-
-        cbs.clear()
 
     def clear(self):
         """
@@ -8007,7 +8020,7 @@ class XBeeNetwork(object):
         """
         with self.__lock:
             for node in self.__devices_list:
-                self._del_all_packet_received_callbacks(node)
+                self.del_packet_received_from_callback(node, callb=None)
 
         with self.__lock:
             self.__devices_list.clear()
@@ -8618,7 +8631,7 @@ class XBeeNetwork(object):
         # Remove connections with this node as one of its ends
         self.__remove_node_connections(found_node, only_as_node_a=True, force=force)
 
-        self._del_all_packet_received_callbacks(found_node)
+        self.del_packet_received_from_callback(found_node, callb=None)
 
         if not force:
             # Only for Zigbee, mark non-reachable end devices
