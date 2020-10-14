@@ -229,7 +229,7 @@ class APIOutputModeBit(Enum):
                         XBeeProtocol.XLR, XBeeProtocol.XLR_DM,
                         XBeeProtocol.RAW_802_15_4):
             return sum(op.code for op in options
-                       if lambda option: option < cls.UNSUPPORTED_ZDO_PASSTHRU)
+                       if op < cls.UNSUPPORTED_ZDO_PASSTHRU)
 
         return 0
 
