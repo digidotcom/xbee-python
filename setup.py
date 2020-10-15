@@ -8,6 +8,8 @@ from setuptools import setup, find_namespace_packages
 from codecs import open
 from os import path
 
+from digi.xbee import __version__
+
 
 DEPENDENCIES = (
     'pyserial>=3',
@@ -22,7 +24,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='digi-xbee',
     namespace_packages=['digi'],
-    version='1.3.0',
+    version=__version__,
     description='Digi XBee Python library',
     long_description=long_description,
     url='https://github.com/digidotcom/xbee-python',
