@@ -1430,14 +1430,14 @@ class _ProfileUpdater:
         """
         while retries > 0:
             try:
-                return self._xbee_device.get_parameter(parameter)
+                return self._xbee_device.get_parameter(parameter, apply=False)
             except TimeoutException:
                 retries -= 1
                 time.sleep(0.2)
 
         raise XBeeException("Timeout reading parameter '%s'" % parameter)
 
-    def _set_parameter_with_retries(self, parameter, value, retries):
+    def _set_parameter_with_retries(self, parameter, value, retries, apply=False):
         """
         Sets the given parameter in the XBee within the given number of retries.
 
@@ -1445,6 +1445,9 @@ class _ProfileUpdater:
             parameter (String): Parameter to set.
             value (Bytearray): Parameter value to set.
             retries (Integer): Number of retries to set the parameter.
+            apply (Boolean, optional, default=`False`): `True` to apply changes,
+                `False` otherwise, `None` to use `is_apply_changes_enabled()`
+                returned value.
 
         Raises:
             XBeeException: If there is any error setting the parameter.
@@ -1455,7 +1458,7 @@ class _ProfileUpdater:
             try:
                 _log.debug("Setting parameter '%s' to '%s' (%d/%d)",
                            parameter, value, (total + 1 - retries), total)
-                return self._xbee_device.set_parameter(parameter, value)
+                return self._xbee_device.set_parameter(parameter, value, apply=apply)
             except (TimeoutException, ATCommandException) as exc:
                 msg = str(exc)
                 retries -= 1
@@ -1609,9 +1612,6 @@ class _ProfileUpdater:
 
         network_settings_changed = False
         cache_settings_changed = False
-        # Disable apply settings so Queue AT commands are issued instead of AT commands
-        old_apply_settings_value = self._xbee_device.is_apply_changes_enabled()
-        self._xbee_device.enable_apply_changes(False)
         try:
             previous_percent = 0
             percent = 0
@@ -1631,7 +1631,7 @@ class _ProfileUpdater:
                     previous_percent = percent
                 self._set_parameter_with_retries(
                     ATStringCommand.RE.command, bytearray(0),
-                    _PARAMETER_WRITE_RETRIES)
+                    _PARAMETER_WRITE_RETRIES, apply=False)
                 setting_index += 1
                 # Reset settings to defaults implies network and cache settings have changed
                 network_settings_changed = True
@@ -1642,7 +1642,7 @@ class _ProfileUpdater:
                     self._set_parameter_with_retries(
                         ATStringCommand.AP.command,
                         bytearray([self._xbee_device.operating_mode.code]),
-                        _PARAMETER_WRITE_RETRIES)
+                        _PARAMETER_WRITE_RETRIES, apply=False)
             # Set settings.
             for setting in self._xbee_profile.profile_settings.values():
                 percent = setting_index * 100 // num_settings
@@ -1655,7 +1655,8 @@ class _ProfileUpdater:
                     self._xpro_ap = setting.bytearray_value
                 else:
                     self._set_parameter_with_retries(
-                        name, setting.bytearray_value, _PARAMETER_WRITE_RETRIES)
+                        name, setting.bytearray_value, _PARAMETER_WRITE_RETRIES,
+                        apply=False)
                 setting_index += 1
                 # Check if the setting was sensitive for network or cache information
                 if name in _PARAMETERS_NETWORK:
@@ -1668,8 +1669,9 @@ class _ProfileUpdater:
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                 previous_percent = percent
-            self._set_parameter_with_retries(ATStringCommand.WR.command,
-                                             bytearray(0), _PARAMETER_WRITE_RETRIES)
+            self._set_parameter_with_retries(
+                ATStringCommand.WR.command, bytearray(0),
+                _PARAMETER_WRITE_RETRIES, apply=False)
             setting_index += 1
             # Apply changes.
             percent = setting_index * 100 // num_settings
@@ -1682,7 +1684,7 @@ class _ProfileUpdater:
                 try:
                     self._set_parameter_with_retries(
                         ATStringCommand.AC.command, bytearray(0),
-                        _PARAMETER_WRITE_RETRIES)
+                        _PARAMETER_WRITE_RETRIES, apply=False)
                     break
                 except XBeeException as exc:
                     retries -= 1
@@ -1690,9 +1692,6 @@ class _ProfileUpdater:
                         raise exc
         except XBeeException as exc:
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(exc))
-
-        # Restore apply changes state.
-        self._xbee_device.enable_apply_changes(old_apply_settings_value)
 
         # Check if port settings have changed on local devices.
         if self._is_local:
@@ -1885,15 +1884,12 @@ class _ProfileUpdater:
                     and self._xpro_ap[0] != self._xbee_device.operating_mode.code
                     and (self._xpro_ap[0] in (OperatingMode.API_MODE.code,
                                               OperatingMode.ESCAPED_API_MODE.code))):
-                orig_ac_value = self._xbee_device.is_apply_changes_enabled()
-                self._xbee_device.enable_apply_changes(True)
                 self._set_parameter_with_retries(
                     ATStringCommand.AP.command, self._xpro_ap,
-                    _PARAMETER_WRITE_RETRIES)
+                    _PARAMETER_WRITE_RETRIES, apply=True)
                 self._set_parameter_with_retries(
                     ATStringCommand.WR.command, bytearray(0),
-                    _PARAMETER_WRITE_RETRIES)
-                self._xbee_device.enable_apply_changes(orig_ac_value)
+                    _PARAMETER_WRITE_RETRIES, apply=True)
             # Restore sync ops timeout
             if old_sync_ops_timeout is not None:
                 self._xbee_device.set_sync_ops_timeout(old_sync_ops_timeout)

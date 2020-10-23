@@ -2401,7 +2401,7 @@ class FileSystemManager:
         cmd = ATStringCommand.NP.command
         try:
             # Reserve 5 bytes for other frame data
-            self.__np_val = utils.bytes_to_int(xbee.get_parameter(cmd)) - 5
+            self.__np_val = utils.bytes_to_int(xbee.get_parameter(cmd, apply=False)) - 5
             # Subtract extra bytes of remote frames
             self.__np_val -= n_extra_bytes
         except XBeeException as exc:

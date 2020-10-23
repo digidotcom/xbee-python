@@ -292,7 +292,7 @@ class _ZDOCommand(metaclass=ABCMeta):
             value[0] = value[0] | APIOutputModeBit.EXPLICIT.code
             value[0] = value[0] & ~APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code
 
-            node.set_api_output_mode_value(value)
+            node.set_parameter(ATStringCommand.AO.command, value, apply=True)
 
         except XBeeException as exc:
             raise XBeeException("Could not prepare XBee for ZDO: " + str(exc))
@@ -311,7 +311,7 @@ class _ZDOCommand(metaclass=ABCMeta):
             node = self._xbee.get_local_xbee_device()
 
         try:
-            node.set_api_output_mode_value(self.__saved_ao[0])
+            node.set_parameter(ATStringCommand.AO.command, self.__saved_ao, apply=True)
         except XBeeException as exc:
             self._error = "Could not restore XBee after ZDO: " + str(exc)
 

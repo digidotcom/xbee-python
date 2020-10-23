@@ -1248,7 +1248,7 @@ class _LoopbackTest(object):
             self._frame_id += 1
         # Restore AO value.
         if old_ao is not None and not _set_device_parameter_with_retries(
-                self._local_device, ATStringCommand.AO.command, old_ao):
+                self._local_device, ATStringCommand.AO.command, old_ao, apply=True):
             return False
         # Return test result.
         _log.debug("Loopback test result: %s loops failed out of %s" % (self._total_loops_failed, self._num_loops))
@@ -1401,7 +1401,7 @@ class _LinkTest(object):
             self._local_device.del_packet_received_callback(self._link_test_callback)
         # Restore AO value.
         if old_ao is not None and not _set_device_parameter_with_retries(
-                self._local_device, ATStringCommand.AO.command, old_ao):
+                self._local_device, ATStringCommand.AO.command, old_ao, apply=True):
             return False
         if not self._packet_received or not self._test_succeed:
             return False
@@ -2085,11 +2085,11 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         _log.debug("Setting device in programming mode")
         force_reset_sent = False
         try:
-            self._xbee_device.execute_command(ATStringCommand.PERCENT_P.command)
+            self._xbee_device.execute_command(ATStringCommand.PERCENT_P.command, apply=False)
         except XBeeException:
             # If the command failed, try with 'FR' command
             try:
-                self._xbee_device.execute_command(ATStringCommand.FR.command)
+                self._xbee_device.execute_command(ATStringCommand.FR.command, apply=False)
                 force_reset_sent = True
             except XBeeException:
                 # We can ignore this error as at last instance we will attempt a Break method.
@@ -2317,7 +2317,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             if self._configure_ao_parameter() and self._updater_ao_value is not None:
                 _set_device_parameter_with_retries(
                     self._local_device, ATStringCommand.AO.command,
-                    self._updater_ao_value)
+                    self._updater_ao_value, apply=True)
             # Restore extra configuration.
             self._restore_updater_extra()
         except XBeeException as e:
@@ -3244,8 +3244,9 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             if self._updater_rr_value is None:
                 self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.RR.command)
             # Set new RR value.
-            if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.RR.command,
-                                                      bytearray([_VALUE_UNICAST_RETRIES_MEDIUM])):
+            if not _set_device_parameter_with_retries(
+                    self._local_device, ATStringCommand.RR.command,
+                    bytearray([_VALUE_UNICAST_RETRIES_MEDIUM]), apply=True):
                 self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.RR.command)
         elif self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # Store MY value.
@@ -3254,8 +3255,9 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             if self._updater_my_value is None:
                 self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.MY.command)
             # Set new MY value.
-            if not _set_device_parameter_with_retries(self._local_device, ATStringCommand.MY.command,
-                                                      XBee16BitAddress.BROADCAST_ADDRESS.address):
+            if not _set_device_parameter_with_retries(
+                    self._local_device, ATStringCommand.MY.command,
+                    XBee16BitAddress.BROADCAST_ADDRESS.address, apply=True):
                 self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.MY.command)
 
     def _restore_updater_extra(self):
@@ -3271,12 +3273,14 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         # Specific settings per protocol.
         if self._local_device.get_protocol() == XBeeProtocol.DIGI_MESH:
             # Restore RR value.
-            _set_device_parameter_with_retries(self._local_device, ATStringCommand.RR.command,
-                                               self._updater_rr_value)
+            _set_device_parameter_with_retries(
+                self._local_device, ATStringCommand.RR.command,
+                self._updater_rr_value, apply=True)
         elif self._updater_my_value and self._local_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # Restore MY value.
-            _set_device_parameter_with_retries(self._local_device, ATStringCommand.MY.command,
-                                               self._updater_my_value)
+            _set_device_parameter_with_retries(
+                self._local_device, ATStringCommand.MY.command,
+                self._updater_my_value, apply=True)
 
     def _create_explicit_frame(self, payload):
         """
@@ -4756,16 +4760,18 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         if self._updater_dh_value is None:
             self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.DH.command)
         # Set new DH value.
-        if not _set_device_parameter_with_retries(self._updater_device, ATStringCommand.DH.command,
-                                                  self._remote_device.get_64bit_addr().address[0:4]):
+        if not _set_device_parameter_with_retries(
+                self._updater_device, ATStringCommand.DH.command,
+                self._remote_device.get_64bit_addr().address[0:4], apply=True):
             self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.DH.command)
         # Save DL parameter.
         self._updater_dl_value = _read_device_parameter_with_retries(self._updater_device, ATStringCommand.DL.command)
         if self._updater_dl_value is None:
             self._exit_with_error(_ERROR_UPDATER_READ_PARAMETER % ATStringCommand.DL.command)
         # Set new DL value.
-        if not _set_device_parameter_with_retries(self._updater_device, ATStringCommand.DL.command,
-                                                  self._remote_device.get_64bit_addr().address[4:]):
+        if not _set_device_parameter_with_retries(
+                self._updater_device, ATStringCommand.DL.command,
+                self._remote_device.get_64bit_addr().address[4:], apply=True):
             self._exit_with_error(_ERROR_UPDATER_SET_PARAMETER % ATStringCommand.DL.command)
 
     def _restore_updater_extra(self):
@@ -4777,12 +4783,14 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         """
         # Restore DH parameter
         if self._updater_dh_value:
-            _set_device_parameter_with_retries(self._updater_device, ATStringCommand.DH.command,
-                                               self._updater_dh_value)
+            _set_device_parameter_with_retries(
+                self._updater_device, ATStringCommand.DH.command,
+                self._updater_dh_value, apply=bool(not self._updater_dl_value))
         # Restore DL parameter
         if self._updater_dl_value:
-            _set_device_parameter_with_retries(self._updater_device, ATStringCommand.DL.command,
-                                               self._updater_dl_value)
+            _set_device_parameter_with_retries(
+                self._updater_device, ATStringCommand.DL.command,
+                self._updater_dl_value, apply=True)
 
     def _determine_updater_device_zigbee(self):
         """
@@ -5690,7 +5698,7 @@ def _read_device_parameter_with_retries(xbee_device, parameter, retries=_PARAMET
 
     while retries > 0:
         try:
-            return xbee_device.get_parameter(parameter)
+            return xbee_device.get_parameter(parameter, apply=False)
         except TimeoutException:
             # On timeout exceptions perform retries.
             retries -= 1
@@ -5706,7 +5714,8 @@ def _read_device_parameter_with_retries(xbee_device, parameter, retries=_PARAMET
     return None
 
 
-def _set_device_parameter_with_retries(xbee_device, parameter, value, retries=_PARAMETER_SET_RETRIES):
+def _set_device_parameter_with_retries(xbee_device, parameter, value,
+                                       apply=False, retries=_PARAMETER_SET_RETRIES):
     """
     Reads the given parameter from the XBee device with the given number of retries.
 
@@ -5714,6 +5723,9 @@ def _set_device_parameter_with_retries(xbee_device, parameter, value, retries=_P
         xbee_device (:class:`.AbstractXBeeDevice`): the XBee device to read the parameter from.
         parameter (String): the parameter to set.
         value (Bytearray): the parameter value.
+        apply (Boolean, optional, default=`False`): `True` to apply changes,
+                `False` otherwise, `None` to use `is_apply_changes_enabled()`
+                returned value.
         retries (Integer, optional): the number of retries to perform after a :class:`.TimeoutException`
 
     Returns:
@@ -5724,7 +5736,7 @@ def _set_device_parameter_with_retries(xbee_device, parameter, value, retries=_P
 
     while retries > 0:
         try:
-            xbee_device.set_parameter(parameter, value)
+            xbee_device.set_parameter(parameter, value, apply=apply)
             return True
         except TimeoutException:
             # On timeout exceptions perform retries.
@@ -6038,8 +6050,9 @@ def _enable_explicit_mode(xbee):
         # Set new AO value.
         value[0] = APIOutputModeBit.EXPLICIT.code
 
-    if not _set_device_parameter_with_retries(xbee, ATStringCommand.AO.command,
-                                              value):
+    if not _set_device_parameter_with_retries(xbee,
+                                              ATStringCommand.AO.command,
+                                              value, apply=True):
         return False, ao_value
 
     return True, ao_value
