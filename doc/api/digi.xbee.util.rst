@@ -12,3 +12,4 @@ Submodules
 .. toctree::
 
    digi.xbee.util.utils
+   digi.xbee.util.xmodem
