@@ -10,8 +10,17 @@ profiles:
 * :ref:`applyProfile`
 
 .. warning::
-  At the moment, firmware, file system, and profile updates are only supported
-  in **XBee 3** devices.
+  At the moment, update features are only supported in:
+    * **XBee 3**:
+        * Local and remote firmware updates
+        * Local and remote file system updates
+        * Local and remote profile updates
+    * **XBee SX 868/900 MHz**
+        * Local and remote firmware updates
+        * Local and remote profile updates
+    * **XBee S2C**
+        * Remote firmware updates
+        * Remote profile updates
 
 
 .. _updateFirmware:
@@ -30,7 +39,10 @@ and remote devices:
 * :ref:`updateFirmwareRemote`
 
 .. warning::
-  At the moment, firmware update is only supported in **XBee 3** devices.
+  At the moment, firmware update is only supported in:
+    * **XBee 3**: Local and remote firmware updates
+    * **XBee SX 868/900 MHz**: Local and remote firmware updates
+    * **XBee S2C**: Remote firmware updates
 
 
 .. _updateFirmwareLocal:
@@ -51,6 +63,11 @@ connection. For this operation, you need the following components:
 .. warning::
   Firmware update will fail if the firmware requires a new bootloader and it is
   not provided.
+
+.. warning::
+  At the moment, local firmware update is only supported in **XBee 3** and
+  **XBee SX 868/900 MHz** devices.
+
 
 +------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Example: Local Firmware Update                                                                                                                       |
@@ -73,11 +90,11 @@ required parameters:
 +========================================+================================================================================================================================+
 | **update_firmware(String, String,**    | Performs a firmware update operation of the device.                                                                            |
 | **String, Integer, Function)**         |                                                                                                                                |
-|                                        | * **xml_firmware_file (String):** path of the XML file that describes the firmware to upload.                                  |
-|                                        | * **xbee_firmware_file (String, optional):** location of the XBee binary firmware file (\*.gbl).                               |
-|                                        | * **bootloader_firmware_file (String, optional):** location of the bootloader binary firmware file (\*.gbl).                   |
-|                                        | * **timeout (Integer, optional):** the maximum amount of seconds to wait for target read operations during the update process. |
-|                                        | * **progress_callback (Function, optional):** function to execute to receive progress information. Receives two arguments:     |
+|                                        | * **xml_firmware_file (String)**: path of the XML file that describes the firmware to upload.                                  |
+|                                        | * **xbee_firmware_file (String, optional)**: location of the XBee binary firmware file (\*.gbl).                               |
+|                                        | * **bootloader_firmware_file (String, optional)**: location of the bootloader binary firmware file (\*.gbl).                   |
+|                                        | * **timeout (Integer, optional)**: the maximum amount of seconds to wait for target read operations during the update process. |
+|                                        | * **progress_callback (Function, optional)**: function to execute to receive progress information. Receives two arguments:     |
 |                                        |                                                                                                                                |
 |                                        |   * The current update task as a String                                                                                        |
 |                                        |   * The current update task percentage as an Integer                                                                           |
@@ -139,14 +156,14 @@ and performs the firmware update from that point.
 +===================================================+================================================================================================================================+
 | **update_local_firmware(String or XBeeDevice,**   | Performs a local firmware update operation in the given target.                                                                |
 | **String, String, String, Integer, Function)**    |                                                                                                                                |
-|                                                   | * **target (String or :class:`.XBeeDevice`):** target of the firmware upload operation.                                        |
-|                                                   |   * **String:** serial port identifier.                                                                                        |
-|                                                   |   * **:class:`.AbstractXBeeDevice`:** the XBee device to upload its firmware.                                                  |
-|                                                   | * **xml_firmware_file (String):** path of the XML file that describes the firmware to upload.                                  |
-|                                                   | * **xbee_firmware_file (String, optional):** location of the XBee binary firmware file (\*.gbl).                               |
-|                                                   | * **bootloader_firmware_file (String, optional):** location of the bootloader binary firmware file.                            |
-|                                                   | * **timeout (Integer, optional):** the maximum amount of seconds to wait for target read operations during the update process. |
-|                                                   | * **progress_callback (Function, optional):** function to execute to receive progress information. Receives two arguments:     |
+|                                                   | * **target (String or :class:`.XBeeDevice`)**: target of the firmware upload operation.                                        |
+|                                                   |   * **String**: serial port identifier.                                                                                        |
+|                                                   |   * **:class:`.AbstractXBeeDevice`**: the XBee device to upload its firmware.                                                  |
+|                                                   | * **xml_firmware_file (String)**: path of the XML file that describes the firmware to upload.                                  |
+|                                                   | * **xbee_firmware_file (String, optional)**: location of the XBee binary firmware file (\*.gbl).                               |
+|                                                   | * **bootloader_firmware_file (String, optional)**: location of the bootloader binary firmware file.                            |
+|                                                   | * **timeout (Integer, optional)**: the maximum amount of seconds to wait for target read operations during the update process. |
+|                                                   | * **progress_callback (Function, optional)**: function to execute to receive progress information. Receives two arguments:     |
 |                                                   |                                                                                                                                |
 |                                                   |   * The current update task as a String                                                                                        |
 |                                                   |   * The current update task percentage as an Integer                                                                           |
@@ -157,7 +174,7 @@ The ``update_local_firmware`` method may fail for the following reasons:
 * There is an error during the firmware update operation, throwing a
   ``FirmwareUpdateException``.
 
-**Update local XBee device firmware using the serial port name**
+**Update local XBee device firmware using a serial port**
 
 .. code:: python
 
@@ -201,6 +218,10 @@ components:
   Firmware update fails if the firmware requires a new bootloader and the
   \*.otb file is not provided.
 
+.. warning::
+  At the moment, remote firmware update is only supported in **XBee 3**,
+  **XBee SX 868/900 MHz**, and **XBee S2C** devices.
+
 To perform the remote firmware update, call the
 ``update_firmware`` method of the ``RemoteXBeeDevice`` class providing the
 required parameters:
@@ -210,11 +231,11 @@ required parameters:
 +=======================================+=================================================================================================================================+
 | **update_firmware(String, String,**   | Performs a remote firmware update operation of the device.                                                                      |
 | **String, Integer, Function)**        |                                                                                                                                 |
-|                                       | * **xml_firmware_file (String):** path of the XML file that describes the firmware to upload.                                   |
-|                                       | * **xbee_firmware_file (String, optional):** location of the XBee binary firmware file (\*.ota).                                |
-|                                       | * **bootloader_firmware_file (String, optional):** location of the XBee binary firmware file with bootloader embedded (\*.otb). |
-|                                       | * **timeout (Integer, optional):** the maximum amount of seconds to wait for target read operations during the update process.  |
-|                                       | * **progress_callback (Function, optional):** function to execute to receive progress information. Receives two arguments:      |
+|                                       | * **xml_firmware_file (String)**: path of the XML file that describes the firmware to upload.                                   |
+|                                       | * **xbee_firmware_file (String, optional)**: location of the XBee binary firmware file (\*.ota).                                |
+|                                       | * **bootloader_firmware_file (String, optional)**: location of the XBee binary firmware file with bootloader embedded (\*.otb). |
+|                                       | * **timeout (Integer, optional)**: the maximum amount of seconds to wait for target read operations during the update process.  |
+|                                       | * **progress_callback (Function, optional)**: function to execute to receive progress information. Receives two arguments:      |
 |                                       |                                                                                                                                 |
 |                                       |   * The current update task as a String                                                                                         |
 |                                       |   * The current update task percentage as an Integer                                                                            |
@@ -286,7 +307,7 @@ classes and methods to manage these files.
 * :ref:`filesystemOperations`
 
 .. warning::
-  At the moment file system capabilities are only supported in **local XBee 3**
+  At the moment file system capabilities are only supported in **XBee 3**
   devices.
 
 
@@ -360,48 +381,48 @@ file system and operate with the different files and folders:
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **change_directory(String)**         | Changes the current device working directory to the given one.                                                                                |
 |                                      |                                                                                                                                               |
-|                                      | * **directory (String):** the new directory to change to.                                                                                     |
+|                                      | * **directory (String)**: the new directory to change to.                                                                                     |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **make_directory(String)**           | Creates the provided directory.                                                                                                               |
 |                                      |                                                                                                                                               |
-|                                      | * **directory (String):** the new directory to create.                                                                                        |
+|                                      | * **directory (String)**: the new directory to create.                                                                                        |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **list_directory(String)**           | Lists the contents of the given directory.                                                                                                    |
 |                                      |                                                                                                                                               |
-|                                      | * **directory (String, optional):** the directory to list its contents. Optional. If not provided, the current directory contents are listed. |
+|                                      | * **directory (String, optional)**: the directory to list its contents. Optional. If not provided, the current directory contents are listed. |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **remove_element(String)**           | Removes the given file system element path.                                                                                                   |
 |                                      |                                                                                                                                               |
-|                                      | * **element_path (String):** path of the file system element to remove.                                                                       |
+|                                      | * **element_path (String)**: path of the file system element to remove.                                                                       |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **move_element(String, String)**     | Moves the given source element to the given destination path.                                                                                 |
 |                                      |                                                                                                                                               |
-|                                      | * **source_path (String):** source path of the element to move.                                                                               |
-|                                      | * **dest_path (String):** destination path of the element to move.                                                                            |
+|                                      | * **source_path (String)**: source path of the element to move.                                                                               |
+|                                      | * **dest_path (String)**: destination path of the element to move.                                                                            |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **put_file(String, String,**         | Transfers the given file in the specified destination path of the XBee device.                                                                |
 | **Boolean, Function)**               |                                                                                                                                               |
-|                                      | * **source_path (String):** the path of the file to transfer.                                                                                 |
-|                                      | * **dest_path (String):** the destination path to put the file in.                                                                            |
-|                                      | * **secure (Boolean, optional):** ``True`` if the file should be stored securely, ``False`` otherwise. Defaults to ``False``.                 |
-|                                      | * **progress_callback (Function, optional):** function to execute to receive progress information. Takes the following arguments:             |
+|                                      | * **source_path (String)**: the path of the file to transfer.                                                                                 |
+|                                      | * **dest_path (String)**: the destination path to put the file in.                                                                            |
+|                                      | * **secure (Boolean, optional)**: ``True`` if the file should be stored securely, ``False`` otherwise. Defaults to ``False``.                 |
+|                                      | * **progress_callback (Function, optional)**: function to execute to receive progress information. Takes the following arguments:             |
 |                                      |                                                                                                                                               |
 |                                      |   * The progress percentage as integer.                                                                                                       |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **put_dir(String, String, Function)**| Uploads the given source directory contents into the given destination directory in the device.                                               |
 |                                      |                                                                                                                                               |
-|                                      | * **source_dir (String):** the local directory to upload its contents.                                                                        |
-|                                      | * **dest_dir (String, optional):** the remote directory to upload the contents to. Defaults to current directory.                             |
-|                                      | * **progress_callback (Function, optional):** function to execute to receive progress information. Takes the following arguments:             |
+|                                      | * **source_dir (String)**: the local directory to upload its contents.                                                                        |
+|                                      | * **dest_dir (String, optional)**: the remote directory to upload the contents to. Defaults to current directory.                             |
+|                                      | * **progress_callback (Function, optional)**: function to execute to receive progress information. Takes the following arguments:             |
 |                                      |                                                                                                                                               |
 |                                      |   * The file being uploaded as string.                                                                                                        |
 |                                      |   * The progress percentage as integer.                                                                                                       |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **get_file(String, String,**         | Downloads the given XBee device file in the specified destination path.                                                                       |
 | **Function)**                        |                                                                                                                                               |
-|                                      | * **source_path (String):** the path of the XBee device file to download.                                                                     |
-|                                      | * **dest_path (String):** the destination path to store the file in.                                                                          |
-|                                      | * **progress_callback (Function, optional):** function to execute to receive progress information. Takes the following arguments:             |
+|                                      | * **source_path (String)**: the path of the XBee device file to download.                                                                     |
+|                                      | * **dest_path (String)**: the destination path to store the file in.                                                                          |
+|                                      | * **progress_callback (Function, optional)**: function to execute to receive progress information. Takes the following arguments:             |
 |                                      |                                                                                                                                               |
 |                                      |   * The progress percentage as integer.                                                                                                       |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -411,7 +432,7 @@ file system and operate with the different files and folders:
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | **get_file_hash(String)**            | Returns the SHA256 hash of the given file path.                                                                                               |
 |                                      |                                                                                                                                               |
-|                                      | * **file_path (String):** path of the file to get its hash.                                                                                   |
+|                                      | * **file_path (String)**: path of the file to get its hash.                                                                                   |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 
 The methods above may fail for the following reasons:
@@ -464,7 +485,10 @@ To configure individual settings see :ref:`configureXBee`.
    Use `XCTU <http://www.digi.com/xctu>`_ to create configuration profiles.
 
 .. warning::
-  At the moment applying profiles is only supported in **XBee 3** devices.
+  At the moment, firmware update is only supported in:
+    * **XBee 3**: Local and remote profile updates
+    * **XBee SX 868/900 MHz**: Local and remote profile updates
+    * **XBee S2C**: Remote profile updates
 
 
 .. _readXBeeProfile:
@@ -515,9 +539,19 @@ information by accessing each of the exposed properties:
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **description**               | Returns the profile description.                                                                       |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
-| **reset_settings**            | Returns whether the settings of the XBee device are reset before applying the profile ones or not.     |
+| **reset_settings**            | Returns whether the settings of the XBee device are reset before applying the profile ones.            |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
-| **has_filesystem**            | Returns whether the profile has filesystem information or not.                                         |
+| **has_firmware_files**        | Returns whether the profile has firmware binaries (local or remote)                                    |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **has_local_firmware_files**  | Returns whether the profile has local firmware binaries.                                               |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **has_remote_firmware_files** | Returns whether the profile has remote firmware binaries.                                              |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **has_filesystem**            | Returns whether the profile has filesystem information (local or remote)                               |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **has_local_filesystem**      | Returns whether the profile has local filesystem information.                                          |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **has_remote_filesystem**     | Returns whether the profile has remote filesystem information.                                         |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **profile_settings**          |  Returns all the firmware settings that the profile configures.                                        |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
@@ -525,9 +559,17 @@ information by accessing each of the exposed properties:
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **hardware_version**          | Returns the compatible hardware version of the profile.                                                |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **compatibility_number**      | Returns the compatibility number of the profile.                                                       |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **region_lock**               | Returns the region lock of the profile.                                                                |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **firmware_description_file** | Returns the path of the profile firmware description file.                                             |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **file_system_path**          | Returns the profile file system path.                                                                  |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **remote_file_system_image**  | Returns the path of the remote OTA file system image.                                                  |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **bootloader_file**           | Returns the profile bootloader file path.                                                              |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 
 **Read an XBee profile**
@@ -573,21 +615,26 @@ Applying a profile to a local XBee device requires the following components:
 .. note::
    Use `XCTU <http://www.digi.com/xctu>`_ to create configuration profiles.
 
+.. warning::
+  At the moment, local profile update is only supported in **XBee 3** and
+  **XBee SX 868/900 MHz** devices.
+
 To apply the XBee profile to a local XBee, you have to call the
 ``apply_profile`` method of the ``XBeeDevice`` class providing the required
 parameters:
 
-+-------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
-| Method                                    | Description                                                                                                                |
-+===========================================+============================================================================================================================+
-| **apply_profile(String, Function)**       | Applies the given XBee profile to the XBee device.                                                                         |
-|                                           |                                                                                                                            |
-|                                           | * **profile_path (String):** path of the XBee profile file to apply.                                                       |
-|                                           | * **progress_callback (Function, optional):** function to execute to receive progress information. Receives two arguments: |
-|                                           |                                                                                                                            |
-|                                           |   * The current apply profile task as a String                                                                             |
-|                                           |   * The current apply profile task percentage as an Integer                                                                |
-+-------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
++----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
+| Method                                       | Description                                                                                                                |
++==============================================+============================================================================================================================+
+| **apply_profile(String, timeout, Function)** | Applies the given XBee profile to the XBee device.                                                                         |
+|                                              |                                                                                                                            |
+|                                              | * **profile_path (String)**: path of the XBee profile file to apply.                                                       |
+|                                              | * **timeout (Integer, optional)**: maximum time to wait for read operations during the apply profile.                      |
+|                                              | * **progress_callback (Function, optional)**: function to execute to receive progress information. Receives two arguments: |
+|                                              |                                                                                                                            |
+|                                              |   * The current apply profile task as a String                                                                             |
+|                                              |   * The current apply profile task percentage as an Integer                                                                |
++----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
 
 The ``apply_profile`` method may fail for the following reasons:
 
@@ -643,21 +690,26 @@ Applying a profile to a remote XBee requires the following components:
 .. note::
    Use `XCTU <http://www.digi.com/xctu>`_ to create configuration profiles.
 
+.. warning::
+  At the moment, remote profile update is only supported in **XBee 3**,
+  **XBee SX 868/900 MHz**, and **XBee S2C** devices.
+
 To apply the XBee profile to a remote XBee device, you have to call the
 ``apply_profile`` method of the ``RemoteXBeeDevice`` class providing the
 required parameters:
 
-+-------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
-| Method                                    | Description                                                                                                                |
-+===========================================+============================================================================================================================+
-| **apply_profile(String, Function)**       | Applies the given XBee profile to the remote XBee device.                                                                  |
-|                                           |                                                                                                                            |
-|                                           | * **profile_path (String):** path of the XBee profile file to apply.                                                       |
-|                                           | * **progress_callback (Function, optional):** function to execute to receive progress information. Receives two arguments: |
-|                                           |                                                                                                                            |
-|                                           |   * The current apply profile task as a String                                                                             |
-|                                           |   * The current apply profile task percentage as an Integer                                                                |
-+-------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
++----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
+| Method                                       | Description                                                                                                                |
++==============================================+============================================================================================================================+
+| **apply_profile(String, timeout, Function)** | Applies the given XBee profile to the remote XBee device.                                                                  |
+|                                              |                                                                                                                            |
+|                                              | * **profile_path (String)**: path of the XBee profile file to apply.                                                       |
+|                                              | * **timeout (Integer, optional)**: maximum time to wait for read operations during the apply profile.                      |
+|                                              | * **progress_callback (Function, optional)**: function to execute to receive progress information. Receives two arguments: |
+|                                              |                                                                                                                            |
+|                                              |   * The current apply profile task as a String                                                                             |
+|                                              |   * The current apply profile task percentage as an Integer                                                                |
++----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
 
 The ``apply_profile`` method may fail for the following reasons:
 
