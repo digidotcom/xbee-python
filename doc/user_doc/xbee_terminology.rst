@@ -55,8 +55,8 @@ depending on the module and its radio firmware.
 Following is the complete list of protocols supported by the XBee radio modules:
 
 * IEEE 802.15.4
-* ZigBee
-* ZigBee Smart Energy
+* Zigbee
+* Zigbee Smart Energy
 * DigiMesh (Digi proprietary)
 * ZNet
 * IEEE 802.11 (Wi-Fi)

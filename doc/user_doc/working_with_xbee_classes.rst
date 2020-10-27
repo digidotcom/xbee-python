@@ -4,7 +4,7 @@ Work with XBee classes
 When working with the XBee Python Library, start with an XBee device object
 that represents a physical module. A physical XBee device is the combination
 of hardware and firmware. Depending on that combination, the device runs a
-specific wireless communication protocol such as ZigBee, 802.15.4, DigiMesh,
+specific wireless communication protocol such as Zigbee, 802.15.4, DigiMesh,
 Wi-Fi, or cellular. An XBeeDevice class represents the XBee module in the
 API.
 
@@ -18,7 +18,7 @@ class per protocol, as follows:
    :align: center
    :alt: XBee Class hierarchy
 
-* XBee ZigBee device (``ZigBeeDevice``)
+* XBee Zigbee device (``ZigBeeDevice``)
 * XBee 802.15.4 device (``Raw802Device``)
 * XBee DigiMesh device (``DigiMeshDevice``)
 * XBee Point-to-multipoint device (``DigiPointDevice``)
@@ -64,7 +64,7 @@ table:
 +=================+======================================+
 | XBeeDevice      | Generic object, protocol-independent |
 +-----------------+--------------------------------------+
-| ZigBeeDevice    | ZigBee protocol                      |
+| ZigBeeDevice    | Zigbee protocol                      |
 +-----------------+--------------------------------------+
 | Raw802Device    | 802.15.4 protocol                    |
 +-----------------+--------------------------------------+
@@ -123,7 +123,7 @@ The following table lists the remote XBee device classes:
 +=======================+======================================+
 | RemoteXBeeDevice      | Generic object, protocol independent |
 +-----------------------+--------------------------------------+
-| RemoteZigBeeDevice    | ZigBee protocol                      |
+| RemoteZigBeeDevice    | Zigbee protocol                      |
 +-----------------------+--------------------------------------+
 | RemoteRaw802Device    | 802.15.4 protocol                    |
 +-----------------------+--------------------------------------+
@@ -307,7 +307,7 @@ of the local or remote XBee device object. This is typically something you
 need to know beforehand if you are not using the generic ``XBeeDevice`` object.
 
 However, the API performs this operation to ensure that the class you
-instantiated is the correct one. So, if you instantiated a ZigBee device and
+instantiated is the correct one. So, if you instantiated a Zigbee device and
 the ``open()`` process realizes that the physical device is actually a DigiMesh
 device, you receive an ``XBeeDeviceException`` indicating the device mismatch.
 

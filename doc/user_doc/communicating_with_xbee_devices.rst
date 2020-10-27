@@ -459,18 +459,18 @@ method to unsubscribe the already-registered callback.
 Send and receive explicit data
 ------------------------------
 
-Some ZigBee applications may require communication with third-party (non-Digi)
+Some Zigbee applications may require communication with third-party (non-Digi)
 RF modules. These applications often send and receive data of different public
 profiles such as Home Automation or Smart Energy to other modules.
 
-XBee ZigBee modules offer a special type of frame for this purpose. Explicit
+XBee Zigbee modules offer a special type of frame for this purpose. Explicit
 frames are used to transmit and receive explicit data. When sending public
 profile packets, the frames transmit the data itself plus the application
 layer-specific fields—the source and destination endpoints, profile ID, and
 cluster ID.
 
 .. warning::
-  Only ZigBee, DigiMesh, and Point-to-Multipoint protocols support the
+  Only Zigbee, DigiMesh, and Point-to-Multipoint protocols support the
   transmission and reception of data in explicit format. This means you cannot
   transmit or receive explicit data using a generic ``XBeeDevice`` object. You
   must use a protocol-specific XBee device object such as a ``ZigBeeDevice``.
@@ -523,11 +523,11 @@ the network:
 
   [...]
 
-  # Instantiate a ZigBee device object.
+  # Instantiate a Zigbee device object.
   device = ZigBeeDevice("COM1", 9600)
   device.open()
 
-  # Instantiate a remote ZigBee device object.
+  # Instantiate a remote Zigbee device object.
   remote_device = RemoteZigBeeDevice(device, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send explicit data using the remote object.
@@ -584,11 +584,11 @@ of the network:
 
   [...]
 
-  # Instantiate a ZigBee device object.
+  # Instantiate a Zigbee device object.
   device = ZigBeeDevice("COM1", 9600)
   device.open()
 
-  # Instantiate a remote ZigBee device object.
+  # Instantiate a remote Zigbee device object.
   remote_device = RemoteZigBeeDevice(device, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send explicit data asynchronously using the remote object.
@@ -637,7 +637,7 @@ explicit data provide the same method to send broadcast explicit data:
 
   [...]
 
-  # Instantiate a ZigBee device object.
+  # Instantiate a Zigbee device object.
   device = ZigBeeDevice("COM1", 9600)
   device.open()
 
@@ -693,7 +693,7 @@ mode of the receiver XBee device to explicit format using the
 
   [...]
 
-  # Instantiate a ZigBee device object.
+  # Instantiate a Zigbee device object.
   device = ZigBeeDevice("COM1", 9600)
   device.open()
 
@@ -740,7 +740,7 @@ or the provided timeout has expired:
 
   [...]
 
-  # Instantiate a ZigBee device object.
+  # Instantiate a Zigbee device object.
   device = ZigBeeDevice("COM1", 9600)
   device.open()
 
@@ -799,11 +799,11 @@ network. For that purpose, the XBee device object provides the
 
   [...]
 
-  # Instantiate a ZigBee device object.
+  # Instantiate a Zigbee device object.
   device = ZigBeeDevice("COM1", 9600)
   device.open()
 
-  # Instantiate a remote ZigBee device object.
+  # Instantiate a remote Zigbee device object.
   remote_device = RemoteZigBeeDevice(device, XBee64BitAddress.from_hex_string("0013A200XXXXXX"))
 
   # Read data sent by the remote device.
@@ -843,7 +843,7 @@ are subscribed or registered to the explicit data reception service by using the
 
   [...]
 
-  # Instantiate a ZigBee device object.
+  # Instantiate a Zigbee device object.
   device = ZigBeeDevice("COM1", 9600)
   device.open()
 
@@ -941,7 +941,7 @@ callback.
 Send and receive IP data
 ------------------------
 
-In contrast to XBee protocols like ZigBee, DigiMesh or 802.15.4, where the
+In contrast to XBee protocols like Zigbee, DigiMesh or 802.15.4, where the
 devices are connected each other, in cellular and Wi-Fi protocols the modules
 are part of the Internet.
 

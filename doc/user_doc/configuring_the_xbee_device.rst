@@ -520,7 +520,7 @@ The ``reset()`` method may fail for the following reasons:
 Configure Wi-Fi settings
 ------------------------
 
-Unlike other protocols such as ZigBee or DigiMesh where devices are connected to
+Unlike other protocols such as Zigbee or DigiMesh where devices are connected to
 each other, the XBee Wi-Fi protocol requires that the module is connected to
 an access point in order to communicate with other TCP/IP devices.
 

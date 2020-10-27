@@ -125,7 +125,7 @@ You need to configure **two XBee devices**. One module (the sender) sends
 receiver) receives the message.
 
 To communicate, both devices must be working in the same protocol (802.15.4, 
-ZigBee, DigiMesh, Point-to-Multipoint, or Wi-Fi) and must be configured to 
+Zigbee, DigiMesh, Point-to-Multipoint, or Wi-Fi) and must be configured to
 operate in the same network.
 
 .. note::
@@ -184,15 +184,15 @@ Repeat these steps to configure your XBee devices using XCTU.
 
 .. _gsgConfigZBdevices:
 
-ZigBee devices
+Zigbee devices
 ``````````````
-#. For old ZigBee devices (S2 and S2B), make sure the devices are using
+#. For old Zigbee devices (S2 and S2B), make sure the devices are using
    **API firmware**. The firmware appears in the **Function** label of the
    device in the Radio Modules view.
 
-   * One of the devices must be a coordinator - Function: ZigBee Coordinator
+   * One of the devices must be a coordinator - Function: Zigbee Coordinator
      API
-   * Digi recommends the other one is a router - Function: ZigBee Router AP.
+   * Digi recommends the other one is a router - Function: Zigbee Router AP.
 
    .. note::
       If any of the two previous conditions is not satisfied, you must change
@@ -345,7 +345,7 @@ the corresponding steps depending on the protocol of your XBee devices.
 
 .. _gsgAppZBDMDP802:
 
-ZigBee, DigiMesh, DigiPoint or 802.15.4 devices
+Zigbee, DigiMesh, DigiPoint or 802.15.4 devices
 ```````````````````````````````````````````````
 
 Follow these steps to send the broadcast message and verify that it is received

@@ -13,7 +13,7 @@ perform some operations related to the nodes.
   There are ``XBeeNetwork`` subclasses for different protocols which correspond
   to the ``XBeeDevice`` subclasses:
 
-  * XBee ZigBee network (``ZigBeeNetwork``)
+  * XBee Zigbee network (``ZigBeeNetwork``)
   * XBee 802.15.4 network (``Raw802Network``)
   * XBee DigiMesh network (``DigiMeshNetwork``)
   * XBee DigiPoint network (``DigiPointNetwork``)
@@ -67,7 +67,7 @@ in the module.
 +--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | **set_discovery_options(Set<DiscoveryOptions>)** | Configures the discovery options (``NO`` parameter) with the set of options. The set of discovery options contains the different ``DiscoveryOptions`` configuration values that are applied to the local XBee module when performing the discovery process. These options are the following: |
 |                                                  |                                                                                                                                                                                                                                                                                              |
-|                                                  |   * **DiscoveryOptions.APPEND_DD**: Appends the device type identifier (DD) to the information retrieved when a node is discovered. This option is valid for DigiMesh, Point-to-multipoint (Digi Point) and ZigBee protocols.                                                                |
+|                                                  |   * **DiscoveryOptions.APPEND_DD**: Appends the device type identifier (``DD``) to the information retrieved when a node is discovered. This option is valid for DigiMesh, Point-to-multipoint (Digi Point) and Zigbee protocols.                                                            |
 |                                                  |   * **DiscoveryOptions.DISCOVER_MYSELF**: The local XBee device is returned as a discovered device. This option is valid for all protocols.                                                                                                                                                  |
 |                                                  |   * **DiscoveryOptions.APPEND_RSSI**: Appends the RSSI value of the last hop to the information retrieved when a node is discovered. This option is valid for DigiMesh and Point-to-multipoint (Digi Point) protocols.                                                                       |
 +--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
