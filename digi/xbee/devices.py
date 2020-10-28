@@ -12,12 +12,14 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from abc import ABCMeta, abstractmethod
 import logging
-from enum import Enum, unique
-from ipaddress import IPv4Address
 import threading
 import time
+
+from abc import ABCMeta, abstractmethod
+from enum import Enum, unique
+from functools import wraps
+from ipaddress import IPv4Address
 from queue import Queue, Empty
 
 from digi.xbee import serial
@@ -59,7 +61,6 @@ from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, \
     EndDiscoveryScan, XBeeEvent
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
-from functools import wraps
 
 
 _ERROR_INCOMPATIBLE_PROTOCOL = \
@@ -67,7 +68,7 @@ _ERROR_INCOMPATIBLE_PROTOCOL = \
     "Check if you are using the appropriate device class."
 
 
-class AbstractXBeeDevice(object):
+class AbstractXBeeDevice:
     """
     This class provides common functionality for all XBee devices.
     """
@@ -88,10 +89,10 @@ class AbstractXBeeDevice(object):
     Logger.
     """
 
-    def __init__(self, local_xbee_device=None, serial_port=None, sync_ops_timeout=_DEFAULT_TIMEOUT_SYNC_OPERATIONS,
-                 comm_iface=None):
+    def __init__(self, local_xbee_device=None, serial_port=None,
+                 sync_ops_timeout=_DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
         """
-        Class constructor. Instantiates a new :class:`.AbstractXBeeDevice` 
+        Class constructor. Instantiates a new :class:`.AbstractXBeeDevice`
         object with the provided parameters.
 
         Args:
@@ -112,7 +113,8 @@ class AbstractXBeeDevice(object):
            | :class:`.XBeeSerialPort`
         """
         if (serial_port, comm_iface).count(None) != 1:
-            raise XBeeException("Either 'serial_port' or 'comm_iface' must be 'None' (and only one of them)")
+            raise XBeeException("Either 'serial_port' or 'comm_iface' must be "
+                                "'None' (and only one of them)")
 
         self.__current_frame_id = 0x00
 
@@ -275,7 +277,7 @@ class AbstractXBeeDevice(object):
         value = self.__send_parameter(
             parameter, parameter_value=parameter_value, apply=apply)
 
-        # Check if the response is None, if so throw an exception (maybe it was a write-only parameter).
+        # Check if response is None, if so throw an exception (maybe a write-only parameter)
         if value is None:
             raise OperationNotSupportedException(message="Could not get the %s value." % parameter)
 
@@ -411,9 +413,10 @@ class AbstractXBeeDevice(object):
         Raises:
             ATCommandException: If `response` is `None` or `response.status != OK`.
         """
-        if response is None or not isinstance(response, ATCommandResponse) or response.status is None:
+        if (response is None or not isinstance(response, ATCommandResponse)
+                or response.status is None):
             raise ATCommandException()
-        elif response.status != ATCommandStatus.OK:
+        if response.status != ATCommandStatus.OK:
             raise ATCommandException(cmd_status=response.status)
 
     def _send_at_command(self, command, apply=None):
@@ -449,7 +452,7 @@ class AbstractXBeeDevice(object):
             return None
 
         operating_mode = self._get_operating_mode()
-        if operating_mode != OperatingMode.API_MODE and operating_mode != OperatingMode.ESCAPED_API_MODE:
+        if operating_mode not in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
         apply = apply if apply is not None else self.is_apply_changes_enabled()
@@ -463,23 +466,26 @@ class AbstractXBeeDevice(object):
             if remote_16bit_addr is None:
                 remote_16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
 
-            packet = RemoteATCommandPacket(self._get_next_frame_id(), self.get_64bit_addr(), remote_16bit_addr,
-                                           remote_at_cmd_opts, command.command, parameter=command.parameter)
+            packet = RemoteATCommandPacket(
+                self._get_next_frame_id(), self.get_64bit_addr(), remote_16bit_addr,
+                remote_at_cmd_opts, command.command, parameter=command.parameter)
         else:
             if apply:
                 packet = ATCommPacket(self._get_next_frame_id(), command.command,
                                       parameter=command.parameter)
             else:
-                packet = ATCommQueuePacket(self._get_next_frame_id(), command.command, parameter=command.parameter)
+                packet = ATCommQueuePacket(self._get_next_frame_id(),
+                                           command.command, parameter=command.parameter)
 
         if self.is_remote():
-            answer_packet = self._local_xbee_device.send_packet_sync_and_get_response(packet, timeout=self._timeout)
+            answer_packet = self._local_xbee_device.send_packet_sync_and_get_response(
+                packet, timeout=self._timeout)
         else:
             answer_packet = self._send_packet_sync_and_get_response(packet)
 
         response = None
 
-        if isinstance(answer_packet, ATCommResponsePacket) or isinstance(answer_packet, RemoteATCommandResponsePacket):
+        if isinstance(answer_packet, (ATCommResponsePacket, RemoteATCommandResponsePacket)):
             response = ATCommandResponse(command, response=answer_packet.command_value,
                                          status=answer_packet.status)
 
@@ -544,7 +550,6 @@ class AbstractXBeeDevice(object):
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        pass
 
     def _read_device_info(self, reason, init=True, fire_event=True):
         """
@@ -573,11 +578,11 @@ class AbstractXBeeDevice(object):
             if not self._local_xbee_device.comm_iface.is_interface_open:
                 raise XBeeException("Local XBee device's communication interface closed")
             if init:
-                # Clear the 16-bit address, it might be obsolete which is a problem for Zigbee devices.
+                # Clear the 16-bit address, it might be obsolete: a problem for Zigbee
                 self._16bit_addr = None
         else:
-            if (self._operating_mode != OperatingMode.API_MODE and
-               self._operating_mode != OperatingMode.ESCAPED_API_MODE):
+            if (self._operating_mode not in (OperatingMode.API_MODE,
+                                             OperatingMode.ESCAPED_API_MODE)):
                 raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
             if not self._comm_iface.is_interface_open:
@@ -611,9 +616,9 @@ class AbstractXBeeDevice(object):
 
             # 64-bit address:
             if init or not XBee64BitAddress.is_known_node_addr(self._64bit_addr):
-                sh = self.get_parameter(ATStringCommand.SH.command, apply=False)
-                sl = self.get_parameter(ATStringCommand.SL.command, apply=False)
-                x64bit_addr = XBee64BitAddress(sh + sl)
+                sh_val = self.get_parameter(ATStringCommand.SH.command, apply=False)
+                sl_val = self.get_parameter(ATStringCommand.SL.command, apply=False)
+                x64bit_addr = XBee64BitAddress(sh_val + sl_val)
                 if self._64bit_addr != x64bit_addr:
                     self._64bit_addr = x64bit_addr
                     updated = True
@@ -624,8 +629,9 @@ class AbstractXBeeDevice(object):
                     self._node_id = node_id
                     updated = True
             # 16-bit address:
-            if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4, XBeeProtocol.XTEND,
-                                   XBeeProtocol.SMART_ENERGY, XBeeProtocol.ZNET]
+            if (self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4,
+                                   XBeeProtocol.XTEND, XBeeProtocol.SMART_ENERGY,
+                                   XBeeProtocol.ZNET)
                     and (init or not XBee16BitAddress.is_known_node_addr(self._16bit_addr))):
                 x16bit_addr = XBee16BitAddress(
                     self.get_parameter(ATStringCommand.MY.command, apply=False))
@@ -714,9 +720,9 @@ class AbstractXBeeDevice(object):
            | :meth:`.AbstractXBeeDevice.read_device_info`
         """
         is_16bit_init = True
-        if self._protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.ZIGBEE,
+        if self._protocol in (XBeeProtocol.RAW_802_15_4, XBeeProtocol.ZIGBEE,
                               XBeeProtocol.XTEND, XBeeProtocol.SMART_ENERGY,
-                              XBeeProtocol.ZNET]:
+                              XBeeProtocol.ZNET):
             is_16bit_init = XBee16BitAddress.is_known_node_addr(self._16bit_addr)
 
         return (self._hardware_version is not None
@@ -742,64 +748,62 @@ class AbstractXBeeDevice(object):
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        if self._protocol in [XBeeProtocol.DIGI_MESH, XBeeProtocol.SX, XBeeProtocol.XTEND_DM]:
-            ce = utils.bytes_to_int(
+        if self._protocol in (XBeeProtocol.DIGI_MESH, XBeeProtocol.SX, XBeeProtocol.XTEND_DM):
+            ce_val = utils.bytes_to_int(
                 self.get_parameter(ATStringCommand.CE.command, apply=False))
-            if ce == 0:
+            if ce_val == 0:
                 try:
                     # Capture the possible exception because DigiMesh S2C does not have
                     # SS command, so the read will throw an ATCommandException
-                    ss = self.get_parameter(ATStringCommand.SS.command, apply=False)
+                    ss_val = self.get_parameter(ATStringCommand.SS.command, apply=False)
                 except ATCommandException:
-                    ss = None
+                    ss_val = None
 
-                if not ss:
+                if not ss_val:
                     return Role.ROUTER
 
-                ss = utils.bytes_to_int(ss)
-                if utils.is_bit_enabled(ss, 1):
+                ss_val = utils.bytes_to_int(ss_val)
+                if utils.is_bit_enabled(ss_val, 1):
                     return Role.COORDINATOR
-                else:
-                    return Role.ROUTER
-            elif ce == 1:
+                return Role.ROUTER
+            if ce_val == 1:
                 return Role.COORDINATOR
-            else:
-                return Role.END_DEVICE
-        elif self._protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.DIGI_POINT,
-                                XBeeProtocol.XLR, XBeeProtocol.XLR_DM]:
-            ce = utils.bytes_to_int(
+            return Role.END_DEVICE
+        if self._protocol in (XBeeProtocol.RAW_802_15_4, XBeeProtocol.DIGI_POINT,
+                              XBeeProtocol.XLR, XBeeProtocol.XLR_DM):
+            ce_val = utils.bytes_to_int(
                 self.get_parameter(ATStringCommand.CE.command, apply=False))
             if self._protocol == XBeeProtocol.RAW_802_15_4:
-                if ce == 0:
+                if ce_val == 0:
                     return Role.END_DEVICE
-                elif ce == 1:
+                if ce_val == 1:
                     return Role.COORDINATOR
             else:
-                if ce == 0:
+                if ce_val == 0:
                     return Role.ROUTER
-                elif ce in (1, 3):
+                if ce_val in (1, 3):
                     return Role.COORDINATOR
-                elif ce in (2, 4, 6):
+                if ce_val in (2, 4, 6):
                     return Role.END_DEVICE
-        elif self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.SMART_ENERGY]:
+        elif self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.SMART_ENERGY):
             try:
-                ce = utils.bytes_to_int(
+                ce_val = utils.bytes_to_int(
                     self.get_parameter(ATStringCommand.CE.command, apply=False))
-                if ce == 1:
+                if ce_val == 1:
                     return Role.COORDINATOR
 
-                sm = utils.bytes_to_int(
+                sm_val = utils.bytes_to_int(
                     self.get_parameter(ATStringCommand.SM.command, apply=False))
 
-                return Role.ROUTER if sm == 0 else Role.END_DEVICE
+                return Role.ROUTER if sm_val == 0 else Role.END_DEVICE
             except ATCommandException:
                 from digi.xbee.models.zdo import NodeDescriptorReader
-                nd = NodeDescriptorReader(
+                n_desc = NodeDescriptorReader(
                     self, configure_ao=True,
                     timeout=3*self._timeout if self.is_remote() else 2*self._timeout) \
                     .get_node_descriptor()
-                if nd:
-                    return nd.role
+                if n_desc:
+                    return n_desc.role
 
         return Role.UNKNOWN
 
@@ -901,7 +905,8 @@ class AbstractXBeeDevice(object):
             OperationNotSupportedException: If the protocol is not 802.15.4.
         """
         if self.get_protocol() != XBeeProtocol.RAW_802_15_4:
-            raise OperationNotSupportedException(message="16-bit address can only be set in 802.15.4 protocol")
+            raise OperationNotSupportedException(
+                message="16-bit address can only be set in 802.15.4 protocol")
 
         self.set_parameter(ATStringCommand.MY.command, value.address,
                            apply=self.is_apply_changes_enabled())
@@ -967,7 +972,6 @@ class AbstractXBeeDevice(object):
         Returns:
             Boolean: `True` if the XBee is remote, `False` otherwise.
         """
-        pass
 
     def set_sync_ops_timeout(self, sync_ops_timeout):
         """
@@ -1011,9 +1015,9 @@ class AbstractXBeeDevice(object):
            | :class:`.XBee64BitAddress`
            | :meth:`.set_dest_address`
         """
-        dh = self.get_parameter(ATStringCommand.DH.command, apply=False)
-        dl = self.get_parameter(ATStringCommand.DL.command, apply=False)
-        return XBee64BitAddress(dh + dl)
+        dh_val = self.get_parameter(ATStringCommand.DH.command, apply=False)
+        dl_val = self.get_parameter(ATStringCommand.DL.command, apply=False)
+        return XBee64BitAddress(dh_val + dl_val)
 
     def set_dest_address(self, addr):
         """
@@ -1048,9 +1052,9 @@ class AbstractXBeeDevice(object):
                 self.set_parameter(
                     ATStringCommand.DL.command, addr.address[4:], apply=apply)
             except (TimeoutException, XBeeException,
-                    InvalidOperatingModeException, ATCommandException) as e:
+                    InvalidOperatingModeException, ATCommandException) as exc:
                 # Raise the exception.
-                raise e
+                raise exc
 
     def get_pan_id(self):
         """
@@ -1283,9 +1287,8 @@ class AbstractXBeeDevice(object):
                     return
                 frame_type = received_packet.get_frame_type()
                 # Save the packet value (IO sample payload).
-                if (frame_type == ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR
-                        or frame_type == ApiFrameType.RX_IO_16
-                        or frame_type == ApiFrameType.RX_IO_64):
+                if frame_type in (ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR,
+                                  ApiFrameType.RX_IO_16, ApiFrameType.RX_IO_64):
                     self.__io_packet_payload = received_packet.rf_data
                 else:
                     return
@@ -1316,8 +1319,8 @@ class AbstractXBeeDevice(object):
 
         try:
             return IOSample(sample_payload)
-        except Exception as e:
-            raise XBeeException("Could not create the IO sample.", e)
+        except Exception as exc:
+            raise XBeeException("Could not create the IO sample.", exc)
 
     def get_adc_value(self, io_line):
         """
@@ -1565,7 +1568,7 @@ class AbstractXBeeDevice(object):
                                        XBeeProtocol.XLR_DM):
             raise OperationNotSupportedException(
                 message="Operation not supported for the current protocol (%s)"
-                        % self.get_protocol().description)
+                % self.get_protocol().description)
 
         return self.get_parameter(ATStringCommand.AO.command, apply=False)
 
@@ -1627,7 +1630,7 @@ class AbstractXBeeDevice(object):
                                        XBeeProtocol.XLR_DM):
             raise OperationNotSupportedException(
                 message="Operation not supported for the current protocol (%s)"
-                        % self.get_protocol().description)
+                % self.get_protocol().description)
 
         self.set_parameter(ATStringCommand.AO.command, bytearray([api_output_mode]),
                            apply=self.is_apply_changes_enabled())
@@ -1735,8 +1738,9 @@ class AbstractXBeeDevice(object):
         import srp
 
         # Generate the salt and verifier using the SRP library.
-        salt, verifier = srp.create_salted_verification_key(self._BLE_API_USERNAME, new_password,
-                                                            hash_alg=srp.SHA256, ng_type=srp.NG_1024, salt_len=4)
+        salt, verifier = srp.create_salted_verification_key(
+            self._BLE_API_USERNAME, new_password, hash_alg=srp.SHA256,
+            ng_type=srp.NG_1024, salt_len=4)
 
         # Ensure the verifier is 128 bytes.
         verifier = (128 - len(verifier)) * b'\x00' + verifier
@@ -1764,8 +1768,8 @@ class AbstractXBeeDevice(object):
         self.write_changes()
         self.apply_changes()
 
-    def update_firmware(self, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
-                        timeout=None, progress_callback=None):
+    def update_firmware(self, xml_firmware_file, xbee_firmware_file=None,
+                        bootloader_firmware_file=None, timeout=None, progress_callback=None):
         """
         Performs a firmware update operation of the XBee.
 
@@ -1796,8 +1800,10 @@ class AbstractXBeeDevice(object):
 
         if not self._comm_iface.is_interface_open:
             raise XBeeException("XBee device's communication interface closed.")
-        if self.get_hardware_version() and self.get_hardware_version().code not in firmware.SUPPORTED_HARDWARE_VERSIONS:
-            raise OperationNotSupportedException("Firmware update is only supported in XBee 3, XBee SX 868/900, and XBee S2C devices")
+        if (self.get_hardware_version()
+                and self.get_hardware_version().code not in firmware.SUPPORTED_HARDWARE_VERSIONS):
+            raise OperationNotSupportedException(
+                "Firmware update is only supported in XBee 3, XBee SX 868/900, and XBee S2C devices")
         if self.is_remote():
             firmware.update_remote_firmware(self, xml_firmware_file,
                                             firmware_file=xbee_firmware_file,
@@ -1806,12 +1812,12 @@ class AbstractXBeeDevice(object):
                                             max_block_size=self._ota_max_block_size,
                                             progress_callback=progress_callback)
         else:
-            if self._operating_mode != OperatingMode.API_MODE and \
-                    self._operating_mode != OperatingMode.ESCAPED_API_MODE:
+            if self._operating_mode not in (OperatingMode.API_MODE,
+                                            OperatingMode.ESCAPED_API_MODE):
                 raise InvalidOperatingModeException(op_mode=self._operating_mode)
             if not self._serial_port:
-                raise OperationNotSupportedException("Firmware update is only supported in local XBee connected by "
-                                                     "serial.")
+                raise OperationNotSupportedException(
+                    "Firmware update is only supported in local XBee connected by serial")
             firmware.update_local_firmware(self, xml_firmware_file,
                                            xbee_firmware_file=xbee_firmware_file,
                                            bootloader_firmware_file=bootloader_firmware_file,
@@ -1829,8 +1835,10 @@ class AbstractXBeeDevice(object):
         """
         from digi.xbee import recovery
 
-        if self.get_hardware_version() and self.get_hardware_version().code not in recovery.SUPPORTED_HARDWARE_VERSIONS:
-            raise OperationNotSupportedException("Autodetection is only supported in XBee 3 devices")
+        if (self.get_hardware_version()
+                and self.get_hardware_version().code not in recovery.SUPPORTED_HARDWARE_VERSIONS):
+            raise OperationNotSupportedException(
+                "Autodetection is only supported in XBee 3 devices")
         recovery.recover_device(self)
 
     def apply_profile(self, profile_path, timeout=None, progress_callback=None):
@@ -1858,11 +1866,13 @@ class AbstractXBeeDevice(object):
 
         if not self._comm_iface.is_interface_open:
             raise XBeeException("XBee device's communication interface closed.")
-        if not self.is_remote() and self._operating_mode != OperatingMode.API_MODE and \
-                self._operating_mode != OperatingMode.ESCAPED_API_MODE:
+        if (not self.is_remote()
+                and self._operating_mode not in (OperatingMode.API_MODE,
+                                                 OperatingMode.ESCAPED_API_MODE)):
             raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
-        profile.apply_xbee_profile(self, profile_path, timeout=timeout, progress_callback=progress_callback)
+        profile.apply_xbee_profile(self, profile_path, timeout=timeout,
+                                   progress_callback=progress_callback)
 
     def get_file_manager(self):
         """
@@ -1960,8 +1970,8 @@ class AbstractXBeeDevice(object):
         def dec_function(self, *args, **kwargs):
             if not self._comm_iface.is_interface_open:
                 raise XBeeException("XBee device's communication interface closed.")
-            if (self._operating_mode != OperatingMode.API_MODE and
-               self._operating_mode != OperatingMode.ESCAPED_API_MODE):
+            if (self._operating_mode != OperatingMode.API_MODE
+                    and self._operating_mode != OperatingMode.ESCAPED_API_MODE):
                 raise InvalidOperatingModeException(op_mode=self._operating_mode)
             return func(self, *args, **kwargs)
         return dec_function
@@ -1997,7 +2007,7 @@ class AbstractXBeeDevice(object):
             TimeoutException: If there was not any XBee packet matching the
                 provided frame ID that could be read.
         """
-        if not (0 <= frame_id <= 255):
+        if not 0 <= frame_id <= 255:
             raise ValueError("Frame ID must be between 0 and 255.")
 
         queue = self._packet_listener.get_queue()
@@ -2198,17 +2208,17 @@ class AbstractXBeeDevice(object):
 
             return reader.get_neighbor_table(neighbor_callback=neighbor_callback,
                                              process_finished_callback=process_finished_callback)
-        elif self.get_protocol() in (XBeeProtocol.DIGI_MESH, XBeeProtocol.XLR_DM,
-                                     XBeeProtocol.XTEND_DM, XBeeProtocol.SX):
+        if self.get_protocol() in (XBeeProtocol.DIGI_MESH, XBeeProtocol.XLR_DM,
+                                   XBeeProtocol.XTEND_DM, XBeeProtocol.SX):
             from digi.xbee.models.zdo import NeighborFinder
             finder = NeighborFinder(
                 self, timeout=timeout if timeout else NeighborFinder.DEFAULT_TIMEOUT)
 
             return finder.get_neighbors(neighbor_callback=neighbor_callback,
                                         process_finished_callback=process_finished_callback)
-        else:
-            raise OperationNotSupportedException("Get neighbors is not supported in %s"
-                                                 % self.get_protocol().description)
+
+        raise OperationNotSupportedException("Get neighbors is not supported in %s"
+                                             % self.get_protocol().description)
 
     @property
     def reachable(self):
@@ -2286,9 +2296,11 @@ class XBeeDevice(AbstractXBeeDevice):
     Response received if the attempt to enter in AT command mode goes well.
     """
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.XBeeDevice` with the
         provided parameters.
@@ -2310,17 +2322,14 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | PySerial documentation: http://pyserial.sourceforge.net
         """
-        super().__init__(serial_port=XBeeSerialPort(baud_rate=baud_rate,
-                                                    port=port,
-                                                    data_bits=data_bits,
-                                                    stop_bits=stop_bits,
-                                                    parity=parity,
-                                                    flow_control=flow_control,
-                                                    timeout=_sync_ops_timeout) if comm_iface is None else None,
-                         sync_ops_timeout=_sync_ops_timeout,
-                         comm_iface=comm_iface
-                         )
-        # If there is no XBeeNetwork object provided by comm_iface, initialize a default XBeeNetwork
+        super().__init__(
+            serial_port=XBeeSerialPort(baud_rate=baud_rate, port=port,
+                                       data_bits=data_bits, stop_bits=stop_bits,
+                                       parity=parity, flow_control=flow_control,
+                                       timeout=_sync_ops_timeout) if comm_iface is None else None,
+            sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        # If there is no XBeeNetwork object provided by comm_iface,
+        # initialize a default XBeeNetwork
         if not comm_iface or comm_iface.get_network(self) is None:
             self._network = self._init_network()
         else:
@@ -2363,8 +2372,7 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :class:`.XBeeDevice`
         """
-        return XBeeDevice(comm_port_data["port"],
-                          comm_port_data["baudRate"],
+        return XBeeDevice(comm_port_data["port"], comm_port_data["baudRate"],
                           data_bits=comm_port_data["bitSize"],
                           stop_bits=comm_port_data["stopBits"],
                           parity=comm_port_data["parity"],
@@ -2400,11 +2408,11 @@ class XBeeDevice(AbstractXBeeDevice):
 
         try:
             self._do_open()
-        except XBeeException as e:
+        except XBeeException as exc:
             if not force_settings:
-                raise e
+                raise exc
             self.log.debug("Could not open the port with default setting, "
-                           "forcing settings using recovery: %s", str(e))
+                           "forcing settings using recovery: %s", str(exc))
             if self._serial_port is None:
                 raise XBeeException("Can not open the port by forcing the settings, "
                                     "it is only supported for Serial")
@@ -2440,7 +2448,8 @@ class XBeeDevice(AbstractXBeeDevice):
             if self._operating_mode == OperatingMode.UNKNOWN:
                 self.close()
                 raise InvalidOperatingModeException(message="Could not determine operating mode")
-            if self._operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+            if self._operating_mode not in (OperatingMode.API_MODE,
+                                            OperatingMode.ESCAPED_API_MODE):
                 self.close()
                 raise InvalidOperatingModeException(op_mode=self._operating_mode)
 
@@ -2506,7 +2515,7 @@ class XBeeDevice(AbstractXBeeDevice):
         return super()._get_operating_mode()
 
     @AbstractXBeeDevice._before_send_method
-    def get_parameter(self, param, parameter_value=None, apply=None):
+    def get_parameter(self, parameter, parameter_value=None, apply=None):
         """
         Override.
 
@@ -2514,21 +2523,22 @@ class XBeeDevice(AbstractXBeeDevice):
            | :meth:`.AbstractXBeeDevice.get_parameter`
         """
         return super().get_parameter(
-            param, parameter_value=parameter_value, apply=apply)
+            parameter, parameter_value=parameter_value, apply=apply)
 
     @AbstractXBeeDevice._before_send_method
-    def set_parameter(self, param, value, apply=None):
+    def set_parameter(self, parameter, value, apply=None):
         """
         Override.
 
         See:
             :meth:`.AbstractXBeeDevice.set_parameter`
         """
-        super().set_parameter(param, value, apply=apply)
+        super().set_parameter(parameter, value, apply=apply)
 
     @AbstractXBeeDevice._before_send_method
     @AbstractXBeeDevice._after_send_method
-    def _send_data_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
+    def _send_data_64_16(self, x64addr, x16addr, data,
+                         transmit_options=TransmitOptions.NONE.value):
         """
         Blocking method. This method sends data to the remote XBee with the
         given 64-bit/16-bit address.
@@ -2571,17 +2581,14 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(
+                message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
 
-        packet = TransmitPacket(self.get_next_frame_id(),
-                                x64addr,
-                                x16addr,
-                                0,
-                                transmit_options,
-                                rf_data=data)
+        packet = TransmitPacket(self.get_next_frame_id(), x64addr, x16addr,
+                                0, transmit_options, rf_data=data)
         return self.send_packet_sync_and_get_response(packet)
 
     @AbstractXBeeDevice._before_send_method
@@ -2624,23 +2631,19 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(
+                message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
 
         if self.get_protocol() == XBeeProtocol.RAW_802_15_4:
-            packet = TX64Packet(self.get_next_frame_id(),
-                                x64addr,
-                                transmit_options,
-                                rf_data=data)
+            packet = TX64Packet(self.get_next_frame_id(), x64addr,
+                                transmit_options, rf_data=data)
         else:
-            packet = TransmitPacket(self.get_next_frame_id(),
-                                    x64addr,
-                                    XBee16BitAddress.UNKNOWN_ADDRESS,
-                                    0,
-                                    transmit_options,
-                                    rf_data=data)
+            packet = TransmitPacket(self.get_next_frame_id(), x64addr,
+                                    XBee16BitAddress.UNKNOWN_ADDRESS, 0,
+                                    transmit_options, rf_data=data)
         return self.send_packet_sync_and_get_response(packet)
 
     @AbstractXBeeDevice._before_send_method
@@ -2683,15 +2686,14 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(
+                message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
 
-        packet = TX16Packet(self.get_next_frame_id(),
-                            x16addr,
-                            transmit_options,
-                            rf_data=data)
+        packet = TX16Packet(self.get_next_frame_id(), x16addr,
+                            transmit_options, rf_data=data)
         return self.send_packet_sync_and_get_response(packet)
 
     def send_data(self, remote_xbee, data, transmit_options=TransmitOptions.NONE.value):
@@ -2728,29 +2730,31 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Remote XBee device cannot be None")
 
         protocol = self.get_protocol()
-        if protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_POINT]:
-            if remote_xbee.get_64bit_addr() is not None and remote_xbee.get_16bit_addr() is not None:
-                return self._send_data_64_16(remote_xbee.get_64bit_addr(), remote_xbee.get_16bit_addr(),
+        if protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_POINT):
+            if (remote_xbee.get_64bit_addr() is not None
+                    and remote_xbee.get_16bit_addr() is not None):
+                return self._send_data_64_16(remote_xbee.get_64bit_addr(),
+                                             remote_xbee.get_16bit_addr(),
                                              data, transmit_options=transmit_options)
-            elif remote_xbee.get_64bit_addr() is not None:
-                return self._send_data_64(remote_xbee.get_64bit_addr(), data,
-                                          transmit_options=transmit_options)
-            else:
-                return self._send_data_64_16(XBee64BitAddress.UNKNOWN_ADDRESS, remote_xbee.get_16bit_addr(),
-                                             data, transmit_options=transmit_options)
-        elif protocol == XBeeProtocol.RAW_802_15_4:
             if remote_xbee.get_64bit_addr() is not None:
                 return self._send_data_64(remote_xbee.get_64bit_addr(), data,
                                           transmit_options=transmit_options)
-            else:
-                return self._send_data_16(remote_xbee.get_16bit_addr(), data,
+            return self._send_data_64_16(XBee64BitAddress.UNKNOWN_ADDRESS,
+                                         remote_xbee.get_16bit_addr(),
+                                         data, transmit_options=transmit_options)
+        if protocol == XBeeProtocol.RAW_802_15_4:
+            if remote_xbee.get_64bit_addr() is not None:
+                return self._send_data_64(remote_xbee.get_64bit_addr(), data,
                                           transmit_options=transmit_options)
-        else:
-            return self._send_data_64(remote_xbee.get_64bit_addr(), data,
+            return self._send_data_16(remote_xbee.get_16bit_addr(), data,
                                       transmit_options=transmit_options)
 
+        return self._send_data_64(remote_xbee.get_64bit_addr(), data,
+                                  transmit_options=transmit_options)
+
     @AbstractXBeeDevice._before_send_method
-    def _send_data_async_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
+    def _send_data_async_64_16(self, x64addr, x16addr, data,
+                               transmit_options=TransmitOptions.NONE.value):
         """
         Non-blocking method. This method sends data to a remote XBee with the
         given 64-bit/16-bit address.
@@ -2786,17 +2790,14 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(
+                message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
 
-        packet = TransmitPacket(self.get_next_frame_id(),
-                                x64addr,
-                                x16addr,
-                                0,
-                                transmit_options,
-                                rf_data=data)
+        packet = TransmitPacket(self.get_next_frame_id(), x64addr, x16addr, 0,
+                                transmit_options, rf_data=data)
         self.send_packet(packet)
 
     @AbstractXBeeDevice._before_send_method
@@ -2831,23 +2832,19 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(
+                message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
 
         if self.get_protocol() == XBeeProtocol.RAW_802_15_4:
-            packet = TX64Packet(self.get_next_frame_id(),
-                                x64addr,
-                                transmit_options,
-                                rf_data=data)
+            packet = TX64Packet(self.get_next_frame_id(), x64addr,
+                                transmit_options, rf_data=data)
         else:
-            packet = TransmitPacket(self.get_next_frame_id(),
-                                    x64addr,
-                                    XBee16BitAddress.UNKNOWN_ADDRESS,
-                                    0,
-                                    transmit_options,
-                                    rf_data=data)
+            packet = TransmitPacket(self.get_next_frame_id(), x64addr,
+                                    XBee16BitAddress.UNKNOWN_ADDRESS, 0,
+                                    transmit_options, rf_data=data)
         self.send_packet(packet)
 
     @AbstractXBeeDevice._before_send_method
@@ -2882,7 +2879,8 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Data cannot be None")
 
         if self.is_remote():
-            raise OperationNotSupportedException(message="Cannot send data to a remote device from a remote device")
+            raise OperationNotSupportedException(
+                message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
             data = data.encode("utf8")
@@ -2919,15 +2917,18 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("Remote XBee device cannot be None")
 
         protocol = self.get_protocol()
-        if protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_POINT]:
-            if remote_xbee.get_64bit_addr() is not None and remote_xbee.get_16bit_addr() is not None:
-                self._send_data_async_64_16(remote_xbee.get_64bit_addr(), remote_xbee.get_16bit_addr(),
+        if protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_POINT):
+            if (remote_xbee.get_64bit_addr() is not None
+                    and remote_xbee.get_16bit_addr() is not None):
+                self._send_data_async_64_16(remote_xbee.get_64bit_addr(),
+                                            remote_xbee.get_16bit_addr(),
                                             data, transmit_options=transmit_options)
             elif remote_xbee.get_64bit_addr() is not None:
                 self._send_data_async_64(remote_xbee.get_64bit_addr(), data,
                                          transmit_options=transmit_options)
             else:
-                self._send_data_async_64_16(XBee64BitAddress.UNKNOWN_ADDRESS, remote_xbee.get_16bit_addr(),
+                self._send_data_async_64_16(XBee64BitAddress.UNKNOWN_ADDRESS,
+                                            remote_xbee.get_16bit_addr(),
                                             data, transmit_options=transmit_options)
         elif protocol == XBeeProtocol.RAW_802_15_4:
             if remote_xbee.get_64bit_addr() is not None:
@@ -2991,8 +2992,10 @@ class XBeeDevice(AbstractXBeeDevice):
         if local_interface is None:
             raise ValueError("Destination interface cannot be None")
 
-        # Send the packet asynchronously since User Data Relay frames do not receive any transmit status.
-        self.send_packet(UserDataRelayPacket(self.get_next_frame_id(), local_interface, data=data))
+        # Send the packet asynchronously since User Data Relay frames only
+        # receive a transmit status if an error occurs
+        self.send_packet(UserDataRelayPacket(self.get_next_frame_id(),
+                                             local_interface, data=data))
 
     def send_bluetooth_data(self, data):
         """
@@ -3144,7 +3147,8 @@ class XBeeDevice(AbstractXBeeDevice):
         self.__modem_status_received = False
 
         def ms_callback(modem_status):
-            if modem_status == ModemStatus.HARDWARE_RESET or modem_status == ModemStatus.WATCHDOG_TIMER_RESET:
+            if modem_status in (ModemStatus.HARDWARE_RESET,
+                                ModemStatus.WATCHDOG_TIMER_RESET):
                 self.__modem_status_received = True
                 lock.acquire()
                 lock.notify()
@@ -3634,11 +3638,11 @@ class XBeeDevice(AbstractXBeeDevice):
            | :class:`.RemoteXBeeDevice`
            | :class:`.XBeePacket`
         """
-        return self.send_packet_sync_and_get_response(self.__build_expldata_packet(remote_xbee, data,
-                                                                                   src_endpoint, dest_endpoint,
-                                                                                   cluster_id, profile_id,
-                                                                                   broadcast=False,
-                                                                                   transmit_options=transmit_options))
+        return self.send_packet_sync_and_get_response(
+            self.__build_expldata_packet(remote_xbee, data, src_endpoint,
+                                         dest_endpoint, cluster_id, profile_id,
+                                         broadcast=False,
+                                         transmit_options=transmit_options))
 
     @AbstractXBeeDevice._before_send_method
     def _send_expl_data_async(self, remote_xbee, data, src_endpoint, dest_endpoint,
@@ -3668,10 +3672,10 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :class:`.RemoteXBeeDevice`
         """
-        self.send_packet(self.__build_expldata_packet(remote_xbee, data, src_endpoint,
-                                                      dest_endpoint, cluster_id,
-                                                      profile_id, broadcast=False,
-                                                      transmit_options=transmit_options))
+        self.send_packet(
+            self.__build_expldata_packet(remote_xbee, data, src_endpoint,
+                                         dest_endpoint, cluster_id, profile_id,
+                                         broadcast=False, transmit_options=transmit_options))
 
     def _send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
                                   transmit_options=TransmitOptions.NONE.value):
@@ -3709,11 +3713,10 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice._send_expl_data`
         """
-        return self.send_packet_sync_and_get_response(self.__build_expldata_packet(None, data, src_endpoint,
-                                                                                   dest_endpoint, cluster_id,
-                                                                                   profile_id,
-                                                                                   broadcast=True,
-                                                                                   transmit_options=transmit_options))
+        return self.send_packet_sync_and_get_response(
+            self.__build_expldata_packet(None, data, src_endpoint, dest_endpoint,
+                                         cluster_id, profile_id, broadcast=True,
+                                         transmit_options=transmit_options))
 
     def _read_expl_data(self, timeout=None):
         """
@@ -3828,12 +3831,13 @@ class XBeeDevice(AbstractXBeeDevice):
             return None
 
         frame_type = packet.get_frame_type()
-        if frame_type in [ApiFrameType.RECEIVE_PACKET, ApiFrameType.RX_16, ApiFrameType.RX_64]:
+        if frame_type in (ApiFrameType.RECEIVE_PACKET,
+                          ApiFrameType.RX_16, ApiFrameType.RX_64):
             return self.__build_xbee_message(packet, explicit=False)
-        elif frame_type == ApiFrameType.EXPLICIT_RX_INDICATOR:
+        if frame_type == ApiFrameType.EXPLICIT_RX_INDICATOR:
             return self.__build_xbee_message(packet, explicit=True)
-        else:
-            return None
+
+        return None
 
     def _enter_at_command_mode(self):
         """
@@ -3850,20 +3854,22 @@ class XBeeDevice(AbstractXBeeDevice):
             InvalidOperatingModeException: If the XBee is in API mode.
         """
         if not self._serial_port:
-            raise XBeeException("Command mode is only supported for local XBee devices using a serial connection")
-        if self._operating_mode in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+            raise XBeeException(
+                "Command mode is only supported for local XBee devices using a serial connection")
+        if self._operating_mode in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
             raise InvalidOperatingModeException(
                 message="Invalid mode. Command mode can be only accessed while in AT mode")
 
         self._serial_port.flushInput()
 
-        # It is necessary to wait at least 1 second to enter in command mode after sending any data to the device.
+        # We must wait at least 1 second to enter in command mode after sending
+        # any data to the device.
         time.sleep(self.__DEFAULT_GUARD_TIME)
         # Send the command mode sequence.
-        b = bytearray(self.__COMMAND_MODE_CHAR, "utf8")
-        self._serial_port.write(b)
-        self._serial_port.write(b)
-        self._serial_port.write(b)
+        b_array = bytearray(self.__COMMAND_MODE_CHAR, "utf8")
+        self._serial_port.write(b_array)
+        self._serial_port.write(b_array)
+        self._serial_port.write(b_array)
         # Wait some time to let the module generate a response.
         time.sleep(self.__TIMEOUT_ENTER_COMMAND_MODE)
         # Read data from the device (it should answer with 'OK\r').
@@ -3881,9 +3887,10 @@ class XBeeDevice(AbstractXBeeDevice):
             InvalidOperatingModeException: If the XBee is in API mode.
         """
         if not self._serial_port:
-            raise XBeeException("Command mode is only supported for local XBee devices using a serial connection")
+            raise XBeeException(
+                "Command mode is only supported for local XBee devices using a serial connection")
 
-        if self._operating_mode in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
+        if self._operating_mode in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
             raise InvalidOperatingModeException(
                 message="Invalid mode. Command mode can be only be exited while in AT mode")
 
@@ -3920,7 +3927,8 @@ class XBeeDevice(AbstractXBeeDevice):
             except XBeeException as ste:
                 self._log.exception(ste)
             except UnicodeDecodeError:
-                # This error is thrown when trying to decode bytes without utf-8 representation, just ignore.
+                # This error is thrown when trying to decode bytes without
+                # utf-8 representation, just ignore.
                 pass
             finally:
                 # Exit AT command mode.
@@ -3989,7 +3997,8 @@ class XBeeDevice(AbstractXBeeDevice):
         return msg
 
     def __build_expldata_packet(self, remote_xbee, data, src_endpoint, dest_endpoint,
-                                cluster_id, profile_id, broadcast=False, transmit_options=TransmitOptions.NONE.value):
+                                cluster_id, profile_id, broadcast=False,
+                                transmit_options=TransmitOptions.NONE.value):
         """
         Builds and returns an explicit data packet with the provided parameters.
 
@@ -4050,7 +4059,8 @@ class XBeeDevice(AbstractXBeeDevice):
                 the serial port.
         """
         if not self._serial_port:
-            raise XBeeException("Command mode is only supported for local XBee devices using a serial connection")
+            raise XBeeException(
+                "Command mode is only supported for local XBee devices using a serial connection")
 
         # Clear the serial input stream.
         self._serial_port.flushInput()
@@ -4089,16 +4099,16 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.del_route_received_callback`
         """
-        if self._protocol not in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+        if self._protocol not in (XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                                   XBeeProtocol.SMART_ENERGY,
                                   XBeeProtocol.DIGI_MESH,
-                                  XBeeProtocol.DIGI_POINT, XBeeProtocol.SX]:
+                                  XBeeProtocol.DIGI_POINT, XBeeProtocol.SX):
             raise ValueError("Cannot register callback for %s XBee devices" % self._protocol)
 
         self.__route_received += callback
 
-        if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
-                               XBeeProtocol.SMART_ENERGY]
+        if (self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+                               XBeeProtocol.SMART_ENERGY)
                 and self.__route_record_callback not in self._packet_listener.get_route_record_received_callbacks()):
             self._packet_listener.add_route_record_received_callback(self.__route_record_callback)
         elif self.__route_info_callback not in self._packet_listener.get_route_info_callbacks():
@@ -4117,8 +4127,8 @@ class XBeeDevice(AbstractXBeeDevice):
         if callback in self.__route_received:
             self.__route_received -= callback
 
-        if (self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
-                               XBeeProtocol.SMART_ENERGY]
+        if (self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+                               XBeeProtocol.SMART_ENERGY)
                 and self.__route_record_callback in self._packet_listener.get_route_record_received_callbacks()):
             self._packet_listener.del_route_record_received_callback(self.__route_record_callback)
         elif self.__route_info_callback in self._packet_listener.get_route_info_callbacks():
@@ -4145,8 +4155,8 @@ class XBeeDevice(AbstractXBeeDevice):
             # If the intermediate hop is not yet in the network, add it
             if not node:
                 node = network._add_remote(
-                            RemoteZigBeeDevice(self, x16bit_addr=hop),
-                            NetworkEventReason.ROUTE)
+                    RemoteZigBeeDevice(self, x16bit_addr=hop),
+                    NetworkEventReason.ROUTE)
 
             if node not in node_list and hop != src.get_16bit_addr():
                 node_list.append(node)
@@ -4239,8 +4249,8 @@ class XBeeDevice(AbstractXBeeDevice):
             self.__tmp_dm_to_insert = aux_list
 
             # Check if this is the latest packet of the Trace Route process
-            if self.__tmp_dm_to_insert \
-                    or not check_dm_route_complete(src_addr, dst_addr, dm_hops_list):
+            if (self.__tmp_dm_to_insert
+                    or not check_dm_route_complete(src_addr, dst_addr, dm_hops_list)):
                 return
 
             # Generate the list of ordered hops
@@ -4264,8 +4274,8 @@ class XBeeDevice(AbstractXBeeDevice):
                 # If the destination is not yet in the network, add it
                 if not dest_node:
                     dest_node = network._add_remote(
-                            RemoteDigiMeshDevice(self, x64bit_addr=dst_addr),
-                            NetworkEventReason.ROUTE)
+                        RemoteDigiMeshDevice(self, x64bit_addr=dst_addr),
+                        NetworkEventReason.ROUTE)
 
             self.__tmp_dm_to_insert.clear()
             self.__tmp_dm_routes_to.clear()
@@ -4316,9 +4326,9 @@ class XBeeDevice(AbstractXBeeDevice):
 
         self._log.debug("Getting route for node %s", remote)
 
-        if self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+        if self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                               XBeeProtocol.SMART_ENERGY, XBeeProtocol.DIGI_MESH,
-                              XBeeProtocol.SX]:
+                              XBeeProtocol.SX):
             status, route = self.__get_trace_route(remote, timeout, force=force)
         else:
             route = self, remote, []
@@ -4367,8 +4377,8 @@ class XBeeDevice(AbstractXBeeDevice):
         if remote == self:
             return None, None
 
-        if self._protocol in [XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
-                              XBeeProtocol.SMART_ENERGY]:
+        if self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
+                              XBeeProtocol.SMART_ENERGY):
             if remote.get_role() == Role.END_DEVICE:
                 return None, None
 
@@ -4396,7 +4406,7 @@ class XBeeDevice(AbstractXBeeDevice):
                         "get" if not ar_value else "set",
                         ATStringCommand.AR.command, str(exc))
 
-        elif self._protocol in [XBeeProtocol.DIGI_MESH, XBeeProtocol.SX]:
+        elif self._protocol in (XBeeProtocol.DIGI_MESH, XBeeProtocol.SX):
             # Transmit a some information to the remote
             packet = TransmitPacket(
                 0x01,                     # Frame ID
@@ -4442,9 +4452,11 @@ class Raw802Device(XBeeDevice):
     This class represents a local 802.15.4 XBee.
     """
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.Raw802Device` with the
         provided parameters.
@@ -4467,8 +4479,9 @@ class Raw802Device(XBeeDevice):
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def open(self, force_settings=False):
         """
@@ -4480,7 +4493,8 @@ class Raw802Device(XBeeDevice):
         super().open(force_settings=force_settings)
         if self._protocol != XBeeProtocol.RAW_802_15_4:
             self.close()
-            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.RAW_802_15_4))
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.RAW_802_15_4))
 
     def get_protocol(self):
         """
@@ -4554,9 +4568,11 @@ class DigiMeshDevice(XBeeDevice):
     This class represents a local DigiMesh XBee.
     """
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.DigiMeshDevice` with the
         provided parameters.
@@ -4579,8 +4595,9 @@ class DigiMeshDevice(XBeeDevice):
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def open(self, force_settings=False):
         """
@@ -4592,7 +4609,8 @@ class DigiMeshDevice(XBeeDevice):
         super().open(force_settings=force_settings)
         if self._protocol != XBeeProtocol.DIGI_MESH:
             self.close()
-            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.DIGI_MESH))
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.DIGI_MESH))
 
     def get_protocol(self):
         """
@@ -4677,19 +4695,21 @@ class DigiMeshDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_expl_data`
         """
-        return super()._send_expl_data(remote_xbee_device, data, src_endpoint, dest_endpoint, cluster_id,
-                                       profile_id, transmit_options=transmit_options)
+        return super()._send_expl_data(
+            remote_xbee_device, data, src_endpoint, dest_endpoint, cluster_id,
+            profile_id, transmit_options=transmit_options)
 
-    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
-                                 transmit_options=TransmitOptions.NONE.value):
+    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id,
+                                 profile_id, transmit_options=TransmitOptions.NONE.value):
         """
         Override.
 
         .. seealso::
            | :meth:`.XBeeDevice._send_expl_data_broadcast`
         """
-        return super()._send_expl_data_broadcast(data, src_endpoint, dest_endpoint, cluster_id, profile_id,
-                                                 transmit_options=transmit_options)
+        return super()._send_expl_data_broadcast(
+            data, src_endpoint, dest_endpoint, cluster_id, profile_id,
+            transmit_options=transmit_options)
 
     def send_expl_data_async(self, remote_xbee_device, data, src_endpoint, dest_endpoint,
                              cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
@@ -4746,9 +4766,11 @@ class DigiPointDevice(XBeeDevice):
     This class represents a local DigiPoint XBee.
     """
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.DigiPointDevice` with
         the provided parameters.
@@ -4771,8 +4793,9 @@ class DigiPointDevice(XBeeDevice):
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def open(self, force_settings=False):
         """
@@ -4784,7 +4807,8 @@ class DigiPointDevice(XBeeDevice):
         super().open(force_settings=force_settings)
         if self._protocol != XBeeProtocol.DIGI_POINT:
             self.close()
-            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.DIGI_POINT))
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.DIGI_POINT))
 
     def get_protocol(self):
         """
@@ -4807,23 +4831,27 @@ class DigiPointDevice(XBeeDevice):
         """
         return DigiPointNetwork(self)
 
-    def send_data_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
+    def send_data_64_16(self, x64addr, x16addr, data,
+                        transmit_options=TransmitOptions.NONE.value):
         """
         Override.
 
         .. seealso::
            | :meth:`.XBeeDevice.send_data_64_16`
         """
-        return super()._send_data_64_16(x64addr, x16addr, data, transmit_options=transmit_options)
+        return super()._send_data_64_16(x64addr, x16addr, data,
+                                        transmit_options=transmit_options)
 
-    def send_data_async_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
+    def send_data_async_64_16(self, x64addr, x16addr, data,
+                              transmit_options=TransmitOptions.NONE.value):
         """
         Override.
 
         .. seealso::
            | :meth:`.XBeeDevice.send_data_async_64_16`
         """
-        super()._send_data_async_64_16(x64addr, x16addr, data, transmit_options=transmit_options)
+        super()._send_data_async_64_16(x64addr, x16addr, data,
+                                       transmit_options=transmit_options)
 
     def read_expl_data(self, timeout=None):
         """
@@ -4851,8 +4879,9 @@ class DigiPointDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_expl_data`
         """
-        return super()._send_expl_data(remote_xbee_device, data, src_endpoint, dest_endpoint, cluster_id,
-                                       profile_id, transmit_options=transmit_options)
+        return super()._send_expl_data(remote_xbee_device, data, src_endpoint,
+                                       dest_endpoint, cluster_id, profile_id,
+                                       transmit_options=transmit_options)
 
     def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
                                  transmit_options=TransmitOptions.NONE.value):
@@ -4862,7 +4891,8 @@ class DigiPointDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice._send_expl_data_broadcast`
         """
-        return super()._send_expl_data_broadcast(data, src_endpoint, dest_endpoint, cluster_id, profile_id,
+        return super()._send_expl_data_broadcast(data, src_endpoint, dest_endpoint,
+                                                 cluster_id, profile_id,
                                                  transmit_options=transmit_options)
 
     def send_expl_data_async(self, remote_xbee_device, data, src_endpoint, dest_endpoint,
@@ -4883,9 +4913,11 @@ class ZigBeeDevice(XBeeDevice):
     This class represents a local Zigbee XBee.
     """
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.ZigBeeDevice` with the
         provided parameters.
@@ -4908,8 +4940,9 @@ class ZigBeeDevice(XBeeDevice):
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def open(self, force_settings=False):
         """
@@ -4921,7 +4954,8 @@ class ZigBeeDevice(XBeeDevice):
         super().open(force_settings=force_settings)
         if self._protocol != XBeeProtocol.ZIGBEE:
             self.close()
-            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.ZIGBEE))
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.ZIGBEE))
 
     def get_protocol(self):
         """
@@ -5027,9 +5061,11 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.send_data_64_16`
         """
-        return super()._send_data_64_16(x64addr, x16addr, data, transmit_options=transmit_options)
+        return super()._send_data_64_16(x64addr, x16addr, data,
+                                        transmit_options=transmit_options)
 
-    def send_data_async_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
+    def send_data_async_64_16(self, x64addr, x16addr, data,
+                              transmit_options=TransmitOptions.NONE.value):
         """
         Override.
 
@@ -5064,10 +5100,12 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice._send_expl_data`
         """
-        return super()._send_expl_data(remote_xbee_device, data, src_endpoint, dest_endpoint, cluster_id,
-                                       profile_id, transmit_options=transmit_options)
+        return super()._send_expl_data(remote_xbee_device, data, src_endpoint,
+                                       dest_endpoint, cluster_id, profile_id,
+                                       transmit_options=transmit_options)
 
-    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
+    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint,
+                                 cluster_id, profile_id,
                                  transmit_options=TransmitOptions.NONE.value):
         """
         Override.
@@ -5075,7 +5113,8 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice._send_expl_data_broadcast`
         """
-        return super()._send_expl_data_broadcast(data, src_endpoint, dest_endpoint, cluster_id, profile_id,
+        return super()._send_expl_data_broadcast(data, src_endpoint, dest_endpoint,
+                                                 cluster_id, profile_id,
                                                  transmit_options=transmit_options)
 
     def send_expl_data_async(self, remote_xbee_device, data, src_endpoint, dest_endpoint,
@@ -5125,16 +5164,16 @@ class ZigBeeDevice(XBeeDevice):
            | :class:`XBee16BitAddress`
            | :class:`XBeePacket`
         """
-        packet_to_send = ExplicitAddressingPacket(self._get_next_frame_id(),
-                                                  XBee64BitAddress.UNKNOWN_ADDRESS,
-                                                  group_id, src_endpoint, dest_endpoint,
-                                                  cluster_id, profile_id, 0,
-                                                  TransmitOptions.ENABLE_MULTICAST.value, rf_data=data)
+        packet_to_send = ExplicitAddressingPacket(
+            self._get_next_frame_id(), XBee64BitAddress.UNKNOWN_ADDRESS,
+            group_id, src_endpoint, dest_endpoint, cluster_id, profile_id, 0,
+            TransmitOptions.ENABLE_MULTICAST.value, rf_data=data)
 
         return self.send_packet_sync_and_get_response(packet_to_send)
 
     @AbstractXBeeDevice._before_send_method
-    def send_multicast_data_async(self, group_id, data, src_endpoint, dest_endpoint, cluster_id, profile_id):
+    def send_multicast_data_async(self, group_id, data, src_endpoint,
+                                  dest_endpoint, cluster_id, profile_id):
         """
         Non-blocking method. This method sends multicast data to the provided
         group ID.
@@ -5159,11 +5198,10 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :class:`XBee16BitAddress`
         """
-        packet_to_send = ExplicitAddressingPacket(self._get_next_frame_id(),
-                                                  XBee64BitAddress.UNKNOWN_ADDRESS,
-                                                  group_id, src_endpoint, dest_endpoint,
-                                                  cluster_id, profile_id, 0,
-                                                  TransmitOptions.ENABLE_MULTICAST.value, rf_data=data)
+        packet_to_send = ExplicitAddressingPacket(
+            self._get_next_frame_id(), XBee64BitAddress.UNKNOWN_ADDRESS,
+            group_id, src_endpoint, dest_endpoint, cluster_id, profile_id, 0,
+            TransmitOptions.ENABLE_MULTICAST.value, rf_data=data)
 
         self.send_packet(packet_to_send)
 
@@ -5205,12 +5243,10 @@ class ZigBeeDevice(XBeeDevice):
         if registrant_address is None:
             raise ValueError("Registrant address cannot be 'None'")
         if options is None:
-            raise ValueError("Options cannot be 'None'.")
+            raise ValueError("Options cannot be 'None'")
 
-        packet_to_send = RegisterJoiningDevicePacket(self.get_next_frame_id(),
-                                                     registrant_address,
-                                                     options,
-                                                     key)
+        packet_to_send = RegisterJoiningDevicePacket(
+            self.get_next_frame_id(), registrant_address, options, key)
         response_packet = self.send_packet_sync_and_get_response(packet_to_send)
         if isinstance(response_packet, RegisterDeviceStatusPacket):
             return response_packet.status
@@ -5249,10 +5285,8 @@ class ZigBeeDevice(XBeeDevice):
         if options is None:
             raise ValueError("Options cannot be 'None'.")
 
-        packet_to_send = RegisterJoiningDevicePacket(self.get_next_frame_id(),
-                                                     registrant_address,
-                                                     options,
-                                                     key)
+        packet_to_send = RegisterJoiningDevicePacket(
+            self.get_next_frame_id(), registrant_address, options, key)
         self.send_packet(packet_to_send, sync=True)
 
     @AbstractXBeeDevice._before_send_method
@@ -5284,7 +5318,8 @@ class ZigBeeDevice(XBeeDevice):
            | :class:`XBee64BitAddress`
            | :class:`ZigbeeRegisterStatus`
         """
-        return self.register_joining_device(unregistrant_address, RegisterKeyOptions.LINK_KEY, None)
+        return self.register_joining_device(unregistrant_address,
+                                            RegisterKeyOptions.LINK_KEY, None)
 
     @AbstractXBeeDevice._before_send_method
     def unregister_joining_device_async(self, unregistrant_address):
@@ -5308,7 +5343,8 @@ class ZigBeeDevice(XBeeDevice):
         .. seealso::
            | :class:`XBee64BitAddress`
         """
-        self.register_joining_device_async(unregistrant_address, RegisterKeyOptions.LINK_KEY, None)
+        self.register_joining_device_async(unregistrant_address,
+                                           RegisterKeyOptions.LINK_KEY, None)
 
     def get_routes(self, route_callback=None, process_finished_callback=None, timeout=None):
         """
@@ -5464,9 +5500,11 @@ class IPDevice(XBeeDevice):
 
     __OPERATION_EXCEPTION = "Operation not supported in this module."
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.IPDevice` with the
         provided parameters.
@@ -5489,8 +5527,9 @@ class IPDevice(XBeeDevice):
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self._ip_addr = None
         self._source_port = self.__DEFAULT_SOURCE_PORT
 
@@ -5593,25 +5632,24 @@ class IPDevice(XBeeDevice):
         if callback in self._packet_listener.get_ip_data_received_callbacks():
             self._packet_listener.del_ip_data_received_callback(callback)
 
-    def start_listening(self, source_port):
+    def start_listening(self, src_port):
         """
         Starts listening for incoming IP transmissions in the provided port.
 
         Args:
-            source_port (Integer): Port to listen for incoming transmissions.
+            src_port (Integer): Port to listen for incoming transmissions.
 
         Raises:
             ValueError: If `source_port` is less than 0 or greater than 65535.
             TimeoutException: If there is a timeout setting the source port.
             XBeeException: If there is any other XBee related exception.
         """
-        if not 0 <= source_port <= 65535:
+        if not 0 <= src_port <= 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
-        self.set_parameter(ATStringCommand.C0.command,
-                           utils.int_to_bytes(source_port),
+        self.set_parameter(ATStringCommand.C0.command, utils.int_to_bytes(src_port),
                            apply=self.is_apply_changes_enabled())
-        self._source_port = source_port
+        self._source_port = src_port
 
     def stop_listening(self):
         """
@@ -5667,17 +5705,17 @@ class IPDevice(XBeeDevice):
 
         # The source port value depends on the protocol used in the transmission.
         # For UDP, source port value must be the same as 'C0' one. For TCP it must be 0.
-        source_port = self._source_port
+        src_port = self._source_port
         if protocol is not IPProtocol.UDP:
-            source_port = 0
+            src_port = 0
 
         if isinstance(data, str):
             data = data.encode("utf8")
 
-        options = TXIPv4Packet.OPTIONS_CLOSE_SOCKET if close_socket else TXIPv4Packet.OPTIONS_LEAVE_SOCKET_OPEN
+        opts = TXIPv4Packet.OPTIONS_CLOSE_SOCKET if close_socket else TXIPv4Packet.OPTIONS_LEAVE_SOCKET_OPEN
 
-        packet = TXIPv4Packet(self.get_next_frame_id(), ip_addr, dest_port, source_port, protocol,
-                              options, data=data)
+        packet = TXIPv4Packet(self.get_next_frame_id(), ip_addr, dest_port,
+                              src_port, protocol, opts, data=data)
 
         return self.send_packet_sync_and_get_response(packet)
 
@@ -5718,21 +5756,22 @@ class IPDevice(XBeeDevice):
 
         # Check if device is remote.
         if self.is_remote():
-            raise OperationNotSupportedException(message="Cannot send IP data from a remote device")
+            raise OperationNotSupportedException(
+                message="Cannot send IP data from a remote device")
 
         # The source port value depends on the protocol used in the transmission.
         # For UDP, source port value must be the same as 'C0' one. For TCP it must be 0.
-        source_port = self._source_port
+        src_port = self._source_port
         if protocol is IPProtocol.UDP:
-            source_port = 0
+            src_port = 0
 
         if isinstance(data, str):
             data = data.encode("utf8")
 
-        options = TXIPv4Packet.OPTIONS_CLOSE_SOCKET if close_socket else TXIPv4Packet.OPTIONS_LEAVE_SOCKET_OPEN
+        opts = TXIPv4Packet.OPTIONS_CLOSE_SOCKET if close_socket else TXIPv4Packet.OPTIONS_LEAVE_SOCKET_OPEN
 
-        packet = TXIPv4Packet(self.get_next_frame_id(), ip_addr, dest_port, source_port, protocol,
-                              options, data=data)
+        packet = TXIPv4Packet(self.get_next_frame_id(), ip_addr, dest_port,
+                              src_port, protocol, opts, data=data)
 
         self.send_packet(packet)
 
@@ -5851,8 +5890,7 @@ class IPDevice(XBeeDevice):
 
         if packet.get_frame_type() == ApiFrameType.RX_IPV4:
             return IPMessage(packet.source_address, packet.source_port,
-                             packet.dest_port, packet.ip_protocol,
-                             packet.data)
+                             packet.dest_port, packet.ip_protocol, packet.data)
 
         return None
 
@@ -5955,7 +5993,7 @@ class IPDevice(XBeeDevice):
         """
         raise AttributeError(self.__OPERATION_EXCEPTION)
 
-    def read_data(self, timeout=None, explicit=False):
+    def read_data(self, timeout=None):
         """
         Deprecated.
 
@@ -5964,7 +6002,7 @@ class IPDevice(XBeeDevice):
         """
         raise AttributeError(self.__OPERATION_EXCEPTION)
 
-    def read_data_from(self, remote_xbee_device, timeout=None, explicit=False):
+    def read_data_from(self, remote_xbee, timeout=None):
         """
         Deprecated.
 
@@ -5982,7 +6020,7 @@ class IPDevice(XBeeDevice):
         """
         raise AttributeError(self.__OPERATION_EXCEPTION)
 
-    def send_data(self, remote_xbee_device, data, transmit_options=TransmitOptions.NONE.value):
+    def send_data(self, remote_xbee, data, transmit_options=TransmitOptions.NONE.value):
         """
         Deprecated.
 
@@ -5991,7 +6029,7 @@ class IPDevice(XBeeDevice):
         """
         raise AttributeError(self.__OPERATION_EXCEPTION)
 
-    def send_data_async(self, remote_xbee_device, data, transmit_options=TransmitOptions.NONE.value):
+    def send_data_async(self, remote_xbee, data, transmit_options=TransmitOptions.NONE.value):
         """
         Deprecated.
 
@@ -6006,9 +6044,11 @@ class CellularDevice(IPDevice):
     This class represents a local Cellular device.
     """
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.CellularDevice` with the
         provided parameters.
@@ -6031,8 +6071,9 @@ class CellularDevice(IPDevice):
            | :class:`.XBeeDevice`
            | :meth:`.XBeeDevice.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self._imei_addr = None
 
     def open(self, force_settings=False):
@@ -6043,9 +6084,10 @@ class CellularDevice(IPDevice):
            | :meth:`.XBeeDevice.open`
         """
         super().open(force_settings=force_settings)
-        if self._protocol not in [XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT]:
+        if self._protocol not in (XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT):
             self.close()
-            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.CELLULAR))
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.CELLULAR))
 
     def get_protocol(self):
         """
@@ -6348,9 +6390,11 @@ class LPWANDevice(CellularDevice):
     devices.
     """
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.LPWANDevice` with the
         provided parameters.
@@ -6373,8 +6417,9 @@ class LPWANDevice(CellularDevice):
            | :class:`.CellularDevice`
            | :meth:`.CellularDevice.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
 
     def send_ip_data(self, ip_addr, dest_port, protocol, data, close_socket=False):
         """
@@ -6464,9 +6509,11 @@ class NBIoTDevice(LPWANDevice):
     This class represents a local NB-IoT device.
     """
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.NBIoTDevice` with the
         provided parameters.
@@ -6489,8 +6536,9 @@ class NBIoTDevice(LPWANDevice):
            | :class:`.LPWANDevice`
            | :meth:`.LPWANDevice.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self._imei_addr = None
 
     def open(self, force_settings=False):
@@ -6503,7 +6551,8 @@ class NBIoTDevice(LPWANDevice):
         super().open(force_settings=force_settings)
         if self._protocol != XBeeProtocol.CELLULAR_NBIOT:
             self.close()
-            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.CELLULAR_NBIOT))
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.CELLULAR_NBIOT))
 
     def get_protocol(self):
         """
@@ -6523,12 +6572,14 @@ class WiFiDevice(IPDevice):
     This class represents a local Wi-Fi XBee.
     """
 
-    __DEFAULT_ACCESS_POINT_TIMEOUT = 15  # 15 seconds of timeout to connect, disconnect and scan access points.
-    __DISCOVER_TIMEOUT = 30  # 30 seconds of access points discovery timeout.
+    __DEFAULT_ACCESS_POINT_TIMEOUT = 15  # 15 s of timeout to connect, disconnect and scan access points.
+    __DISCOVER_TIMEOUT = 30  # 30 s of access points discovery timeout.
 
-    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS, stop_bits=serial.STOPBITS_ONE,
-                 parity=serial.PARITY_NONE, flow_control=FlowControl.NONE,
-                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS, comm_iface=None):
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.WiFiDevice` with the
         provided parameters.
@@ -6551,8 +6602,9 @@ class WiFiDevice(IPDevice):
            | :class:`.IPDevice`
            | :meth:`.v.__init__`
         """
-        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity,
-                         flow_control=flow_control, _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         self.__ap_timeout = self.__DEFAULT_ACCESS_POINT_TIMEOUT
         self.__scanning_aps = False
         self.__scanning_aps_error = False
@@ -6567,7 +6619,8 @@ class WiFiDevice(IPDevice):
         super().open(force_settings=force_settings)
         if self._protocol != XBeeProtocol.XBEE_WIFI:
             self.close()
-            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL % (self.get_protocol(), XBeeProtocol.XBEE_WIFI))
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.XBEE_WIFI))
 
     def get_protocol(self):
         """
@@ -6651,8 +6704,9 @@ class WiFiDevice(IPDevice):
         """
         access_points_list = []
 
-        if self.operating_mode not in [OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE]:
-            raise InvalidOperatingModeException(message="Only can scan for access points in API mode.")
+        if self.operating_mode not in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
+            raise InvalidOperatingModeException(
+                message="Only can scan for access points in API mode.")
 
         def packet_receive_callback(xbee_packet):
             if not self.__scanning_aps:
@@ -6786,7 +6840,8 @@ class WiFiDevice(IPDevice):
                 `None` if it does not have any encryption enabled.
 
         Returns:
-            Boolean: `True` if the module connected to the access point successfully, `False` otherwise.
+            Boolean: `True` if the module connected to the access point
+                successfully, `False` otherwise.
 
         Raises:
             ValueError: If `ssid` is `None`.
@@ -6912,8 +6967,8 @@ class WiFiDevice(IPDevice):
         signal_quality = self.__get_signal_quality(version, signal_strength)
         ssid = (ap_data[index:]).decode("utf8")
 
-        return AccessPoint(ssid, WiFiEncryptionType.get(encryption_type), channel=channel,
-                           signal_quality=signal_quality)
+        return AccessPoint(ssid, WiFiEncryptionType.get(encryption_type),
+                           channel=channel, signal_quality=signal_quality)
 
     @staticmethod
     def __get_signal_quality(wifi_version, signal_strength):
@@ -7218,12 +7273,11 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         # Send reset command.
         try:
             response = self._send_at_command(ATCommand(ATStringCommand.FR.command))
-        except TimeoutException as te:
+        except TimeoutException as exc:
             # Remote 802.15.4 devices do not respond to the AT command.
             if self._local_xbee_device.get_protocol() == XBeeProtocol.RAW_802_15_4:
                 return
-            else:
-                raise te
+            raise exc
 
         # Check if AT Command response is valid.
         self._check_at_cmd_response_is_valid(response)
@@ -7330,7 +7384,7 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         if not self._comm_iface.is_interface_open:
             raise XBeeException("XBee device's communication interface closed.")
         if self.get_hardware_version() and self.get_hardware_version().code not in SUPPORTED_HARDWARE_VERSIONS:
-            raise OperationNotSupportedException("Remote filesystem update is only supported in XBee3 devices")
+            raise OperationNotSupportedException("Remote filesystem update is only supported in XBee 3 devices")
 
         update_remote_filesystem_image(self, ota_filesystem_file,
                                        timeout=timeout,
@@ -7366,8 +7420,8 @@ class RemoteRaw802Device(RemoteXBeeDevice):
         if local_xbee.get_protocol() != XBeeProtocol.RAW_802_15_4:
             raise XBeeException("Invalid protocol.")
 
-        super().__init__(local_xbee, x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
-                         node_id=node_id)
+        super().__init__(local_xbee, x64bit_addr=x64bit_addr,
+                         x16bit_addr=x16bit_addr, node_id=node_id)
 
     def get_protocol(self):
         """
@@ -7546,8 +7600,8 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
         if local_xbee.get_protocol() != XBeeProtocol.ZIGBEE:
             raise XBeeException("Invalid protocol.")
 
-        super().__init__(local_xbee, x64bit_addr=x64bit_addr, x16bit_addr=x16bit_addr,
-                         node_id=node_id)
+        super().__init__(local_xbee, x64bit_addr=x64bit_addr,
+                         x16bit_addr=x16bit_addr, node_id=node_id)
 
         # If the remote node is an end device, its parent is stored here.
         self.__parent = None
@@ -7676,7 +7730,7 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
             timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
 
 
-class XBeeNetwork(object):
+class XBeeNetwork:
     """
     This class represents an XBee Network.
 
@@ -7786,15 +7840,15 @@ class XBeeNetwork(object):
         self.__discovered_device = None
 
         # FIFO to store the nodes to ask for their neighbors
-        self._nodes_queue = Queue(self.__class__.__DEFAULT_QUEUE_MAX_SIZE)
+        self._nodes_queue = Queue(self.__DEFAULT_QUEUE_MAX_SIZE)
 
         # List with the MAC address (string format) of the still active request processes
         self.__active_processes = []
 
         # Last date of a sent request. Used to wait certain time between requests:
-        #     * In 'Flood' mode to satisfy the minimum time to wait between node requests
-        #     * For 'Cascade', the time to wait is applied after finishing the previous request
-        #       process
+        #  * In 'Flood' mode to satisfy the minimum time to wait between node requests
+        #  * For 'Cascade', the time to wait is applied after finishing the previous request
+        #    process
         self.__last_request_date = 0
 
         self.__scan_counter = 0
@@ -7802,16 +7856,17 @@ class XBeeNetwork(object):
         self.__connections = []
         self.__conn_lock = threading.Lock()
 
-        # Dictionary to store the route and node discovery processes per node, so they can be
-        # stop when required.
-        # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
+        # Dictionary to store the route and node discovery processes per node,
+        # so they can be stop when required.
+        # The dictionary uses as key the 64-bit address string representation
+        # (to be thread-safe)
         self.__nd_processes = {}
 
         self.__mode = NeighborDiscoveryMode.CASCADE
         self.__stop_scan = 1
         self.__rm_not_discovered_in_last_scan = False
-        self.__time_bw_scans = self.__class__.DEFAULT_TIME_BETWEEN_SCANS
-        self.__time_bw_nodes = self.__class__.DEFAULT_TIME_BETWEEN_REQUESTS
+        self.__time_bw_scans = self.DEFAULT_TIME_BETWEEN_SCANS
+        self.__time_bw_nodes = self.DEFAULT_TIME_BETWEEN_REQUESTS
         self._node_timeout = None
 
         self.__saved_nt = None
@@ -7827,7 +7882,7 @@ class XBeeNetwork(object):
         Increments (by one) the scan counter.
         """
         self.__scan_counter += 1
-        if self.__scan_counter > self.__class__.__MAX_SCAN_COUNTER:
+        if self.__scan_counter > self.__MAX_SCAN_COUNTER:
             self.__scan_counter = 0
 
     @property
@@ -7953,7 +8008,8 @@ class XBeeNetwork(object):
                 self.__discovered_device = None
             if remote is not None:
                 self._add_remote(remote, NetworkEventReason.DISCOVERED)
-            return remote
+
+        return remote
 
     def discover_devices(self, device_id_list):
         """
@@ -8497,25 +8553,25 @@ class XBeeNetwork(object):
             raise ValueError("Node timeout must be between %f and %f seconds"
                              % (min_nt, max_nt))
 
-        if time_bw_requests \
-                and (time_bw_requests < self.__class__.MIN_TIME_BETWEEN_REQUESTS
-                     or time_bw_requests > self.__class__.MAX_TIME_BETWEEN_REQUESTS):
+        if (time_bw_requests
+                and (time_bw_requests < self.MIN_TIME_BETWEEN_REQUESTS
+                     or time_bw_requests > self.MAX_TIME_BETWEEN_REQUESTS)):
             raise ValueError("Time between neighbor requests must be between %d and %d" %
-                             (self.__class__.MIN_TIME_BETWEEN_REQUESTS,
-                              self.__class__.MAX_TIME_BETWEEN_REQUESTS))
+                             (self.MIN_TIME_BETWEEN_REQUESTS,
+                              self.MAX_TIME_BETWEEN_REQUESTS))
 
-        if time_bw_scans \
-                and (time_bw_scans < self.__class__.MIN_TIME_BETWEEN_SCANS
-                     or time_bw_scans > self.__class__.MAX_TIME_BETWEEN_SCANS):
+        if (time_bw_scans
+                and (time_bw_scans < self.MIN_TIME_BETWEEN_SCANS
+                     or time_bw_scans > self.MAX_TIME_BETWEEN_SCANS)):
             raise ValueError("Time between scans must be between %d and %d" %
-                             (self.__class__.MIN_TIME_BETWEEN_SCANS,
-                              self.__class__.MAX_TIME_BETWEEN_SCANS))
+                             (self.MIN_TIME_BETWEEN_SCANS,
+                              self.MAX_TIME_BETWEEN_SCANS))
 
         self._node_timeout = node_timeout
         self.__time_bw_nodes = time_bw_requests if time_bw_requests is not None \
-            else self.__class__.DEFAULT_TIME_BETWEEN_REQUESTS
+            else self.DEFAULT_TIME_BETWEEN_REQUESTS
         self.__time_bw_scans = time_bw_scans if time_bw_scans is not None \
-            else self.__class__.DEFAULT_TIME_BETWEEN_SCANS
+            else self.DEFAULT_TIME_BETWEEN_SCANS
 
     @classmethod
     def get_nt_limits(cls, protocol):
@@ -8527,8 +8583,8 @@ class XBeeNetwork(object):
              Tuple (Float, Float): Minimum value in seconds, maximum value in
                 seconds.
         """
-        if protocol in [XBeeProtocol.RAW_802_15_4, XBeeProtocol.ZIGBEE,
-                        XBeeProtocol.DIGI_MESH]:
+        if protocol in (XBeeProtocol.RAW_802_15_4, XBeeProtocol.ZIGBEE,
+                        XBeeProtocol.DIGI_MESH):
             return cls.NT_LIMITS[protocol]
 
         # Calculate the minimum of the min values and the maximum of max values
@@ -8753,15 +8809,15 @@ class XBeeNetwork(object):
                 remote_xbee._initializing = True
                 # Ask for the 64-bit address
                 try:
-                    sh = remote_xbee.get_parameter(ATStringCommand.SH.command, apply=False)
-                    sl = remote_xbee.get_parameter(ATStringCommand.SL.command, apply=False)
-                    x64 = XBee64BitAddress(sh + sl)
+                    sh_val = remote_xbee.get_parameter(ATStringCommand.SH.command, apply=False)
+                    sl_val = remote_xbee.get_parameter(ATStringCommand.SL.command, apply=False)
+                    x64 = XBee64BitAddress(sh_val + sl_val)
                     is_x64_known_addr = XBee64BitAddress.is_known_node_addr(x64)
                     remote_xbee._64bit_addr = x64
-                except XBeeException as e:
+                except XBeeException as exc:
                     self._log.debug(
                         "Error while trying to get 64-bit address of XBee (%s - %s): %s",
-                        remote_xbee, x16, str(e))
+                        remote_xbee, x16, str(exc))
                 remote_xbee._initializing = False
 
             # Look for the node in the cache by its 64-bit address
@@ -8786,7 +8842,7 @@ class XBeeNetwork(object):
                 # the existing entry (found by the 16-bit address)
                 elif (found_16
                       and not XBee64BitAddress.is_known_node_addr(
-                            found_16.get_64bit_addr())):
+                          found_16.get_64bit_addr())):
                     found = found_16
 
         if found:
@@ -8901,13 +8957,13 @@ class XBeeNetwork(object):
 
         if not force:
             # Only for Zigbee, mark non-reachable end devices
-            if remote_xbee.get_protocol() \
-                    in (XBeeProtocol.ZIGBEE, XBeeProtocol.SMART_ENERGY) \
-                    and remote_xbee.get_role() == Role.END_DEVICE:
-                for c in node_b_connections:
-                    # End devices do not have connections from them (not asking for their route
-                    # and neighbor tables), but if their parent is not reachable they are not either
-                    if not c.node_a.reachable:
+            if (remote_xbee.get_protocol() in (XBeeProtocol.ZIGBEE,
+                                               XBeeProtocol.SMART_ENERGY)
+                    and remote_xbee.get_role() == Role.END_DEVICE):
+                for conn in node_b_connections:
+                    # End devices do not have connections from them (not asking for their routing
+                    # and neighbor tables), but if their parent is not reachable, they are not either
+                    if not conn.node_a.reachable:
                         self._set_node_reachable(remote_xbee, False)
                         break
 
@@ -8953,8 +9009,8 @@ class XBeeNetwork(object):
                                               node_id=n_id, role=role,
                                               parent_addr=x64_parent)
                 if remote is not None:
-                    # If remote was successfully created and it is not in the XBee list, add it
-                    # and notify callbacks.
+                    # If remote was successfully created and it is not in the
+                    # XBee list, add it and notify callbacks.
 
                     # Do not add a connection to the same node (the local one)
                     if remote == self._local_xbee:
@@ -9008,7 +9064,7 @@ class XBeeNetwork(object):
                         self.__sought_device_id = None
                 self.stop_discovery_process()
             elif nd_id == XBeeNetwork.ND_PACKET_REMOTE:
-                # if it is not a finish signal, it contains info about a remote XBee device.
+                # if it is not a finish signal, it contains info about a remote XBee.
                 x16, x64, n_id, role, x64_parent = \
                     self.__get_data_for_remote(xbee_packet.command_value)
                 remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16,
@@ -9051,14 +9107,13 @@ class XBeeNetwork(object):
                  * :attr:`.XBeeNetwork.ND_PACKET_REMOTE`: if `xbee_packet` has
                     info about a remote XBee.
         """
-        if (xbee_packet.get_frame_type() == ApiFrameType.AT_COMMAND_RESPONSE and
-           xbee_packet.command.upper() == ATStringCommand.ND.command):
+        if (xbee_packet.get_frame_type() == ApiFrameType.AT_COMMAND_RESPONSE
+                and xbee_packet.command.upper() == ATStringCommand.ND.command):
             if xbee_packet.command_value is None or len(xbee_packet.command_value) == 0:
                 return XBeeNetwork.ND_PACKET_FINISH
-            else:
-                return XBeeNetwork.ND_PACKET_REMOTE
-        else:
-            return None
+            return XBeeNetwork.ND_PACKET_REMOTE
+
+        return None
 
     def __discover_devices_and_notify_callbacks(self, discover_network=False):
         """
@@ -9097,8 +9152,8 @@ class XBeeNetwork(object):
             if code != NetworkDiscoveryStatus.SUCCESS:
                 return code
 
-            while self.__stop_scan == self.__class__.SCAN_TIL_CANCEL \
-                    or self.__scan_counter < self.__stop_scan:
+            while (self.__stop_scan == self.SCAN_TIL_CANCEL
+                   or self.__scan_counter < self.__stop_scan):
 
                 if self.__scan_counter > 0:
                     self._log.debug("")
@@ -9148,13 +9203,13 @@ class XBeeNetwork(object):
 
         # Initialize all nodes/connections scan counter
         with self.__lock:
-            for xb in self.__devices_list:
-                xb._scan_counter = self.__scan_counter
+            for xb_item in self.__devices_list:
+                xb_item._scan_counter = self.__scan_counter
 
         with self.__conn_lock:
-            for c in self.__connections:
-                c.scan_counter_a2b = self.__scan_counter
-                c.scan_counter_b2a = self.__scan_counter
+            for conn_item in self.__connections:
+                conn_item.scan_counter_a2b = self.__scan_counter
+                conn_item.scan_counter_b2a = self.__scan_counter
 
         # Clear the nodes FIFO
         while not nodes_queue.empty():
@@ -9244,9 +9299,10 @@ class XBeeNetwork(object):
                 self._log.debug(
                     " [*] Waiting for more nodes to request or finishing active processes (%d)\n",
                     len(active_processes))
-                [self._log.debug("     Waiting for %s", p) for p in active_processes]
+                for act_proc in active_processes:
+                    self._log.debug("     Waiting for %s", act_proc)
 
-                code = self.__wait_checking(self.__class__.__TIME_FOR_NEW_NODES_IN_FIFO)
+                code = self.__wait_checking(self.__TIME_FOR_NEW_NODES_IN_FIFO)
                 if code == NetworkDiscoveryStatus.CANCEL:
                     return code
 
@@ -9264,7 +9320,7 @@ class XBeeNetwork(object):
                 if self.__mode == NeighborDiscoveryMode.CASCADE:
                     while active_processes:
                         code = self.__wait_checking(
-                            self.__class__.__TIME_WHILE_FINISH_PREVIOUS_PROCESS)
+                            self.__TIME_WHILE_FINISH_PREVIOUS_PROCESS)
                         if code == NetworkDiscoveryStatus.CANCEL:
                             return code
 
@@ -9336,25 +9392,25 @@ class XBeeNetwork(object):
         """
         # Check for nodes in the network not discovered in this scan and ensure
         # they are reachable by directly asking them for its NI
-        for n in devices_list:
-            if n.scan_counter != self.__scan_counter:
+        for n_item in devices_list:
+            if n_item.scan_counter != self.__scan_counter:
                 self._log.debug(" [*] Checking not discovered node %s... (scan %d)",
-                                n, self.__scan_counter)
-                n._scan_counter = self.__scan_counter
+                                n_item, self.__scan_counter)
+                n_item._scan_counter = self.__scan_counter
                 try:
-                    n.get_parameter(ATStringCommand.NI.command, apply=False)
-                    n._reachable = True
+                    n_item.get_parameter(ATStringCommand.NI.command, apply=False)
+                    n_item._reachable = True
                     # Update also the connection
                     from digi.xbee.models.zdo import RouteStatus
                     if self._add_connection(Connection(
-                            self._local_xbee, n, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
-                            RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
+                            self._local_xbee, n_item, LinkQuality.UNKNOWN,
+                            LinkQuality.UNKNOWN, RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
                         self._log.debug("     - Added connection: %s >>> %s",
-                                        self._local_xbee, n)
+                                        self._local_xbee, n_item)
                 except XBeeException:
-                    n._reachable = False
+                    n_item._reachable = False
                 self._log.debug("     - Reachable: %s (scan %d)",
-                                n._reachable, self.__scan_counter)
+                                n_item._reachable, self.__scan_counter)
 
     def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
         """
@@ -9421,8 +9477,8 @@ class XBeeNetwork(object):
                                                   error=err_code.description if err_code else None)
 
             return err_code
-        except Exception as e:
-            self._local_xbee.log.exception(e)
+        except Exception as exc:
+            self._local_xbee.log.exception(exc)
 
     def _node_discovery_process_finished(self, requester, code=None, error=None):
         """
@@ -9436,15 +9492,17 @@ class XBeeNetwork(object):
         # Purge the connections of the node
         self._log.debug("")
         self._log.debug(" [*] Purging node connections of %s", requester)
-        purged = self.__purge_node_connections(requester, force=self.__rm_not_discovered_in_last_scan)
+        purged = self.__purge_node_connections(requester,
+                                               force=self.__rm_not_discovered_in_last_scan)
         if self.__rm_not_discovered_in_last_scan:
-            for c in purged:
-                self._log.debug("     o Removed connection: %s", c)
+            for conn in purged:
+                self._log.debug("     o Removed connection: %s", conn)
 
         # Remove the discovery process from the active processes list
         self.__active_processes.remove(str(requester.get_64bit_addr()))
 
-        if code and code not in (NetworkDiscoveryStatus.SUCCESS, NetworkDiscoveryStatus.CANCEL) or error:
+        if code and code not in (NetworkDiscoveryStatus.SUCCESS,
+                                 NetworkDiscoveryStatus.CANCEL) or error:
             self._log.debug("[***** ERROR] During neighbors scan of %s", requester)
             if error:
                 self._log.debug("        %s", error)
@@ -9464,40 +9522,41 @@ class XBeeNetwork(object):
             requester (:class:`.AbstractXBeeDevice`): XBee that requests the discovery process.
             error (String): Error message.
         """
-        if not error.endswith(TransmitStatus.NOT_JOINED_NETWORK.description) \
-                and not error.endswith(TransmitStatus.ADDRESS_NOT_FOUND.description) \
-                and not error.endswith(TransmitStatus.NETWORK_ACK_FAILURE.description) \
-                and not error.endswith("ZDO command not sent") \
-                and not error.endswith("ZDO command answer not received") \
-                and not error.endswith("FN command answer not received"):
+        if not (error.endswith(TransmitStatus.NOT_JOINED_NETWORK.description)
+                or error.endswith(TransmitStatus.ADDRESS_NOT_FOUND.description)
+                or error.endswith(TransmitStatus.NETWORK_ACK_FAILURE.description)
+                or error.endswith("ZDO command not sent")
+                or error.endswith("ZDO command answer not received")
+                or error.endswith("FN command answer not received")):
             return
 
         # The node is not found so it is not reachable
         self._log.debug("     o [***] Non-reachable: %s -> ERROR %s", requester, error)
 
-        # Do not remove any node here, although the preference is configured to so
-        # Do it at the end of the scan...
+        # Do not remove any node here, although the preference is configured
+        # to do so. Do it at the end of the scan...
         no_reachables = [requester]
 
         requester._scan_counter = self.__scan_counter
 
         # Get the children nodes to mark them as non-reachable
         conn_list = self.__get_connections_for_node_a_b(requester, node_a=True)
-        for c in conn_list:
-            child = c.node_b
+        for conn in conn_list:
+            child = conn.node_b
             # Child node already discovered in this scan
             if not child or child.scan_counter == self.__scan_counter:
                 continue
-            # Only the connection with the requester node joins the child to the network
-            # so it is not reachable
+            # Only the connection with the requester node joins the child to
+            # the network so it is not reachable
             if len(self.get_node_connections(child)) <= 1:
                 no_reachables.append(child)
 
-            # If the node has more than one connection, we cannot be sure if it will
-            # be discovered by other devices later since the scan did not end
+            # If the node has more than one connection, we cannot be sure if it
+            # will be discovered by other devices later since the scan did not end
 
         # Mark as non-reachable
-        [self._set_node_reachable(n, False) for n in no_reachables]
+        for node in no_reachables:
+            self._set_node_reachable(node, False)
 
     def _discovery_done(self, active_processes):
         """
@@ -9511,12 +9570,12 @@ class XBeeNetwork(object):
 
         if self.__nd_processes:
             copy = active_processes[:]
-            for p in copy:
-                nd = self.__nd_processes.get(p)
-                if not nd:
+            for act_proc in copy:
+                nd_proc = self.__nd_processes.get(act_proc)
+                if not nd_proc:
                     continue
-                nd.stop_discovery_process()
-                while p in self.__nd_processes:
+                nd_proc.stop_discovery_process()
+                while act_proc in self.__nd_processes:
                     time.sleep(0.1)
 
         self.__nd_processes.clear()
@@ -9536,8 +9595,8 @@ class XBeeNetwork(object):
         self._log.debug("[*] Postconfiguring %s", ATStringCommand.NT.command)
         try:
             self.set_discovery_timeout(self.__saved_nt)
-        except XBeeException as e:
-            self._error = "Could not restore XBee after network discovery: " + str(e)
+        except XBeeException as exc:
+            self._error = "Could not restore XBee after network discovery: %s" % str(exc)
 
         self.__saved_nt = None
 
@@ -9590,18 +9649,17 @@ class XBeeNetwork(object):
         except XBeeException:
             # If N? does not exist, read the NT parameter.
             self._log.debug("Could not calculate network discovery timeout: "
-                            "'%s' does not exist, trying with '%s'"
-                            % (ATStringCommand.N_QUESTION.command,
-                               ATStringCommand.NT.command))
+                            "'%s' does not exist, trying with '%s'",
+                            ATStringCommand.N_QUESTION.command,
+                            ATStringCommand.NT.command)
             # Read the network timeout (NT)
             try:
                 discovery_timeout = self.get_discovery_timeout()
-            except XBeeException as xe:
+            except XBeeException as exc:
                 discovery_timeout = default_timeout
                 self._log.warning("Could not calculate network discovery timeout: "
-                                  "Error reading '%s'"
-                                  % ATStringCommand.NT.command)
-                self._local_xbee.log.exception(xe)
+                                  "Error reading '%s'", ATStringCommand.NT.command)
+                self._local_xbee.log.exception(exc)
 
             # In DigiPoint the network discovery timeout is NT + the
             # network propagation time. It means that if the user sends an AT
@@ -9609,7 +9667,7 @@ class XBeeNetwork(object):
             if self._local_xbee.get_protocol() == XBeeProtocol.DIGI_POINT:
                 discovery_timeout += XBeeNetwork.__DIGI_POINT_TIMEOUT_CORRECTION
 
-        self._log.debug("     Network discovery timeout: %f s" % discovery_timeout)
+        self._log.debug("     Network discovery timeout: %f s", discovery_timeout)
 
         return discovery_timeout
 
@@ -9655,32 +9713,32 @@ class XBeeNetwork(object):
                 or XBee16BitAddress.is_known_node_addr(x16bit_addr)):
             return None
 
-        p = self._local_xbee.get_protocol()
+        protocol = self._local_xbee.get_protocol()
 
-        if p == XBeeProtocol.ZIGBEE:
-            xb = RemoteZigBeeDevice(self._local_xbee, x64bit_addr=x64bit_addr,
-                                    x16bit_addr=x16bit_addr, node_id=node_id)
+        if protocol == XBeeProtocol.ZIGBEE:
+            xbee = RemoteZigBeeDevice(self._local_xbee, x64bit_addr=x64bit_addr,
+                                      x16bit_addr=x16bit_addr, node_id=node_id)
             if not XBee64BitAddress.is_known_node_addr(parent_addr):
-                xb.parent = None
+                xbee.parent = None
             else:
-                xb.parent = self.get_device_by_64(parent_addr)
-        elif p == XBeeProtocol.DIGI_MESH:
-            xb = RemoteDigiMeshDevice(self._local_xbee, x64bit_addr=x64bit_addr, node_id=node_id)
-        elif p == XBeeProtocol.DIGI_POINT:
-            xb = RemoteDigiPointDevice(self._local_xbee, x64bit_addr=x64bit_addr, node_id=node_id)
-        elif p == XBeeProtocol.RAW_802_15_4:
-            xb = RemoteRaw802Device(self._local_xbee, x64bit_addr=x64bit_addr,
-                                    x16bit_addr=x16bit_addr, node_id=node_id)
+                xbee.parent = self.get_device_by_64(parent_addr)
+        elif protocol == XBeeProtocol.DIGI_MESH:
+            xbee = RemoteDigiMeshDevice(self._local_xbee, x64bit_addr=x64bit_addr, node_id=node_id)
+        elif protocol == XBeeProtocol.DIGI_POINT:
+            xbee = RemoteDigiPointDevice(self._local_xbee, x64bit_addr=x64bit_addr, node_id=node_id)
+        elif protocol == XBeeProtocol.RAW_802_15_4:
+            xbee = RemoteRaw802Device(self._local_xbee, x64bit_addr=x64bit_addr,
+                                      x16bit_addr=x16bit_addr, node_id=node_id)
         else:
-            xb = RemoteXBeeDevice(self._local_xbee, x64bit_addr=x64bit_addr,
-                                  x16bit_addr=x16bit_addr, node_id=node_id)
+            xbee = RemoteXBeeDevice(self._local_xbee, x64bit_addr=x64bit_addr,
+                                    x16bit_addr=x16bit_addr, node_id=node_id)
 
-        xb._role = role
-        xb._hardware_version = hw_version
-        xb._firmware_version = fw_version
-        xb._operating_mode = op_mode
+        xbee._role = role
+        xbee._hardware_version = hw_version
+        xbee._firmware_version = fw_version
+        xbee._operating_mode = op_mode
 
-        return xb
+        return xbee
 
     def __get_data_for_remote(self, data):
         """
@@ -9701,7 +9759,7 @@ class XBeeNetwork(object):
         parent_addr = None
         if self._local_xbee.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # node ID starts at 11 if protocol is not 802.15.4:
-            #    802.15.4 adds a byte of info between 64bit address and XBee device ID, avoid it:
+            #    802.15.4 adds an info byte between 64bit address and XBee device ID, avoid it:
             i = 11
             # node ID goes from 11 to the next 0x00.
             while data[i] != 0x00:
@@ -9782,9 +9840,9 @@ class XBeeNetwork(object):
         """
         connections = []
         with self.__conn_lock:
-            for c in self.__connections:
-                if c.node_a == node or c.node_b == node:
-                    connections.append(c)
+            for conn in self.__connections:
+                if conn.node_a == node or conn.node_b == node:
+                    connections.append(conn)
 
         return connections
 
@@ -9804,10 +9862,10 @@ class XBeeNetwork(object):
         """
         connections = []
         with self.__conn_lock:
-            for c in self.__connections:
-                if (node_a and c.node_a == node) \
-                        or (not node_a and c.node_b == node):
-                    connections.append(c)
+            for conn in self.__connections:
+                if ((node_a and conn.node_a == node)
+                        or (not node_a and conn.node_b == node)):
+                    connections.append(conn)
 
         return connections
 
@@ -9831,13 +9889,13 @@ class XBeeNetwork(object):
         if not node_b:
             raise ValueError("Node B cannot be None")
 
-        c = Connection(node_a, node_b)
+        conn = Connection(node_a, node_b)
 
         with self.__conn_lock:
-            if c not in self.__connections:
+            if conn not in self.__connections:
                 return None
 
-            index = self.__connections.index(c)
+            index = self.__connections.index(conn)
 
             return self.__connections[index]
 
@@ -9952,11 +10010,11 @@ class XBeeNetwork(object):
         with self.__conn_lock:
             c_removed = [len(node_conn)]
             c_removed[:] = node_conn[:]
-            for c in node_conn:
+            for conn in node_conn:
                 if force:
-                    self.__connections.remove(c)
+                    self.__connections.remove(conn)
                 else:
-                    c.lq_a2b = LinkQuality.UNKNOWN
+                    conn.lq_a2b = LinkQuality.UNKNOWN
 
         return c_removed
 
@@ -9975,8 +10033,10 @@ class XBeeNetwork(object):
 
         self._log.debug("")
         self._log.debug(" [*] Purging network...")
-        [self._log.debug("     o Removed node: %s", n) for n in removed_nodes]
-        [self._log.debug("     o Removed connections: %s", n) for n in removed_connections]
+        for node in removed_nodes:
+            self._log.debug("     o Removed node: %s", node)
+        for conn in removed_connections:
+            self._log.debug("     o Removed connections: %s", conn)
 
     def __purge_network_nodes(self, force=False):
         """
@@ -9992,11 +10052,14 @@ class XBeeNetwork(object):
         """
         nodes_to_remove = []
         with self.__lock:
-            for n in self.__devices_list:
-                if not n.scan_counter or n.scan_counter != self.__scan_counter or not n.reachable:
-                    nodes_to_remove.append(n)
+            for node in self.__devices_list:
+                if (not node.scan_counter
+                        or node.scan_counter != self.__scan_counter
+                        or not node.reachable):
+                    nodes_to_remove.append(node)
 
-        [self._remove_device(n, NetworkEventReason.NEIGHBOR, force=force) for n in nodes_to_remove]
+        for node in nodes_to_remove:
+            self._remove_device(node, NetworkEventReason.NEIGHBOR, force=force)
 
         return nodes_to_remove
 
@@ -10013,22 +10076,23 @@ class XBeeNetwork(object):
         """
         connections_to_remove = []
         with self.__conn_lock:
-            for c in self.__connections:
-                if c.scan_counter_a2b != self.__scan_counter \
-                        and c.scan_counter_b2a != self.__scan_counter:
-                    c.lq_a2b = LinkQuality.UNKNOWN
-                    c.lq_b2a = LinkQuality.UNKNOWN
-                    connections_to_remove.append(c)
-                elif c.scan_counter_a2b != self.__scan_counter:
-                    c.lq_a2b = LinkQuality.UNKNOWN
-                elif c.scan_counter_b2a != self.__scan_counter:
-                    c.lq_b2a = LinkQuality.UNKNOWN
-                elif c.lq_a2b == LinkQuality.UNKNOWN \
-                        and c.lq_b2a == LinkQuality.UNKNOWN:
-                    connections_to_remove.append(c)
+            for conn in self.__connections:
+                if (conn.scan_counter_a2b != self.__scan_counter
+                        and conn.scan_counter_b2a != self.__scan_counter):
+                    conn.lq_a2b = LinkQuality.UNKNOWN
+                    conn.lq_b2a = LinkQuality.UNKNOWN
+                    connections_to_remove.append(conn)
+                elif conn.scan_counter_a2b != self.__scan_counter:
+                    conn.lq_a2b = LinkQuality.UNKNOWN
+                elif conn.scan_counter_b2a != self.__scan_counter:
+                    conn.lq_b2a = LinkQuality.UNKNOWN
+                elif (conn.lq_a2b == LinkQuality.UNKNOWN
+                      and conn.lq_b2a == LinkQuality.UNKNOWN):
+                    connections_to_remove.append(conn)
 
         if force:
-            [self.__del_connection(c) for c in connections_to_remove]
+            for conn in connections_to_remove:
+                self.__del_connection(conn)
 
         return connections_to_remove
 
@@ -10053,15 +10117,16 @@ class XBeeNetwork(object):
         node_conn = self.__get_connections_for_node_a_b(node_a, node_a=True)
 
         with self.__conn_lock:
-            for c in node_conn:
-                if c.scan_counter_a2b != self.__scan_counter:
-                    c.lq_a2b = LinkQuality.UNKNOWN
-                    if c.scan_counter_b2a == self.__scan_counter \
-                            and c.lq_b2a == LinkQuality.UNKNOWN:
-                        c_purged.append(c)
+            for conn in node_conn:
+                if conn.scan_counter_a2b != self.__scan_counter:
+                    conn.lq_a2b = LinkQuality.UNKNOWN
+                    if (conn.scan_counter_b2a == self.__scan_counter
+                            and conn.lq_b2a == LinkQuality.UNKNOWN):
+                        c_purged.append(conn)
 
         if force:
-            [self.__del_connection(c) for c in c_purged]
+            for conn in c_purged:
+                self.__del_connection(conn)
 
         return c_purged
 
@@ -10116,8 +10181,8 @@ class ZigBeeNetwork(XBeeNetwork):
 
         self.__saved_ao = None
 
-        # Dictionary to store the route and neighbor discovery processes per node, so they can be
-        # stop when required.
+        # Dictionary to store the route and neighbor discovery processes per
+        # node, so they can be stop when required.
         # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
         self.__zdo_processes = {}
 
@@ -10186,11 +10251,11 @@ class ZigBeeNetwork(XBeeNetwork):
         .. seealso::
            | :meth:`.XBeeNetwork._check_not_discovered_nodes`
         """
-        for n in devices_list:
-            if not n.scan_counter or n.scan_counter != self.scan_counter:
+        for node in devices_list:
+            if not node.scan_counter or node.scan_counter != self.scan_counter:
                 self._log.debug(" [*] Adding to FIFO not discovered node %s... (scan %d)",
-                                n, self.scan_counter)
-                nodes_queue.put(n)
+                                node, self.scan_counter)
+                nodes_queue.put(node)
 
     def _discovery_done(self, active_processes):
         """
@@ -10200,13 +10265,13 @@ class ZigBeeNetwork(XBeeNetwork):
            | :meth:`.XBeeNetwork._discovery_done`
         """
         copy = active_processes[:]
-        for p in copy:
-            zdos = self.__zdo_processes.get(p)
+        for act_proc in copy:
+            zdos = self.__zdo_processes.get(act_proc)
             if not zdos:
                 continue
 
-            self.__stop_zdo_command(zdos, self.__class__.__ROUTE_TABLE_TYPE)
-            self.__stop_zdo_command(zdos, self.__class__.__NEIGHBOR_TABLE_TYPE)
+            self.__stop_zdo_command(zdos, self.__ROUTE_TABLE_TYPE)
+            self.__stop_zdo_command(zdos, self.__NEIGHBOR_TABLE_TYPE)
 
             zdos.clear()
 
@@ -10229,8 +10294,8 @@ class ZigBeeNetwork(XBeeNetwork):
         try:
             self._local_xbee.set_parameter(ATStringCommand.AO.command,
                                            self.__saved_ao, apply=True)
-        except XBeeException as e:
-            self._error = "Could not restore XBee after network discovery: " + str(e)
+        except XBeeException as exc:
+            self._error = "Could not restore XBee after network discovery: %s" % str(exc)
 
         self.__saved_ao = None
 
@@ -10311,14 +10376,14 @@ class ZigBeeNetwork(XBeeNetwork):
 
             # Check for cancel
             if self._stop_event.is_set():
-                cmd = self.__get_zdo_command(xbee, self.__class__.__ROUTE_TABLE_TYPE)
+                cmd = self.__get_zdo_command(xbee, self.__ROUTE_TABLE_TYPE)
                 if cmd:
                     cmd.stop()
 
         def __route_discover_finished_callback(xbee, _routes, error):
             zdo_processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
             if zdo_processes:
-                zdo_processes.pop(self.__class__.__ROUTE_TABLE_TYPE)
+                zdo_processes.pop(self.__ROUTE_TABLE_TYPE)
 
             if error:
                 self.__zdo_processes.pop(str(requester.get_64bit_addr()), None)
@@ -10333,7 +10398,6 @@ class ZigBeeNetwork(XBeeNetwork):
                     # Remove the discovered routes
                     self.__discovered_routes.pop(str(xbee.get_64bit_addr()), None)
                     self._node_discovery_process_finished(xbee, code=NetworkDiscoveryStatus.CANCEL)
-                    return NetworkDiscoveryStatus.CANCEL
 
                 # Get neighbor table
                 code = self.__get_neighbor_table(xbee, nodes_queue, node_timeout)
@@ -10352,7 +10416,7 @@ class ZigBeeNetwork(XBeeNetwork):
         if not processes:
             processes = {}
             self.__zdo_processes.update({str(requester.get_64bit_addr()): processes})
-        processes.update({self.__class__.__ROUTE_TABLE_TYPE: reader})
+        processes.update({self.__ROUTE_TABLE_TYPE: reader})
 
         return NetworkDiscoveryStatus.SUCCESS
 
@@ -10383,14 +10447,14 @@ class ZigBeeNetwork(XBeeNetwork):
 
             # Check for cancel
             if self._stop_event.is_set():
-                cmd = self.__get_zdo_command(xbee, self.__class__.__NEIGHBOR_TABLE_TYPE)
+                cmd = self.__get_zdo_command(xbee, self.__NEIGHBOR_TABLE_TYPE)
                 if cmd:
                     cmd.stop()
 
         def __neighbor_discover_finished_callback(xbee, _, error):
             zdo_processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
             if zdo_processes:
-                zdo_processes.pop(self.__class__.__NEIGHBOR_TABLE_TYPE, None)
+                zdo_processes.pop(self.__NEIGHBOR_TABLE_TYPE, None)
             self.__zdo_processes.pop(str(requester.get_64bit_addr()), None)
 
             # Remove the discovered routes
@@ -10412,7 +10476,7 @@ class ZigBeeNetwork(XBeeNetwork):
         if not processes:
             processes = {}
             self.__zdo_processes.update({str(requester.get_64bit_addr()): processes})
-        processes.update({self.__class__.__NEIGHBOR_TABLE_TYPE: reader})
+        processes.update({self.__NEIGHBOR_TABLE_TYPE: reader})
 
         return NetworkDiscoveryStatus.SUCCESS
 
@@ -10470,9 +10534,9 @@ class ZigBeeNetwork(XBeeNetwork):
                                     lq_b2a=LinkQuality.UNKNOWN, status_a2b=route.status,
                                     status_b2a=RouteStatus.UNKNOWN)
             self._log.debug("       - Using route for the connection: %d", route.status.id)
-        elif neighbor.node.get_role() != Role.UNKNOWN \
-                and neighbor.relationship != NeighborRelationship.PREVIOUS_CHILD \
-                and neighbor.relationship != NeighborRelationship.SIBLING:
+        elif (neighbor.node.get_role() != Role.UNKNOWN
+              and neighbor.relationship != NeighborRelationship.PREVIOUS_CHILD
+              and neighbor.relationship != NeighborRelationship.SIBLING):
             self._log.debug(
                 "       - No route for this node, using relationship for the connection: %s",
                 neighbor.relationship.name)
@@ -10480,8 +10544,8 @@ class ZigBeeNetwork(XBeeNetwork):
                 connection = Connection(node, requester, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
                                         status_b2a=RouteStatus.UNKNOWN)
-            elif neighbor.relationship == NeighborRelationship.CHILD \
-                    or neighbor.relationship == NeighborRelationship.UNDETERMINED:
+            elif (neighbor.relationship == NeighborRelationship.CHILD
+                  or neighbor.relationship == NeighborRelationship.UNDETERMINED):
                 connection = Connection(requester, node, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
                                         status_b2a=RouteStatus.UNKNOWN)
@@ -10600,8 +10664,8 @@ class DigiMeshNetwork(XBeeNetwork):
         # sleep configuration of the network.
         self.__real_node_timeout = None
 
-        # Dictionary to store the neighbor find processes per node, so they can be
-        # stop when required.
+        # Dictionary to store the neighbor find processes per node, so they
+        # can be stop when required.
         # The dictionary uses as key the 64-bit address string representation (to be thread-safe)
         self.__neighbor_finders = {}
 
@@ -10745,11 +10809,11 @@ class DigiMeshNetwork(XBeeNetwork):
         .. seealso::
            | :meth:`.XBeeNetwork._check_not_discovered_nodes`
         """
-        for n in devices_list:
-            if not n.scan_counter or n.scan_counter != self.scan_counter:
+        for node in devices_list:
+            if not node.scan_counter or node.scan_counter != self.scan_counter:
                 self._log.debug(" [*] Adding to FIFO not discovered node %s... (scan %d)",
-                                n, self.scan_counter)
-                nodes_queue.put(n)
+                                node, self.scan_counter)
+                nodes_queue.put(node)
 
     def _discovery_done(self, active_processes):
         """
@@ -10759,8 +10823,8 @@ class DigiMeshNetwork(XBeeNetwork):
            | :meth:`.XBeeNetwork._discovery_done`
         """
         copy = active_processes[:]
-        for p in copy:
-            finder = self.__neighbor_finders.get(p)
+        for act_proc in copy:
+            finder = self.__neighbor_finders.get(act_proc)
             if not finder:
                 continue
 
@@ -10786,8 +10850,8 @@ class DigiMeshNetwork(XBeeNetwork):
                 self._local_xbee.set_parameter(ATStringCommand.NO.command,
                                                self.__saved_no,
                                                apply=bool(not self.__saved_so))
-            except XBeeException as e:
-                error = str(e)
+            except XBeeException as exc:
+                error = str(exc)
 
             self.__saved_no = None
 
@@ -10796,15 +10860,15 @@ class DigiMeshNetwork(XBeeNetwork):
             try:
                 self._local_xbee.set_parameter(ATStringCommand.SO.command,
                                                self.__saved_so, apply=True)
-            except XBeeException as e:
+            except XBeeException as exc:
                 if error:
                     error += ". "
-                error += str(e)
+                error += str(exc)
 
             self.__saved_so = None
 
         if error:
-            self._error = "Could not restore XBee after network discovery: " + error
+            self._error = "Could not restore XBee after network discovery: %s" % error
 
     def __process_discovered_neighbor_data(self, requester, neighbor, nodes_queue):
         """
@@ -10997,7 +11061,7 @@ class NetworkEventReason(Enum):
 NetworkEventReason.__doc__ += utils.doc_enum(NetworkEventReason)
 
 
-class LinkQuality(object):
+class LinkQuality:
     """
     This class represents the link quality of a connection.
     It can be a LQI (Link Quality Index) for Zigbee devices, or RSSI
@@ -11032,8 +11096,8 @@ class LinkQuality(object):
         if self.__lq == 0:
             return str(self.__lq)
 
-        if self.__lq == self.__class__.UNKNOWN_VALUE:
-            return self.__class__.__UNKNOWN_STR
+        if self.__lq == self.UNKNOWN_VALUE:
+            return self.__UNKNOWN_STR
 
         if self.__is_rssi:
             return "-" + str(self.__lq)
@@ -11064,7 +11128,7 @@ class LinkQuality(object):
 LinkQuality.UNKNOWN = LinkQuality(lq=LinkQuality.UNKNOWN_VALUE)
 
 
-class Connection(object):
+class Connection:
     """
     This class represents a generic connection between two nodes in a XBee
     network. It contains the source and destination nodes, the link quality of
@@ -11119,8 +11183,8 @@ class Connection(object):
 
     def __str__(self):
         return "{{{!s} >>> {!s} [{!s} / {!s}]: {!s} / {!s}}}".format(
-            self.__node_a, self.__node_b, self.__st_a2b, self.__st_b2a, self.__lq_a2b,
-            self.__lq_b2a)
+            self.__node_a, self.__node_b, self.__st_a2b, self.__st_b2a,
+            self.__lq_a2b, self.__lq_b2a)
 
     def __eq__(self, other):
         if not isinstance(other, Connection):
@@ -11263,12 +11327,12 @@ class Connection(object):
         self.__st_b2a = new_status_b2a
 
     @staticmethod
-    def __get_lq(lq, src):
+    def __get_lq(lq_val, src):
         """
         Retrieves the `LinkQuality` object that corresponds to the integer provided.
 
         Args:
-            lq (Integer): The link quality value.
+            lq_val (Integer): The link quality value.
             src (:class:`.AbstractXBeeDevice`): The node from where the connection starts.
 
         Returns:
@@ -11278,15 +11342,15 @@ class Connection(object):
            | :class:`.AbstractXBeeDevice`
            | :class:`.LinkQuality`
         """
-        if isinstance(lq, LinkQuality):
-            return lq
-        elif isinstance(lq, int):
-            return LinkQuality(lq=lq,
-                               is_rssi=src.get_protocol() in [XBeeProtocol.DIGI_MESH,
+        if isinstance(lq_val, LinkQuality):
+            return lq_val
+        if isinstance(lq_val, int):
+            return LinkQuality(lq=lq_val,
+                               is_rssi=src.get_protocol() in (XBeeProtocol.DIGI_MESH,
                                                               XBeeProtocol.XTEND_DM,
-                                                              XBeeProtocol.XLR_DM, XBeeProtocol.SX])
-        else:
-            return LinkQuality.UNKNOWN
+                                                              XBeeProtocol.XLR_DM,
+                                                              XBeeProtocol.SX))
+        return LinkQuality.UNKNOWN
 
     @property
     def scan_counter_a2b(self):
