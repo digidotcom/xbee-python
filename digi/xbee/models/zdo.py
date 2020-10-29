@@ -620,11 +620,11 @@ class NodeDescriptor:
     def freq_band(self):
         """
         Gets the frequency bands (LSB - bit0- index 0, MSB - bit4 - index 4):
-          * Bit0: 868 MHz
-          * Bit1: Reserved
-          * Bit2: 900 MHz
-          * Bit3: 2.4 GHz
-          * Bit4: Reserved
+        * Bit0: 868 MHz
+        * Bit1: Reserved
+        * Bit2: 900 MHz
+        * Bit3: 2.4 GHz
+        * Bit4: Reserved
 
         Returns:
              List: List of integers with the frequency bands bits.
@@ -635,13 +635,13 @@ class NodeDescriptor:
     def mac_capabilities(self):
         """
         Gets the MAC capabilities (LSB - bit0- index 0, MSB - bit7 - index 7):
-          * Bit0: Alternate PAN coordinator
-          * Bit1: Device Type
-          * Bit2: Power source
-          * Bit3: Receiver on when idle
-          * Bit4-5: Reserved
-          * Bit6: Security capability
-          * Bit7: Allocate address
+        * Bit0: Alternate PAN coordinator
+        * Bit1: Device Type
+        * Bit2: Power source
+        * Bit3: Receiver on when idle
+        * Bit4-5: Reserved
+        * Bit6: Security capability
+        * Bit7: Allocate address
 
         Returns:
              List: List of integers with MAC capabilities bits.
@@ -693,8 +693,8 @@ class NodeDescriptor:
     def desc_capabilities(self):
         """
         Gets the descriptor capabilities (LSB - bit0- index 0, MSB - bit1 - index 1):
-          * Bit0: Extended active endpoint list available
-          * Bit1: Extended simple descriptor list available
+        * Bit0: Extended active endpoint list available
+        * Bit1: Extended simple descriptor list available
 
         Returns:
              List: List of integers with descriptor capabilities bits.

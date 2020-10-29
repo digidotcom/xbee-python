@@ -70,14 +70,14 @@ class RXIPv4Packet(XBeeAPIPacket):
         Override method.
 
         Returns:
-            RXIPv4Packet.
+            :class: `.RXIPv4Packet`.
 
         Raises:
             InvalidPacketException: if the bytearray length is less than 15.
                 (start delim + length (2 bytes) + frame type
                 + source address(4 bytes) + dest port (2 bytes)
                 + source port (2 bytes) + network protocol + status
-                 + checksum = 15 bytes)
+                + checksum = 15 bytes)
             InvalidPacketException: if the length field of `raw` is different
                 from its real length. (length field: bytes 2 and 3)
             InvalidPacketException: if the first byte of `raw` is not the

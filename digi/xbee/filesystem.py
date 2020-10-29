@@ -1257,6 +1257,7 @@ class FileSystemManager:
                 reading.
             progress_cb (Function, optional, default=`None`): Function called
                 when new data is read. Receives three arguments:
+
                     * The chunk of data read as byte array.
                     * The progress percentage as float.
                     * The total size of the file.
@@ -1291,6 +1292,7 @@ class FileSystemManager:
                 `exclusive`, `truncate`, `append`.
             progress_cb (Function, optional, default=`None`): Function call
                 when data is written. Receives three arguments:
+
                     * The amount of bytes written (for each chunk).
                     * The progress percentage as float.
                     * The status when process finishes.
@@ -1331,6 +1333,7 @@ class FileSystemManager:
             dest (String): The absolute path of the destination file.
             progress_cb (Function, optional): Function call when data is being
                 downloaded. Receives one argument:
+
                     * The progress percentage as float.
                     * Destination file path.
                     * Source file path.
@@ -1388,6 +1391,7 @@ class FileSystemManager:
                 parent directories as needed, `False` otherwise.
             progress_cb (Function, optional): Function call when data is being
                 uploaded. Receives one argument:
+
                     * The progress percentage as float.
                     * Destination file path.
                     * Source file path.
@@ -1467,6 +1471,7 @@ class FileSystemManager:
                 hash of the uploaded content.
             progress_cb (Function, optional): Function call when data is being
                 uploaded. Receives two argument:
+
                     * The progress percentage as float.
                     * Destination file path.
                     * The absolute path of the local being uploaded as string.

@@ -19,10 +19,12 @@ All the API and API2 logic is already included so all packet reads are
 independent of the XBee operating mode.
 
 Two API modes are supported and both can be enabled using the `AP`
-(API Enable) command::
+(API Enable) command:
 
-    API1 - API Without Escapes
-    The data frame structure is defined as follows:
+API1 - API Without Escapes
+The data frame structure is defined as follows:
+
+.. code-block:: none
 
       Start Delimiter          Length                   Frame Data                   Checksum
           (Byte 1)            (Bytes 2-3)               (Bytes 4-n)                (Byte n + 1)
@@ -33,7 +35,9 @@ Two API modes are supported and both can be enabled using the `AP`
 
 
 API2 - API With Escapes
-The data frame structure is defined as follows::
+The data frame structure is defined as follows:
+
+.. code-block:: none
 
       Start Delimiter          Length                   Frame Data                   Checksum
           (Byte 1)            (Bytes 2-3)               (Bytes 4-n)                (Byte n + 1)
@@ -54,7 +58,7 @@ the byte to be escaped XOR'd with 0x20.
 
 The data bytes that need to be escaped:
 
-- `0x7E` - Frame Delimiter - :attr:`.SpecialByte.
+- `0x7E` - Frame Delimiter - :attr:`.SpecialByte`.
 - `0x7D` - Escape
 - `0x11` - XON
 - `0x13` - XOFF

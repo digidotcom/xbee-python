@@ -384,7 +384,7 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         Raises:
             InvalidPacketException: if the bytearray length is less than 8.
                 (start delim. + length (2 bytes) + frame type + frame id
-                    + socket id + option + checksum = 8 bytes).
+                + socket id + option + checksum = 8 bytes).
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: byte 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the
@@ -584,7 +584,7 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: bytes 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the
-            header byte. See :class:`.SpecialByte`.
+                header byte. See :class:`.SpecialByte`.
             InvalidPacketException: if the calculated checksum is different
                 from the checksum field value (last byte).
             InvalidPacketException: if the frame type is not
@@ -1074,7 +1074,7 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
         Raises:
             InvalidPacketException: if the bytearray length is less than 8.
                 (start delim. + length (2 bytes) + frame type + frame id
-                    + socket id + status + checksum = 8 bytes).
+                + socket id + status + checksum = 8 bytes).
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: bytes 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the
@@ -2912,7 +2912,7 @@ class SocketStatePacket(XBeeAPIPacket):
         Raises:
             InvalidPacketException: if the bytearray length is less than 7.
                 (start delim. + length (2 bytes) + frame type + socket ID
-                 + state + checksum = 7 bytes).
+                + state + checksum = 7 bytes).
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: bytes 2 and 3)
             InvalidPacketException: if the first byte of 'raw' is not the

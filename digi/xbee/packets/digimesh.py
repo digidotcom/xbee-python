@@ -29,7 +29,7 @@ class RouteInformationPacket(XBeeAPIPacket):
     on which the NACK enable or the Trace Route enable TX option is enabled.
 
     .. seealso::
-       | :class:`.XBeeAPIPacket`
+        | :class:`.XBeeAPIPacket`
     """
 
     __MIN_PACKET_LENGTH = 46
@@ -107,10 +107,10 @@ class RouteInformationPacket(XBeeAPIPacket):
         Raises:
             InvalidPacketException: If the bytearray length is less than 46.
                 (start delim. + length (2 bytes) + frame type + src_event
-                 + length + timestamp (4 bytes) + ack timeout count
-                 + tx blocked count + reserved + dest addr (8 bytes)
-                 + src addr (8 bytes) + responder addr (8 bytes)
-                 + succesor addr (8 bytes) + checksum = 46 bytes).
+                + length + timestamp (4 bytes) + ack timeout count
+                + tx blocked count + reserved + dest addr (8 bytes)
+                + src addr (8 bytes) + responder addr (8 bytes)
+                + succesor addr (8 bytes) + checksum = 46 bytes).
             InvalidPacketException: If the length field of `raw` is different
                 from its real length. (length field: bytes 1 and 3)
             InvalidPacketException: If the first byte of 'raw' is not the

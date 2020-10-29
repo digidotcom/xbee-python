@@ -86,7 +86,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
             InvalidPacketException: if the calculated checksum is different
                 from the checksum field value (last byte).
             InvalidPacketException: if the frame type is different from
-            ç   :attr:`.ApiFrameType.DEVICE_REQUEST`.
+               :attr:`.ApiFrameType.DEVICE_REQUEST`.
             InvalidOperatingModeException: if `operating_mode` is not supported.
 
         .. seealso::

@@ -4306,14 +4306,15 @@ class XBeeDevice(AbstractXBeeDevice):
                 - status (:class:`.TransmitStatus`): The transmit status.
                 - Tuple with route data (`None` if the route was not read in the
                   provided timeout):
-                    - source (:class:`.RemoteXBeeDevice`): The source node of the
-                      route.
-                    - destination (:class:`.RemoteXBeeDevice`): The destination node
-                      of the route.
-                    - hops (List): List of intermediate nodes
-                      (:class:`.RemoteXBeeDevice`) ordered from closest to source
-                      to closest to destination node (source and destination not
-                      included).
+
+                      - source (:class:`.RemoteXBeeDevice`): The source node of the
+                        route.
+                      - destination (:class:`.RemoteXBeeDevice`): The destination node
+                        of the route.
+                      - hops (List): List of intermediate nodes
+                        (:class:`.RemoteXBeeDevice`) ordered from closest to source
+                        to closest to destination node (source and destination not
+                        included).
         """
         if not remote.is_remote():
             raise ValueError("Remote cannot be a local XBee")
