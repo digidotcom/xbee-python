@@ -1,3 +1,2 @@
 pyserial>=3
-sphinxcontrib-napoleon
 srp
