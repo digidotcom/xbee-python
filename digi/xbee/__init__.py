@@ -13,3 +13,10 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 __version__ = '1.3.0'
+__title__ = 'digi-xbee'
+__description__ = 'Digi XBee Python library'
+__url__ = 'https://github.com/digidotcom/xbee-python'
+__author__ = 'Digi International Inc.'
+__author_email__ = 'tech.support@digi.com'
+__license__ = 'Mozilla Public License 2.0 (MPL 2.0)'
+__copyright__ = '2017-2020, Digi International Inc.'

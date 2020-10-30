@@ -8,8 +8,6 @@ from setuptools import setup, find_namespace_packages
 from codecs import open
 from os import path
 
-from digi.xbee import __version__
-
 
 DEPENDENCIES = (
     'pyserial>=3',
@@ -17,23 +15,30 @@ DEPENDENCIES = (
 )
 
 here = path.abspath(path.dirname(__file__))
- 
+
+about = {}
+with open(path.join(here, 'digi', 'xbee', '__init__.py'), 'r', 'utf-8') as f:
+    exec(f.read(), about)
+
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
  
 setup(
-    name='digi-xbee',
+    name=about['__title__'],
     namespace_packages=['digi'],
-    version=__version__,
-    description='Digi XBee Python library',
+    version=about['__version__'],
+    description=about['__description__'],
     long_description=long_description,
-    url='https://github.com/digidotcom/xbee-python',
-    author='Digi International Inc.',
-    author_email='tech.support@digi.com',
+    long_description_content_type='text/markdown',
+    url=about['__url__'],
+    author=about['__author__'],
+    author_email=about['__author_email__'],
     packages=find_namespace_packages(include=['digi.*']),
+    package_data={'': ['LICENSE.txt']},
+    include_package_data=True,
     keywords=['xbee', 'IOT', 'wireless', 'radio frequency'],
-    license='Mozilla Public License 2.0 (MPL 2.0)',
-    python_requires='>=3',
+    license=about['__license__'],
+    python_requires=">=3, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*",
     install_requires=[
         'pyserial>=3',
     ],
@@ -49,7 +54,18 @@ setup(
         'Topic :: Home Automation',
         'Topic :: Games/Entertainment',
         'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
+        'Programming Language :: Python',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Operating System :: OS Independent',
     ],
+    project_urls={
+        'Documentation': 'https://xbplib.readthedocs.io',
+        'Source': 'https://github.com/digidotcom/xbee-python',
+        'Tracker': 'https://github.com/digidotcom/xbee-python/issues',
+    },
 )
