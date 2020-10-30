@@ -1,6 +1,17 @@
 XBee Python Library
 ===================
 
+Release v\ |version|. (:ref:`Installation <gsgInstall>`)
+
+.. image:: https://pepy.tech/badge/digi-xbee
+    :target: https://pepy.tech/project/digi-xbee
+.. image:: https://badge.fury.io/py/digi-xbee.svg
+    :target: https://pypi.org/project/digi-xbee/
+.. image:: https://img.shields.io/pypi/pyversions/digi-xbee.svg
+    :alt: PyPI - Python Version
+    :target: https://pypi.org/project/digi-xbee/
+
+
 XBee devices allow you to enable wireless connectivity to your projects creating
 a network of connected devices. They provide features to exchange data with
 other devices in the network, configure them and control their I/O lines. An
@@ -56,6 +67,7 @@ The XBee Python library documentation is split in different sections:
 * :ref:`indexUserDoc`
 * :ref:`indexExamples`
 * :ref:`indexFAQ`
+* :ref:`indexChangeLog`
 * :ref:`indexAPI`
 
 
@@ -110,6 +122,14 @@ Python library in the FAQ section.
 * :doc:`faq`
 
 
+.. _indexChangeLog:
+
+Changelog
+----------
+
+* :doc:`changelog`
+
+
 .. _indexAPI:
 
 API reference
@@ -158,6 +178,15 @@ developers who are interested in using and extending the library functionality.
    :caption: FAQs
 
    faq
+
+
+.. toctree::
+   :maxdepth: 4
+   :hidden:
+   :caption: Changelog
+
+   changelog
+
 
 .. toctree::
    :maxdepth: 4
