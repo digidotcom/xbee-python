@@ -3,24 +3,37 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 # Copyright 2017-2020, Digi International Inc. All Rights Reserved.
+import os
+import sys
+
+from codecs import open
 
 from setuptools import setup, find_namespace_packages
-from codecs import open
-from os import path
-
 
 DEPENDENCIES = (
     'pyserial>=3',
     'srp',
 )
 
-here = path.abspath(path.dirname(__file__))
+# 'setup.py build' shortcut.
+if sys.argv[-1] == 'build':
+    os.system('python setup.py sdist bdist_wheel')
+    sys.exit()
+
+# 'setup.py publish' shortcut, uses the .pypirc in your home directory.
+if sys.argv[1] == 'publish':
+    repo = " -r %s" % sys.argv[2] if len(sys.argv) > 2 else ""
+    os.system('python setup.py sdist bdist_wheel')
+    os.system('twine upload%s dist/*' % repo)
+    sys.exit()
+
+here = os.path.abspath(os.path.dirname(__file__))
 
 about = {}
-with open(path.join(here, 'digi', 'xbee', '__init__.py'), 'r', 'utf-8') as f:
+with open(os.path.join(here, 'digi', 'xbee', '__init__.py'), 'r', 'utf-8') as f:
     exec(f.read(), about)
 
-with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
  
 setup(
