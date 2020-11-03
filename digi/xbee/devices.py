@@ -8954,9 +8954,9 @@ class XBeeNetwork:
         # Remove connections with this node as one of its ends
         self.__remove_node_connections(found_node, only_as_node_a=True, force=force)
 
-        self.del_packet_received_from_callback(found_node, callb=None)
-
-        if not force:
+        if force:
+            self.del_packet_received_from_callback(found_node, callb=None)
+        else:
             # Only for Zigbee, mark non-reachable end devices
             if (remote_xbee.get_protocol() in (XBeeProtocol.ZIGBEE,
                                                XBeeProtocol.SMART_ENERGY)
