@@ -4816,7 +4816,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             if not updater.get_hardware_version():
                 updater_hw_version = _read_device_parameter_with_retries(updater, ATStringCommand.HV.command)
             else:
-                updater_hw_version = updater.get_hardware_version().code
+                updater_hw_version = [updater.get_hardware_version().code]
             if not updater_hw_version or updater_hw_version[0] not in S2C_HARDWARE_VERSIONS:
                 self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
             return updater
@@ -4895,7 +4895,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             if not connection.node_a.get_hardware_version():
                 updater_hw_version = _read_device_parameter_with_retries(connection.node_a, ATStringCommand.HV.command)
             else:
-                updater_hw_version = connection.node_a.get_hardware_version().code
+                updater_hw_version = [connection.node_a.get_hardware_version().code]
             if not updater_hw_version or updater_hw_version[0] not in S2C_HARDWARE_VERSIONS:
                 continue
             # If the 'node_a' is the local device, return only it.
@@ -4930,7 +4930,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             if not neighbor.node.get_hardware_version():
                 neighbor_hw_version = _read_device_parameter_with_retries(neighbor.node, ATStringCommand.HV.command)
             else:
-                neighbor_hw_version = neighbor.node.get_hardware_version().code
+                neighbor_hw_version = [neighbor.node.get_hardware_version().code]
             if not neighbor_hw_version or neighbor_hw_version[0] not in S2C_HARDWARE_VERSIONS:
                 continue
             # If the neighbor is the local device, return only it.
