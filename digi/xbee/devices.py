@@ -417,7 +417,8 @@ class AbstractXBeeDevice:
                 or response.status is None):
             raise ATCommandException()
         if response.status != ATCommandStatus.OK:
-            raise ATCommandException(cmd_status=response.status)
+            raise ATCommandException(message=response.status.description,
+                                     cmd_status=response.status)
 
     def _send_at_command(self, command, apply=None):
         """
