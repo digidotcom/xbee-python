@@ -5545,6 +5545,19 @@ def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None,
         # Bootloader not supported.
         _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
         raise FirmwareUpdateException(_ERROR_BOOTLOADER_NOT_SUPPORTED)
+
+    # If it is an end device, set it to sleep the minimum possible
+    # We do not need to restore values because the node is rebooted after the update
+    if remote_device.get_role() in (Role.END_DEVICE, Role.UNKNOWN, None):
+        if not _set_device_parameter_with_retries(
+                remote_device, ATStringCommand.SP.command, bytearray([0x20]), apply=True):
+            _log.info("Unable to set node '%s' to minimum sleep temporally: '%s' failed",
+                      remote_device, ATStringCommand.SP.command)
+        if not _set_device_parameter_with_retries(
+                remote_device, ATStringCommand.SN.command, bytearray([1]), apply=True):
+            _log.info("Unable to set node '%s' to minimum sleep temporally: '%s' failed",
+                      remote_device, ATStringCommand.SN.command)
+
     update_process.update_firmware()
 
 

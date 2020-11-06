@@ -39,7 +39,7 @@ from digi.xbee.filesystem import LocalXBeeFileSystemManager, \
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion, LegacyHardwareVersion
 from digi.xbee.models.mode import OperatingMode
-from digi.xbee.models.protocol import XBeeProtocol
+from digi.xbee.models.protocol import XBeeProtocol, Role
 from digi.xbee.util import utils
 
 _ERROR_TARGET_INVALID = "Invalid update target"
@@ -74,7 +74,7 @@ _ERROR_UPDATE_SETTINGS = "Error updating XBee settings: %s"
 _ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE = "Cannot apply profile settings as " \
                                          "the device protocol has changed and " \
                                          "it is no longer reachable"
-_ERROR_UPDATE_TARGET_INFORMATION = "Error reading new target information: %s"
+_ERROR_UPDATE_TARGET_INFORMATION = "Error reading node information: %s"
 
 _REMOTE_DEFAULT_TIMEOUT = 20  # Seconds
 _LOCAL_DEFAULT_TIMEOUT = 3  # Seconds.
@@ -114,6 +114,7 @@ _TASK_FORMAT_FILESYSTEM = "Formatting filesystem"
 _TASK_READING_DEVICE_PARAMETERS = "Reading device parameters"
 _TASK_UPDATE_FILE = "Updating file '%s'"
 _TASK_UPDATE_SETTINGS = "Updating XBee settings"
+_TASK_RESTORE_NODE = "Restoring XBee"
 
 _VALUE_CTS_ON = "1"
 
@@ -143,6 +144,9 @@ _XML_PROFILE_FLASH_FIRMWARE_OPTION = "profile/flash_fw_action"
 _XML_PROFILE_RESET_SETTINGS = "profile/reset_settings"
 _XML_PROFILE_VERSION = "profile/profile_version"
 _XML_PROFILE_XML_FIRMWARE_FILE = "profile/description_file"
+
+_DEFAULT_SP = 0x20
+_DEFAULT_SN = 1
 
 _log = logging.getLogger(__name__)
 
@@ -1311,6 +1315,196 @@ class XBeeProfile:
         self._protocol = protocol
 
 
+class _UpdateConfigurer:
+    """
+    Class to store and restore an XBee configuration for the update process.
+    """
+
+    def __init__(self, updater, node):
+        """
+        Class constructor. Instantiates a new :class:`._UpdateConfigurer` with
+        the given parameters.
+
+        Args:
+            updater (:class: `._ProfileUpdater`): The updater.
+            node (:class:`.AbstractXBeeDevice`): Target being updated.
+        """
+        self._updater = updater
+        self._xbee = node
+        self.sync_options_timeout = None
+        self.cmd_dict = {}
+
+    def prepare_for_update(self, op_timeout):
+        """
+        Prepares the node for an update process. This implies to store some
+        configuration values so they can be restored later.
+
+        Args:
+             op_timeout (Integer): New read timeout in seconds.
+        """
+        # Change sync ops timeout
+        self.sync_options_timeout = self._xbee.get_sync_ops_timeout()
+        self._xbee.set_sync_ops_timeout(max(self.sync_options_timeout, op_timeout))
+
+        self.cmd_dict.clear()
+
+        is_ed = self._xbee.get_role() in (Role.END_DEVICE, Role.UNKNOWN, None)
+
+        total = 3 if is_ed else 1
+        done = 0
+        self._progress_cb(_TASK_READING_DEVICE_PARAMETERS, done, total)
+
+        self._updater.read_device_parameters()
+
+        done += 1
+        self._progress_cb(_TASK_READING_DEVICE_PARAMETERS, done, total)
+
+        # For end devices, configure to sleep the minimum while applying the profile
+        if not is_ed:
+            return
+
+        prepare_cmds = {}
+
+        info_msg = "Unable to set node '%s' to minimum sleep temporally: %s"
+        cmd = ATStringCommand.SP
+        try:
+            value = self._updater.read_parameter_with_retries(cmd.command, _PARAMETER_READ_RETRIES)
+            if value is not None and int.from_bytes(value, "big") != _DEFAULT_SP:
+                self.cmd_dict[cmd] = value
+                prepare_cmds[cmd] = bytearray([_DEFAULT_SP])
+        except XBeeException as exc:
+            _log.info(info_msg, self._xbee, str(exc))
+
+        cmd = ATStringCommand.SN
+        try:
+            value = self._updater.read_parameter_with_retries(cmd.command, _PARAMETER_READ_RETRIES)
+            if value is not None and int.from_bytes(value, "big") != _DEFAULT_SN:
+                self.cmd_dict[cmd] = value
+                prepare_cmds[cmd] = bytearray([_DEFAULT_SN])
+        except XBeeException as exc:
+            _log.info(info_msg, self._xbee,str(exc))
+
+        done += 1
+        self._progress_cb(_TASK_READING_DEVICE_PARAMETERS, done, total)
+
+        if prepare_cmds:
+            self._apply_config(prepare_cmds, info_msg)
+
+        done += 1
+        self._progress_cb(_TASK_READING_DEVICE_PARAMETERS, done, total)
+
+    def restore_node(self, net_changed, info_changed, protocol_changed_by_settings):
+        """
+        Restores the node configuration.
+        """
+        total = 3
+        done = 0
+        self._progress_cb(_TASK_RESTORE_NODE, done, total)
+
+        info_msg = "Unable to restore sleep configuration to node '%s': %s"
+
+        ap_val = self.cmd_dict.pop(ATStringCommand.AP, None)
+        # Restore AP mode only for local XBees and valid operating modes.
+        # If the value is not 1 (API mode) or 2 (escaped API mode)
+        restore_ap = (ap_val and not self._xbee.is_remote()
+                      and ap_val[0] != self._xbee.operating_mode.code
+                      and (ap_val[0] in (OperatingMode.API_MODE.code,
+                                         OperatingMode.ESCAPED_API_MODE.code)))
+        if restore_ap:
+            cmd = ATStringCommand.AP.command
+            try:
+                self._updater.set_parameter_with_retries(
+                    cmd, ap_val, _PARAMETER_WRITE_RETRIES, apply=False)
+            except XBeeException as exc:
+                _log.info("Unable to restore operating mode to node '%s' (%s)",
+                          self._xbee, str(exc))
+
+        done += 1
+        self._progress_cb(_TASK_RESTORE_NODE, done, total)
+
+        # Before applying settings, try to update node information
+        if info_changed or protocol_changed_by_settings:
+            self._update_node_info()
+
+        done += 1
+        self._progress_cb(_TASK_RESTORE_NODE, done, total)
+
+        self._apply_config(self.cmd_dict, info_msg,
+                           write=bool(restore_ap or self.cmd_dict))
+
+        # Check if network or cache settings have changed.
+        if net_changed or protocol_changed_by_settings:
+            if not self._xbee.is_remote():
+                # Clear the full network as it is no longer valid.
+                self._xbee.get_network().clear()
+            else:
+                # Remove node from the network as it might be no longer part of it.
+                self._xbee.get_local_xbee_device().get_network(). \
+                    remove_device(self._xbee)
+
+        # Restore sync ops timeout
+        self._xbee.set_sync_ops_timeout(self.sync_options_timeout)
+
+        done += 1
+        self._progress_cb(_TASK_RESTORE_NODE, done, total)
+
+    def _progress_cb(self, task, done, total):
+        if self._updater.progress_cb is not None:
+            self._updater.progress_cb(task, done * 100 // total)
+
+    def _update_node_info(self):
+        """
+        Tries to read the node information.
+
+        Raises:
+            UpdateProfileException: If node information could not be read.
+        """
+        retries = _PARAMETER_READ_RETRIES
+        while retries > 0:
+            _log.debug("Reading node info (%d/%d)",
+                       (_PARAMETER_READ_RETRIES + 1 - retries),
+                       _PARAMETER_READ_RETRIES)
+            try:
+                self._xbee.read_device_info(init=True, fire_event=True)
+                break
+            except XBeeException as exc:
+                retries -= 1
+                if not retries:
+                    _log.info(_ERROR_UPDATE_TARGET_INFORMATION, str(exc))
+                    break
+                time.sleep(0.2 if not self._xbee.is_remote else 5)
+
+    def _apply_config(self, cfg_dict, info_msg, write=True, retries=_PARAMETER_WRITE_RETRIES):
+        if not cfg_dict and not write:
+            return
+
+        def signal_last(it):
+            iterable = iter(it)
+            ret_var = next(iterable)
+            for val in iterable:
+                yield False, ret_var
+                ret_var = val
+            yield True, ret_var
+
+        for is_last, cmd in signal_last(cfg_dict):
+            cmd_val = cfg_dict.get(cmd)
+            try:
+                self._updater.set_parameter_with_retries(cmd.command, cmd_val,
+                                                         retries, apply=is_last and not write)
+            except XBeeException as exc:
+                _log.info(info_msg, self._xbee, str(exc))
+
+        if not write:
+            return
+
+        cmd = ATStringCommand.WR
+        try:
+            self._updater.set_parameter_with_retries(cmd.command, bytearray([0]),
+                                                     retries*2, apply=True)
+        except XBeeException as exc:
+            _log.info(info_msg, self._xbee, str(exc))
+
+
 class _ProfileUpdater:
     """
     Helper class used to handle the update XBee profile process.
@@ -1337,8 +1531,10 @@ class _ProfileUpdater:
         self._xbee_profile = xbee_profile
         self._target = target
         self._xbee_device = None
+        self._configurer = None
         if not isinstance(target, str):
             self._xbee_device = target
+            self._configurer = _UpdateConfigurer(self, self._xbee_device)
         self._timeout = timeout
         self._progress_callback = progress_callback
         self._was_connected = True
@@ -1347,7 +1543,16 @@ class _ProfileUpdater:
         self._protocol_changed_by_fw = False
         self._protocol_changed_by_settings = False
         self._is_local = bool(not isinstance(self._xbee_device, RemoteXBeeDevice))
-        self._xpro_ap = None
+
+    @property
+    def progress_cb(self):
+        """
+        Retrieves the function to receive progress information.
+
+        Returns:
+            Function: The function to receive progress info.
+        """
+        return self._progress_callback
 
     def _progress_callback(self, task, percent):
         """
@@ -1359,102 +1564,6 @@ class _ProfileUpdater:
         """
         if self._progress_callback is not None:
             self._progress_callback(task, percent)
-
-    def _read_device_parameters(self):
-        """
-        Reads and stores the required XBee parameters in order to apply the
-        XBee profile.
-
-        Raises:
-            UpdateProfileException: If there is any error reading the required
-                XBee parameters.
-        """
-        _log.debug("Reading device parameters:")
-        if self._progress_callback is not None:
-            self._progress_callback(_TASK_READING_DEVICE_PARAMETERS, 0)
-        if self._is_local:
-            # Connect the device.
-            if not self._xbee_device.is_open():
-                self._was_connected = False
-                try:
-                    self._xbee_device.open()
-                except XBeeException as exc:
-                    raise UpdateProfileException(_ERROR_OPEN_DEVICE % str(exc))
-            # For local devices, required parameters are read on 'open()'
-            # method, just use them.
-            self._device_firmware_version = self._xbee_device.get_firmware_version()
-            self._device_hardware_version = self._xbee_device.get_hardware_version()
-        else:
-            # For remote devices, parameters are read with 'get_parameter()' method.
-            try:
-                self._device_firmware_version = self._read_parameter_with_retries(
-                    ATStringCommand.VR.command, _PARAMETER_READ_RETRIES)
-                self._device_hardware_version = HardwareVersion.get(
-                    self._read_parameter_with_retries(
-                        ATStringCommand.HV.command, _PARAMETER_READ_RETRIES)[0])
-            except XBeeException as exc:
-                raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(exc))
-
-        # Sanitize firmware version.
-        self._device_firmware_version = int(utils.hex_to_string(
-            self._device_firmware_version).replace(" ", ""), 16)
-        _log.debug("  - Firmware version: %s",
-                   utils.hex_to_string([self._device_firmware_version], pretty=False))
-        _log.debug("  - Hardware version: %s",
-                   utils.hex_to_string([self._device_hardware_version.code], pretty=False))
-
-    def _read_parameter_with_retries(self, parameter, retries):
-        """
-        Reads a parameter from the XBee within the given number of retries.
-
-        Args:
-            parameter (String): Parameter to read.
-            retries (Integer): Number of retries to read the parameter.
-
-        Returns:
-            Bytearray: Read parameter value.
-
-        Raises:
-            XBeeException: If there is any error reading the parameter.
-        """
-        while retries > 0:
-            try:
-                return self._xbee_device.get_parameter(parameter, apply=False)
-            except TimeoutException:
-                retries -= 1
-                time.sleep(0.2)
-
-        raise XBeeException("Timeout reading parameter '%s'" % parameter)
-
-    def _set_parameter_with_retries(self, parameter, value, retries, apply=False):
-        """
-        Sets the given parameter in the XBee within the given number of retries.
-
-        Args:
-            parameter (String): Parameter to set.
-            value (Bytearray): Parameter value to set.
-            retries (Integer): Number of retries to set the parameter.
-            apply (Boolean, optional, default=`False`): `True` to apply changes,
-                `False` otherwise, `None` to use `is_apply_changes_enabled()`
-                returned value.
-
-        Raises:
-            XBeeException: If there is any error setting the parameter.
-        """
-        msg = ""
-        total = retries
-        while retries > 0:
-            try:
-                _log.debug("Setting parameter '%s' to '%s' (%d/%d)",
-                           parameter, value, (total + 1 - retries), total)
-                return self._xbee_device.set_parameter(parameter, value, apply=apply)
-            except (TimeoutException, ATCommandException) as exc:
-                msg = str(exc)
-                retries -= 1
-                if retries:
-                    time.sleep(0.2 if self._is_local else 5)
-
-        raise XBeeException("Error setting parameter '%s': %s" % (parameter, msg))
 
     def _update_firmware(self):
         """
@@ -1582,6 +1691,11 @@ class _ProfileUpdater:
         """
         Updates the device settings using the profile.
 
+        Returns:
+            Tuple (Boolean, Boolean):
+                - `True` if network settings changed, `False` otherwise.
+                - `True` if cache settings changed, `False` otherwise.
+
         Raises:
             UpdateProfileException: If there is any error updating device
                 settings from the profile.
@@ -1590,7 +1704,7 @@ class _ProfileUpdater:
         if (len(self._xbee_profile.profile_settings) == 0
                 and not self._xbee_profile.reset_settings
                 and not isinstance(self._target, str)):
-            return
+            return False, False
 
         # For remote nodes that changed the protocol, raise an exception if
         # there are settings to apply or reset as the node is no longer reachable.
@@ -1605,8 +1719,9 @@ class _ProfileUpdater:
             previous_percent = 0
             percent = 0
             setting_index = 1
-            # 2 more settings for 'WR' and 'AC'
-            num_settings = len(self._xbee_profile.profile_settings) + 2
+            # 1 more setting for 'WR'
+            num_settings = len(self._xbee_profile.profile_settings) + 1
+
             _log.info("Updating device settings")
             if self._progress_callback is not None:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
@@ -1618,17 +1733,19 @@ class _ProfileUpdater:
                 if self._progress_callback is not None and percent != previous_percent:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
-                self._set_parameter_with_retries(
+                self.set_parameter_with_retries(
                     ATStringCommand.RE.command, bytearray(0),
                     _PARAMETER_WRITE_RETRIES, apply=False)
                 setting_index += 1
                 # Reset settings to defaults implies network and cache settings have changed
                 network_settings_changed = True
                 cache_settings_changed = True
+                self._configurer.cmd_dict[ATStringCommand.SP] = bytearray([_DEFAULT_SP])
+                self._configurer.cmd_dict[ATStringCommand.SN] = bytearray([_DEFAULT_SN])
                 if self._is_local:
-                    self._xpro_ap = bytearray([OperatingMode.AT_MODE.code])
+                    self._configurer.cmd_dict[ATStringCommand.AP] = bytearray([OperatingMode.AT_MODE.code])
                     # Restore the previous operating mode to be able to continue
-                    self._set_parameter_with_retries(
+                    self.set_parameter_with_retries(
                         ATStringCommand.AP.command,
                         bytearray([self._xbee_device.operating_mode.code]),
                         _PARAMETER_WRITE_RETRIES, apply=False)
@@ -1639,11 +1756,17 @@ class _ProfileUpdater:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
                 name = setting.name.upper()
+                # Do not apply sleep period until the end of the process
+                if name == ATStringCommand.SP.command:
+                    self._configurer.cmd_dict[ATStringCommand.SP] = setting.bytearray_value
+                # Do not apply number of sleep periods until the end of the process
+                elif name == ATStringCommand.SN.command:
+                    self._configurer.cmd_dict[ATStringCommand.SN] = setting.bytearray_value
                 # Do not apply operating mode until the end of the process
-                if self._is_local and name == ATStringCommand.AP.command:
-                    self._xpro_ap = setting.bytearray_value
+                elif name == ATStringCommand.AP.command and self._is_local:
+                    self._configurer.cmd_dict[ATStringCommand.AP] = setting.bytearray_value
                 else:
-                    self._set_parameter_with_retries(
+                    self.set_parameter_with_retries(
                         name, setting.bytearray_value, _PARAMETER_WRITE_RETRIES,
                         apply=False)
                 setting_index += 1
@@ -1657,28 +1780,9 @@ class _ProfileUpdater:
             percent = setting_index * 100 // num_settings
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
-                previous_percent = percent
-            self._set_parameter_with_retries(
+            self.set_parameter_with_retries(
                 ATStringCommand.WR.command, bytearray(0),
                 _PARAMETER_WRITE_RETRIES, apply=False)
-            setting_index += 1
-            # Apply changes.
-            percent = setting_index * 100 // num_settings
-            if self._progress_callback is not None and percent != previous_percent:
-                self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
-            # Retry several times: in remote nodes when network settings change
-            # to the same values, the node disassociates and associates again
-            retries = _PARAMETER_READ_RETRIES
-            while retries > 0:
-                try:
-                    self._set_parameter_with_retries(
-                        ATStringCommand.AC.command, bytearray(0),
-                        _PARAMETER_WRITE_RETRIES, apply=False)
-                    break
-                except XBeeException as exc:
-                    retries -= 1
-                    if not retries:
-                        raise exc
         except XBeeException as exc:
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(exc))
 
@@ -1688,35 +1792,9 @@ class _ProfileUpdater:
 
         # If the target is a serial port, we do not need to continue
         if isinstance(self._target, str):
-            return
+            return False, False
 
-        # Check if network or cache settings have changed.
-        if network_settings_changed or self._protocol_changed_by_settings:
-            if self._is_local:
-                # Clear the full network as it is no longer valid.
-                self._xbee_device.get_network().clear()
-            else:
-                # Remove node from the network as it might be no longer part of it.
-                self._xbee_device.get_local_xbee_device().get_network().\
-                    remove_device(self._xbee_device)
-        if cache_settings_changed or self._protocol_changed_by_settings:
-            if not self._is_local and network_settings_changed:
-                # Wait for association of the remote
-                time.sleep(15)
-            # Read cache settings again.
-            retries = _PARAMETER_READ_RETRIES
-            while retries > 0:
-                try:
-                    _log.debug("Reading node info (%d/%d)",
-                               (_PARAMETER_READ_RETRIES + 1 - retries),
-                               _PARAMETER_READ_RETRIES)
-                    self._xbee_device.read_device_info(init=True, fire_event=True)
-                    break
-                except XBeeException as exc:
-                    retries -= 1
-                    if not retries:
-                        raise UpdateProfileException(_ERROR_UPDATE_TARGET_INFORMATION % str(exc))
-                    time.sleep(0.2 if self._is_local else 5)
+        return network_settings_changed, cache_settings_changed
 
     def _update_file_system(self):
         """
@@ -1804,6 +1882,101 @@ class _ProfileUpdater:
             except FileSystemException as exc:
                 raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(exc))
 
+    def read_device_parameters(self):
+        """
+        Reads and stores the required XBee parameters in order to apply the
+        XBee profile.
+
+        Raises:
+            UpdateProfileException: If there is any error reading the required
+                XBee parameters.
+        """
+        _log.debug("Reading device parameters")
+        if self._is_local:
+            # Connect the device.
+            if not self._xbee_device.is_open():
+                self._was_connected = False
+                try:
+                    self._xbee_device.open()
+                except XBeeException as exc:
+                    raise UpdateProfileException(_ERROR_OPEN_DEVICE % str(exc))
+            # For local devices, required parameters are read on 'open()'
+            # method, just use them.
+            self._device_firmware_version = self._xbee_device.get_firmware_version()
+            self._device_hardware_version = self._xbee_device.get_hardware_version()
+        else:
+            # For remote devices, parameters are read with 'get_parameter()' method.
+            try:
+                self._device_firmware_version = self.read_parameter_with_retries(
+                    ATStringCommand.VR.command, _PARAMETER_READ_RETRIES)
+                self._device_hardware_version = HardwareVersion.get(
+                    self.read_parameter_with_retries(
+                        ATStringCommand.HV.command, _PARAMETER_READ_RETRIES)[0])
+            except XBeeException as exc:
+                raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(exc))
+
+        # Sanitize firmware version.
+        self._device_firmware_version = int(utils.hex_to_string(
+            self._device_firmware_version).replace(" ", ""), 16)
+        _log.debug("  - Firmware version: %s",
+                   utils.hex_to_string([self._device_firmware_version], pretty=False))
+        _log.debug("  - Hardware version: %s",
+                   utils.hex_to_string([self._device_hardware_version.code], pretty=False))
+
+    def read_parameter_with_retries(self, parameter, retries):
+        """
+        Reads a parameter from the XBee within the given number of retries.
+
+        Args:
+            parameter (String): Parameter to read.
+            retries (Integer): Number of retries to read the parameter.
+
+        Returns:
+            Bytearray: Read parameter value.
+
+        Raises:
+            XBeeException: If there is any error reading the parameter.
+        """
+        while retries > 0:
+            try:
+                return self._xbee_device.get_parameter(parameter, apply=False)
+            except TimeoutException:
+                retries -= 1
+                time.sleep(0.2)
+
+        raise XBeeException("Timeout reading parameter '%s'" % parameter)
+
+    def set_parameter_with_retries(self, parameter, value, retries, apply=False):
+        """
+        Sets the given parameter in the XBee within the given number of retries.
+
+        Args:
+            parameter (String): Parameter to set.
+            value (Bytearray): Parameter value to set.
+            retries (Integer): Number of retries to set the parameter.
+            apply (Boolean, optional, default=`False`): `True` to apply changes,
+                `False` otherwise, `None` to use `is_apply_changes_enabled()`
+                returned value.
+
+        Raises:
+            XBeeException: If there is any error setting the parameter.
+        """
+        msg = ""
+        total = retries
+        while retries > 0:
+            try:
+                _log.debug("Setting parameter '%s' to '%s' (%d/%d)",
+                           parameter, utils.hex_to_string(value, pretty=False),
+                           (total + 1 - retries), total)
+                return self._xbee_device.set_parameter(parameter, value, apply=apply)
+            except (TimeoutException, ATCommandException) as exc:
+                msg = str(exc)
+                retries -= 1
+                if retries:
+                    time.sleep(0.2 if self._is_local else 5)
+
+        raise XBeeException("Error setting parameter '%s': %s" % (parameter, msg))
+
     def update_profile(self):
         """
         Starts the update profile process.
@@ -1812,16 +1985,13 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error during the update
                 XBee profile operation.
         """
-        old_sync_ops_timeout = None
-        if self._xbee_device:
-            # Change sync ops timeout
-            old_sync_ops_timeout = self._xbee_device.get_sync_ops_timeout()
-            self._xbee_device.set_sync_ops_timeout(self._timeout)
-
+        net_changed = False
+        info_changed = False
         try:
             if self._xbee_device:
                 # Retrieve device parameters.
-                self._read_device_parameters()
+                self._configurer.prepare_for_update(self._timeout)
+
                 # Verify hardware compatibility of the profile.
                 if self._device_hardware_version.code != self._xbee_profile.hardware_version:
                     raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE)
@@ -1856,32 +2026,19 @@ class _ProfileUpdater:
                 self._update_firmware()
             if not self._xbee_device:
                 self._xbee_device = XBeeDevice(port=self._target, baud_rate=9600)
+                self._configurer = _UpdateConfigurer(self, self._xbee_device)
                 self._xbee_device.open(force_settings=True)
                 self._device_hardware_version = self._xbee_device.get_hardware_version()
-            # Update the settings.
-            self._update_device_settings()
             # Update the file system if required.
             if self._xbee_profile.has_filesystem:
                 if (self._device_hardware_version is not None
                         and self._device_hardware_version.code not in filesystem.SUPPORTED_HARDWARE_VERSIONS):
                     raise UpdateProfileException(filesystem.ERROR_FILESYSTEM_NOT_SUPPORTED)
                 self._update_file_system()
+            # Update the settings.
+            net_changed, info_changed = self._update_device_settings()
         finally:
-            # Restore AP mode only for local XBees and valid operating modes.
-            # If the value is not 1 (API mode) or 2 (escaped API mode)
-            if (self._is_local and self._xpro_ap
-                    and self._xpro_ap[0] != self._xbee_device.operating_mode.code
-                    and (self._xpro_ap[0] in (OperatingMode.API_MODE.code,
-                                              OperatingMode.ESCAPED_API_MODE.code))):
-                self._set_parameter_with_retries(
-                    ATStringCommand.AP.command, self._xpro_ap,
-                    _PARAMETER_WRITE_RETRIES, apply=True)
-                self._set_parameter_with_retries(
-                    ATStringCommand.WR.command, bytearray(0),
-                    _PARAMETER_WRITE_RETRIES, apply=True)
-            # Restore sync ops timeout
-            if old_sync_ops_timeout is not None:
-                self._xbee_device.set_sync_ops_timeout(old_sync_ops_timeout)
+            self._configurer.restore_node(net_changed, info_changed, self._protocol_changed_by_settings)
 
             if self._is_local and self._xbee_device:
                 if self._was_connected and not self._xbee_device.is_open():
