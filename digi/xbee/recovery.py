@@ -185,7 +185,7 @@ class _LocalRecoverDevice:
 
         stop_bits = FirmwareStopbits.get_by_stopbits(self._desired_cfg[_STOPBITS_KEY])
         if not stop_bits:
-            stop_bits = FirmwareStopbits.NONE
+            stop_bits = FirmwareStopbits.SB_1
         stop_bits = format(stop_bits.index, 'x')
 
         cts = -1

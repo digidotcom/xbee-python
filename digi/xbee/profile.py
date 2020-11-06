@@ -383,7 +383,7 @@ class FirmwareStopbits(Enum):
                 bits, `None` if there is not a `FirmwareStopbits` with that value.
         """
         if stopbits is None:
-            return FirmwareStopbits.NONE
+            return FirmwareStopbits.SB_1
         for value in FirmwareStopbits:
             if value.stop_bits == stopbits:
                 return value
