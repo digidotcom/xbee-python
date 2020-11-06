@@ -7675,6 +7675,53 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
         """
         return XBeeProtocol.ZIGBEE
 
+    def _read_device_info(self, reason, init=True, fire_event=True):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.AbstractXBeeDevice.read_device_info`
+        """
+        updated = False
+        if init or self.__parent is None:
+            # Check the role, to get the parent only for end devices
+            if self._role in (Role.UNKNOWN, None):
+                super()._read_device_info(reason, init=init, fire_event=fire_event)
+
+            if self._role != Role.END_DEVICE:
+                super()._read_device_info(reason, init=init, fire_event=fire_event)
+                return
+
+            # Read the module's parent address for end devices.
+            resp = self.get_parameter(ATStringCommand.MP.command, apply=False)
+            if not XBee16BitAddress.is_known_node_addr(resp):
+                super()._read_device_info(reason, init=init, fire_event=fire_event)
+                return
+
+            parent_addr = XBee16BitAddress(resp)
+            network = self._local_xbee_device.get_network()
+            parent = network.get_device_by_16(parent_addr)
+            # If the parent node is not yet in the network, add it
+            if not parent:
+                parent = network._add_remote(
+                    RemoteZigBeeDevice(self._local_xbee_device,
+                                       x16bit_addr=parent_addr),
+                    NetworkEventReason.NEIGHBOR)
+            self.__parent = parent
+            updated = True
+
+        super()._read_device_info(reason, init=init, fire_event=updated and fire_event)
+
+    def is_device_info_complete(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.AbstractXBeeDevice.is_device_info_complete`
+        """
+        return (super().is_device_info_complete()
+               and self._role == Role.END_DEVICE and self.__parent is not None)
+
     def get_ai_status(self):
         """
         Override.
