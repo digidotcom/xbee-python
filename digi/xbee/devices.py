@@ -5536,29 +5536,48 @@ class IPDevice(XBeeDevice):
         self._ip_addr = None
         self._source_port = self.__DEFAULT_SOURCE_PORT
 
-    def read_device_info(self, init=True, fire_event=True):
+    def _read_device_info(self, reason, init=True, fire_event=True):
         """
         Override.
 
         .. seealso::
-           | :meth:`.AbstractXBeeDevice.read_device_info`
+           | :meth:`.AbstractXBeeDevice._read_device_info`
         """
-        super().read_device_info(init=init, fire_event=fire_event)
+        updated = False
 
         # Read the module's IP address.
         if init or self._ip_addr is None:
             resp = self.get_parameter(ATStringCommand.MY.command, apply=False)
-            self._ip_addr = IPv4Address(utils.bytes_to_int(resp))
+            ip_addr = IPv4Address(utils.bytes_to_int(resp))
+            if self._ip_addr != ip_addr:
+                updated = True
+                self._ip_addr = ip_addr
 
         # Read the source port.
         if init or self._source_port is None:
             try:
                 resp = self.get_parameter(ATStringCommand.C0.command, apply=False)
-                self._source_port = utils.bytes_to_int(resp)
+                src_port = utils.bytes_to_int(resp)
+                if self._source_port != src_port:
+                    updated = True
+                    self._source_port = src_port
             except XBeeException:
                 # Do not refresh the source port value if there is an error reading
                 # it from the module.
                 pass
+
+        super()._read_device_info(reason, init=init,
+                                  fire_event=updated and fire_event)
+
+    def is_device_info_complete(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.AbstractXBeeDevice.is_device_info_complete`
+        """
+        return (super().is_device_info_complete()
+                and self._ip_addr is not None and self._source_port is not None)
 
     def get_ip_addr(self):
         """
@@ -6104,18 +6123,33 @@ class CellularDevice(IPDevice):
 
         return self._protocol
 
-    def read_device_info(self, init=True, fire_event=True):
+    def _read_device_info(self, reason, init=True, fire_event=True):
         """
         Override.
 
         .. seealso::
-           | :meth:`.XBeeDevice.read_device _info`
+           | :meth:`.XBeeDevice._read_device_info`
         """
-        super().read_device_info(init=init, fire_event=fire_event)
+        updated = False
 
         # Generate the IMEI address.
         if init or self._imei_addr is None:
-            self._imei_addr = XBeeIMEIAddress(self._64bit_addr.address)
+            imei_addr = XBeeIMEIAddress(self._64bit_addr.address)
+            if self._imei_addr != imei_addr:
+                updated = True
+                self._imei_addr = imei_addr
+
+        super()._read_device_info(reason, init=init,
+                                  fire_event=updated and fire_event)
+
+    def is_device_info_complete(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.AbstractXBeeDevice.is_device_info_complete`
+        """
+        return super().is_device_info_complete() and self._imei_addr is not None
 
     def is_connected(self):
         """
