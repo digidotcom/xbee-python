@@ -97,12 +97,8 @@ _BUFFER_SIZE_INT = 4
 _BUFFER_SIZE_IEEE_ADDR = 8
 _BUFFER_SIZE_STRING = 32
 
-_COMMAND_EXECUTE_RETRIES = 3
-
 _READ_BUFFER_LEN = 256
 _READ_DATA_TIMEOUT = 3  # Seconds.
-
-_DEFAULT_RESPONSE_PACKET_PAYLOAD_SIZE = 5
 
 _DEVICE_BREAK_RESET_TIMEOUT = 10  # seconds
 _DEVICE_CONNECTION_RETRIES = 3
@@ -140,7 +136,6 @@ _ERROR_INITIALIZE_PROCESS = "Could not initialize firmware update process"
 _ERROR_INVALID_OTA_FILE = "Invalid OTA file: %s"
 _ERROR_INVALID_BLOCK = "Requested block index '%s' does not exits"
 _ERROR_INVALID_GPM_ANSWER = "Invalid GPM frame answer"
-_ERROR_LOCAL_DEVICE_INVALID = "Invalid local XBee device"
 _ERROR_NO_UPDATER_AVAILABLE = "No valid updater available to perform the remote firmware update"
 _ERROR_NOT_OTA_FILE = "File '%s' is not an OTA file"
 _ERROR_PAGE_CHECKSUM = "Checksum error for page %d"
@@ -156,8 +151,6 @@ _ERROR_RESTORE_UPDATER_DEVICE = "Error restoring updater device: %s"
 _ERROR_SEND_FRAME = "Error sending frame: transmit status not received or invalid"
 _ERROR_SEND_FRAME_RESPONSE = "Error sending '%s' frame: %s"
 _ERROR_SEND_OTA_BLOCK = "Error sending OTA block '%s' frame: %s"
-_ERROR_SEND_QUERY_NEXT_IMAGE_RESPONSE = "Error sending 'Query next image response' frame: %s"
-_ERROR_SEND_UPGRADE_END_RESPONSE = "Error sending 'Upgrade end response' frame: %s"
 _ERROR_SERIAL_COMMUNICATION = "Serial port communication error: %s"
 _ERROR_TARGET_INVALID = "Invalid update target"
 _ERROR_TRANSFER_OTA_FILE = "Error transferring OTA file: %s"
@@ -185,8 +178,6 @@ _EXPLICIT_PACKET_ENDPOINT_DATA = 0xE8
 _EXPLICIT_PACKET_ENDPOINT_DIGI_DEVICE = 0xE6
 _EXPLICIT_PACKET_PROFILE_DIGI = 0xC105
 _EXPLICIT_PACKET_EXTENDED_TIMEOUT = 0x40
-
-_TRANSMIT_PACKET_BROADCAST_RADIUS_MAX = 0x00
 
 EXTENSION_EBIN = ".ebin"
 EXTENSION_EBL = ".ebl"
@@ -237,7 +228,6 @@ _IMAGE_BLOCK_RESPONSE_PAYLOAD_DECREMENT = 1
 _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE = 12
 
 _VALUE_API_OUTPUT_MODE_EXPLICIT = 0x01
-_VALUE_BAUDRATE_230400 = 0x08
 _VALUE_END_OF_FILE_DATA = bytearray([0x01, 0x04])
 _VALUE_INITIALIZATION_DATA = bytearray([0x01, 0x51])
 _VALUE_PRESERVE_NEWTWORK_SETTINGS = bytearray([0x54, 0x41])

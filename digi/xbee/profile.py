@@ -42,13 +42,11 @@ from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.util import utils
 
-_ERROR_ACCESS_FILESYSTEM = "Could not access XBee device file system"
 _ERROR_TARGET_INVALID = "Invalid update target"
 _ERROR_FILESYSTEM_NOT_SUPPORTED = "XBee device does not have file system support"
 _ERROR_FIRMWARE_FOLDER_NOT_EXIST = "Firmware folder does not exist"
 _ERROR_FIRMWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with " \
                                  "the device firmware"
-_ERROR_FIRMWARE_SETTING_NOT_EXIST = "Firmware setting '%s' does not exist"
 _ERROR_FIRMWARE_XML_INVALID = "Invalid firmware XML file contents: %s"
 _ERROR_FIRMWARE_XML_NOT_EXIST = "Firmware XML file does not exist"
 _ERROR_FIRMWARE_XML_PARSE = "Error parsing firmware XML file: %s"
@@ -64,8 +62,6 @@ _ERROR_PROFILE_TEMP_DIR = "Error creating temporary directory: %s"
 _ERROR_PROFILE_XML_NOT_EXIST = "Profile XML file does not exist"
 _ERROR_PROFILE_XML_INVALID = "Invalid profile XML file contents: %s"
 _ERROR_PROFILE_XML_PARSE = "Error parsing profile XML file: %s"
-_ERROR_PROFILES_NOT_SUPPORTED = "XBee profiles are only supported in XBee 3 " \
-                                "devices"
 _ERROR_READ_REMOTE_PARAMETER = "Error reading remote parameter: %s"
 _ERROR_UPDATE_FILESYSTEM = "Error updating XBee filesystem: %s"
 _ERROR_UPDATE_FILESYSTEM_PROTOCOL_CHANGE = "Cannot update the device " \
@@ -87,7 +83,6 @@ _LOCAL_FILESYSTEM_FOLDER = "filesystem"
 _REMOTE_FILESYSTEM_FOLDER = "remote_filesystem"
 
 _FIRMWARE_FOLDER_NAME = "radio_fw"
-_FIRMWARE_XML_FILE_NAME = "radio_fw%s" % firmware.EXTENSION_XML
 
 _IPV4_SEPARATOR = "."
 _IPV6_SEPARATOR = ":"
@@ -125,11 +120,6 @@ _VALUE_CTS_ON = "1"
 _WILDCARD_BOOTLOADER = "xb3-boot*%s" % firmware.EXTENSION_GBL
 _WILDCARD_CELLULAR_FIRMWARE = "fw_.*"
 _WILDCARD_CELLULAR_BOOTLOADER = "bl_.*"
-_WILDCARD_EBIN = "*%s" % firmware.EXTENSION_EBIN
-_WILDCARD_EHX2 = "*%s" % firmware.EXTENSION_EHX2
-_WILDCARD_GBL = "*%s" % firmware.EXTENSION_GBL
-_WILDCARD_OTA = "*%s" % firmware.EXTENSION_OTA
-_WILDCARD_OTB = "*%s" % firmware.EXTENSION_OTB
 _WILDCARD_XML = "*%s" % firmware.EXTENSION_XML
 _WILDCARDS_FW_LOCAL_BINARY_FILES = (firmware.EXTENSION_EBIN,
                                     firmware.EXTENSION_EHX2,
@@ -151,7 +141,6 @@ _XML_PROFILE_AT_SETTING = "profile/settings/setting"
 _XML_PROFILE_DESCRIPTION = "profile/description"
 _XML_PROFILE_FLASH_FIRMWARE_OPTION = "profile/flash_fw_action"
 _XML_PROFILE_RESET_SETTINGS = "profile/reset_settings"
-_XML_PROFILE_ROOT = "data"
 _XML_PROFILE_VERSION = "profile/profile_version"
 _XML_PROFILE_XML_FIRMWARE_FILE = "profile/description_file"
 
