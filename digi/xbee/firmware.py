@@ -3842,17 +3842,17 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         """
         name = "Query next image response"
         retries = _SEND_BLOCK_RETRIES
-        query_next_image_response_frame = self._create_query_next_image_response_frame(status=status)
+        resp_frame = self._create_query_next_image_response_frame(status=status)
         while retries > 0:
             try:
-                status_frame = self._local_device.send_packet_sync_and_get_response(query_next_image_response_frame)
-                if not isinstance(status_frame, TransmitStatusPacket):
                 _log.debug("Sending '%s' frame", name)
+                st_frame = self._local_device.send_packet_sync_and_get_response(resp_frame)
+                if not isinstance(st_frame, TransmitStatusPacket):
                     retries -= 1
                     continue
-                if status_frame.transmit_status != TransmitStatus.SUCCESS:
                 _log.debug("Received '%s' status frame: %s", name,
                            st_frame.transmit_status.description)
+                if st_frame.transmit_status != TransmitStatus.SUCCESS:
                     # DigiMesh: Updating from 3004 to 300A/300B, we are
                     # receiving Transmit status responses with 0x25 error
                     # (Route not found). If we wait a little between retries,
@@ -3862,8 +3862,11 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                     continue
                 return
             except XBeeException as exc:
-                raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE %
-                                              (name, str(exc)))
+                retries -= 1
+                if not retries:
+                    raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE %
+                                                  (name, str(exc)))
+                time.sleep(2)
 
         raise FirmwareUpdateException(
             _ERROR_SEND_FRAME_RESPONSE % (name, "Timeout sending frame"))
