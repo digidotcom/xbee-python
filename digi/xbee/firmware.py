@@ -3569,6 +3569,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
 
         # Check the type of frame received.
         if self._is_image_block_request_frame(xbee_frame):
+            name = "Image block request"
             # If the received frame is an 'image block request' frame, retrieve the requested index.
             server_status, max_data_size, f_offset, self._seq_number = self._parse_image_block_request_frame(xbee_frame)
             if server_status == _XBee3OTAStatus.SUCCESS:
@@ -3576,18 +3577,19 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 if max_data_size != self._max_chunk_size:
                     self._max_chunk_size = min(max_data_size, self._cfg_max_block_size)
                 self._requested_offset = f_offset
-                _log.debug("Received 'Image block request' frame for file offset %s", f_offset)
+                _log.debug("Received '%s' frame for file offset %s", name, f_offset)
             else:
-                _log.debug("Received bad 'Image block request' frame, status to send: %s (%d)",
+                _log.debug("Received bad '%s' frame, status to send: %s (%d)", name,
                            server_status.description, server_status.identifier)
         elif self._is_upgrade_end_request_frame(xbee_frame):
-            _log.debug("Received 'Upgrade end request' frame")
+            name = "Upgrade end request"
+            _log.debug("Received '%s' frame", name)
             # If the received frame is an 'upgrade end request' frame, set transfer status.
             server_status, status, self._seq_number = self._parse_upgrade_end_request_frame(xbee_frame)
             if server_status == _XBee3OTAStatus.SUCCESS:
                 self._transfer_status = status
             else:
-                _log.debug("Received bad 'Upgrade end request' frame, status to send: %s (%d)",
+                _log.debug("Received bad '%s' frame, status to send: %s (%d)", name,
                            server_status.description, server_status.identifier)
         elif self._is_default_response_frame(xbee_frame, self._seq_number):
             _log.debug("Received 'Default response' frame")
@@ -3838,18 +3840,19 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error sending the next image response frame.
         """
+        name = "Query next image response"
         retries = _SEND_BLOCK_RETRIES
         query_next_image_response_frame = self._create_query_next_image_response_frame(status=status)
         while retries > 0:
             try:
-                _log.debug("Sending 'Query next image response' frame")
                 status_frame = self._local_device.send_packet_sync_and_get_response(query_next_image_response_frame)
                 if not isinstance(status_frame, TransmitStatusPacket):
+                _log.debug("Sending '%s' frame", name)
                     retries -= 1
                     continue
-                _log.debug("Received 'Query next image response' status frame: %s",
-                           status_frame.transmit_status.description)
                 if status_frame.transmit_status != TransmitStatus.SUCCESS:
+                _log.debug("Received '%s' status frame: %s", name,
+                           st_frame.transmit_status.description)
                     # DigiMesh: Updating from 3004 to 300A/300B, we are
                     # receiving Transmit status responses with 0x25 error
                     # (Route not found). If we wait a little between retries,
@@ -3858,10 +3861,12 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                     retries -= 1
                     continue
                 return
-            except XBeeException as e:
-                raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE % ("Query next image response", str(e)))
+            except XBeeException as exc:
+                raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE %
+                                              (name, str(exc)))
 
-        raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE % ("Query next image response", "Timeout sending frame"))
+        raise FirmwareUpdateException(
+            _ERROR_SEND_FRAME_RESPONSE % (name, "Timeout sending frame"))
 
     def _send_ota_block(self, file_offset, size, seq_number):
         """
@@ -3878,6 +3883,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error sending the next OTA block frame.
         """
+        name = "Image block response"
         retries = _SEND_BLOCK_RETRIES
         while retries > 0:
             next_ota_block_frame = self._create_image_block_response_frame(file_offset, size, seq_number)
@@ -3893,24 +3899,24 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 if status_frame.transmit_status == TransmitStatus.PAYLOAD_TOO_LARGE:
                     # Do not decrease 'retries' here, as we are calculating the maximum payload
                     size -= _IMAGE_BLOCK_RESPONSE_PAYLOAD_DECREMENT
-                    _log.debug("'Image block response' status for offset %s: size too large, retrying with size %d",
-                               file_offset, size)
+                    _log.debug("'%s' status for offset %s: size too large, retrying with size %d",
+                               name, file_offset, size)
                     continue
                 if status_frame.transmit_status not in [TransmitStatus.SUCCESS,
                                                         TransmitStatus.SELF_ADDRESSED]:
                     retries -= 1
-                    _log.debug("Received 'Image block response' status frame for offset %s: %s, retrying (%d/%d)",
-                               file_offset, status_frame.transmit_status.description,
+                    _log.debug("Received '%s' status frame for offset %s: %s, retrying (%d/%d)",
+                               name, file_offset, status_frame.transmit_status.description,
                                _SEND_BLOCK_RETRIES - retries + 1, _SEND_BLOCK_RETRIES)
                     continue
-                _log.debug("Received 'Image block response' status frame for offset %s: %s",
-                           file_offset, status_frame.transmit_status.description)
+                _log.debug("Received '%s' status frame for offset %s: %s",
+                           name, file_offset, status_frame.transmit_status.description)
                 return size
             except TimeoutException:
                 # If the transmit status is not received, let's try again
                 retries -= 1
-                _log.debug("Not received 'Image block response' status frame for offset %s, %s", file_offset,
-                           "aborting" if retries == 0 else
+                _log.debug("Not received '%s' status frame for offset %s, %s",
+                           name, file_offset, "aborting" if retries == 0 else
                            "retrying (%d/%d)" % (_SEND_BLOCK_RETRIES - retries + 1, _SEND_BLOCK_RETRIES))
                 if not retries:
                     return size
@@ -3931,20 +3937,21 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error starting the remote firmware update process.
         """
-        _log.debug("Sending 'Image notify' frame")
+        name = "Image notify"
+        _log.debug("Sending '%s' frame", name)
         image_notify_request_frame = self._create_image_notify_request_frame()
         self._local_device.add_packet_received_callback(self._image_request_frame_callback)
         try:
             self._local_device.send_packet(image_notify_request_frame)
             self._receive_lock.wait(self._timeout)
             if not self._img_notify_sent:
-                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Image Notify", "Transmit status not received"))
+                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, "Transmit status not received"))
             elif self._response_string:
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % self._response_string)
             elif not self._img_req_received:
-                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Image Notify", "Timeout waiting for response"))
+                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, "Timeout waiting for response"))
         except XBeeException as e:
-            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Image Notify", str(e)))
+            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, str(e)))
         finally:
             self._local_device.del_packet_received_callback(self._image_request_frame_callback)
 
@@ -4040,18 +4047,19 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error finishing the firmware operation.
         """
+        name = "Upgrade end response"
         retries = _SEND_BLOCK_RETRIES
         error_message = None
         upgrade_end_response_frame = self._create_upgrade_end_response_frame()
         while retries > 0:
             try:
-                _log.debug("Sending 'Upgrade end response' frame")
+                _log.debug("Sending '%s' frame", name)
                 error_message = None
                 status_frame = self._local_device.send_packet_sync_and_get_response(upgrade_end_response_frame)
                 if not isinstance(status_frame, TransmitStatusPacket):
                     retries -= 1
                     continue
-                _log.debug("Received 'Upgrade end response' status frame: %s",
+                _log.debug("Received '%s' status frame: %s", name,
                            status_frame.transmit_status.description)
 
                 #
@@ -4086,9 +4094,9 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             time.sleep(1.5)  # Wait some time between timeout retries.
 
         if error_message:
-            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Upgrade end response", error_message))
+            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, error_message))
         else:
-            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % ("Upgrade end response", "Timeout sending frame"))
+            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, "Timeout sending frame"))
 
     def _get_default_reset_timeout(self):
         """
