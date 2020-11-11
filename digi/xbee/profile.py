@@ -1342,6 +1342,7 @@ class _UpdateConfigurer:
         Args:
              op_timeout (Integer): New read timeout in seconds.
         """
+        _log.info("'%s' - %s", self._xbee, _TASK_READING_DEVICE_PARAMETERS)
         # Change sync ops timeout
         self.sync_options_timeout = self._xbee.get_sync_ops_timeout()
         self._xbee.set_sync_ops_timeout(max(self.sync_options_timeout, op_timeout))
@@ -1365,7 +1366,7 @@ class _UpdateConfigurer:
 
         prepare_cmds = {}
 
-        info_msg = "Unable to set node '%s' to minimum sleep temporally: %s"
+        info_msg = f"'%s' - {_TASK_READING_DEVICE_PARAMETERS}: Unable to set to minimum sleep temporally (%s)"
         cmd = ATStringCommand.SP
         try:
             value = self._updater.read_parameter_with_retries(cmd.command, _PARAMETER_READ_RETRIES)
@@ -1382,7 +1383,7 @@ class _UpdateConfigurer:
                 self.cmd_dict[cmd] = value
                 prepare_cmds[cmd] = bytearray([_DEFAULT_SN])
         except XBeeException as exc:
-            _log.info(info_msg, self._xbee,str(exc))
+            _log.info(info_msg, self._xbee, str(exc))
 
         done += 1
         self._progress_cb(_TASK_READING_DEVICE_PARAMETERS, done, total)
@@ -1397,11 +1398,10 @@ class _UpdateConfigurer:
         """
         Restores the node configuration.
         """
+        _log.info("'%s' - %s", self._xbee, _TASK_RESTORE_NODE)
         total = 3
         done = 0
         self._progress_cb(_TASK_RESTORE_NODE, done, total)
-
-        info_msg = "Unable to restore sleep configuration to node '%s': %s"
 
         ap_val = self.cmd_dict.pop(ATStringCommand.AP, None)
         # Restore AP mode only for local XBees and valid operating modes.
@@ -1416,8 +1416,8 @@ class _UpdateConfigurer:
                 self._updater.set_parameter_with_retries(
                     cmd, ap_val, _PARAMETER_WRITE_RETRIES, apply=False)
             except XBeeException as exc:
-                _log.info("Unable to restore operating mode to node '%s' (%s)",
-                          self._xbee, str(exc))
+                _log.info("'%s' - %s: Unable to restore operating mode (%s)",
+                          self._xbee, _TASK_RESTORE_NODE, str(exc))
 
         done += 1
         self._progress_cb(_TASK_RESTORE_NODE, done, total)
@@ -1428,6 +1428,8 @@ class _UpdateConfigurer:
 
         done += 1
         self._progress_cb(_TASK_RESTORE_NODE, done, total)
+
+        info_msg = f"'%s' - {_TASK_RESTORE_NODE}: Unable to restore the sleep configuration (%s)"
 
         self._apply_config(self.cmd_dict, info_msg,
                            write=bool(restore_ap or self.cmd_dict))
@@ -1470,7 +1472,8 @@ class _UpdateConfigurer:
             except XBeeException as exc:
                 retries -= 1
                 if not retries:
-                    _log.info(_ERROR_UPDATE_TARGET_INFORMATION, str(exc))
+                    _log.info("'%s' - %s: %s", self._xbee, _TASK_RESTORE_NODE,
+                              _ERROR_UPDATE_TARGET_INFORMATION, str(exc))
                     break
                 time.sleep(0.2 if not self._xbee.is_remote else 5)
 
@@ -1573,6 +1576,7 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error updating the XBee
                 firmware.
         """
+        _log.info("%s - Updating XBee firmware", self._xbee_device)
         try:
             if not self._xbee_device:  # Apply to a serial port (recovery)
                 firmware.update_local_firmware(
@@ -1713,6 +1717,7 @@ class _ProfileUpdater:
                      or self._xbee_profile.reset_settings)):
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS_PROTOCOL_CHANGE)
 
+        _log.info("'%s' - %s", self._xbee_device, _TASK_UPDATE_SETTINGS)
         network_settings_changed = False
         cache_settings_changed = False
         try:
@@ -1722,7 +1727,6 @@ class _ProfileUpdater:
             # 1 more setting for 'WR'
             num_settings = len(self._xbee_profile.profile_settings) + 1
 
-            _log.info("Updating device settings")
             if self._progress_callback is not None:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
             # Check if reset settings is required or if we are applying to a
@@ -1804,7 +1808,7 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error during updating the
                 device file system.
         """
-        _log.info("Updating device file system")
+        _log.info("%s - Uploading file system", self._xbee_device)
         if (self._xbee_profile.has_local_filesystem
                 and check_fs_support(
                     self._xbee_device,

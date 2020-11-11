@@ -2568,7 +2568,9 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
         """
         # Update the bootloader using XModem protocol if required.
         if self._bootloader_update_required:
-            _log.info("Updating bootloader")
+            _log.info("%s - %s",
+                      self._xbee_device if self._xbee_device is not None else self._port,
+                      _PROGRESS_TASK_UPDATE_BOOTLOADER)
             self._progress_task = _PROGRESS_TASK_UPDATE_BOOTLOADER
             try:
                 self._transfer_firmware_file_xmodem(self._bootloader_firmware_file)
@@ -2583,7 +2585,9 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
             self._bootloader_updated = True
 
         # Update the XBee firmware using XModem protocol.
-        _log.info("Updating XBee firmware")
+        _log.info("%s - %s",
+                  self._xbee_device if self._xbee_device is not None else self._port,
+                  _PROGRESS_TASK_UPDATE_XBEE)
         self._progress_task = _PROGRESS_TASK_UPDATE_XBEE
         try:
             self._transfer_firmware_file_xmodem(self._xbee_firmware_file)
@@ -3006,7 +3010,9 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         self._send_change_baudrate_command()
         # Initialize firmware update process.
         self._send_initialize_command()
-        _log.info("Updating XBee firmware")
+        _log.info("%s - %s",
+                  self._xbee_device if self._xbee_device is not None else self._port,
+                  _PROGRESS_TASK_UPDATE_XBEE)
         self._progress_task = _PROGRESS_TASK_UPDATE_XBEE
         # Perform file transfer.
         self._ebin_file = _EbinFile(self._xbee_firmware_file, self._xml_flash_page_size)
@@ -3952,7 +3958,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             elif self._response_string:
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % self._response_string)
             elif not self._img_req_received:
-                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, "Timeout waiting for response"))
+                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE %
+                                      (name, "Timeout waiting for 'Query next image request'"))
         except XBeeException as e:
             self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, str(e)))
         finally:
@@ -4611,7 +4618,7 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error transferring the firmware to the target device.
         """
-        _log.info("Updating remote XBee firmware")
+        _log.info("%s - %s", self._remote_device, _PROGRESS_TASK_UPDATE_REMOTE_XBEE)
         self._progress_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
         # Perform file transfer.
         self._ebin_file = _EbinFile(self._xbee_firmware_file, self.__DEFAULT_PAGE_SIZE)
@@ -5343,7 +5350,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         Raises:
             FirmwareUpdateException: if there is any error transferring the firmware to the target device.
         """
-        _log.info("Updating remote XBee firmware")
+        _log.info("%s - %s", self._remote_device, _PROGRESS_TASK_UPDATE_REMOTE_XBEE)
         # Reset variables.
         self._progress_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
         retries = self.__FIRMWARE_UPDATE_RETRIES
