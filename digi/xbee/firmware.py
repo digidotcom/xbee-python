@@ -3947,23 +3947,42 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             FirmwareUpdateException: if there is any error starting the remote firmware update process.
         """
         name = "Image notify"
-        _log.debug("Sending '%s' frame", name)
         image_notify_request_frame = self._create_image_notify_request_frame()
         self._local_device.add_packet_received_callback(self._image_request_frame_callback)
-        try:
-            self._local_device.send_packet(image_notify_request_frame)
-            self._receive_lock.wait(self._timeout)
+        retries = _SEND_BLOCK_RETRIES
+        error = None
+        while retries > 0:
+            _log.debug("Sending '%s' frame", name)
+            try:
+                self._local_device.send_packet(image_notify_request_frame)
+                self._receive_lock.wait(self._timeout)
+            except XBeeException as exc:
+                retries -= 1
+                if not retries:
+                    error = _ERROR_SEND_FRAME_RESPONSE % (name, str(exc))
+                continue
+
             if not self._img_notify_sent:
-                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, "Transmit status not received"))
+                retries -= 1
+                if not retries:
+                    error = _ERROR_SEND_FRAME_RESPONSE \
+                            % (name, "Transmit status not received")
             elif self._response_string:
-                self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % self._response_string)
+                retries -= 1
+                if not retries:
+                    error = _ERROR_TRANSFER_OTA_FILE % self._response_string
             elif not self._img_req_received:
-                self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE %
-                                      (name, "Timeout waiting for 'Query next image request'"))
-        except XBeeException as e:
-            self._exit_with_error(_ERROR_SEND_FRAME_RESPONSE % (name, str(e)))
-        finally:
-            self._local_device.del_packet_received_callback(self._image_request_frame_callback)
+                retries -= 1
+                if not retries:
+                    error = _ERROR_SEND_FRAME_RESPONSE % \
+                            (name, "Timeout waiting for 'Query next image request'")
+            else:
+                break
+
+        self._local_device.del_packet_received_callback(self._image_request_frame_callback)
+
+        if error:
+            self._exit_with_error(error)
 
     def _transfer_firmware(self):
         """
