@@ -826,6 +826,8 @@ As well, ``NetworkEventReason`` enumerates the network modification causes:
   information.
 * ``NetworkEventReason.FIRMWARE_UPDATE``: The node was updated/removed, or the
   network cleared after a firmware update.
+* ``NetworkEventReason.PROFILE_UPDATE``: The node was updated/removed, or the
+  network cleared after applying a profile.
 * ``NetworkEventReason.MANUAL``: The node was manually added/updated/removed, or
   the network cleared.
 

@@ -11774,6 +11774,9 @@ class NetworkEventType(Enum):
         self.__code = code
         self.__description = description
 
+    def __str__(self):
+        return "%s (%d)" % (self.__description, self.__code)
+
     @property
     def code(self):
         """
@@ -11829,10 +11832,14 @@ class NetworkEventReason(Enum):
     ROUTE = (0x04, "Hop of a network route")
     READ_INFO = (0x05, "Read XBee information")
     FIRMWARE_UPDATE = (0x06, "The firmware of the device was updated")
+    PROFILE_UPDATE = (0x07, "New profile applied to the device")
 
     def __init__(self, code, description):
         self.__code = code
         self.__description = description
+
+    def __str__(self):
+        return "%s (%d)" % (self.__description, self.__code)
 
     @property
     def code(self):

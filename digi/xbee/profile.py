@@ -30,7 +30,7 @@ import serial
 from digi.xbee.firmware import UpdateConfigurer, EXTENSION_GBL, EXTENSION_XML, \
     EXTENSION_EBIN, EXTENSION_EHX2, EXTENSION_OTB, EXTENSION_OTA, \
     EXTENSION_EBL, update_local_firmware, update_remote_firmware
-from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
+from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, NetworkEventReason
 from digi.xbee.exception import XBeeException, FirmwareUpdateException, \
     InvalidOperatingModeException
 from digi.xbee.filesystem import LocalXBeeFileSystemManager, \
@@ -1408,11 +1408,11 @@ class _UpdateConfigurer:
         if net_changed or protocol_changed_by_settings:
             if not self._xbee.is_remote():
                 # Clear the full network as it is no longer valid.
-                self._xbee.get_network().clear()
+                self._xbee.get_network()._clear(NetworkEventReason.PROFILE_UPDATE)
             else:
                 # Remove node from the network as it might be no longer part of it.
                 self._xbee.get_local_xbee_device().get_network(). \
-                    remove_device(self._xbee)
+                    _remove_device(self._xbee, NetworkEventReason.PROFILE_UPDATE)
 
         self._configurer.progress_cb(self._configurer.TASK_RESTORE,
                                      done=self._configurer.restore_total)
