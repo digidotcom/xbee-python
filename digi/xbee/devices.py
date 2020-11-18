@@ -247,7 +247,7 @@ class AbstractXBeeDevice:
         Returns the value of the provided parameter via an AT Command.
 
         Args:
-            parameter (String): Parameter to get.
+            parameter (String or :class: `.ATStringCommand`): Parameter to get.
             parameter_value (Bytearray, optional, default=`None`): Value of the
                 parameter to execute (if any).
             apply (Boolean, optional, default=`None`): `True` to apply changes
@@ -279,7 +279,10 @@ class AbstractXBeeDevice:
 
         # Check if response is None, if so throw an exception (maybe a write-only parameter)
         if value is None:
-            raise OperationNotSupportedException(message="Could not get the %s value." % parameter)
+            if isinstance(parameter, ATStringCommand):
+                parameter = parameter.command
+            raise OperationNotSupportedException(
+                message="Could not get the %s value." % parameter)
 
         return value
 
@@ -298,7 +301,7 @@ class AbstractXBeeDevice:
         :meth:`.AbstractXBeeDevice.write_changes`.
 
         Args:
-            parameter (String): Parameter to set.
+            parameter (String or :class: `.ATStringCommand`): Parameter to set.
             value (Bytearray): Value of the parameter.
             apply (Boolean, optional, default=`None`): `True` to apply changes,
                 `False` otherwise, `None` to use `is_apply_changes_enabled()`
@@ -334,7 +337,7 @@ class AbstractXBeeDevice:
         Executes the provided command.
 
         Args:
-            parameter (String): AT command to execute.
+            parameter (String or :class: `.ATStringCommand`): AT command to execute.
             value (bytearray, optional, default=`None`): Command value (if any).
             apply (Boolean, optional, default=`None`): `True` to apply changes
                 in XBee configuration, `False` not to apply them, `None` to use
@@ -368,7 +371,7 @@ class AbstractXBeeDevice:
         in a byte array format.
 
         Args:
-            parameter (String): AT command/parameter to execute.
+            parameter (String or :class: `.ATStringCommand`): AT command/parameter to execute.
             parameter_value (bytearray, optional, default=`None`): Value of the
                 AT command/parameter (if any).
             apply (Boolean, optional, default=`None`): `True` to enable the
@@ -390,6 +393,8 @@ class AbstractXBeeDevice:
         """
         if parameter is None:
             raise ValueError("Parameter cannot be None.")
+        if isinstance(parameter, ATStringCommand):
+            parameter = parameter.command
         if len(parameter) != 2:
             raise ValueError("Parameter must contain exactly 2 characters.")
 
@@ -505,7 +510,7 @@ class AbstractXBeeDevice:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        self.execute_command(ATStringCommand.AC.command, apply=False)
+        self.execute_command(ATStringCommand.AC, apply=False)
 
     def write_changes(self):
         """
@@ -534,7 +539,7 @@ class AbstractXBeeDevice:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        self.execute_command(ATStringCommand.WR.command, apply=False)
+        self.execute_command(ATStringCommand.WR, apply=False)
 
     @abstractmethod
     def reset(self):
@@ -601,13 +606,13 @@ class AbstractXBeeDevice:
             # Hardware version:
             if init or self._hardware_version is None:
                 hw_version = HardwareVersion.get(
-                    self.get_parameter(ATStringCommand.HV.command, apply=False)[0])
+                    self.get_parameter(ATStringCommand.HV, apply=False)[0])
                 if self._hardware_version != hw_version:
                     updated = True
                     self._hardware_version = hw_version
             # Firmware version:
             if init or self._firmware_version is None:
-                fw_version = self.get_parameter(ATStringCommand.VR.command, apply=False)
+                fw_version = self.get_parameter(ATStringCommand.VR, apply=False)
                 if self._firmware_version != fw_version:
                     updated = True
                     self._firmware_version = fw_version
@@ -618,15 +623,15 @@ class AbstractXBeeDevice:
 
             # 64-bit address:
             if init or not XBee64BitAddress.is_known_node_addr(self._64bit_addr):
-                sh_val = self.get_parameter(ATStringCommand.SH.command, apply=False)
-                sl_val = self.get_parameter(ATStringCommand.SL.command, apply=False)
+                sh_val = self.get_parameter(ATStringCommand.SH, apply=False)
+                sl_val = self.get_parameter(ATStringCommand.SL, apply=False)
                 x64bit_addr = XBee64BitAddress(sh_val + sl_val)
                 if self._64bit_addr != x64bit_addr:
                     self._64bit_addr = x64bit_addr
                     updated = True
             # Node ID:
             if init or not self._node_id:
-                node_id = self.get_parameter(ATStringCommand.NI.command, apply=False).decode()
+                node_id = self.get_parameter(ATStringCommand.NI, apply=False).decode()
                 if self._node_id != node_id:
                     self._node_id = node_id
                     updated = True
@@ -636,7 +641,7 @@ class AbstractXBeeDevice:
                                    XBeeProtocol.ZNET)
                     and (init or not XBee16BitAddress.is_known_node_addr(self._16bit_addr))):
                 x16bit_addr = XBee16BitAddress(
-                    self.get_parameter(ATStringCommand.MY.command, apply=False))
+                    self.get_parameter(ATStringCommand.MY, apply=False))
                 if self._16bit_addr != x16bit_addr:
                     self._16bit_addr = x16bit_addr
                     updated = True
@@ -706,7 +711,7 @@ class AbstractXBeeDevice:
         if hardware_version in (HardwareVersion.SX.code,
                                 HardwareVersion.SX_PRO.code,
                                 HardwareVersion.XB8X.code):
-            br_value = self.get_parameter(ATStringCommand.BR.command, apply=False)[0]
+            br_value = self.get_parameter(ATStringCommand.BR, apply=False)[0]
 
         return XBeeProtocol.determine_protocol(
             hardware_version, firmware_version, br_value=br_value)
@@ -752,12 +757,12 @@ class AbstractXBeeDevice:
         """
         if self._protocol in (XBeeProtocol.DIGI_MESH, XBeeProtocol.SX, XBeeProtocol.XTEND_DM):
             ce_val = utils.bytes_to_int(
-                self.get_parameter(ATStringCommand.CE.command, apply=False))
+                self.get_parameter(ATStringCommand.CE, apply=False))
             if ce_val == 0:
                 try:
                     # Capture the possible exception because DigiMesh S2C does not have
                     # SS command, so the read will throw an ATCommandException
-                    ss_val = self.get_parameter(ATStringCommand.SS.command, apply=False)
+                    ss_val = self.get_parameter(ATStringCommand.SS, apply=False)
                 except ATCommandException:
                     ss_val = None
 
@@ -774,7 +779,7 @@ class AbstractXBeeDevice:
         if self._protocol in (XBeeProtocol.RAW_802_15_4, XBeeProtocol.DIGI_POINT,
                               XBeeProtocol.XLR, XBeeProtocol.XLR_DM):
             ce_val = utils.bytes_to_int(
-                self.get_parameter(ATStringCommand.CE.command, apply=False))
+                self.get_parameter(ATStringCommand.CE, apply=False))
             if self._protocol == XBeeProtocol.RAW_802_15_4:
                 if ce_val == 0:
                     return Role.END_DEVICE
@@ -790,12 +795,12 @@ class AbstractXBeeDevice:
         elif self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.SMART_ENERGY):
             try:
                 ce_val = utils.bytes_to_int(
-                    self.get_parameter(ATStringCommand.CE.command, apply=False))
+                    self.get_parameter(ATStringCommand.CE, apply=False))
                 if ce_val == 1:
                     return Role.COORDINATOR
 
                 sm_val = utils.bytes_to_int(
-                    self.get_parameter(ATStringCommand.SM.command, apply=False))
+                    self.get_parameter(ATStringCommand.SM, apply=False))
 
                 return Role.ROUTER if sm_val == 0 else Role.END_DEVICE
             except ATCommandException:
@@ -840,7 +845,7 @@ class AbstractXBeeDevice:
         if len(node_id) > 20:
             raise ValueError("Node ID length must be less than 21")
 
-        self.set_parameter(ATStringCommand.NI.command, bytearray(node_id, 'utf8'),
+        self.set_parameter(ATStringCommand.NI, bytearray(node_id, 'utf8'),
                            apply=self.is_apply_changes_enabled())
         self._node_id = node_id
 
@@ -910,7 +915,7 @@ class AbstractXBeeDevice:
             raise OperationNotSupportedException(
                 message="16-bit address can only be set in 802.15.4 protocol")
 
-        self.set_parameter(ATStringCommand.MY.command, value.address,
+        self.set_parameter(ATStringCommand.MY, value.address,
                            apply=self.is_apply_changes_enabled())
         self._16bit_addr = value
 
@@ -1017,8 +1022,8 @@ class AbstractXBeeDevice:
            | :class:`.XBee64BitAddress`
            | :meth:`.set_dest_address`
         """
-        dh_val = self.get_parameter(ATStringCommand.DH.command, apply=False)
-        dl_val = self.get_parameter(ATStringCommand.DL.command, apply=False)
+        dh_val = self.get_parameter(ATStringCommand.DH, apply=False)
+        dl_val = self.get_parameter(ATStringCommand.DL, apply=False)
         return XBee64BitAddress(dh_val + dl_val)
 
     def set_dest_address(self, addr):
@@ -1050,9 +1055,9 @@ class AbstractXBeeDevice:
         with self.__generic_lock:
             try:
                 self.set_parameter(
-                    ATStringCommand.DH.command, addr.address[:4], apply=False)
+                    ATStringCommand.DH, addr.address[:4], apply=False)
                 self.set_parameter(
-                    ATStringCommand.DL.command, addr.address[4:], apply=apply)
+                    ATStringCommand.DL, addr.address[4:], apply=apply)
             except (TimeoutException, XBeeException,
                     InvalidOperatingModeException, ATCommandException) as exc:
                 # Raise the exception.
@@ -1078,8 +1083,8 @@ class AbstractXBeeDevice:
            | :meth:`.set_pan_id`
         """
         if self.get_protocol() == XBeeProtocol.ZIGBEE:
-            return self.get_parameter(ATStringCommand.OP.command, apply=False)
-        return self.get_parameter(ATStringCommand.ID.command, apply=False)
+            return self.get_parameter(ATStringCommand.OP, apply=False)
+        return self.get_parameter(ATStringCommand.ID, apply=False)
 
     def set_pan_id(self, value):
         """
@@ -1101,7 +1106,7 @@ class AbstractXBeeDevice:
         .. seealso::
            | :meth:`.get_pan_id`
         """
-        self.set_parameter(ATStringCommand.ID.command, value,
+        self.set_parameter(ATStringCommand.ID, value,
                            apply=self.is_apply_changes_enabled())
 
     def get_power_level(self):
@@ -1124,8 +1129,7 @@ class AbstractXBeeDevice:
            | :class:`.PowerLevel`
            | :meth:`.set_power_level`
         """
-        return PowerLevel.get(
-            self.get_parameter(ATStringCommand.PL.command, apply=False)[0])
+        return PowerLevel.get(self.get_parameter(ATStringCommand.PL, apply=False)[0])
 
     def set_power_level(self, power_level):
         """
@@ -1147,7 +1151,7 @@ class AbstractXBeeDevice:
            | :class:`.PowerLevel`
            | :meth:`.get_power_level`
         """
-        self.set_parameter(ATStringCommand.PL.command, bytearray([power_level.code]),
+        self.set_parameter(ATStringCommand.PL, bytearray([power_level.code]),
                            apply=self.is_apply_changes_enabled())
 
     def set_io_configuration(self, io_line, io_mode):
@@ -1226,7 +1230,7 @@ class AbstractXBeeDevice:
         .. seealso::
            | :meth:`.set_io_sampling_rate`
         """
-        resp = self.get_parameter(ATStringCommand.IR.command, apply=False)
+        resp = self.get_parameter(ATStringCommand.IR, apply=False)
         return utils.bytes_to_int(resp) / 1000.00
 
     def set_io_sampling_rate(self, rate):
@@ -1249,7 +1253,7 @@ class AbstractXBeeDevice:
         .. seealso::
            | :meth:`.get_io_sampling_rate`
         """
-        self.set_parameter(ATStringCommand.IR.command,
+        self.set_parameter(ATStringCommand.IR,
                            utils.int_to_bytes(int(rate * 1000)),
                            apply=self.is_apply_changes_enabled())
 
@@ -1305,7 +1309,7 @@ class AbstractXBeeDevice:
 
             try:
                 # Execute command.
-                self.execute_command(ATStringCommand.IS.command, apply=False)
+                self.execute_command(ATStringCommand.IS, apply=False)
 
                 lock.acquire()
                 lock.wait(self.get_sync_ops_timeout())
@@ -1317,7 +1321,7 @@ class AbstractXBeeDevice:
             finally:
                 self._del_packet_received_callback(io_sample_callback)
         else:
-            sample_payload = self.get_parameter(ATStringCommand.IS.command, apply=False)
+            sample_payload = self.get_parameter(ATStringCommand.IS, apply=False)
 
         try:
             return IOSample(sample_payload)
@@ -1512,7 +1516,7 @@ class AbstractXBeeDevice:
                     flags[1] = flags[1] | (1 << i)
                 else:
                     flags[0] = flags[0] | ((1 << i) - 8)
-        self.set_parameter(ATStringCommand.IC.command, flags,
+        self.set_parameter(ATStringCommand.IC, flags,
                            apply=self.is_apply_changes_enabled())
 
     @utils.deprecated("1.3", details="Use :meth:`get_api_output_mode_value`")
@@ -1539,7 +1543,7 @@ class AbstractXBeeDevice:
            | :class:`.APIOutputMode`
         """
         return APIOutputMode.get(
-            self.get_parameter(ATStringCommand.AO.command, apply=False)[0])
+            self.get_parameter(ATStringCommand.AO, apply=False)[0])
 
     def get_api_output_mode_value(self):
         """
@@ -1572,7 +1576,7 @@ class AbstractXBeeDevice:
                 message="Operation not supported for the current protocol (%s)"
                 % self.get_protocol().description)
 
-        return self.get_parameter(ATStringCommand.AO.command, apply=False)
+        return self.get_parameter(ATStringCommand.AO, apply=False)
 
     @utils.deprecated("1.3", details="Use :meth:`set_api_output_mode_value`")
     def set_api_output_mode(self, api_output_mode):
@@ -1596,7 +1600,7 @@ class AbstractXBeeDevice:
         .. seealso::
            | :class:`.APIOutputMode`
         """
-        self.set_parameter(ATStringCommand.AO.command,
+        self.set_parameter(ATStringCommand.AO,
                            bytearray([api_output_mode.code]),
                            apply=self.is_apply_changes_enabled())
 
@@ -1634,7 +1638,7 @@ class AbstractXBeeDevice:
                 message="Operation not supported for the current protocol (%s)"
                 % self.get_protocol().description)
 
-        self.set_parameter(ATStringCommand.AO.command, bytearray([api_output_mode]),
+        self.set_parameter(ATStringCommand.AO, bytearray([api_output_mode]),
                            apply=self.is_apply_changes_enabled())
 
     def enable_bluetooth(self):
@@ -1692,7 +1696,7 @@ class AbstractXBeeDevice:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        self.set_parameter(ATStringCommand.BT.command, b'\x01' if enable else b'\x00',
+        self.set_parameter(ATStringCommand.BT, b'\x01' if enable else b'\x00',
                            apply=False)
         self.write_changes()
         self.apply_changes()
@@ -1717,7 +1721,7 @@ class AbstractXBeeDevice:
             ATCommandException: If response is not as expected.
         """
         return utils.hex_to_string(
-            self.get_parameter(ATStringCommand.BL.command, apply=False), pretty=False)
+            self.get_parameter(ATStringCommand.BL, apply=False), pretty=False)
 
     def update_bluetooth_password(self, new_password):
         """
@@ -1748,22 +1752,22 @@ class AbstractXBeeDevice:
         verifier = (128 - len(verifier)) * b'\x00' + verifier
 
         # Set the salt.
-        self.set_parameter(ATStringCommand.DOLLAR_S.command, salt, apply=False)
+        self.set_parameter(ATStringCommand.DOLLAR_S, salt, apply=False)
 
         # Set the verifier (split in 4 settings)
         index = 0
         at_length = int(len(verifier) / 4)
 
-        self.set_parameter(ATStringCommand.DOLLAR_V.command,
+        self.set_parameter(ATStringCommand.DOLLAR_V,
                            verifier[index:(index + at_length)], apply=False)
         index += at_length
-        self.set_parameter(ATStringCommand.DOLLAR_W.command,
+        self.set_parameter(ATStringCommand.DOLLAR_W,
                            verifier[index:(index + at_length)], apply=False)
         index += at_length
-        self.set_parameter(ATStringCommand.DOLLAR_X.command,
+        self.set_parameter(ATStringCommand.DOLLAR_X,
                            verifier[index:(index + at_length)], apply=False)
         index += at_length
-        self.set_parameter(ATStringCommand.DOLLAR_Y.command,
+        self.set_parameter(ATStringCommand.DOLLAR_Y,
                            verifier[index:(index + at_length)], apply=False)
 
         # Write and apply changes.
@@ -1910,7 +1914,7 @@ class AbstractXBeeDevice:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        value = self.get_parameter(ATStringCommand.AI.command, apply=False)
+        value = self.get_parameter(ATStringCommand.AI, apply=False)
         return AssociationIndicationStatus.get(utils.bytes_to_int(value))
 
     def _force_disassociate(self):
@@ -1929,7 +1933,7 @@ class AbstractXBeeDevice:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        self.execute_command(ATStringCommand.DA.command, apply=False)
+        self.execute_command(ATStringCommand.DA, apply=False)
 
     def _get_next_frame_id(self):
         """
@@ -3912,7 +3916,7 @@ class XBeeDevice(AbstractXBeeDevice):
            | :class:`.OperatingMode`
         """
         try:
-            response = self.get_parameter(ATStringCommand.AP.command, apply=False)
+            response = self.get_parameter(ATStringCommand.AP, apply=False)
             return OperatingMode.get(response[0])
         except TimeoutException:
             self._operating_mode = OperatingMode.AT_MODE
@@ -4400,9 +4404,9 @@ class XBeeDevice(AbstractXBeeDevice):
             if force:
                 ar_value = None
                 try:
-                    ar_value = self.get_parameter(ATStringCommand.AR.command, apply=False)
+                    ar_value = self.get_parameter(ATStringCommand.AR, apply=False)
                     if ar_value and utils.bytes_to_int(ar_value) != 0xFF:
-                        self.set_parameter(ATStringCommand.AR.command, ar_value, apply=False)
+                        self.set_parameter(ATStringCommand.AR, ar_value, apply=False)
                 except XBeeException as exc:
                     self._log.debug(
                         "Error getting route to node: unable to %s '%s' value: %s",
@@ -4650,7 +4654,7 @@ class DigiMeshDevice(XBeeDevice):
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        self.set_parameter(ATStringCommand.AG.command,
+        self.set_parameter(ATStringCommand.AG,
                            XBee16BitAddress.UNKNOWN_ADDRESS.address,
                            apply=False)
 
@@ -5018,7 +5022,7 @@ class ZigBeeDevice(XBeeDevice):
             ATCommandException: If response is not as expected.
         """
         seconds = utils.bytes_to_int(
-            self.get_parameter(ATStringCommand.AR.command, apply=False))
+            self.get_parameter(ATStringCommand.AR, apply=False))
         # 0xFF disables aggregation route broadcasting
         if seconds == 0xFF:
             return -1
@@ -5054,7 +5058,7 @@ class ZigBeeDevice(XBeeDevice):
         if tenths_second == -1:
             tenths_second = 0xFF
 
-        self.set_parameter(ATStringCommand.AR.command, bytearray([tenths_second]),
+        self.set_parameter(ATStringCommand.AR, bytearray([tenths_second]),
                            apply=self.is_apply_changes_enabled())
 
     def send_data_64_16(self, x64addr, x16addr, data, transmit_options=TransmitOptions.NONE.value):
@@ -5547,7 +5551,7 @@ class IPDevice(XBeeDevice):
 
         # Read the module's IP address.
         if init or self._ip_addr is None:
-            resp = self.get_parameter(ATStringCommand.MY.command, apply=False)
+            resp = self.get_parameter(ATStringCommand.MY, apply=False)
             ip_addr = IPv4Address(utils.bytes_to_int(resp))
             if self._ip_addr != ip_addr:
                 updated = True
@@ -5556,7 +5560,7 @@ class IPDevice(XBeeDevice):
         # Read the source port.
         if init or self._source_port is None:
             try:
-                resp = self.get_parameter(ATStringCommand.C0.command, apply=False)
+                resp = self.get_parameter(ATStringCommand.C0, apply=False)
                 src_port = utils.bytes_to_int(resp)
                 if self._source_port != src_port:
                     updated = True
@@ -5611,7 +5615,7 @@ class IPDevice(XBeeDevice):
         if address is None:
             raise ValueError("Destination IP address cannot be None")
 
-        self.set_parameter(ATStringCommand.DL.command,
+        self.set_parameter(ATStringCommand.DL,
                            bytearray(address.exploded, "utf8"),
                            apply=self.is_apply_changes_enabled())
 
@@ -5629,7 +5633,7 @@ class IPDevice(XBeeDevice):
         .. seealso::
            | :class:`ipaddress.IPv4Address`
         """
-        resp = self.get_parameter(ATStringCommand.DL.command, apply=False)
+        resp = self.get_parameter(ATStringCommand.DL, apply=False)
         return IPv4Address(resp.decode("utf8"))
 
     def add_ip_data_received_callback(self, callback):
@@ -5669,7 +5673,7 @@ class IPDevice(XBeeDevice):
         if not 0 <= src_port <= 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
-        self.set_parameter(ATStringCommand.C0.command, utils.int_to_bytes(src_port),
+        self.set_parameter(ATStringCommand.C0, utils.int_to_bytes(src_port),
                            apply=self.is_apply_changes_enabled())
         self._source_port = src_port
 
@@ -5681,7 +5685,7 @@ class IPDevice(XBeeDevice):
             TimeoutException: If there is a timeout processing the operation.
             XBeeException: If there is any other XBee related exception.
         """
-        self.set_parameter(ATStringCommand.C0.command, utils.int_to_bytes(0),
+        self.set_parameter(ATStringCommand.C0, utils.int_to_bytes(0),
                            apply=self.is_apply_changes_enabled())
         self._source_port = 0
 
@@ -6182,7 +6186,7 @@ class CellularDevice(IPDevice):
                 indication status.
             XBeeException: If there is any other XBee related exception.
         """
-        value = self.get_parameter(ATStringCommand.AI.command, apply=False)
+        value = self.get_parameter(ATStringCommand.AI, apply=False)
         return CellularAssociationIndicationStatus.get(utils.bytes_to_int(value))
 
     def add_sms_callback(self, callback):
@@ -6298,7 +6302,7 @@ class CellularDevice(IPDevice):
                 timeout expires.
             XBeeException: If the XBee's communication interface is closed.
         """
-        response = self.get_parameter(ATStringCommand.SI.command, apply=False)
+        response = self.get_parameter(ATStringCommand.SI, apply=False)
         return SocketInfo.parse_socket_list(response)
 
     def get_socket_info(self, socket_id):
@@ -6324,7 +6328,7 @@ class CellularDevice(IPDevice):
            | :class:`.SocketInfo`
         """
         try:
-            response = self.get_parameter(ATStringCommand.SI.command,
+            response = self.get_parameter(ATStringCommand.SI,
                                           parameter_value=utils.int_to_bytes(socket_id, 1),
                                           apply=False)
             return SocketInfo.create_socket_info(response)
@@ -6688,7 +6692,7 @@ class WiFiDevice(IPDevice):
            | :class:`.WiFiAssociationIndicationStatus`
         """
         return WiFiAssociationIndicationStatus.get(utils.bytes_to_int(
-            self.get_parameter(ATStringCommand.AI.command, apply=False)))
+            self.get_parameter(ATStringCommand.AI, apply=False)))
 
     def get_access_point(self, ssid):
         """
@@ -6833,22 +6837,21 @@ class WiFiDevice(IPDevice):
 
         set_pw = password is not None and access_point.encryption_type != WiFiEncryptionType.NONE
         # Set connection parameters.
-        self.set_parameter(ATStringCommand.ID.command,
+        self.set_parameter(ATStringCommand.ID,
                            bytearray(access_point.ssid, "utf8"), apply=False)
-        self.set_parameter(ATStringCommand.EE.command,
+        self.set_parameter(ATStringCommand.EE,
                            utils.int_to_bytes(access_point.encryption_type.code, num_bytes=1),
                            apply=bool(not set_pw and self.is_apply_changes_enabled()))
         if set_pw:
-            self.set_parameter(
-                ATStringCommand.PK.command, bytearray(password, "utf8"),
-                apply=self.is_apply_changes_enabled())
+            self.set_parameter(ATStringCommand.PK, bytearray(password, "utf8"),
+                               apply=self.is_apply_changes_enabled())
 
         # Wait for the module to connect to the access point.
         dead_line = time.time() + self.__ap_timeout
         while time.time() < dead_line:
             time.sleep(0.1)
             # Get the association indication value of the module.
-            status = self.get_parameter(ATStringCommand.AI.command, apply=False)
+            status = self.get_parameter(ATStringCommand.AI, apply=False)
             if status is None or len(status) < 1:
                 continue
             if status[0] == 0:
@@ -6928,12 +6931,12 @@ class WiFiDevice(IPDevice):
            | :meth:`.WiFiDevice.get_access_point_timeout`
            | :meth:`.WiFiDevice.set_access_point_timeout`
         """
-        self.execute_command(ATStringCommand.NR.command, apply=False)
+        self.execute_command(ATStringCommand.NR, apply=False)
         dead_line = time.time() + self.__ap_timeout
         while time.time() < dead_line:
             time.sleep(0.1)
             # Get the association indication value of the module.
-            status = self.get_parameter(ATStringCommand.AI.command, apply=False)
+            status = self.get_parameter(ATStringCommand.AI, apply=False)
             if status is None or len(status) < 1:
                 continue
             if status[0] == 0x23:
@@ -7084,7 +7087,7 @@ class WiFiDevice(IPDevice):
            | :class:`.IPAddressingMode`
         """
         return IPAddressingMode.get(utils.bytes_to_int(
-            self.get_parameter(ATStringCommand.MA.command, apply=False)))
+            self.get_parameter(ATStringCommand.MA, apply=False)))
 
     def set_ip_addressing_mode(self, mode):
         """
@@ -7100,7 +7103,7 @@ class WiFiDevice(IPDevice):
            | :meth:`.WiFiDevice.get_ip_addressing_mode`
            | :class:`.IPAddressingMode`
         """
-        self.set_parameter(ATStringCommand.MA.command,
+        self.set_parameter(ATStringCommand.MA,
                            utils.int_to_bytes(mode.code, num_bytes=1),
                            apply=self.is_apply_changes_enabled())
 
@@ -7122,7 +7125,7 @@ class WiFiDevice(IPDevice):
            | :meth:`.WiFiDevice.get_mask_address`
            | :class:`ipaddress.IPv4Address`
         """
-        self.set_parameter(ATStringCommand.MY.command, ip_address.packed,
+        self.set_parameter(ATStringCommand.MY, ip_address.packed,
                            apply=self.is_apply_changes_enabled())
 
     def get_mask_address(self):
@@ -7140,7 +7143,7 @@ class WiFiDevice(IPDevice):
            | :class:`ipaddress.IPv4Address`
         """
         return IPv4Address(
-            bytes(self.get_parameter(ATStringCommand.MK.command, apply=False)))
+            bytes(self.get_parameter(ATStringCommand.MK, apply=False)))
 
     def set_mask_address(self, mask_address):
         """
@@ -7160,7 +7163,7 @@ class WiFiDevice(IPDevice):
            | :meth:`.WiFiDevice.get_mask_address`
            | :class:`ipaddress.IPv4Address`
         """
-        self.set_parameter(ATStringCommand.MK.command, mask_address.packed,
+        self.set_parameter(ATStringCommand.MK, mask_address.packed,
                            apply=self.is_apply_changes_enabled())
 
     def get_gateway_address(self):
@@ -7178,7 +7181,7 @@ class WiFiDevice(IPDevice):
            | :class:`ipaddress.IPv4Address`
         """
         return IPv4Address(
-            bytes(self.get_parameter(ATStringCommand.GW.command, apply=False)))
+            bytes(self.get_parameter(ATStringCommand.GW, apply=False)))
 
     def set_gateway_address(self, gateway_address):
         """
@@ -7198,7 +7201,7 @@ class WiFiDevice(IPDevice):
            | :meth:`.WiFiDevice.get_gateway_address`
            | :class:`ipaddress.IPv4Address`
         """
-        self.set_parameter(ATStringCommand.GW.command, gateway_address.packed,
+        self.set_parameter(ATStringCommand.GW, gateway_address.packed,
                            apply=self.is_apply_changes_enabled())
 
     def get_dns_address(self):
@@ -7216,7 +7219,7 @@ class WiFiDevice(IPDevice):
            | :class:`ipaddress.IPv4Address`
         """
         return IPv4Address(
-            bytes(self.get_parameter(ATStringCommand.NS.command, apply=False)))
+            bytes(self.get_parameter(ATStringCommand.NS, apply=False)))
 
     def set_dns_address(self, dns_address):
         """
@@ -7232,7 +7235,7 @@ class WiFiDevice(IPDevice):
            | :meth:`.WiFiDevice.get_dns_address`
            | :class:`ipaddress.IPv4Address`
         """
-        self.set_parameter(ATStringCommand.NS.command, dns_address.packed,
+        self.set_parameter(ATStringCommand.NS, dns_address.packed,
                            apply=self.is_apply_changes_enabled())
 
 
@@ -7693,7 +7696,7 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
                 return
 
             # Read the module's parent address for end devices.
-            resp = self.get_parameter(ATStringCommand.MP.command, apply=False)
+            resp = self.get_parameter(ATStringCommand.MP, apply=False)
             if not XBee16BitAddress.is_known_node_addr(resp):
                 super()._read_device_info(reason, init=init, fire_event=fire_event)
                 return
@@ -8428,7 +8431,7 @@ class XBeeNetwork:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        return self._local_xbee.get_parameter(ATStringCommand.NO.command, apply=False)
+        return self._local_xbee.get_parameter(ATStringCommand.NO, apply=False)
 
     def set_discovery_options(self, options):
         """
@@ -8455,7 +8458,7 @@ class XBeeNetwork:
             raise ValueError("Options cannot be None")
 
         value = DiscoveryOptions.calculate_discovery_value(self._local_xbee.get_protocol(), options)
-        self._local_xbee.set_parameter(ATStringCommand.NO.command,
+        self._local_xbee.set_parameter(ATStringCommand.NO,
                                        utils.int_to_bytes(value), apply=True)
 
     def get_deep_discovery_options(self):
@@ -8519,7 +8522,7 @@ class XBeeNetwork:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
-        tout = self._local_xbee.get_parameter(ATStringCommand.NT.command, apply=False)
+        tout = self._local_xbee.get_parameter(ATStringCommand.NT, apply=False)
 
         return utils.bytes_to_int(tout) / 10.0
 
@@ -8548,7 +8551,7 @@ class XBeeNetwork:
 
         discovery_timeout *= 10  # seconds to 100ms
         timeout = bytearray([int(discovery_timeout)])
-        self._local_xbee.set_parameter(ATStringCommand.NT.command, timeout,
+        self._local_xbee.set_parameter(ATStringCommand.NT, timeout,
                                        apply=True)
 
     def get_deep_discovery_timeouts(self):
@@ -8893,8 +8896,8 @@ class XBeeNetwork:
                 remote_xbee._initializing = True
                 # Ask for the 64-bit address
                 try:
-                    sh_val = remote_xbee.get_parameter(ATStringCommand.SH.command, apply=False)
-                    sl_val = remote_xbee.get_parameter(ATStringCommand.SL.command, apply=False)
+                    sh_val = remote_xbee.get_parameter(ATStringCommand.SH, apply=False)
+                    sl_val = remote_xbee.get_parameter(ATStringCommand.SL, apply=False)
                     x64 = XBee64BitAddress(sh_val + sl_val)
                     is_x64_known_addr = XBee64BitAddress.is_known_node_addr(x64)
                     remote_xbee._64bit_addr = x64
@@ -9482,7 +9485,7 @@ class XBeeNetwork:
                                 n_item, self.__scan_counter)
                 n_item._scan_counter = self.__scan_counter
                 try:
-                    n_item.get_parameter(ATStringCommand.NI.command, apply=False)
+                    n_item.get_parameter(ATStringCommand.NI, apply=False)
                     n_item._reachable = True
                     # Update also the connection
                     from digi.xbee.models.zdo import RouteStatus
@@ -9697,7 +9700,7 @@ class XBeeNetwork:
             return False
         param = None
         try:
-            param = self._local_xbee.get_parameter(ATStringCommand.C8.command, apply=False)
+            param = self._local_xbee.get_parameter(ATStringCommand.C8, apply=False)
         except ATCommandException:
             pass
         if param is None or param[0] & 0x2 == 2:
@@ -9729,7 +9732,7 @@ class XBeeNetwork:
         try:
             discovery_timeout = utils.bytes_to_int(
                 self._local_xbee.get_parameter(
-                    ATStringCommand.N_QUESTION.command, apply=False)) / 1000
+                    ATStringCommand.N_QUESTION, apply=False)) / 1000
         except XBeeException:
             # If N? does not exist, read the NT parameter.
             self._log.debug("Could not calculate network discovery timeout: "
@@ -10322,7 +10325,7 @@ class ZigBeeNetwork(XBeeNetwork):
             x16_orig = requester.get_16bit_addr()
             try:
                 x16 = XBee16BitAddress(
-                    requester.get_parameter(ATStringCommand.MY.command, apply=False))
+                    requester.get_parameter(ATStringCommand.MY, apply=False))
                 if x16_orig != x16:
                     self._nodes_queue.put(requester)
             except XBeeException:
@@ -10376,7 +10379,7 @@ class ZigBeeNetwork(XBeeNetwork):
 
         self._log.debug("[*] Postconfiguring %s", ATStringCommand.AO.command)
         try:
-            self._local_xbee.set_parameter(ATStringCommand.AO.command,
+            self._local_xbee.set_parameter(ATStringCommand.AO,
                                            self.__saved_ao, apply=True)
         except XBeeException as exc:
             self._error = "Could not restore XBee after network discovery: %s" % str(exc)
@@ -10424,8 +10427,7 @@ class ZigBeeNetwork(XBeeNetwork):
         value[0] = value[0] | APIOutputModeBit.EXPLICIT.code
         value[0] = value[0] & ~APIOutputModeBit.SUPPRESS_ALL_ZDO_MSG.code
 
-        self._local_xbee.set_parameter(ATStringCommand.AO.command, value,
-                                       apply=True)
+        self._local_xbee.set_parameter(ATStringCommand.AO, value, apply=True)
 
     def __get_route_table(self, requester, nodes_queue, node_timeout):
         """
@@ -10812,7 +10814,7 @@ class DigiMeshNetwork(XBeeNetwork):
 
             self._log.debug("[*] Preconfiguring %s", ATStringCommand.SO.command)
             self.__saved_so = self._local_xbee.get_parameter(
-                ATStringCommand.SO.command, apply=False)
+                ATStringCommand.SO, apply=False)
 
             # Enable bit 2 of SO: Enable API sleep status messages
             # Useful for synchronous sleep networks to know when the network is sleeping or awake
@@ -10822,8 +10824,7 @@ class DigiMeshNetwork(XBeeNetwork):
                 value = utils.int_to_bytes(utils.bytes_to_int(self.__saved_so), 2)
                 value[1] = value[1] | 0x04 if not (value[1] & 0x04 == 4) else value[1]
 
-                self._local_xbee.set_parameter(ATStringCommand.SO.command,
-                                               value, apply=True)
+                self._local_xbee.set_parameter(ATStringCommand.SO, value, apply=True)
 
         except XBeeException as exc:
             raise XBeeException(
@@ -10931,7 +10932,7 @@ class DigiMeshNetwork(XBeeNetwork):
         if self.__saved_no is not None:
             self._log.debug("[*] Postconfiguring %s", ATStringCommand.NO.command)
             try:
-                self._local_xbee.set_parameter(ATStringCommand.NO.command,
+                self._local_xbee.set_parameter(ATStringCommand.NO,
                                                self.__saved_no,
                                                apply=bool(not self.__saved_so))
             except XBeeException as exc:
@@ -10942,7 +10943,7 @@ class DigiMeshNetwork(XBeeNetwork):
         if self.__saved_so is not None:
             self._log.debug("[*] Postconfiguring %s", ATStringCommand.SO.command)
             try:
-                self._local_xbee.set_parameter(ATStringCommand.SO.command,
+                self._local_xbee.set_parameter(ATStringCommand.SO,
                                                self.__saved_so, apply=True)
             except XBeeException as exc:
                 if error:

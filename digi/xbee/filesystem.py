@@ -2403,7 +2403,7 @@ class FileSystemManager:
             # 64-bit address (8), send/receive opts (1), and status (1) length
             n_extra_bytes = 10
 
-        cmd = ATStringCommand.NP.command
+        cmd = ATStringCommand.NP
         try:
             # Reserve 5 bytes for other frame data
             self.__np_val = utils.bytes_to_int(xbee.get_parameter(cmd, apply=False)) - 5

@@ -244,6 +244,7 @@ class SpecialByte(Enum):
         """
         return value in [i.value for i in SpecialByte]
 
+
 SpecialByte.__doc__ += utils.doc_enum(SpecialByte)
 
 

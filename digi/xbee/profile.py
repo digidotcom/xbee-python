@@ -1369,7 +1369,7 @@ class _UpdateConfigurer:
         info_msg = f"'%s' - {_TASK_READING_DEVICE_PARAMETERS}: Unable to set to minimum sleep temporally (%s)"
         cmd = ATStringCommand.SP
         try:
-            value = self._updater.read_parameter_with_retries(cmd.command, _PARAMETER_READ_RETRIES)
+            value = self._updater.read_parameter_with_retries(cmd, _PARAMETER_READ_RETRIES)
             if value is not None and int.from_bytes(value, "big") != _DEFAULT_SP:
                 self.cmd_dict[cmd] = value
                 prepare_cmds[cmd] = bytearray([_DEFAULT_SP])
@@ -1378,7 +1378,7 @@ class _UpdateConfigurer:
 
         cmd = ATStringCommand.SN
         try:
-            value = self._updater.read_parameter_with_retries(cmd.command, _PARAMETER_READ_RETRIES)
+            value = self._updater.read_parameter_with_retries(cmd, _PARAMETER_READ_RETRIES)
             if value is not None and int.from_bytes(value, "big") != _DEFAULT_SN:
                 self.cmd_dict[cmd] = value
                 prepare_cmds[cmd] = bytearray([_DEFAULT_SN])
@@ -1411,7 +1411,7 @@ class _UpdateConfigurer:
                       and (ap_val[0] in (OperatingMode.API_MODE.code,
                                          OperatingMode.ESCAPED_API_MODE.code)))
         if restore_ap:
-            cmd = ATStringCommand.AP.command
+            cmd = ATStringCommand.AP
             try:
                 self._updater.set_parameter_with_retries(
                     cmd, ap_val, _PARAMETER_WRITE_RETRIES, apply=False)
@@ -1492,8 +1492,8 @@ class _UpdateConfigurer:
         for is_last, cmd in signal_last(cfg_dict):
             cmd_val = cfg_dict.get(cmd)
             try:
-                self._updater.set_parameter_with_retries(cmd.command, cmd_val,
-                                                         retries, apply=is_last and not write)
+                self._updater.set_parameter_with_retries(cmd, cmd_val, retries,
+                                                         apply=is_last and not write)
             except XBeeException as exc:
                 _log.info(info_msg, self._xbee, str(exc))
 
@@ -1502,7 +1502,7 @@ class _UpdateConfigurer:
 
         cmd = ATStringCommand.WR
         try:
-            self._updater.set_parameter_with_retries(cmd.command, bytearray([0]),
+            self._updater.set_parameter_with_retries(cmd, bytearray([0]),
                                                      retries*2, apply=True)
         except XBeeException as exc:
             _log.info(info_msg, self._xbee, str(exc))
@@ -1737,9 +1737,8 @@ class _ProfileUpdater:
                 if self._progress_callback is not None and percent != previous_percent:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
-                self.set_parameter_with_retries(
-                    ATStringCommand.RE.command, bytearray(0),
-                    _PARAMETER_WRITE_RETRIES, apply=False)
+                self.set_parameter_with_retries(ATStringCommand.RE, bytearray(0),
+                                                _PARAMETER_WRITE_RETRIES, apply=False)
                 setting_index += 1
                 # Reset settings to defaults implies network and cache settings have changed
                 network_settings_changed = True
@@ -1750,7 +1749,7 @@ class _ProfileUpdater:
                     self._configurer.cmd_dict[ATStringCommand.AP] = bytearray([OperatingMode.AT_MODE.code])
                     # Restore the previous operating mode to be able to continue
                     self.set_parameter_with_retries(
-                        ATStringCommand.AP.command,
+                        ATStringCommand.AP,
                         bytearray([self._xbee_device.operating_mode.code]),
                         _PARAMETER_WRITE_RETRIES, apply=False)
             # Set settings.
@@ -1784,9 +1783,8 @@ class _ProfileUpdater:
             percent = setting_index * 100 // num_settings
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
-            self.set_parameter_with_retries(
-                ATStringCommand.WR.command, bytearray(0),
-                _PARAMETER_WRITE_RETRIES, apply=False)
+            self.set_parameter_with_retries(ATStringCommand.WR, bytearray(0),
+                                            _PARAMETER_WRITE_RETRIES, apply=False)
         except XBeeException as exc:
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(exc))
 
@@ -1912,10 +1910,10 @@ class _ProfileUpdater:
             # For remote devices, parameters are read with 'get_parameter()' method.
             try:
                 self._device_firmware_version = self.read_parameter_with_retries(
-                    ATStringCommand.VR.command, _PARAMETER_READ_RETRIES)
+                    ATStringCommand.VR, _PARAMETER_READ_RETRIES)
                 self._device_hardware_version = HardwareVersion.get(
                     self.read_parameter_with_retries(
-                        ATStringCommand.HV.command, _PARAMETER_READ_RETRIES)[0])
+                        ATStringCommand.HV, _PARAMETER_READ_RETRIES)[0])
             except XBeeException as exc:
                 raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(exc))
 
@@ -1932,7 +1930,7 @@ class _ProfileUpdater:
         Reads a parameter from the XBee within the given number of retries.
 
         Args:
-            parameter (String): Parameter to read.
+            parameter (String or :class: `ATStringCommand`): Parameter to read.
             retries (Integer): Number of retries to read the parameter.
 
         Returns:
@@ -1955,7 +1953,7 @@ class _ProfileUpdater:
         Sets the given parameter in the XBee within the given number of retries.
 
         Args:
-            parameter (String): Parameter to set.
+            parameter (String or :class: `ATStringCommand`): Parameter to set.
             value (Bytearray): Parameter value to set.
             retries (Integer): Number of retries to set the parameter.
             apply (Boolean, optional, default=`False`): `True` to apply changes,
