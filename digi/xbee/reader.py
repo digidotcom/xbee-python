@@ -619,8 +619,8 @@ class PacketListener(threading.Thread):
         """
         Stops listening.
         """
-        self.__comm_iface.quit_reading()
         self.__stop = True
+        self.__comm_iface.quit_reading()
         # Wait until thread fully stops.
         self.join()
 

@@ -3866,22 +3866,8 @@ class XBeeDevice(AbstractXBeeDevice):
             raise InvalidOperatingModeException(
                 message="Invalid mode. Command mode can be only accessed while in AT mode")
 
-        self._serial_port.flushInput()
-
-        # We must wait at least 1 second to enter in command mode after sending
-        # any data to the device.
-        time.sleep(self.__DEFAULT_GUARD_TIME)
-        # Send the command mode sequence.
-        b_array = bytearray(self.__COMMAND_MODE_CHAR, "utf8")
-        self._serial_port.write(b_array)
-        self._serial_port.write(b_array)
-        self._serial_port.write(b_array)
-        # Wait some time to let the module generate a response.
-        time.sleep(self.__TIMEOUT_ENTER_COMMAND_MODE)
-        # Read data from the device (it should answer with 'OK\r').
-        data = self._serial_port.read_existing().decode()
-
-        return data and data in self.__COMMAND_MODE_OK
+        from digi.xbee.recovery import enter_at_command_mode
+        return enter_at_command_mode(self._serial_port)
 
     def _exit_at_command_mode(self):
         """

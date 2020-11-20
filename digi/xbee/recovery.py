@@ -199,6 +199,8 @@ class _LocalRecoverDevice:
             cts = 0
             rts = 0
 
+        _log.debug("In command mode: %s", enter_at_command_mode(self._xbee_serial_port))
+
         for command in (
                 "%s%s\r" % (_AT_COMMANDS[_BAUDRATE_KEY], bauds),
                 "%s%s\r" % (_AT_COMMANDS[_PARITY_KEY], parity),
@@ -336,3 +338,42 @@ def recover_device(target):
     # Launch the recover process.
     recovery_process = _LocalRecoverDevice(target)
     recovery_process.autorecover_device()
+
+
+def enter_at_command_mode(port):
+    """
+    Attempts to put this device in AT Command mode.
+
+    Args:
+        port: The serial port where the XBee is connected to.
+
+    Returns:
+        Boolean: `True` if the XBee has entered in AT command mode, `False`
+            otherwise.
+
+    Raises:
+        SerialTimeoutException: If there is any error trying to write to
+            the serial port.
+        InvalidOperatingModeException: If the XBee is in API mode.
+    """
+    if not port:
+        raise ValueError("A valid serial port must be provided")
+
+    port.flushInput()
+
+    # We must wait at least 1 second to enter in command mode after sending
+    # any data to the device
+    time.sleep(1)
+    # Send the command mode sequence
+    b_array = bytearray('+', "utf8")
+    port.write(b_array)
+    port.write(b_array)
+    port.write(b_array)
+    # Read data from the device (it should answer with 'OK\r')
+    deadline = time.time() + 2
+    while time.time() < deadline:
+        data = port.read_existing()
+        if data and AT_OK_RESPONSE in data:
+            return True
+
+    return False
