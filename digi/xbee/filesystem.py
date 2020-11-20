@@ -82,9 +82,9 @@ _READ_PORT_TIMEOUT = 0.05  # Seconds.
 
 _SECURE_ELEMENT_SUFFIX = "#"
 
-SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
-                               HardwareVersion.XBEE3_SMT.code,
-                               HardwareVersion.XBEE3_TH.code)
+SUPPORTED_HW_VERSIONS = (HardwareVersion.XBEE3.code,
+                         HardwareVersion.XBEE3_SMT.code,
+                         HardwareVersion.XBEE3_TH.code)
 
 XB3_MIN_FW_VERSION_FS_API_SUPPORT = {
     XBeeProtocol.ZIGBEE: 0x100C,
@@ -3278,7 +3278,7 @@ class LocalXBeeFileSystemManager:
 
 def update_remote_filesystem_image(remote_device, ota_filesystem_file,
                                    max_block_size=0, timeout=None,
-                                   progress_callback=None):
+                                   progress_callback=None, _prepare=True):
     """
     Performs a remote filesystem update operation in the given target.
 
@@ -3306,12 +3306,12 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file,
     # Check target compatibility.
     if not check_fs_support(remote_device, max_fw_vers=XB3_MAX_FW_VERSION_FS_OTA_SUPPORT):
         raise FileSystemNotSupportedException(
-            "Filesystem image support update is not supported, use standard file system access")
+            "Filesystem image support update is not supported")
 
     try:
         update_remote_filesystem(
             remote_device, ota_filesystem_file, max_block_size=max_block_size,
-            timeout=timeout, progress_callback=progress_callback)
+            timeout=timeout, progress_callback=progress_callback, _prepare=_prepare)
     except FirmwareUpdateException as exc:
         _log.error("ERROR: %s", str(exc))
         raise FileSystemException(str(exc))
@@ -3346,7 +3346,7 @@ def check_fs_support(xbee, min_fw_vers=None, max_fw_vers=None):
                 "filesystem support: %s", str(exc))
 
     # Check compatibility
-    if hw_version and hw_version.code not in SUPPORTED_HARDWARE_VERSIONS:
+    if hw_version and hw_version.code not in SUPPORTED_HW_VERSIONS:
         return False
 
     if not fw_version:

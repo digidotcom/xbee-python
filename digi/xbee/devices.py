@@ -1806,10 +1806,7 @@ class AbstractXBeeDevice:
 
         if not self._comm_iface.is_interface_open:
             raise XBeeException("XBee device's communication interface closed.")
-        if (self.get_hardware_version()
-                and self.get_hardware_version().code not in firmware.SUPPORTED_HARDWARE_VERSIONS):
-            raise OperationNotSupportedException(
-                "Firmware update is only supported in XBee 3, XBee SX 868/900, and XBee S2C devices")
+
         if self.is_remote():
             firmware.update_remote_firmware(self, xml_firmware_file,
                                             firmware_file=xbee_firmware_file,
@@ -7383,7 +7380,8 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
 
         self._ota_max_block_size = size
 
-    def update_filesystem_image(self, ota_filesystem_file, timeout=None, progress_callback=None):
+    def update_filesystem_image(self, ota_filesystem_file, timeout=None,
+                                progress_callback=None):
         """
         Performs a filesystem image update operation of the device.
 
@@ -7400,20 +7398,16 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         Raises:
             XBeeException: If the device is not open.
             InvalidOperatingModeException: If the device operating mode is invalid.
-            OperationNotSupportedException: If the filesystem update is not
+            FileSystemNotSupportedException: If the filesystem update is not
                 supported in the XBee.
             FileSystemException: If there is any error performing the filesystem update.
         """
         from digi.xbee.filesystem import update_remote_filesystem_image
-        from digi.xbee.firmware import SUPPORTED_HARDWARE_VERSIONS
 
         if not self._comm_iface.is_interface_open:
             raise XBeeException("XBee device's communication interface closed.")
-        if self.get_hardware_version() and self.get_hardware_version().code not in SUPPORTED_HARDWARE_VERSIONS:
-            raise OperationNotSupportedException("Remote filesystem update is only supported in XBee 3 devices")
 
-        update_remote_filesystem_image(self, ota_filesystem_file,
-                                       timeout=timeout,
+        update_remote_filesystem_image(self, ota_filesystem_file, timeout=timeout,
                                        max_block_size=self._ota_max_block_size,
                                        progress_callback=progress_callback)
 

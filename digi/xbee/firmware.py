@@ -19,15 +19,17 @@ import serial
 import time
 
 from abc import ABC, abstractmethod
-from digi.xbee.exception import XBeeException, FirmwareUpdateException, TimeoutException, ATCommandException
-from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, NetworkEventReason
+from digi.xbee.exception import XBeeException, FirmwareUpdateException, TimeoutException, \
+    OperationNotSupportedException
+from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, NetworkEventReason, AbstractXBeeDevice
 from digi.xbee.models.address import XBee16BitAddress
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import APIOutputModeBit
 from digi.xbee.models.options import RemoteATCmdOptions
 from digi.xbee.models.protocol import XBeeProtocol, Role
-from digi.xbee.models.status import TransmitStatus, ATCommandStatus, EmberBootloaderMessageType
+from digi.xbee.models.status import TransmitStatus, ATCommandStatus, \
+    EmberBootloaderMessageType, ModemStatus
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.common import ExplicitAddressingPacket, TransmitStatusPacket,\
     RemoteATCommandPacket, RemoteATCommandResponsePacket
@@ -163,7 +165,7 @@ _ERROR_XML_PARSE = "Could not parse XML firmware file %s"
 _ERROR_XMODEM_COMMUNICATION = "XModem serial port communication error: %s"
 _ERROR_XMODEM_RESTART = "Could not restart firmware transfer sequence"
 _ERROR_XMODEM_START = "Could not start XModem firmware upload process"
-ERROR_HARDWARE_VERSION_NOT_SUPPORTED = "XBee hardware version (%d) does not support firmware update process"
+_ERROR_HARDWARE_VERSION_NOT_SUPPORTED = "XBee hardware version (%d) does not support firmware update process"
 
 _EXPLICIT_PACKET_BROADCAST_RADIUS_MAX = 0x00
 _EXPLICIT_PACKET_CLUSTER_DATA = 0x0011
@@ -281,21 +283,22 @@ _XB3_PROTOCOL_FROM_FW_VERSION = {
 
 _POLYNOMINAL_DIGI_BL = 0x8005
 
-S2C_HARDWARE_VERSIONS = (HardwareVersion.XBP24C.code,
-                         HardwareVersion.XB24C.code,
-                         HardwareVersion.XBP24C_S2C_SMT.code,
-                         HardwareVersion.XBP24C_TH_DIP.code,
-                         HardwareVersion.XB24C_TH_DIP.code)
+S2C_HW_VERSIONS = (HardwareVersion.XBP24C.code,
+                   HardwareVersion.XB24C.code,
+                   HardwareVersion.XBP24C_S2C_SMT.code,
+                   HardwareVersion.XBP24C_TH_DIP.code,
+                   HardwareVersion.XB24C_TH_DIP.code)
 
-SX_HARDWARE_VERSIONS = (HardwareVersion.SX.code,
-                        HardwareVersion.SX_PRO.code,
-                        HardwareVersion.XB8X.code)
+SX_HW_VERSIONS = (HardwareVersion.SX.code,
+                  HardwareVersion.SX_PRO.code,
+                  HardwareVersion.XB8X.code)
 
-XBEE3_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
-                           HardwareVersion.XBEE3_SMT.code,
-                           HardwareVersion.XBEE3_TH.code)
+XBEE3_HW_VERSIONS = (HardwareVersion.XBEE3.code,
+                     HardwareVersion.XBEE3_SMT.code,
+                     HardwareVersion.XBEE3_TH.code)
 
-SUPPORTED_HARDWARE_VERSIONS = SX_HARDWARE_VERSIONS + XBEE3_HARDWARE_VERSIONS + S2C_HARDWARE_VERSIONS
+LOCAL_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS
+REMOTE_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + S2C_HW_VERSIONS
 
 _log = logging.getLogger(__name__)
 
@@ -905,11 +908,11 @@ class _BootloaderType(Enum):
             :class:`._BootloaderType`: the _BootloaderType of the given hardware version, ``None`` if
                                        there is not a _BootloaderType for that hardware version.
         """
-        if hardware_version in SX_HARDWARE_VERSIONS:
+        if hardware_version in SX_HW_VERSIONS:
             return _BootloaderType.GEN3_BOOTLOADER
-        elif hardware_version in XBEE3_HARDWARE_VERSIONS:
+        elif hardware_version in XBEE3_HW_VERSIONS:
             return _BootloaderType.GECKO_BOOTLOADER
-        elif hardware_version in S2C_HARDWARE_VERSIONS:
+        elif hardware_version in S2C_HW_VERSIONS:
             return _BootloaderType.EMBER_BOOTLOADER
         else:
             return None
@@ -1400,6 +1403,613 @@ class _LinkTest(object):
         return self._total_loops_failed <= self._failures_allowed
 
 
+class UpdateConfigurer:
+    """
+    For internal use only. Helper class used to prepare nodes and/or network
+    for an update.
+    """
+
+    TASK_PREPARE = "Preparing for update"
+    TASK_RESTORE = "Restoring after update"
+
+    _DM_SYNC_WAKE_TIME = 30
+
+    def __init__(self, node, timeout=None, callback=None):
+        """
+        Class constructor. Instantiates a new :class:`.UpdateConfigurer` with
+        the given parameters.
+
+        Args:
+            node (:class:`.AbstractXBeeDevice`): Target being updated.
+            timeout (Float, optional, default=`None`): Operations timeout.
+            callback (Function): Function to notify about the progress.
+        """
+        self._xbee = node
+        self._timeout = timeout
+        self._callback = callback
+        self._op_timeout = None
+        self._sync_sleep = None
+        self._task_done = {self.TASK_PREPARE: 0,
+                           self.TASK_RESTORE: 0}
+        self._task_total = {self.TASK_PREPARE: 4,
+                            self.TASK_RESTORE: 2}
+        self.cmd_dict = {}
+
+    @property
+    def sync_sleep(self):
+        """
+        Returns whether node is part of a DigiMesh synchronous sleeping network.
+
+        Returns:
+             Boolean: `True` if it synchronous sleeps, `False` otherwise.
+        """
+        if self._sync_sleep is None:
+            self._sync_sleep = self._is_sync_sleep()
+        return self._sync_sleep
+
+    @property
+    def prepare_total(self):
+        return self._task_total[self.TASK_PREPARE]
+
+    @prepare_total.setter
+    def prepare_total(self, total):
+        self._task_total[self.TASK_PREPARE] = total
+
+    @property
+    def restore_total(self):
+        return self._task_total[self.TASK_RESTORE]
+
+    @restore_total.setter
+    def restore_total(self, total):
+        self._task_total[self.TASK_RESTORE] = total
+
+    def prepare_for_update(self, prepare_node=True, prepare_net=True, restore_later=True):
+        """
+        Prepares the node for an update process.
+
+        Args:
+            prepare_node (Boolean, optional, default=`True`): `True` to prepare
+                the node.
+            prepare_net (Boolean, optional, default=`True`): `True` to prepare
+                the network.
+            restore_later (Boolean, optional, default=`True`): `True` to
+                restore node original values when finish the update process.
+        """
+        _log.info("'%s' - %s", self._xbee, self.TASK_PREPARE)
+
+        # Change sync ops timeout
+        self._op_timeout = self._xbee.get_sync_ops_timeout()
+        if self._timeout:
+            self._xbee.set_sync_ops_timeout(max(self._op_timeout, self._timeout))
+
+        if not prepare_node and not prepare_net:
+            return
+
+        self.cmd_dict.clear()
+        self._task_done[self.TASK_PREPARE] = 0
+        self.progress_cb(self.TASK_PREPARE)
+
+        if prepare_node:
+            # Try to read information
+            if not self._xbee.is_device_info_complete():
+                try:
+                    self._xbee.read_device_info(init=True, fire_event=False)
+                except XBeeException:
+                    pass
+
+        self.progress_cb(self.TASK_PREPARE)
+
+        if prepare_node:
+            self._prepare_node_for_update(restore_later=restore_later)
+        self.progress_cb(self.TASK_PREPARE)
+
+        if prepare_net and self._xbee.is_remote():
+            self._prepare_network_for_update()
+        self.progress_cb(self.TASK_PREPARE)
+
+    def restore_after_update(self, restore_settings=True):
+        """
+        Restores the node after an update process.
+        """
+        _log.info("'%s' - %s", self._xbee, self.TASK_RESTORE)
+
+        if restore_settings and self.cmd_dict:
+            self.progress_cb(self.TASK_RESTORE)
+            self._restore_node_after_update(self._xbee)
+
+            self.progress_cb(self.TASK_RESTORE)
+            self._restore_network_after_update()
+            self.progress_cb(self.TASK_RESTORE)
+
+        if self._op_timeout is not None:
+            self._xbee.set_sync_ops_timeout(self._op_timeout)
+
+    @staticmethod
+    def exec_at_cmd(func, node, cmd, value=None, retries=5, apply=False):
+        """
+        Reads the given parameter from the XBee device with the given number of retries.
+
+        Args:
+            func (Function): Function to execute.
+            node (:class:`.AbstractXBeeDevice`): XBee to get/set parameter.
+            cmd (String or :class: `ATStringCommand`): Parameter to get/set.
+            value (Bytearray, optional, default=`None`): Value to set.
+            retries (Integer, optional, default=5): Number of retries to perform.
+            apply (Boolean, optional, default=`False`): `True` to apply.
+
+        Returns:
+            Bytearray: Read parameter value.
+
+        Raises:
+            XBeeException: If the value could be get/set after the retries.
+        """
+        if func not in (AbstractXBeeDevice.get_parameter,
+                        AbstractXBeeDevice.set_parameter,
+                        XBeeDevice.get_parameter, XBeeDevice.set_parameter,
+                        RemoteXBeeDevice.get_parameter, RemoteXBeeDevice.set_parameter):
+            raise ValueError("Invalid function")
+
+        error_msg = None
+
+        total = retries
+        for retry in range(retries):
+            try:
+                if value:
+                    _log.debug("'%s' Setting parameter '%s' to '%s' (%d/%d)", node,
+                               cmd.command, utils.hex_to_string(value, pretty=False),
+                               (retry + 1), total)
+                    return func(node, cmd, value, apply=apply)
+                return func(node, cmd, apply=apply)
+            except XBeeException as exc:
+                error_msg = ("Unable to %s command '%s': %s"
+                             % ("set" if value else "get", cmd.command, str(exc)))
+            time.sleep(0.2)
+
+        if error_msg:
+            raise XBeeException(error_msg)
+
+    def progress_cb(self, task, done=0):
+        """
+        If a callback was provided in the constructor, notifies it with the
+        provided task and the corresponding percentage.
+
+        Args:
+            task (String): The task to inform about, it must be `TASK_PREPARE`
+                or `TASK_RESTORE`.
+            done (Integer, optional, default=0): Total amount of done job. If 0,
+                it is increased by one.
+
+        Returns:
+            Integer: Total work done for the task.
+        """
+        if not self._callback and not _log.isEnabledFor(logging.DEBUG):
+            return
+
+        percentage = 0
+        total_done = 0
+        active_task = None
+
+        if task.startswith(self.TASK_PREPARE):
+            active_task = self.TASK_PREPARE
+        elif task.startswith(self.TASK_RESTORE):
+            active_task = self.TASK_RESTORE
+
+        if active_task:
+            if done > 0:
+                self._task_done[active_task] = done
+            percentage = self._task_done[active_task] * 100 // self._task_total[active_task]
+            total_done = self._task_done[active_task]
+            if done == 0:
+                self._task_done[active_task] += 1
+            percentage = max(min(percentage, 100), 0)
+
+        _log.debug("%s: %d", task, percentage)
+        if self._callback:
+            self._callback(task, percentage)
+
+        return total_done
+
+    def _is_sync_sleep(self):
+        """
+        Checks if the network is a DigiMesh sychronous sleeping network.
+
+        Returns:
+             Boolean: `True` if is a sync sleeping network, `False` otherwise.
+        """
+        if self._xbee.is_remote():
+            local = self._xbee.get_local_xbee_device()
+        else:
+            local = self._xbee
+
+        if local.get_protocol() != XBeeProtocol.DIGI_MESH:
+            return False
+
+        try:
+            value = self.exec_at_cmd(AbstractXBeeDevice.get_parameter, local, ATStringCommand.SM)
+            return int.from_bytes(value, "big") in (7, 8)
+        except XBeeException as exc:
+            _log.debug("Could not read '%s': %s", ATStringCommand.SM.command, str(exc))
+            return False
+
+    def _prepare_node_for_update(self, restore_later=True):
+        """
+        Prepares the node for an update. It reconfigures 'SP' and 'SN' params
+        to their minimum value, in asynchronous sleep nodes.
+
+        Args:
+            restore_later (Boolean, optional, default=`True`): `True` to store
+                'SP' and 'SN' original values to restore them later.
+        """
+        _log.debug("'%s' - %s: node", self._xbee, self.TASK_PREPARE)
+        self.cmd_dict = {self._xbee: {}}
+
+        if self._xbee.get_protocol() == XBeeProtocol.ZIGBEE:
+            # For end devices, sleep the minimum possible
+            if self._xbee.get_role() not in (Role.END_DEVICE, Role.UNKNOWN, None):
+                return
+        elif self._xbee.get_protocol() == XBeeProtocol.DIGI_MESH:
+            # For sync sleeping routers, do nothing
+            if self.sync_sleep:
+                return
+
+        default_sp = self._get_min_value(ATStringCommand.SP, self._xbee.get_protocol())
+        default_sn = self._get_min_value(ATStringCommand.SN, self._xbee.get_protocol())
+        to_prepare = {
+            ATStringCommand.SP: bytearray([default_sp]),
+            ATStringCommand.SN: bytearray([default_sn])
+        }
+
+        if restore_later:
+            sp_val = None
+            sn_val = None
+            try:
+                sp_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter, self._xbee,
+                                          ATStringCommand.SP)
+                sn_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter, self._xbee,
+                                          ATStringCommand.SN)
+            except XBeeException as exc:
+                _log.info("Unable to read '%s' configuration: %s", self._xbee, str(exc))
+            if sp_val is not None and int.from_bytes(sp_val, "big") != default_sp:
+                self.cmd_dict[self._xbee][ATStringCommand.SP] = sp_val
+            if sn_val is not None and int.from_bytes(sn_val, "big") != default_sn:
+                self.cmd_dict[self._xbee][ATStringCommand.SN] = sn_val
+
+        try:
+            for cmd, val in to_prepare.items():
+                self.exec_at_cmd(AbstractXBeeDevice.set_parameter, self._xbee, cmd,
+                                 value=val, apply=True)
+            if restore_later:
+                self.exec_at_cmd(AbstractXBeeDevice.set_parameter, self._xbee,
+                                 ATStringCommand.WR, value=bytearray([0]),
+                                 apply=True)
+        except XBeeException as exc:
+            _log.info("Unable to set '%s' to minimum sleep temporally: %s",
+                      self._xbee, str(exc))
+
+    def _prepare_network_for_update(self):
+        """
+        Prepares a DigiMesh sync sleep network for an update process. It changes
+        the sleep time of the network to the minimum value (1) by modifying the
+        'SP' value of the local XBee and waits a maximum of original sleep cycle
+        to start the update process.
+        It also modifies 'SO' of the local XBee to be eligible to be a sleep
+        coordinator (bit 1 = 0) and enable modem status network sleep frames
+        (bit 2 = 1). It stores original values to restore them later.
+        """
+        if not self.sync_sleep:
+            self.progress_cb(self.TASK_PREPARE)
+            return
+
+        _log.debug("'%s' - %s: network", self._xbee, self.TASK_PREPARE)
+
+        if self._xbee.is_remote():
+            local = self._xbee.get_local_xbee_device()
+        else:
+            local = self._xbee
+
+        old_timeout = local.get_sync_ops_timeout()
+        if self._timeout:
+            local.set_sync_ops_timeout(max(old_timeout, self._timeout))
+
+        error_format = "Unable to perform update: %s"
+
+        # Read the sleep time
+        try:
+            os_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter, local,
+                                      ATStringCommand.OS)
+            ow_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter, local,
+                                      ATStringCommand.OW)
+            if os_val is None or ow_val is None:
+                msg = error_format % "Cannot get network synchronous sleep configuration"
+                _log.error(msg)
+                raise XBeeException(msg)
+
+            # Read the sleep options
+            so_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter, local,
+                                      ATStringCommand.SO)
+            orig_so_val = so_val
+            if so_val is None:
+                msg = error_format % "Cannot get network synchronous sleep configuration"
+                _log.error(msg)
+                raise XBeeException(msg)
+
+            so_val = utils.int_to_bytes(utils.bytes_to_int(so_val), 2)
+            # Ensure the local node can be a sleep coordinator:
+            # SO bit 1: Non-sleep coordinator (0)
+            so_val[1] = so_val[1] & ~0x02 if so_val[1] & 0x02 else so_val[1]
+
+            # SO bit 2: Enable API sleep status messages (1)
+            so_val[1] = so_val[1] | 0x04 if so_val[1] & 0x04 != 4 else so_val[1]
+
+            self.cmd_dict.update({local: {}})
+
+            to_apply = {}
+            # Configure SO
+            if utils.bytes_to_int(orig_so_val) != utils.bytes_to_int(so_val):
+                to_apply[ATStringCommand.SO] = so_val
+                self.cmd_dict[local][ATStringCommand.SO] = orig_so_val
+
+            sleep_time = utils.bytes_to_int(os_val) / 100
+            wake_time = utils.bytes_to_int(ow_val) / 1000
+
+            # Configure SP with the minimum value
+            if sleep_time != 0.01:  # 10 ms
+                to_apply[ATStringCommand.SP] = bytearray([1])
+                self.cmd_dict[local][ATStringCommand.ST] = ow_val
+                self.cmd_dict[local][ATStringCommand.SP] = os_val
+
+            # Configure ST with a minimum value of 30 seconds
+            if wake_time != self._DM_SYNC_WAKE_TIME:
+                to_apply[ATStringCommand.ST] = utils.int_to_bytes(self._DM_SYNC_WAKE_TIME*1000)
+                self.cmd_dict[local][ATStringCommand.ST] = ow_val
+
+            msg = ""
+            for cmd, val in to_apply.items():
+                try:
+                    self.exec_at_cmd(AbstractXBeeDevice.set_parameter, local, cmd,
+                                     value=val)
+                except XBeeException:
+                    msg = error_format % "Cannot prepare local XBee for update"
+
+            try:
+                self.exec_at_cmd(AbstractXBeeDevice.set_parameter, local,
+                                 ATStringCommand.AC, value=bytearray([0]), apply=True)
+            except XBeeException:
+                pass
+
+            if not msg:
+                self.progress_cb(
+                    "%s: %s" % (self.TASK_PREPARE, "waiting for network to wake"))
+                if not self._wait_for_dm_network_up(sleep_time + wake_time):
+                    msg = error_format % "Network is not awake"
+
+            # Restore in case of error
+            if msg:
+                self._restore_network_after_update()
+                _log.error(msg)
+                raise XBeeException(msg)
+            if so_val[1] & 0x04 != 4:
+                # Restore SO not to have so many modem status frames
+                # SO bit 2: Disable API sleep status messages (0)
+                so_val[1] = so_val[1] & ~0x04
+                try:
+                    self.exec_at_cmd(AbstractXBeeDevice.set_parameter, local,
+                                     ATStringCommand.SO, value=so_val, apply=True)
+                except XBeeException:
+                    pass
+        finally:
+            local.set_sync_ops_timeout(old_timeout)
+
+    def _restore_node_after_update(self, node):
+        """
+        Restores the node parameters after an update process.
+
+        Args:
+             node (:class: `.AbstractXBeeDevice): The node to restore.
+        """
+        to_restore = self.cmd_dict.pop(node, {})
+        if not to_restore:
+            self._update_node_info(node, self.TASK_RESTORE)
+            return
+
+        _log.debug("'%s' - %s: node", self._xbee, self.TASK_RESTORE)
+
+        # Set stored parameter values
+        for cmd, val in to_restore.items():
+            try:
+                self.exec_at_cmd(AbstractXBeeDevice.set_parameter, node, cmd, value=val)
+            except XBeeException as exc:
+                _log.info("'%s' - %s: Unable to restore configuration: %s", node,
+                          self.TASK_RESTORE, str(exc))
+
+        # Write to flash changed values
+        try:
+            self.exec_at_cmd(AbstractXBeeDevice.set_parameter, node,
+                             ATStringCommand.WR, value=bytearray([0]), apply=False)
+        except XBeeException as exc:
+            _log.info("'%s' - %s: Unable to restore configuration: %s", node,
+                      self.TASK_RESTORE, str(exc))
+
+        # For DigiMesh sync sleep network, calculate sleep period to wait to
+        # properly apply final sleep settings
+        wait_time = 0
+        if self.sync_sleep and self._must_wait_for_network(node, to_restore):
+            if node.is_remote():
+                wait_time = self._DM_SYNC_WAKE_TIME + 1
+            else:
+                try:
+                    sp_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter,
+                                              node, ATStringCommand.OS)
+                except XBeeException:
+                    sp_val = [1]
+                try:
+                    st_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter,
+                                              node, ATStringCommand.OW)
+                except XBeeException:
+                    st_val = [self._DM_SYNC_WAKE_TIME]
+
+                wait_time = (utils.bytes_to_int(sp_val) / 100
+                             + utils.bytes_to_int(st_val) / 1000)
+
+        # Apply changed values
+        try:
+            self.exec_at_cmd(AbstractXBeeDevice.set_parameter, node,
+                             ATStringCommand.AC, value=bytearray([0]), apply=True)
+        except XBeeException as exc:
+            _log.info("'%s' - %s: Unable to restore configuration: %s", node,
+                      self.TASK_RESTORE, str(exc))
+
+        self._update_node_info(node, self.TASK_RESTORE)
+
+        # Wait for sync sleep configuration to apply
+        if wait_time:
+            _log.debug("'%s' - %s: Waiting for network to awake", node, self.TASK_RESTORE)
+            if not self._wait_for_dm_network_up(wait_time):
+                _log.info("'%s' - %s: Network is not awake", node, self.TASK_RESTORE)
+
+    def _restore_network_after_update(self):
+        """
+        Restores a network previously configured for update.
+        """
+        if not self.cmd_dict:
+            return
+
+        _log.debug("'%s' - %s: network", self._xbee, self.TASK_RESTORE)
+
+        if self._xbee.is_remote():
+            local = self._xbee.get_local_xbee_device()
+        else:
+            local = self._xbee
+
+        old_timeout = local.get_sync_ops_timeout()
+        if self._timeout:
+            local.set_sync_ops_timeout(max(old_timeout, self._timeout))
+
+        self._restore_node_after_update(local)
+
+        local.set_sync_ops_timeout(old_timeout)
+
+    def _must_wait_for_network(self, node, node_config):
+        """
+        Checks which sync sleep values must be restored, the stored ones or
+        new ones from the node.
+
+        Args:
+            node (:class: `.AbstractXBeeDevice`): The node that has just been
+                updated.
+            node_config (Dictionary): The dictionary with the restored node
+                configuration.
+        """
+        if not self.sync_sleep:
+            return False
+        # If no SP nor ST are configured, do not wait
+        sp_val = node_config.get(ATStringCommand.SP, None)
+        st_val = node_config.get(ATStringCommand.ST, None)
+        if sp_val is None and st_val is None:
+            return False
+        # If SM is modified and is not a synchronous sleep mode, do not wait
+        sm_val = node_config.get(ATStringCommand.SM, None)
+        if sm_val is not None and int.from_bytes(sm_val, "big") not in (7, 8):
+            return False
+
+        if node.is_remote():
+            # If the node is not eligible as sleep coordinator, do not remove
+            # already stored values
+            so_val = node_config.get(ATStringCommand.SO, None)
+            if so_val is None:
+                try:
+                    so_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter,
+                                              node, ATStringCommand.SO)
+                except XBeeException:
+                    pass
+
+            if so_val is None:
+                remove_stored = False
+            else:
+                so_val = utils.int_to_bytes(utils.bytes_to_int(so_val), 2)
+                remove_stored = bool(so_val[1] & 0x02 != 0x02)
+
+            if remove_stored:
+                local_cmds = self.cmd_dict.get(node.get_local_xbee_device(), {})
+                # Do not restore stored values, the already configured values
+                # for the node are the valid ones
+                if sp_val:
+                    local_cmds.pop(ATStringCommand.SP, None)
+                if st_val:
+                    local_cmds.pop(ATStringCommand.ST, None)
+
+        return True
+
+    def _update_node_info(self, node, task):
+        """
+        Tries to read the node information.
+        """
+        retries = _PARAMETER_READ_RETRIES
+        while retries > 0:
+            _log.debug("'%s' - %s: Reading node info (%d/%d)", node, task,
+                       (_PARAMETER_READ_RETRIES + 1 - retries),
+                       _PARAMETER_READ_RETRIES)
+            try:
+                node.read_device_info(init=True, fire_event=True)
+                break
+            except XBeeException as exc:
+                retries -= 1
+                if not retries:
+                    _log.info("'%s' - %s: %s", self._xbee, task,
+                              _ERROR_UPDATE_TARGET_INFORMATION % str(exc))
+                    break
+                time.sleep(0.2 if not self._xbee.is_remote else 5)
+
+    def _wait_for_dm_network_up(self, timeout):
+        """
+        Waits for a sync sleep DigiMesh network to update the maximum provided
+        timeout. It returns when the network wakes up or when the timeout
+        expires.
+
+        Args:
+            timeout(Float): Maximum number of seconds to wait.
+
+        Returns:
+            Boolean: `True` when the network is awake, `False` if the timeout
+                expired.
+        """
+        if not self._xbee.is_remote() or not self._sync_sleep:
+            return True
+
+        local = self._xbee.get_local_xbee_device()
+
+        wait_timeout = timeout * 1.2  # 20% more
+
+        awake = Event()
+
+        # Register a callback to check if the local XBee is configured to
+        # 'Enable API sleep status messages' (bit 2 of 'SO')
+        def modem_st_cb(modem_status):
+            if modem_status == ModemStatus.NETWORK_WOKE_UP:
+                local.del_modem_status_received_callback(modem_st_cb)
+                awake.set()
+
+        local.add_modem_status_received_callback(modem_st_cb)
+        return awake.wait(timeout=wait_timeout)
+
+    @staticmethod
+    def _get_min_value(cmd, protocol):
+        """
+        Returns the minimum value.
+        TODO: A class with firmware XML file parsed should be provided. These
+              values are stored there and we do not need to hardcode them.
+        """
+        min_values = {
+            ATStringCommand.SN: {XBeeProtocol.ZIGBEE: 1,
+                                 XBeeProtocol.DIGI_MESH: 1,
+                                 XBeeProtocol.RAW_802_15_4: 1},
+            ATStringCommand.SP: {XBeeProtocol.ZIGBEE: 0x20,
+                                 XBeeProtocol.DIGI_MESH: 1,
+                                 XBeeProtocol.RAW_802_15_4: 0}
+        }
+        return min_values.get(cmd, {}).get(protocol, None)
+
+
 class _XBeeFirmwareUpdater(ABC):
     """
     Helper class used to handle XBee firmware update processes.
@@ -1544,8 +2154,8 @@ class _XBeeFirmwareUpdater(ABC):
         _log.debug(" - Region lock: %s", self._target_region_lock)
 
         # Check if the hardware version is compatible with the firmware update process.
-        if self._target_hardware_version and self._target_hardware_version not in SUPPORTED_HARDWARE_VERSIONS:
-            self._exit_with_error(ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
+        if self._target_hardware_version and self._target_hardware_version not in LOCAL_SUPPORTED_HW_VERSIONS:
+            self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
 
         # Check if device hardware version is compatible with the firmware.
         if self._target_hardware_version and self._target_hardware_version != self._xml_hardware_version:
@@ -1669,6 +2279,23 @@ class _XBeeFirmwareUpdater(ABC):
         self._update_target_information()
 
         _log.info("Update process finished successfully")
+
+    def check_protocol_changed_by_fw(self, orig_protocol):
+        """
+        Determines whether the XBee protocol will change after the firmware
+        update.
+
+        Args:
+            orig_protocol (:class: `.XBeeProtocol): The original protocol
+                before the update.
+
+        Returns:
+            Boolean: `True` if the protocol will change after the firmware
+                update, `False` otherwise.
+        """
+        new_protocol = XBeeProtocol.determine_protocol(
+            self._xml_hw_version, utils.int_to_bytes(self._xml_fw_version))
+        return orig_protocol != new_protocol
 
     @abstractmethod
     def _check_updater_compatibility(self):
@@ -2322,8 +2949,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         """
         Verifies whether the updater device is compatible with firmware update or not.
         """
-        if self._local_device.get_hardware_version().code not in SUPPORTED_HARDWARE_VERSIONS:
-            self._exit_with_error(ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
+        if self._local_device.get_hardware_version().code not in REMOTE_SUPPORTED_HW_VERSIONS:
+            self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
 
     def _update_target_information(self):
         """
@@ -4082,7 +4709,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         upgrade_end_response_frame = self._create_upgrade_end_response_frame()
         while retries > 0:
             try:
-                _log.debug("Sending '%s' frame", name)
+                _log.debug("Sending '%s' frame (%d/%d)", name,
+                           _SEND_BLOCK_RETRIES - retries + 1, _SEND_BLOCK_RETRIES)
                 error_message = None
                 status_frame = self._local_device.send_packet_sync_and_get_response(upgrade_end_response_frame)
                 if not isinstance(status_frame, TransmitStatusPacket):
@@ -4278,8 +4906,8 @@ class _RemoteFilesystemUpdater(_RemoteXBee3FirmwareUpdater):
                    if self._target_hardware_version is not None else "-")
 
         # Check if the hardware version is compatible with the filesystem update process.
-        if self._target_hardware_version and self._target_hardware_version not in XBEE3_HARDWARE_VERSIONS:
-            self._exit_with_error(ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
+        if self._target_hardware_version and self._target_hardware_version not in XBEE3_HW_VERSIONS:
+            self._exit_with_error(_ERROR_HARDWARE_VERSION_NOT_SUPPORTED % self._target_hardware_version)
 
     def _update_target_information(self):
         """
@@ -4856,7 +5484,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                 updater_hw_version = _read_device_parameter_with_retries(updater, ATStringCommand.HV)
             else:
                 updater_hw_version = [updater.get_hardware_version().code]
-            if not updater_hw_version or updater_hw_version[0] not in S2C_HARDWARE_VERSIONS:
+            if not updater_hw_version or updater_hw_version[0] not in S2C_HW_VERSIONS:
                 self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
             return updater
         # Look for updater using the current network connections.
@@ -4901,8 +5529,8 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         """
         # In a 802.15.4 network, the updater device is the local device. The only restriction is that local and
         # remote devices mut be of the same hardware type (S2C <> S2C)
-        if self._local_device.get_hardware_version().code in S2C_HARDWARE_VERSIONS and \
-                self._get_target_hardware_version() in S2C_HARDWARE_VERSIONS:
+        if self._local_device.get_hardware_version().code in S2C_HW_VERSIONS and \
+                self._get_target_hardware_version() in S2C_HW_VERSIONS:
             return self._local_device
         self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
 
@@ -4936,7 +5564,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                     connection.node_a, ATStringCommand.HV)
             else:
                 updater_hw_version = [connection.node_a.get_hardware_version().code]
-            if not updater_hw_version or updater_hw_version[0] not in S2C_HARDWARE_VERSIONS:
+            if not updater_hw_version or updater_hw_version[0] not in S2C_HW_VERSIONS:
                 continue
             # If the 'node_a' is the local device, return only it.
             if connection.node_a == self._local_device:
@@ -4972,7 +5600,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                     neighbor.node, ATStringCommand.HV)
             else:
                 neighbor_hw_version = [neighbor.node.get_hardware_version().code]
-            if not neighbor_hw_version or neighbor_hw_version[0] not in S2C_HARDWARE_VERSIONS:
+            if not neighbor_hw_version or neighbor_hw_version[0] not in S2C_HW_VERSIONS:
                 continue
             # If the neighbor is the local device, return only it.
             if neighbor == self._local_device:
@@ -5432,8 +6060,9 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             self._exit_with_error(_ERROR_FINISH_PROCESS, restore_updater=True)
 
 
-def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bootloader_firmware_file=None,
-                          timeout=None, progress_callback=None):
+def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
+                          bootloader_firmware_file=None, timeout=None,
+                          progress_callback=None):
     """
     Performs a local firmware update operation in the given target.
 
@@ -5441,7 +6070,7 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
         target (String or :class:`.XBeeDevice`): target of the firmware upload operation.
             String: serial port identifier.
             :class:`.XBeeDevice`: XBee to upload its firmware.
-        xml_firmware_file (String): path of the XML file that describes the firmware to upload.
+        xml_fw_file (String): path of the XML file that describes the firmware to upload.
         xbee_firmware_file (String, optional): location of the XBee binary firmware file.
         bootloader_firmware_file (String, optional): location of the bootloader binary firmware file.
         timeout (Integer, optional): the serial port read data timeout.
@@ -5458,10 +6087,10 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     if not isinstance(target, str) and not isinstance(target, XBeeDevice):
         _log.error("ERROR: %s", _ERROR_TARGET_INVALID)
         raise FirmwareUpdateException(_ERROR_TARGET_INVALID)
-    if xml_firmware_file is None:
+    if xml_fw_file is None:
         _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
-    if not _file_exists(xml_firmware_file):
+    if not _file_exists(xml_fw_file):
         _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
     if xbee_firmware_file is not None and not _file_exists(xbee_firmware_file):
@@ -5471,13 +6100,19 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
         _log.error("ERROR: %s", _ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND)
         raise FirmwareUpdateException(_ERROR_FILE_BOOTLOADER_FIRMWARE_NOT_FOUND)
 
+    if isinstance(target, XBeeDevice):
+        hw_version = target.get_hardware_version()
+        if hw_version and hw_version.code not in LOCAL_SUPPORTED_HW_VERSIONS:
+            raise OperationNotSupportedException(
+                "Firmware update only supported in XBee 3 and XBee SX 868/900")
+
     # Launch the update process.
     if not timeout:
         timeout = _READ_DATA_TIMEOUT
 
     if (isinstance(target, XBeeDevice) and target.comm_iface
             and target.comm_iface.supports_update_firmware()):
-        target.comm_iface.update_firmware(target, xml_firmware_file,
+        target.comm_iface.update_firmware(target, xml_fw_file,
                                           xbee_fw_file=xbee_firmware_file,
                                           bootloader_fw_file=bootloader_firmware_file,
                                           timeout=timeout,
@@ -5487,14 +6122,14 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     bootloader_type = _determine_bootloader_type(target)
     if bootloader_type == _BootloaderType.GECKO_BOOTLOADER:
         update_process = _LocalXBee3FirmwareUpdater(target,
-                                                    xml_firmware_file,
+                                                    xml_fw_file,
                                                     xbee_firmware_file=xbee_firmware_file,
                                                     bootloader_firmware_file=bootloader_firmware_file,
                                                     timeout=timeout,
                                                     progress_callback=progress_callback)
     elif bootloader_type == _BootloaderType.GEN3_BOOTLOADER:
         update_process = _LocalXBeeGEN3FirmwareUpdater(target,
-                                                       xml_firmware_file,
+                                                       xml_fw_file,
                                                        xbee_firmware_file=xbee_firmware_file,
                                                        timeout=timeout,
                                                        progress_callback=progress_callback)
@@ -5505,14 +6140,14 @@ def update_local_firmware(target, xml_firmware_file, xbee_firmware_file=None, bo
     update_process.update_firmware()
 
 
-def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None, bootloader_file=None,
-                           max_block_size=0, timeout=None, progress_callback=None):
+def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_file=None,
+                           max_block_size=0, timeout=None, progress_callback=None, _prepare=True):
     """
     Performs a remote firmware update operation in the given target.
 
     Args:
-        remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to upload its firmware.
-        xml_firmware_file (String): path of the XML file that describes the firmware to upload.
+        remote (:class:`.RemoteXBeeDevice`): remote XBee device to upload its firmware.
+        xml_fw_file (String): path of the XML file that describes the firmware to upload.
         firmware_file (String, optional): path of the binary firmware file to upload.
         bootloader_file (String, optional): path of the bootloader firmware file to upload.
         max_block_size (Integer, optional): Maximum size of the ota block to send.
@@ -5527,13 +6162,13 @@ def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None,
         FirmwareUpdateException: if there is any error performing the remote firmware update.
     """
     # Sanity checks.
-    if not isinstance(remote_device, RemoteXBeeDevice):
+    if not isinstance(remote, RemoteXBeeDevice):
         _log.error("ERROR: %s", _ERROR_REMOTE_DEVICE_INVALID)
         raise FirmwareUpdateException(_ERROR_TARGET_INVALID)
-    if xml_firmware_file is None:
+    if xml_fw_file is None:
         _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_SPECIFIED)
-    if not _file_exists(xml_firmware_file):
+    if not _file_exists(xml_fw_file):
         _log.error("ERROR: %s", _ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
         raise FirmwareUpdateException(_ERROR_FILE_XML_FIRMWARE_NOT_FOUND)
     if firmware_file is not None and not _file_exists(firmware_file):
@@ -5547,37 +6182,39 @@ def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None,
     if max_block_size < 0 or max_block_size > 255:
         raise ValueError("Maximum block size must be between 0 and 255")
 
+    hw_version = remote.get_hardware_version()
+    if hw_version and hw_version.code not in REMOTE_SUPPORTED_HW_VERSIONS:
+        raise OperationNotSupportedException(
+            "Firmware update only supported in XBee 3, XBee SX 868/900, and XBee S2C devices")
+
     # Launch the update process.
     if not timeout:
         timeout = _REMOTE_FIRMWARE_UPDATE_DEFAULT_TIMEOUT
 
-    comm_iface = remote_device.get_comm_iface()
+    comm_iface = remote.get_comm_iface()
     if comm_iface and comm_iface.supports_update_firmware():
-        comm_iface.update_firmware(remote_device, xml_firmware_file,
+        comm_iface.update_firmware(remote, xml_fw_file,
                                    xbee_fw_file=firmware_file,
                                    bootloader_fw_file=bootloader_file,
                                    timeout=timeout,
                                    progress_callback=progress_callback)
         return
 
-    bootloader_type = _determine_bootloader_type(remote_device)
+    bootloader_type = _determine_bootloader_type(remote)
     if bootloader_type == _BootloaderType.GECKO_BOOTLOADER:
-        update_process = _RemoteXBee3FirmwareUpdater(remote_device,
-                                                     xml_firmware_file,
+        update_process = _RemoteXBee3FirmwareUpdater(remote, xml_fw_file,
                                                      ota_firmware_file=firmware_file,
                                                      otb_firmware_file=bootloader_file,
                                                      timeout=timeout,
                                                      max_block_size=max_block_size,
                                                      progress_callback=progress_callback)
     elif bootloader_type == _BootloaderType.GEN3_BOOTLOADER:
-        update_process = _RemoteGPMFirmwareUpdater(remote_device,
-                                                   xml_firmware_file,
+        update_process = _RemoteGPMFirmwareUpdater(remote, xml_fw_file,
                                                    xbee_firmware_file=firmware_file,
                                                    timeout=timeout,
                                                    progress_callback=progress_callback)
     elif bootloader_type == _BootloaderType.EMBER_BOOTLOADER:
-        update_process = _RemoteEmberFirmwareUpdater(remote_device,
-                                                     xml_firmware_file,
+        update_process = _RemoteEmberFirmwareUpdater(remote, xml_fw_file,
                                                      xbee_firmware_file=firmware_file,
                                                      timeout=timeout,
                                                      force_update=True,
@@ -5587,29 +6224,26 @@ def update_remote_firmware(remote_device, xml_firmware_file, firmware_file=None,
         _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
         raise FirmwareUpdateException(_ERROR_BOOTLOADER_NOT_SUPPORTED)
 
-    # If it is an end device, set it to sleep the minimum possible
-    # We do not need to restore values because the node is rebooted after the update
-    if remote_device.get_role() in (Role.END_DEVICE, Role.UNKNOWN, None):
-        if not _set_device_parameter_with_retries(
-                remote_device, ATStringCommand.SP.command, bytearray([0x20]), apply=True):
-            _log.info("Unable to set node '%s' to minimum sleep temporally: '%s' failed",
-                      remote_device, ATStringCommand.SP.command)
-        if not _set_device_parameter_with_retries(
-                remote_device, ATStringCommand.SN.command, bytearray([1]), apply=True):
-            _log.info("Unable to set node '%s' to minimum sleep temporally: '%s' failed",
-                      remote_device, ATStringCommand.SN.command)
-
-    update_process.update_firmware()
+    orig_protocol = remote.get_protocol()
+    configurer = UpdateConfigurer(remote, timeout=timeout,
+                                  callback=progress_callback)
+    if _prepare:
+        configurer.prepare_for_update(restore_later=False)
+    try:
+        update_process.update_firmware()
+    finally:
+        configurer.restore_after_update(
+            restore_settings=not update_process.check_protocol_changed_by_fw(orig_protocol))
 
 
-def update_remote_filesystem(remote_device, ota_filesystem_file, max_block_size=0, timeout=None,
-                             progress_callback=None):
+def update_remote_filesystem(remote, ota_fs_file, max_block_size=0, timeout=None,
+                             progress_callback=None, _prepare=True):
     """
     Performs a remote filesystem update operation in the given target.
 
     Args:
-        remote_device (:class:`.RemoteXBeeDevice`): remote XBee device to update its filesystem image.
-        ota_filesystem_file (String): path of the OTA filesystem image file to update.
+        remote (:class:`.RemoteXBeeDevice`): remote XBee device to update its filesystem image.
+        ota_fs_file (String): path of the OTA filesystem image file to update.
         max_block_size (Integer, optional): Maximum size of the ota block to send.
         timeout (Integer, optional): the timeout to wait for remote frame requests.
         progress_callback (Function, optional): function to execute to receive progress information. Receives two
@@ -5622,13 +6256,13 @@ def update_remote_filesystem(remote_device, ota_filesystem_file, max_block_size=
         FirmwareUpdateException: if there is any error updating the remote filesystem image.
     """
     # Sanity checks.
-    if not isinstance(remote_device, RemoteXBeeDevice):
+    if not isinstance(remote, RemoteXBeeDevice):
         _log.error("ERROR: %s", _ERROR_REMOTE_DEVICE_INVALID)
         raise FirmwareUpdateException(_ERROR_REMOTE_DEVICE_INVALID)
-    if ota_filesystem_file is None:
+    if ota_fs_file is None:
         _log.error("ERROR: %s", _ERROR_FILE_OTA_FILESYSTEM_NOT_SPECIFIED)
         raise FirmwareUpdateException(_ERROR_FILE_OTA_FILESYSTEM_NOT_SPECIFIED)
-    if not _file_exists(ota_filesystem_file):
+    if not _file_exists(ota_fs_file):
         _log.error("ERROR: %s", _ERROR_FILE_OTA_FILESYSTEM_NOT_FOUND)
         raise FirmwareUpdateException(_ERROR_FILE_OTA_FILESYSTEM_NOT_FOUND)
     if not isinstance(max_block_size, int):
@@ -5639,12 +6273,18 @@ def update_remote_filesystem(remote_device, ota_filesystem_file, max_block_size=
     # Launch the update process.
     if not timeout:
         timeout = _REMOTE_FIRMWARE_UPDATE_DEFAULT_TIMEOUT
-    update_process = _RemoteFilesystemUpdater(remote_device,
-                                              ota_filesystem_file,
+    update_process = _RemoteFilesystemUpdater(remote, ota_fs_file,
                                               timeout=timeout,
                                               max_block_size=max_block_size,
                                               progress_callback=progress_callback)
-    update_process.update_firmware()
+    configurer = UpdateConfigurer(remote, timeout=timeout,
+                                  callback=progress_callback)
+    if _prepare:
+        configurer.prepare_for_update(restore_later=False)
+    try:
+        update_process.update_firmware()
+    finally:
+        configurer.restore_after_update()
 
 
 def _file_exists(file):
@@ -5744,14 +6384,10 @@ def _read_device_parameter_with_retries(xbee, parameter, retries=_PARAMETER_READ
     while retries > 0:
         try:
             return xbee.get_parameter(parameter, apply=False)
-        except TimeoutException:
-            # On timeout exceptions perform retries.
+        except XBeeException:
             retries -= 1
             if retries != 0:
                 time.sleep(1)
-        except XBeeException as exc:
-            _log.warning("Could not read setting '%s': %s" % (parameter, str(exc)))
-            return None
 
     return None
 
@@ -5781,15 +6417,10 @@ def _set_device_parameter_with_retries(xbee, parameter, value,
         try:
             xbee.set_parameter(parameter, value, apply=apply)
             return True
-        except TimeoutException:
-            # On timeout exceptions perform retries.
+        except XBeeException:
             retries -= 1
             if retries != 0:
                 time.sleep(1)
-        except XBeeException as exc:
-            _log.warning("Could not configure setting '%s': %s" % (parameter, str(exc)))
-            return False
-
     return False
 
 
