@@ -10915,7 +10915,7 @@ class DigiMeshNetwork(XBeeNetwork):
                             connection.lq_a2b, requester, node)
         else:
             self._log.debug(
-                "       - CONNECTION (RSSI: %d) already in network in this "
+                "       - CONNECTION (RSSI: %s) already in network in this "
                 "scan (scan: %d) %s >>> %s",
                 connection.lq_a2b, node.scan_counter, requester, node)
 
