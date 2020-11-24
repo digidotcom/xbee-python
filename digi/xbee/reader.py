@@ -1618,7 +1618,7 @@ class PacketListener(threading.Thread):
         remote = None
         x64, x16, n_id, hw_ver, fw_ver, op_mode = \
             self.__get_remote_device_data_from_packet(packet)
-        if (XBee64BitAddress.is_known_node_addr(x64)
+        if (x64 == "local" or XBee64BitAddress.is_known_node_addr(x64)
                 or XBee16BitAddress.is_known_node_addr(x16)):
             remote = self.__xbee.get_network()._add_remote_from_attr(
                 digi.xbee.devices.NetworkEventReason.RECEIVED_MSG,
