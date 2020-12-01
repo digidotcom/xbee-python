@@ -45,15 +45,13 @@ from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.util import utils
 
 _ERROR_TARGET_INVALID = "Invalid update target"
-_ERROR_FILESYSTEM_NOT_SUPPORTED = "XBee device does not have file system support"
-_ERROR_FIRMWARE_FOLDER_NOT_EXIST = "Firmware folder does not exist"
-_ERROR_FIRMWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with " \
-                                 "the device firmware"
-_ERROR_FIRMWARE_XML_INVALID = "Invalid firmware XML file contents: %s"
-_ERROR_FIRMWARE_XML_NOT_EXIST = "Firmware XML file does not exist"
-_ERROR_FIRMWARE_XML_PARSE = "Error parsing firmware XML file: %s"
-_ERROR_HARDWARE_NOT_COMPATIBLE = "The XBee profile is not compatible with " \
-                                 "the device hardware"
+_ERROR_FS_NOT_SUPPORTED = "XBee device does not have file system support"
+_ERROR_FW_FOLDER_NOT_EXIST = "Firmware folder does not exist"
+_ERROR_FW_NOT_COMPATIBLE = "The XBee profile is not compatible with the device firmware"
+_ERROR_FW_XML_INVALID = "Invalid firmware XML file contents: %s"
+_ERROR_FW_XML_NOT_EXIST = "Firmware XML file does not exist"
+_ERROR_FW_XML_PARSE = "Error parsing firmware XML file: %s"
+_ERROR_HW_NOT_COMPATIBLE = "The XBee profile is not compatible with the device  hardware"
 _ERROR_OPEN_DEVICE = "Error opening XBee device: %s"
 _ERROR_PROFILE_NOT_VALID = "The XBee profile is not valid"
 _ERROR_PROFILE_INVALID = "Invalid XBee profile: %s"
@@ -65,12 +63,8 @@ _ERROR_PROFILE_XML_NOT_EXIST = "Profile XML file does not exist"
 _ERROR_PROFILE_XML_INVALID = "Invalid profile XML file contents: %s"
 _ERROR_PROFILE_XML_PARSE = "Error parsing profile XML file: %s"
 _ERROR_READ_REMOTE_PARAMETER = "Error reading remote parameter: %s"
-_ERROR_UPDATE_FILESYSTEM = "Error updating XBee filesystem: %s"
-_ERROR_UPDATE_FILESYSTEM_PROTOCOL_CHANGE = "Cannot update the device " \
-                                           "filesystem as the device protocol" \
-                                           " has changed and it is no longer " \
-                                           "reachable"
-_ERROR_UPDATE_FIRMWARE = "Error updating XBee firmware: %s"
+_ERROR_UPDATE_FS = "Error updating XBee filesystem: %s"
+_ERROR_UPDATE_FW = "Error updating XBee firmware: %s"
 _ERROR_UPDATE_SERIAL_PORT = "Error re-configuring XBee device serial port: %s"
 _ERROR_UPDATE_SETTINGS = "Error updating XBee settings: %s"
 _ERROR_PROTOCOL_CHANGE = "Cannot %s as the protocol changed and it is no" \
@@ -79,32 +73,32 @@ _ERROR_PROTOCOL_CHANGE = "Cannot %s as the protocol changed and it is no" \
 _REMOTE_DEFAULT_TIMEOUT = 20  # Seconds
 _LOCAL_DEFAULT_TIMEOUT = 3  # Seconds.
 
-_LOCAL_FILESYSTEM_FOLDER = "filesystem"
-_REMOTE_FILESYSTEM_FOLDER = "remote_filesystem"
+_LOCAL_FS_DIR = "filesystem"
+_REMOTE_FS_DIR = "remote_filesystem"
 
-_FIRMWARE_FOLDER_NAME = "radio_fw"
+_FW_DIR_NAME = "radio_fw"
 
 _IPV4_SEPARATOR = "."
 _IPV6_SEPARATOR = ":"
 
-_PARAMETER_READ_RETRIES = 3
-_PARAMETER_WRITE_RETRIES = 3
-_PARAMETERS_SERIAL_PORT = [ATStringCommand.BD.command,
-                           ATStringCommand.NB.command,
-                           ATStringCommand.SB.command,
-                           ATStringCommand.D7.command]
-_PARAMETERS_CACHE = [ATStringCommand.NI.command,
-                     ATStringCommand.CE.command,
-                     ATStringCommand.SM.command,
-                     ATStringCommand.BR.command,  # This may affect the role
-                     ATStringCommand.MY.command]
-_PARAMETERS_NETWORK = [ATStringCommand.ID.command,
-                       ATStringCommand.CH.command,
-                       ATStringCommand.HP.command,
-                       ATStringCommand.CM.command,
-                       ATStringCommand.BR.command,
-                       ATStringCommand.EE.command,
-                       ATStringCommand.KY.command]
+_PARAM_READ_RETRIES = 3
+_PARAM_WRITE_RETRIES = 3
+_PARAMS_SERIAL_PORT = [ATStringCommand.BD.command,
+                       ATStringCommand.NB.command,
+                       ATStringCommand.SB.command,
+                       ATStringCommand.D7.command]
+_PARAS_CACHE = [ATStringCommand.NI.command,
+                ATStringCommand.CE.command,
+                ATStringCommand.SM.command,
+                ATStringCommand.BR.command,  # This may affect the role
+                ATStringCommand.MY.command]
+_PARAMS_NETWORK = [ATStringCommand.ID.command,
+                   ATStringCommand.CH.command,
+                   ATStringCommand.HP.command,
+                   ATStringCommand.CM.command,
+                   ATStringCommand.BR.command,
+                   ATStringCommand.EE.command,
+                   ATStringCommand.KY.command]
 
 
 _PROFILE_XML_FILE_NAME = "profile%s" % EXTENSION_XML
@@ -126,19 +120,19 @@ _WILDCARDS_FW_REMOTE_BINARY_FILES = (EXTENSION_OTA, EXTENSION_OTB)
 _XML_COMMAND = "command"
 _XML_CONTROL_TYPE = "control_type"
 _XML_DEFAULT_VALUE = "default_value"
-_XML_FIRMWARE_FIRMWARE = "firmware"
-_XML_FIRMWARE_FIRMWARE_VERSION = "fw_version"
-_XML_FIRMWARE_HARDWARE_VERSION = "firmware/hw_version"
+_XML_FW_FIRMWARE = "firmware"
+_XML_FW_FIRMWARE_VERSION = "fw_version"
+_XML_FW_HARDWARE_VERSION = "firmware/hw_version"
 _XML_COMPATIBILITY_NUMBER = "firmware/compatibility_number"
 _XML_REGION_LOCK = "firmware/region"
-_XML_FIRMWARE_SETTING = ".//setting"
+_XML_FW_SETTING = ".//setting"
 _XML_FORMAT = "format"
 _XML_PROFILE_AT_SETTING = "profile/settings/setting"
-_XML_PROFILE_DESCRIPTION = "profile/description"
-_XML_PROFILE_FLASH_FIRMWARE_OPTION = "profile/flash_fw_action"
+_XML_PROFILE_DESC = "profile/description"
+_XML_PROFILE_FLASH_FW_OPTION = "profile/flash_fw_action"
 _XML_PROFILE_RESET_SETTINGS = "profile/reset_settings"
 _XML_PROFILE_VERSION = "profile/profile_version"
-_XML_PROFILE_XML_FIRMWARE_FILE = "profile/description_file"
+_XML_PROFILE_XML_FW_FILE = "profile/description_file"
 
 
 _log = logging.getLogger(__name__)
@@ -734,19 +728,19 @@ class XBeeProfile:
         self._cellular_bootloader_files = []
 
         self._version = 0
-        self._flash_firmware_option = FlashFirmwareOption.FLASH_DIFFERENT
+        self._flash_fw_option = FlashFirmwareOption.FLASH_DIFFERENT
         self._description = None
         self._reset_settings = True
         self._raw_settings = {}
         self._profile_settings = {}
-        self._firmware_version = None
-        self._hardware_version = None
+        self._fw_version = None
+        self._hw_version = None
         self._compatibility_number = None
         self._region_lock = None
-        self._has_local_filesystem = False
-        self._has_remote_filesystem = False
-        self._has_local_firmware = False
-        self._has_remote_firmware = False
+        self._has_local_fs = False
+        self._has_remote_fs = False
+        self._has_local_fw = False
+        self._has_remote_fw = False
         self._protocol = XBeeProtocol.UNKNOWN
 
         self._initialize_profile()
@@ -791,19 +785,19 @@ class XBeeProfile:
             self.close()
             self._throw_read_exception(_ERROR_PROFILE_UNCOMPRESS % str(exc))
         # Fill paths.
-        firmware_path = Path(os.path.join(self._profile_dir, _FIRMWARE_FOLDER_NAME))
+        firmware_path = Path(os.path.join(self._profile_dir, _FW_DIR_NAME))
         # Firmware XML file.
         self._fw_xml_file = os.path.join(firmware_path, self._fw_xml_filename)
         # Profile XML file.
         self._profile_xml_file = os.path.join(self._profile_dir, _PROFILE_XML_FILE_NAME)
         # Local filesystem folder.
-        if self._has_local_filesystem:
-            self._fs_path = os.path.join(self._profile_dir, _LOCAL_FILESYSTEM_FOLDER)
+        if self._has_local_fs:
+            self._fs_path = os.path.join(self._profile_dir, _LOCAL_FS_DIR)
         # Remote filesystem OTA file.
-        if self._has_remote_filesystem:
+        if self._has_remote_fs:
             self._remote_fs_image = os.path.join(
-                self._profile_dir, _LOCAL_FILESYSTEM_FOLDER,
-                os.listdir(os.path.join(self._profile_dir, _LOCAL_FILESYSTEM_FOLDER))[0])
+                self._profile_dir, _LOCAL_FS_DIR,
+                os.listdir(os.path.join(self._profile_dir, _LOCAL_FS_DIR))[0])
         # Bootloader file.
         if len(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))) != 0:
             self._bootloader_file = str(
@@ -864,9 +858,9 @@ class XBeeProfile:
 
         try:
             with zipfile.ZipFile(self._profile_file, "r") as zip_file:
-                xml_file = zip_file.open(os.path.join(_FIRMWARE_FOLDER_NAME, self._fw_xml_filename))
+                xml_file = zip_file.open(os.path.join(_FW_DIR_NAME, self._fw_xml_filename))
                 fw_root = ElementTree.parse(xml_file).getroot()
-                for fw_setting_element in fw_root.findall(_XML_FIRMWARE_SETTING):
+                for fw_setting_element in fw_root.findall(_XML_FW_SETTING):
                     if fw_setting_element.get(_XML_COMMAND) != setting_name:
                         continue
                     def_value_element = fw_setting_element.find(_XML_DEFAULT_VALUE)
@@ -893,13 +887,13 @@ class XBeeProfile:
         try:
             root = ElementTree.parse(zip_file.open(_PROFILE_XML_FILE_NAME)).getroot()
             # XML firmware file. Mandatory.
-            firmware_xml_file_element = root.find(_XML_PROFILE_XML_FIRMWARE_FILE)
-            if firmware_xml_file_element is None:
+            fw_xml_file_element = root.find(_XML_PROFILE_XML_FW_FILE)
+            if fw_xml_file_element is None:
                 self._throw_read_exception(_ERROR_PROFILE_XML_INVALID
                                            % "missing firmware file element")
-            self._fw_xml_filename = firmware_xml_file_element.text
+            self._fw_xml_filename = fw_xml_file_element.text
             # Store XML firmware file name.
-            self._fw_xml_file = os.path.join(_FIRMWARE_FOLDER_NAME, self._fw_xml_filename)
+            self._fw_xml_file = os.path.join(_FW_DIR_NAME, self._fw_xml_filename)
             _log.debug(" - XML firmware file: %s", self._fw_xml_file)
             # Version. Optional.
             version_element = root.find(_XML_PROFILE_VERSION)
@@ -907,16 +901,15 @@ class XBeeProfile:
                 self._version = int(version_element.text)
             _log.debug(" - Version: %d", self._version)
             # Flash firmware option. Required.
-            flash_firmware_option_element = root.find(_XML_PROFILE_FLASH_FIRMWARE_OPTION)
-            if flash_firmware_option_element is not None:
-                self._flash_firmware_option = FlashFirmwareOption.get(
-                    int(flash_firmware_option_element.text))
-            if self._flash_firmware_option is None:
+            flash_fw_element = root.find(_XML_PROFILE_FLASH_FW_OPTION)
+            if flash_fw_element is not None:
+                self._flash_fw_option = FlashFirmwareOption.get(int(flash_fw_element.text))
+            if self._flash_fw_option is None:
                 self._throw_read_exception(
                     _ERROR_PROFILE_XML_INVALID % "invalid flash firmware option")
-            _log.debug(" - Flash firmware option: %s", self._flash_firmware_option.description)
+            _log.debug(" - Flash firmware option: %s", self._flash_fw_option.description)
             # Description. Optional.
-            description_element = root.find(_XML_PROFILE_DESCRIPTION)
+            description_element = root.find(_XML_PROFILE_DESC)
             if description_element is not None:
                 self._description = description_element.text
             _log.debug(" - Description: %s", self._description)
@@ -952,10 +945,10 @@ class XBeeProfile:
                 self._parse_xml_firmware_file(zip_file)
                 files = [name for name in zip_file.namelist() if
                          name.endswith(_WILDCARDS_FW_LOCAL_BINARY_FILES)]
-                self._has_local_firmware = bool(files)
+                self._has_local_fw = bool(files)
                 files = [name for name in zip_file.namelist() if
                          name.endswith(_WILDCARDS_FW_REMOTE_BINARY_FILES)]
-                self._has_remote_firmware = bool(files)
+                self._has_remote_fw = bool(files)
         except Exception as exc:
             self._throw_read_exception(_ERROR_PROFILE_READ % str(exc))
 
@@ -976,17 +969,15 @@ class XBeeProfile:
         if _PROFILE_XML_FILE_NAME not in files:
             self._throw_read_exception(_ERROR_PROFILE_XML_NOT_EXIST)
         # Firmware folder.
-        if not any(f.startswith(_FIRMWARE_FOLDER_NAME) for f in files):
-            self._throw_read_exception(_ERROR_FIRMWARE_FOLDER_NOT_EXIST)
+        if not any(f.startswith(_FW_DIR_NAME) for f in files):
+            self._throw_read_exception(_ERROR_FW_FOLDER_NOT_EXIST)
         # Firmware XML file.
-        if len(fnmatch.filter(files, _FIRMWARE_FOLDER_NAME + _WILDCARD_XML)) == 0:
-            self._throw_read_exception(_ERROR_FIRMWARE_XML_NOT_EXIST)
+        if len(fnmatch.filter(files, _FW_DIR_NAME + _WILDCARD_XML)) == 0:
+            self._throw_read_exception(_ERROR_FW_XML_NOT_EXIST)
         # Check local file system.
-        self._has_local_filesystem = any(
-            f.startswith(_LOCAL_FILESYSTEM_FOLDER) for f in files)
+        self._has_local_fs = any(f.startswith(_LOCAL_FS_DIR) for f in files)
         # Check remote file system.
-        self._has_remote_filesystem = any(
-            f.startswith(_REMOTE_FILESYSTEM_FOLDER) for f in files)
+        self._has_remote_fs = any(f.startswith(_REMOTE_FS_DIR) for f in files)
 
     def _parse_xml_firmware_file(self, zip_file):
         """
@@ -1003,28 +994,29 @@ class XBeeProfile:
         try:
             root = ElementTree.parse(zip_file.open(self._fw_xml_file)).getroot()
             # Firmware version.
-            firmware_element = root.find(_XML_FIRMWARE_FIRMWARE)
-            if firmware_element is None:
+            element = root.find(_XML_FW_FIRMWARE)
+            if element is None:
                 self._throw_read_exception(
-                    _ERROR_FIRMWARE_XML_INVALID % "missing firmware element")
-            self._firmware_version = int(firmware_element.get(_XML_FIRMWARE_FIRMWARE_VERSION), 16)
-            if self._firmware_version is None:
+                    _ERROR_FW_XML_INVALID % "missing firmware element")
+            self._fw_version = int(element.get(_XML_FW_FIRMWARE_VERSION), 16)
+            if self._fw_version is None:
                 self._throw_read_exception(
-                    _ERROR_FIRMWARE_XML_INVALID % "missing firmware version")
+                    _ERROR_FW_XML_INVALID % "missing firmware version")
             _log.debug(" - Firmware version: %s",
-                       utils.hex_to_string([self._firmware_version], pretty=False))
+                       utils.hex_to_string([self._fw_version], pretty=False))
             # Hardware version.
-            hardware_version_element = root.find(_XML_FIRMWARE_HARDWARE_VERSION)
-            if hardware_version_element is None:
+            element = root.find(_XML_FW_HARDWARE_VERSION)
+            if element is None:
                 self._throw_read_exception(
-                    _ERROR_FIRMWARE_XML_INVALID % "missing hardware version element")
+                    _ERROR_FW_XML_INVALID % "missing hardware version element")
             try:
-                self._hardware_version = int(hardware_version_element.text, 16)
+                self._hw_version = int(element.text, 16)
             except ValueError:
-                self._hardware_version = LegacyHardwareVersion.get_by_letter(hardware_version_element.text).code if \
-                    LegacyHardwareVersion.get_by_letter(hardware_version_element.text) else None
+                self._hw_version = LegacyHardwareVersion.get_by_letter(
+                    element.text).code if \
+                    LegacyHardwareVersion.get_by_letter(element.text) else None
             _log.debug(" - Hardware version: %s",
-                       utils.hex_to_string([self._hardware_version], pretty=False))
+                       utils.hex_to_string([self._hw_version], pretty=False))
             # Compatibility number.
             element = root.find(_XML_COMPATIBILITY_NUMBER)
             if element is None:
@@ -1041,8 +1033,7 @@ class XBeeProfile:
             # 99: Unknown region
             if self._region_lock == 99:
                 fw_version_str = utils.hex_to_string(
-                    utils.int_to_bytes(self._firmware_version,
-                                       num_bytes=2), pretty=False)
+                    utils.int_to_bytes(self._fw_version, num_bytes=2), pretty=False)
                 if len(fw_version_str) != 4:
                     # 0: All regions
                     self._region_lock = 0
@@ -1054,9 +1045,7 @@ class XBeeProfile:
             if br_value is None:
                 br_value = 1  # It may be different but for the protocol it does not matter
             self._protocol = XBeeProtocol.determine_protocol(
-                self._hardware_version,
-                utils.int_to_bytes(self._firmware_version),
-                br_value=int(br_value))
+                self._hw_version, utils.int_to_bytes(self._fw_version), br_value=int(br_value))
             _log.debug(" - Protocol: %s",
                        self._protocol.description if self.protocol else "None")
             # Parse AT settings.
@@ -1064,27 +1053,27 @@ class XBeeProfile:
             if not self._raw_settings:
                 _log.debug("  - None")
                 return
-            for setting_element, setting_value in self._raw_settings.items():
-                for firmware_setting_element in root.findall(_XML_FIRMWARE_SETTING):
-                    if firmware_setting_element.get(_XML_COMMAND) == setting_element:
-                        setting_type_element = firmware_setting_element.find(_XML_CONTROL_TYPE)
-                        setting_type = XBeeSettingType.NO_TYPE
-                        if setting_type_element is not None:
-                            setting_type = XBeeSettingType.get(setting_type_element.text)
-                        setting_format_element = firmware_setting_element.find(_XML_FORMAT)
-                        setting_format = XBeeSettingFormat.NO_FORMAT
-                        if setting_format_element is not None:
-                            setting_format = XBeeSettingFormat.get(setting_format_element.text)
-                        profile_setting = XBeeProfileSetting(
-                            setting_element.upper(), setting_type,
-                            setting_format, setting_value)
-                        _log.debug(
-                            "  - Setting '%s' - type: %s - format: %s - value: %s",
-                            profile_setting.name, profile_setting.type.description,
-                            profile_setting.format.description, profile_setting.value)
-                        self._profile_settings.update({profile_setting.name: profile_setting})
+            for name, value in self._raw_settings.items():
+                for setting_element in root.findall(_XML_FW_SETTING):
+                    if setting_element.get(_XML_COMMAND) != name:
+                        continue
+                    type_element = setting_element.find(_XML_CONTROL_TYPE)
+                    setting_type = XBeeSettingType.NO_TYPE
+                    if type_element is not None:
+                        setting_type = XBeeSettingType.get(type_element.text)
+                    format_element = setting_element.find(_XML_FORMAT)
+                    setting_format = XBeeSettingFormat.NO_FORMAT
+                    if format_element is not None:
+                        setting_format = XBeeSettingFormat.get(format_element.text)
+                    profile_setting = XBeeProfileSetting(
+                        name.upper(), setting_type, setting_format, value)
+                    _log.debug(
+                        "  - Setting '%s' - type: %s - format: %s - value: %s",
+                        profile_setting.name, profile_setting.type.description,
+                        profile_setting.format.description, profile_setting.value)
+                    self._profile_settings.update({profile_setting.name: profile_setting})
         except ParseError as exc:
-            self._throw_read_exception(_ERROR_FIRMWARE_XML_PARSE % str(exc))
+            self._throw_read_exception(_ERROR_FW_XML_PARSE % str(exc))
 
     @staticmethod
     def _throw_read_exception(message):
@@ -1131,7 +1120,7 @@ class XBeeProfile:
         .. seealso::
            | :class:`.FlashFirmwareOption`
         """
-        return self._flash_firmware_option
+        return self._flash_fw_option
 
     @property
     def description(self):
@@ -1164,7 +1153,7 @@ class XBeeProfile:
             Boolean: `True` if the profile has local filesystem information,
                 `False` otherwise.
          """
-        return self._has_local_filesystem
+        return self._has_local_fs
 
     @property
     def has_remote_filesystem(self):
@@ -1175,7 +1164,7 @@ class XBeeProfile:
             Boolean: `True` if the profile has remote filesystem information,
                 `False` otherwise.
         """
-        return self._has_remote_filesystem
+        return self._has_remote_fs
 
     @property
     def has_filesystem(self):
@@ -1187,7 +1176,7 @@ class XBeeProfile:
             Boolean: `True` if the profile has filesystem information (local or
                 remote), `False` otherwise.
         """
-        return self._has_local_filesystem or self._has_remote_filesystem
+        return self._has_local_fs or self._has_remote_fs
 
     @property
     def has_local_firmware_files(self):
@@ -1198,7 +1187,7 @@ class XBeeProfile:
             Boolean: `True` if the profile has local firmware files,
                 `False` otherwise.
         """
-        return self._has_local_firmware
+        return self._has_local_fw
 
     @property
     def has_remote_firmware_files(self):
@@ -1209,7 +1198,7 @@ class XBeeProfile:
             Boolean: `True` if the profile has remote firmware files,
                 `False` otherwise.
         """
-        return self._has_remote_firmware
+        return self._has_remote_fw
 
     @property
     def has_firmware_files(self):
@@ -1241,7 +1230,7 @@ class XBeeProfile:
         Returns:
             Integer: Compatible firmware version of the profile.
         """
-        return self._firmware_version
+        return self._fw_version
 
     @property
     def hardware_version(self):
@@ -1251,7 +1240,7 @@ class XBeeProfile:
         Returns:
             Integer: Compatible hardware version of the profile.
         """
-        return self._hardware_version
+        return self._hw_version
 
     @property
     def compatibility_number(self):
@@ -1410,7 +1399,7 @@ class _UpdateConfigurer:
             try:
                 self._configurer.exec_at_cmd(
                     XBeeDevice.set_parameter, self._xbee, cmd, value=ap_val,
-                    retries=_PARAMETER_WRITE_RETRIES, apply=False)
+                    retries=_PARAM_WRITE_RETRIES, apply=False)
             except XBeeException as exc:
                 _log.info("'%s' - %s: Unable to restore operating mode (%s)",
                           self._xbee, self._configurer.TASK_RESTORE, str(exc))
@@ -1457,21 +1446,21 @@ class _ProfileUpdater:
                 * The current update task as a String
                 * The current update task percentage as an Integer
         """
-        self._xbee_profile = xbee_profile
+        self._profile = xbee_profile
         self._target = target
-        self._xbee_device = None
+        self._xbee = None
         self._configurer = None
         if not isinstance(target, str):
-            self._xbee_device = target
-            self._configurer = _UpdateConfigurer(self._xbee_device, timeout=timeout,
+            self._xbee = target
+            self._configurer = _UpdateConfigurer(self._xbee, timeout=timeout,
                                                  callback=progress_callback)
         self._timeout = timeout
         self._progress_callback = progress_callback
         self._was_connected = True
-        self._device_firmware_version = None
-        self._device_hardware_version = None
+        self._device_fw_version = None
+        self._device_hw_version = None
         self._protocol_changed_by_fw = False
-        self._is_local = bool(not isinstance(self._xbee_device, RemoteXBeeDevice))
+        self._is_local = bool(not isinstance(self._xbee, RemoteXBeeDevice))
 
     @property
     def progress_cb(self):
@@ -1502,27 +1491,27 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error updating the XBee
                 firmware.
         """
-        _log.info("%s - Updating XBee firmware", self._xbee_device)
+        _log.info("%s - Updating XBee firmware", self._xbee)
         try:
-            if self._xbee_device and self._xbee_device.is_remote():
-                if not self._xbee_profile.has_remote_firmware_files:
+            if self._xbee and self._xbee.is_remote():
+                if not self._profile.has_remote_firmware_files:
                     raise UpdateProfileException(
-                        _ERROR_UPDATE_FIRMWARE % "Profile does not contain remote firmware")
+                        _ERROR_UPDATE_FW % "Profile does not contain remote firmware")
                 update_remote_firmware(
-                    self._xbee_device, self._xbee_profile.firmware_description_file,
-                    bootloader_file=self._xbee_profile.bootloader_file, timeout=self._timeout,
-                    max_block_size=self._xbee_device.get_ota_max_block_size(),
+                    self._xbee, self._profile.firmware_description_file,
+                    bootloader_file=self._profile.bootloader_file, timeout=self._timeout,
+                    max_block_size=self._xbee.get_ota_max_block_size(),
                     progress_callback=self._progress_callback, _prepare=False)
             else:
-                if not self._xbee_profile.has_local_firmware_files:
+                if not self._profile.has_local_firmware_files:
                     raise UpdateProfileException(
-                        _ERROR_UPDATE_FIRMWARE % "Profile does not contain local firmware")
+                        _ERROR_UPDATE_FW % "Profile does not contain local firmware")
                 update_local_firmware(
-                    self._target, self._xbee_profile.firmware_description_file,
-                    bootloader_firmware_file=self._xbee_profile.bootloader_file,
+                    self._target, self._profile.firmware_description_file,
+                    bootloader_firmware_file=self._profile.bootloader_file,
                     timeout=self._timeout, progress_callback=self._progress_callback)
         except FirmwareUpdateException as exc:
-            raise UpdateProfileException(_ERROR_UPDATE_FIRMWARE % str(exc))
+            raise UpdateProfileException(_ERROR_UPDATE_FW % str(exc))
 
     def _check_port_settings_changed(self):
         """
@@ -1533,60 +1522,58 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error checking serial port
                 settings changes.
         """
-        port_parameters = self._xbee_device.serial_port.get_settings()
+        port_params = self._xbee.serial_port.get_settings()
         baudrate_changed = False
         parity_changed = False
         stop_bits_changed = False
         cts_flow_control_changed = False
-        for setting in self._xbee_profile.profile_settings.values():
-            if setting.name.upper() in _PARAMETERS_SERIAL_PORT:
-                if setting.name.upper() == ATStringCommand.BD.command:
-                    baudrate_changed = True
-                    port_parameters["baudrate"] = FirmwareBaudrate.get(
-                        int(setting.value, 16)).baudrate
-                elif setting.name.upper() == ATStringCommand.NB.command:
-                    parity_changed = True
-                    port_parameters["parity"] = FirmwareParity.get(
-                        int(setting.value, 16)).parity
-                elif setting.name.upper() == ATStringCommand.SB.command:
-                    stop_bits_changed = True
-                    port_parameters["stopbits"] = FirmwareStopbits.get(
-                        int(setting.value, 16)).stop_bits
-                elif setting.name.upper() == ATStringCommand.D7.command:
-                    cts_flow_control_changed = True
-                    if setting.value == _VALUE_CTS_ON:
-                        port_parameters["rtscts"] = True
-                    else:
-                        port_parameters["rtscts"] = False
-        if self._xbee_profile.reset_settings or isinstance(self._target, str):
+        for setting in self._profile.profile_settings.values():
+            if setting.name.upper() not in _PARAMS_SERIAL_PORT:
+                continue
+            if setting.name.upper() == ATStringCommand.BD.command:
+                baudrate_changed = True
+                port_params["baudrate"] = FirmwareBaudrate.get(
+                    int(setting.value, 16)).baudrate
+            elif setting.name.upper() == ATStringCommand.NB.command:
+                parity_changed = True
+                port_params["parity"] = FirmwareParity.get(
+                    int(setting.value, 16)).parity
+            elif setting.name.upper() == ATStringCommand.SB.command:
+                stop_bits_changed = True
+                port_params["stopbits"] = FirmwareStopbits.get(
+                    int(setting.value, 16)).stop_bits
+            elif setting.name.upper() == ATStringCommand.D7.command:
+                cts_flow_control_changed = True
+                port_params["rtscts"] = bool(setting.value == _VALUE_CTS_ON)
+        if self._profile.reset_settings or isinstance(self._target, str):
             if not baudrate_changed:
                 baudrate_changed = True
-                default_baudrate = self._xbee_profile.get_setting_default_value(
+                default_baudrate = self._profile.get_setting_default_value(
                     ATStringCommand.BD.command)
-                port_parameters["baudrate"] = FirmwareBaudrate.get(
+                port_params["baudrate"] = FirmwareBaudrate.get(
                     int(default_baudrate, 16)).baudrate
             if not parity_changed:
                 parity_changed = True
-                default_parity = self._xbee_profile.get_setting_default_value(
+                default_parity = self._profile.get_setting_default_value(
                     ATStringCommand.NB.command)
-                port_parameters["parity"] = FirmwareParity.get(
+                port_params["parity"] = FirmwareParity.get(
                     int(default_parity, 16)).parity
             if not stop_bits_changed:
                 stop_bits_changed = True
-                default_stop_bits = self._xbee_profile.get_setting_default_value(
+                default_stop_bits = self._profile.get_setting_default_value(
                     ATStringCommand.SB.command)
-                port_parameters["stopbits"] = FirmwareStopbits.get(
+                port_params["stopbits"] = FirmwareStopbits.get(
                     int(default_stop_bits, 16)).stop_bits
             if not cts_flow_control_changed:
                 cts_flow_control_changed = True
-                port_parameters["rtscts"] = True  # Default CTS value is always on.
+                port_params["rtscts"] = True  # Default CTS value is always on.
 
         if baudrate_changed or parity_changed or stop_bits_changed or cts_flow_control_changed:
             # Apply the new port configuration.
             try:
-                self._xbee_device.close()  # This is necessary to stop the frames read thread.
-                self._xbee_device.serial_port.apply_settings(port_parameters)
-                self._xbee_device.open()
+                self._xbee.close()  # This is necessary to stop the frames read thread.
+                self._xbee.serial_port.apply_settings(port_params)
+                self._xbee.open()
             except (XBeeException, SerialException) as exc:
                 raise UpdateProfileException(_ERROR_UPDATE_SERIAL_PORT % str(exc))
 
@@ -1599,12 +1586,12 @@ class _ProfileUpdater:
             Boolean: `True` if the protocol will change after the firmware
                 update, `False` otherwise.
         """
-        orig_protocol = self._xbee_device.get_protocol()
+        orig_protocol = self._xbee.get_protocol()
         new_protocol = XBeeProtocol.determine_protocol(
-            self._xbee_profile.hardware_version,
-            utils.int_to_bytes(self._xbee_profile.firmware_version))
+            self._profile.hardware_version,
+            utils.int_to_bytes(self._profile.firmware_version))
         return (orig_protocol != new_protocol
-                and self._xbee_profile.flash_firmware_option.code < 2)
+                and self._profile.flash_firmware_option.code < 2)
 
     def _check_protocol_changed_by_settings(self):
         """
@@ -1615,13 +1602,13 @@ class _ProfileUpdater:
             Boolean: `True` if the protocol will change after the application
                 of profiles settings, `False` otherwise.
         """
-        if self._xbee_profile.protocol is XBeeProtocol.DIGI_MESH:
-            self._xbee_profile.protocol = self._xbee_device.determine_protocol(
-                self._xbee_profile.hardware_version,
-                utils.int_to_bytes(self._xbee_profile.firmware_version))
+        if self._profile.protocol is XBeeProtocol.DIGI_MESH:
+            self._profile.protocol = self._xbee.determine_protocol(
+                self._profile.hardware_version,
+                utils.int_to_bytes(self._profile.firmware_version))
 
-        return (self._xbee_device.get_protocol() != self._xbee_profile.protocol
-                and self._xbee_profile.flash_firmware_option.code < 2)
+        return (self._xbee.get_protocol() != self._profile.protocol
+                and self._profile.flash_firmware_option.code < 2)
 
     def _update_device_settings(self):
         """
@@ -1637,19 +1624,19 @@ class _ProfileUpdater:
                 settings from the profile.
         """
         # If there are no settings to apply or reset, skip this method.
-        if (len(self._xbee_profile.profile_settings) == 0
-                and not self._xbee_profile.reset_settings
+        if (len(self._profile.profile_settings) == 0
+                and not self._profile.reset_settings
                 and not isinstance(self._target, str)):
             return False, False
 
         # For remote nodes that changed the protocol, raise an exception if
         # there are settings to apply or reset as the node is no longer reachable.
-        if (self._xbee_device.is_remote() and self._protocol_changed_by_fw
-                and (len(self._xbee_profile.profile_settings) > 0
-                     or self._xbee_profile.reset_settings)):
+        if (self._xbee.is_remote() and self._protocol_changed_by_fw
+                and (len(self._profile.profile_settings) > 0
+                     or self._profile.reset_settings)):
             raise UpdateProfileException(_ERROR_PROTOCOL_CHANGE % "apply profile settings")
 
-        _log.info("'%s' - %s", self._xbee_device, _TASK_UPDATE_SETTINGS)
+        _log.info("'%s' - %s", self._xbee, _TASK_UPDATE_SETTINGS)
         network_settings_changed = False
         cache_settings_changed = False
         try:
@@ -1657,49 +1644,49 @@ class _ProfileUpdater:
             percent = 0
             setting_index = 1
             # 1 more setting for 'WR'
-            num_settings = len(self._xbee_profile.profile_settings) + 1
+            num_settings = len(self._profile.profile_settings) + 1
 
             if self._progress_callback is not None:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
             # Check if reset settings is required or if we are applying to a
             # serial port (recovery).
-            cmd_dict = self._configurer.cmd_dict.get(self._xbee_device, None)
+            cmd_dict = self._configurer.cmd_dict.get(self._xbee, None)
             if cmd_dict is None:
                 cmd_dict = {}
-                self._configurer.cmd_dict[self._xbee_device] = cmd_dict
-            if self._xbee_profile.reset_settings or isinstance(self._target, str):
+                self._configurer.cmd_dict[self._xbee] = cmd_dict
+            if self._profile.reset_settings or isinstance(self._target, str):
                 num_settings += 1  # One more setting for 'RE'
                 percent = setting_index * 100 // num_settings
                 if self._progress_callback is not None and percent != previous_percent:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
                 self.set_parameter_with_retries(ATStringCommand.RE, bytearray(0),
-                                                _PARAMETER_WRITE_RETRIES, apply=False)
+                                                _PARAM_WRITE_RETRIES, apply=False)
                 setting_index += 1
                 # Reset settings to defaults implies network and cache settings have changed
                 network_settings_changed = True
                 cache_settings_changed = True
 
                 cmd_dict[ATStringCommand.SM] = utils.hex_string_to_bytes(
-                    self._xbee_profile.get_setting_default_value(ATStringCommand.SM))
+                    self._profile.get_setting_default_value(ATStringCommand.SM))
                 cmd_dict[ATStringCommand.SN] = utils.hex_string_to_bytes(
-                    self._xbee_profile.get_setting_default_value(ATStringCommand.SN))
+                    self._profile.get_setting_default_value(ATStringCommand.SN))
                 cmd_dict[ATStringCommand.SO] = utils.hex_string_to_bytes(
-                    self._xbee_profile.get_setting_default_value(ATStringCommand.SO))
+                    self._profile.get_setting_default_value(ATStringCommand.SO))
                 cmd_dict[ATStringCommand.SP] = utils.hex_string_to_bytes(
-                    self._xbee_profile.get_setting_default_value(ATStringCommand.SP))
+                    self._profile.get_setting_default_value(ATStringCommand.SP))
                 cmd_dict[ATStringCommand.ST] = utils.hex_string_to_bytes(
-                    self._xbee_profile.get_setting_default_value(ATStringCommand.ST))
+                    self._profile.get_setting_default_value(ATStringCommand.ST))
                 if self._is_local:
                     cmd_dict[ATStringCommand.AP] = utils.hex_string_to_bytes(
-                        self._xbee_profile.get_setting_default_value(ATStringCommand.AP))
+                        self._profile.get_setting_default_value(ATStringCommand.AP))
                     # Restore the previous operating mode to be able to continue
                     self.set_parameter_with_retries(
                         ATStringCommand.AP,
-                        bytearray([self._xbee_device.operating_mode.code]),
-                        _PARAMETER_WRITE_RETRIES, apply=False)
+                        bytearray([self._xbee.operating_mode.code]),
+                        _PARAM_WRITE_RETRIES, apply=False)
             # Set settings.
-            for setting in self._xbee_profile.profile_settings.values():
+            for setting in self._profile.profile_settings.values():
                 percent = setting_index * 100 // num_settings
                 if self._progress_callback is not None and percent != previous_percent:
                     self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
@@ -1729,13 +1716,13 @@ class _ProfileUpdater:
                     cmd_dict[ATStringCommand.PS] = setting.bytearray_value
                 else:
                     self.set_parameter_with_retries(
-                        name, setting.bytearray_value, _PARAMETER_WRITE_RETRIES,
+                        name, setting.bytearray_value, _PARAM_WRITE_RETRIES,
                         apply=False)
                 setting_index += 1
                 # Check if the setting was sensitive for network or cache information
-                if name in _PARAMETERS_NETWORK:
+                if name in _PARAMS_NETWORK:
                     network_settings_changed = True
-                if name in _PARAMETERS_CACHE:
+                if name in _PARAS_CACHE:
                     cache_settings_changed = True
 
             # Write settings.
@@ -1743,7 +1730,7 @@ class _ProfileUpdater:
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
             self.set_parameter_with_retries(ATStringCommand.WR, bytearray(0),
-                                            _PARAMETER_WRITE_RETRIES, apply=True)
+                                            _PARAM_WRITE_RETRIES, apply=True)
         except XBeeException as exc:
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(exc))
 
@@ -1765,20 +1752,18 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error during updating the
                 device file system.
         """
-        _log.info("%s - Uploading file system", self._xbee_device)
+        _log.info("%s - Uploading file system", self._xbee)
 
-        if (self._xbee_profile.has_local_filesystem
-                and check_fs_support(
-                    self._xbee_device,
-                    min_fw_vers=XB3_MIN_FW_VERSION_FS_API_SUPPORT)):
-
+        if (self._profile.has_local_filesystem
+                and check_fs_support(self._xbee,
+                                     min_fw_vers=XB3_MIN_FW_VERSION_FS_API_SUPPORT)):
             # For remote nodes that changed the protocol, raise an exception if
             # there is a filesystem to update as the node is no longer reachable
-            if self._xbee_device.is_remote() and self._protocol_changed_by_fw:
+            if self._xbee.is_remote() and self._protocol_changed_by_fw:
                 raise UpdateProfileException(_ERROR_PROTOCOL_CHANGE % "update filesystem")
 
             try:
-                fs_mng = self._xbee_device.get_file_manager()
+                fs_mng = self._xbee.get_file_manager()
                 # Format file system to ensure resulting file system is exactly
                 # the same as the profile one.
                 if self._progress_callback is not None:
@@ -1786,14 +1771,14 @@ class _ProfileUpdater:
                 fs_mng.format()
                 # Transfer the file system folder.
                 fs_mng.put_dir(
-                    self._xbee_profile.file_system_path, dest=None, verify=True,
+                    self._profile.file_system_path, dest=None, verify=True,
                     progress_cb=lambda percent, src, _:
                     self._progress_callback(_TASK_UPDATE_FILE % src, percent)
                     if self._progress_callback is not None else None)
             except FileSystemNotSupportedException:
-                raise UpdateProfileException(_ERROR_FILESYSTEM_NOT_SUPPORTED)
+                raise UpdateProfileException(_ERROR_FS_NOT_SUPPORTED)
             except FileSystemException as exc:
-                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(exc))
+                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc))
         else:
             self._legacy_update_file_system()
 
@@ -1806,10 +1791,10 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error during updating the
                 device file system.
         """
-        if self._is_local and self._xbee_profile.has_local_filesystem:
+        if self._is_local and self._profile.has_local_filesystem:
             fs_manager = None
             try:
-                fs_manager = LocalXBeeFileSystemManager(self._xbee_device)
+                fs_manager = LocalXBeeFileSystemManager(self._xbee)
                 if self._progress_callback is not None:
                     self._progress_callback(_TASK_CONNECT_FILESYSTEM, None)
                 time.sleep(0.2)
@@ -1821,14 +1806,14 @@ class _ProfileUpdater:
                 fs_manager.format_filesystem()
                 # Transfer the file system folder.
                 fs_manager.put_dir(
-                    self._xbee_profile.file_system_path, dest_dir=None,
+                    self._profile.file_system_path, dest_dir=None,
                     progress_callback=lambda file, percent:
                     self._progress_callback(_TASK_UPDATE_FILE % file, percent)
                     if self._progress_callback is not None else None)
             except FileSystemNotSupportedException:
-                raise UpdateProfileException(_ERROR_FILESYSTEM_NOT_SUPPORTED)
+                raise UpdateProfileException(_ERROR_FS_NOT_SUPPORTED)
             except FileSystemException as exc:
-                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(exc))
+                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc))
             finally:
                 if fs_manager:
                     try:
@@ -1840,18 +1825,43 @@ class _ProfileUpdater:
                         # ignore it, profile has been successfully applied.
                         pass
 
-        elif not self._is_local and self._xbee_profile.has_remote_filesystem:
+        elif not self._is_local and self._profile.has_remote_filesystem:
             # For remote nodes that changed the protocol, raise an exception if
             # there is a filesystem to update as the node is no longer reachable
-            if self._xbee_device.is_remote() and self._protocol_changed_by_fw:
+            if self._xbee.is_remote() and self._protocol_changed_by_fw:
                 raise UpdateProfileException(_ERROR_PROTOCOL_CHANGE % "update filesystem")
             try:
                 update_remote_filesystem_image(
-                    self._xbee_device, self._xbee_profile.remote_file_system_image,
-                    max_block_size=self._xbee_device.get_ota_max_block_size(),
+                    self._xbee, self._profile.remote_file_system_image,
+                    max_block_size=self._xbee.get_ota_max_block_size(),
                     timeout=self._timeout, progress_callback=self._progress_callback)
             except FileSystemException as exc:
-                raise UpdateProfileException(_ERROR_UPDATE_FILESYSTEM % str(exc))
+                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc))
+
+    def _should_update_fw(self):
+        """
+        Returns if firmware should be updated based on the flash firmware option
+        in the XBee profile.
+
+        Returns:
+            Boolean: `True` if firmware should be update, `False` otherwise.
+
+        Raises:
+            UpdateProfileException: If the profile is configured not to update
+                firmware but the profile is for a version different from the
+                current version running in the target XBee.
+        """
+        # Check flash firmware option.
+        firmware_is_the_same = self._device_fw_version == self._profile.firmware_version
+        if self._profile.flash_firmware_option == FlashFirmwareOption.FLASH_ALWAYS:
+            return True
+        if self._profile.flash_firmware_option == FlashFirmwareOption.FLASH_DIFFERENT:
+            return not firmware_is_the_same
+        if (self._profile.flash_firmware_option == FlashFirmwareOption.DONT_FLASH
+                and not firmware_is_the_same):
+            raise UpdateProfileException(_ERROR_FW_NOT_COMPATIBLE)
+
+        return False
 
     def read_device_parameters(self):
         """
@@ -1865,34 +1875,34 @@ class _ProfileUpdater:
         _log.debug("Reading device parameters")
         if self._is_local:
             # Connect the device.
-            if not self._xbee_device.is_open():
+            if not self._xbee.is_open():
                 self._was_connected = False
                 try:
-                    self._xbee_device.open()
+                    self._xbee.open()
                 except XBeeException as exc:
                     raise UpdateProfileException(_ERROR_OPEN_DEVICE % str(exc))
             # For local devices, required parameters are read on 'open()'
             # method, just use them.
-            self._device_firmware_version = self._xbee_device.get_firmware_version()
-            self._device_hardware_version = self._xbee_device.get_hardware_version()
+            self._device_fw_version = self._xbee.get_firmware_version()
+            self._device_hw_version = self._xbee.get_hardware_version()
         else:
             # For remote devices, parameters are read with 'get_parameter()' method.
             try:
-                self._device_firmware_version = self.read_parameter_with_retries(
-                    ATStringCommand.VR, _PARAMETER_READ_RETRIES)
-                self._device_hardware_version = HardwareVersion.get(
+                self._device_fw_version = self.read_parameter_with_retries(
+                    ATStringCommand.VR, _PARAM_READ_RETRIES)
+                self._device_hw_version = HardwareVersion.get(
                     self.read_parameter_with_retries(
-                        ATStringCommand.HV, _PARAMETER_READ_RETRIES)[0])
+                        ATStringCommand.HV, _PARAM_READ_RETRIES)[0])
             except XBeeException as exc:
                 raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(exc))
 
         # Sanitize firmware version.
-        self._device_firmware_version = int(utils.hex_to_string(
-            self._device_firmware_version).replace(" ", ""), 16)
+        self._device_fw_version = int(utils.hex_to_string(
+            self._device_fw_version).replace(" ", ""), 16)
         _log.debug("  - Firmware version: %s",
-                   utils.hex_to_string([self._device_firmware_version], pretty=False))
+                   utils.hex_to_string([self._device_fw_version], pretty=False))
         _log.debug("  - Hardware version: %s",
-                   utils.hex_to_string([self._device_hardware_version.code], pretty=False))
+                   utils.hex_to_string([self._device_hw_version.code], pretty=False))
 
     def read_parameter_with_retries(self, parameter, retries):
         """
@@ -1910,7 +1920,7 @@ class _ProfileUpdater:
         """
         while retries > 0:
             try:
-                return self._xbee_device.get_parameter(parameter, apply=False)
+                return self._xbee.get_parameter(parameter, apply=False)
             except XBeeException:
                 retries -= 1
                 time.sleep(0.2)
@@ -1941,7 +1951,7 @@ class _ProfileUpdater:
                 _log.debug("Setting parameter '%s' to '%s' (%d/%d)",
                            at_str, utils.hex_to_string(value, pretty=False),
                            (total + 1 - retries), total)
-                return self._xbee_device.set_parameter(parameter, value, apply=apply)
+                return self._xbee.set_parameter(parameter, value, apply=apply)
             except XBeeException as exc:
                 msg = str(exc)
                 retries -= 1
@@ -1961,49 +1971,41 @@ class _ProfileUpdater:
         net_changed = False
         protocol_changed_by_settings = False
         try:
-            if self._xbee_device:
+            if self._xbee:
                 # Retrieve device parameters.
                 self._configurer.prepare_for_update()
 
                 self.read_device_parameters()
 
                 # Verify hardware compatibility of the profile.
-                if self._device_hardware_version.code != self._xbee_profile.hardware_version:
-                    raise UpdateProfileException(_ERROR_HARDWARE_NOT_COMPATIBLE)
+                if self._device_hw_version.code != self._profile.hardware_version:
+                    raise UpdateProfileException(_ERROR_HW_NOT_COMPATIBLE)
                 # Determine if protocol will be changed.
                 self._protocol_changed_by_fw = self._check_protocol_changed_by_fw()
                 protocol_changed_by_settings = self._check_protocol_changed_by_settings()
             else:
                 # Serial port given (recovery)
                 self._was_connected = False
-                self._device_firmware_version = 0
-                self._device_hardware_version = None
+                self._device_fw_version = 0
+                self._device_hw_version = None
                 self._protocol_changed_by_fw = False
 
-            # Check flash firmware option.
-            flash_firmware = False
-            firmware_is_the_same = self._device_firmware_version == self._xbee_profile.firmware_version
-            if self._xbee_profile.flash_firmware_option == FlashFirmwareOption.FLASH_ALWAYS:
-                flash_firmware = True
-            elif self._xbee_profile.flash_firmware_option == FlashFirmwareOption.FLASH_DIFFERENT:
-                flash_firmware = not firmware_is_the_same
-            elif (self._xbee_profile.flash_firmware_option == FlashFirmwareOption.DONT_FLASH
-                  and not firmware_is_the_same):
-                raise UpdateProfileException(_ERROR_FIRMWARE_NOT_COMPATIBLE)
+            flash_firmware = self._should_update_fw()
+
             # Update firmware if required.
-            if not self._xbee_device or flash_firmware:
-                self._xbee_profile.open()
+            if not self._xbee or flash_firmware:
+                self._profile.open()
                 self._update_firmware()
-            if not self._xbee_device:
-                self._xbee_device = XBeeDevice(port=self._target, baud_rate=9600)
-                self._configurer = _UpdateConfigurer(self._xbee_device, timeout=self._timeout,
+            if not self._xbee:
+                self._xbee = XBeeDevice(port=self._target, baud_rate=9600)
+                self._configurer = _UpdateConfigurer(self._xbee, timeout=self._timeout,
                                                      callback=self._progress_callback)
-                self._xbee_device.open(force_settings=True)
-                self._device_hardware_version = self._xbee_device.get_hardware_version()
+                self._xbee.open(force_settings=True)
+                self._device_hw_version = self._xbee.get_hardware_version()
             # Update the file system if required.
-            if self._xbee_profile.has_filesystem:
-                if not self._xbee_profile.is_open():
-                    self._xbee_profile.open()
+            if self._profile.has_filesystem:
+                if not self._profile.is_open():
+                    self._profile.open()
                 self._update_file_system()
             # Update the settings.
             net_changed, _info_changed = self._update_device_settings()
@@ -2012,13 +2014,13 @@ class _ProfileUpdater:
                 self._configurer.restore_after_update(net_changed,
                                                       protocol_changed_by_settings)
 
-            self._xbee_profile.close()
+            self._profile.close()
 
-            if self._is_local and self._xbee_device:
-                if self._was_connected and not self._xbee_device.is_open():
-                    self._xbee_device.open()
-                elif not self._was_connected and self._xbee_device.is_open():
-                    self._xbee_device.close()
+            if self._is_local and self._xbee:
+                if self._was_connected and not self._xbee.is_open():
+                    self._xbee.open()
+                elif not self._was_connected and self._xbee.is_open():
+                    self._xbee.close()
 
 
 def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=None):
