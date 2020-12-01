@@ -502,7 +502,7 @@ extract information of an existing XBee profile file.
 To create an ``XBeeProfile`` object, provide the location of the profile file
 in the class constructor.
 
-**Instantiate an XBee profile**
+**Instantiate a profile**
 
 .. code:: python
 
@@ -525,7 +525,7 @@ The creation of the XBee profile object may fail for the following reasons:
 * There is any error reading the profile file, throwing a
   ``ProfileReadException``.
 
-Once the XBee profile object is created, you can extract all the profile
+Once the XBee profile object is created, you can extract some profile
 information by accessing each of the exposed properties:
 
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
@@ -563,6 +563,31 @@ information by accessing each of the exposed properties:
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **region_lock**               | Returns the region lock of the profile.                                                                |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
+
+To access to the files inside, use ``open`` method. Once done with it, use
+``close`` method.
+
+**Open/close a profile**
+
+.. code:: python
+
+  xbee_profile = XBeeProfile(PROFILE_PATH)
+
+  xbee_profile.open()
+
+  [...]
+
+  xbee_profile.close()
+
+  [...]
+
+An opened profile also offers the following properties:
+
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| Property                      | Description                                                                                            |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
+| **profile_description_file**  | Returns the path of the profile description file.                                                      |
++-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **firmware_description_file** | Returns the path of the profile firmware description file.                                             |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **file_system_path**          | Returns the profile file system path.                                                                  |
@@ -572,7 +597,7 @@ information by accessing each of the exposed properties:
 | **bootloader_file**           | Returns the profile bootloader file path.                                                              |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 
-**Read an XBee profile**
+**Read a profile**
 
 .. code:: python
 
