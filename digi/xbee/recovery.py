@@ -58,12 +58,20 @@ _RECOVERY_PORT_PARAMETERS = {_BAUDRATE_KEY: 38400,
                              }
 
 _RECOVERY_CHAR_TO_BAUDRATE = {
-    0xf8: 9600,
-    0x80: 9600,
-    0xfe: 19200,
-    0x30: 38400,
-    0x7e: 38400,
-    0x63: 115200
+    0x00: [230400, 4800, 2400, 1200], # When receiving data (explicit, io), 230400 (io)
+    0xf8: [9600, 19200],  # When receiving data (explicit, io)
+    0x80: [9600],    # When receiving data (explicit, io)
+    0xfe: [19200, 921600],  # 921600 (explicit, io)
+    0x30: [38400],
+    0x7e: [38400],   # When receiving data (explicit, io)
+    0x2f: [57600],   # When receiving data (explicit, io)
+    0x63: [115200],
+    0xa3: [115200],  # When receiving data (explicit)
+    0xe3: [115200],  # When receiving data (io)
+    0x02: [230400],  # When receiving data (explicit)
+    0x09: [460800],  # When receiving data (explicit, io)
+    0x12: [460800],  # When receiving data (explicit, io)
+    0xfc: [921600],  # When receiving data (explicit)
 }
 
 _DEFAULT_GUARD_TIME = 1  # seconds
@@ -164,6 +172,16 @@ class _LocalRecoverDevice:
         if recovery_baudrate is None:
             self._do_exception("Could not determine the baudrate in recovery mode")
 
+        error = None
+        for baudrate in recovery_baudrate:
+            error = self._try_baudrate(baudrate)
+            if not error:
+                break
+
+        if error:
+            self._do_exception(error)
+
+    def _try_baudrate(self, recovery_baudrate):
         # Here we are in recovery mode
         _log.debug("Reconfiguring the serial port to recovery baudrate of %d",
                    recovery_baudrate)
@@ -225,12 +243,14 @@ class _LocalRecoverDevice:
             read = self._xbee_serial_port.read(self._xbee_serial_port.inWaiting())
             _log.debug("command %s = %s", command[:-1], read)
             if AT_OK_RESPONSE not in read:
-                self._do_exception(
-                    "Command {!r} failed, non OK returned value of {!r}".format(command, read))
+                return "Command {!r} failed, non OK returned value of {!r}".format(command, read)
+                # self._do_exception(
+                #     "Command {!r} failed, non OK returned value of {!r}".format(command, read))
             if command == _AT_COMMANDS[_APPLY_CHANGES_KEY]:
                 self._xbee_serial_port.apply_settings(self._desired_cfg)
 
         self._restore_target_connection()
+        return None
 
     def _get_recovery_baudrate(self, retries):
         """
@@ -245,7 +265,7 @@ class _LocalRecoverDevice:
         for retry in range(retries):
             recovery_baudrate = self._enter_in_recovery()
             if recovery_baudrate is not None:
-                _log.debug("XBee baudrate is %d", recovery_baudrate)
+                _log.debug("XBee baudrate is %s", recovery_baudrate)
                 return recovery_baudrate
 
             _log.debug("[try %d] Could not determine the baudrate to get the "
