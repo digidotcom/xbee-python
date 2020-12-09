@@ -3,8 +3,8 @@
   This sample Python application shows how to send data from the XBee device to
   another remote device on the same network using the XBee Python Library. In
   this example, data is sent using a reliable transmission method. The
-  application will block during the transmission request, but you will be
-  notified if there is any error during the process.
+  application blocks during the transmission request, but you are notified if
+  there is any error during the process.
 
   The application sends data to a remote XBee device on the network with a
   specific node identifier (name).
@@ -27,7 +27,7 @@
     * 802.15.4
     * DigiMesh
     * Point-to-Multipoint
-    * ZigBee
+    * Zigbee
 
 
   Example setup

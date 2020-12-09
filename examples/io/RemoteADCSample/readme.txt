@@ -24,7 +24,7 @@
     * 802.15.4
     * DigiMesh
     * Point-to-Multipoint
-    * ZigBee
+    * Zigbee
 
 
   Example setup

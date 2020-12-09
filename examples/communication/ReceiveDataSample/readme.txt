@@ -1,7 +1,7 @@
   Introduction
   ------------
-  This sample Python application shows how data packets are received from another
-  XBee device on the same network.
+  This sample Python application shows how data packets are received from
+  another XBee device on the same network.
 
   The application prints the received data to the standard output in ASCII and
   hexadecimal formats after the sender address.
@@ -24,7 +24,7 @@
     * 802.15.4
     * DigiMesh
     * Point-to-Multipoint
-    * ZigBee
+    * Zigbee
 
 
   Example setup

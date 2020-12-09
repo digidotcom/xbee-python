@@ -245,7 +245,7 @@ class IOSample:
             bit 6 = NA
             bit 7 = Supply Voltage Value
 
-            Example: mask of 0x83 means AD0, and AD1 enabled.
+            Example: mask of 0x03 means AD0, and AD1 enabled.
             0 0 0 0 0 0 1 1
     """
 
@@ -324,7 +324,7 @@ class IOSample:
     def __parse_raw_io_sample(self):
         """
         Parses the information contained in the IO sample bytes reading the
-        value of each configured DIO and ADC.
+        value of each configured DIO and ADC. (802.15.4 only)
         """
         data_index = 3
 

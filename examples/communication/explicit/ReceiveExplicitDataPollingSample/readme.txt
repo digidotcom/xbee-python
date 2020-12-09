@@ -1,14 +1,14 @@
   Introduction
   ------------
-  This sample Python application shows how data in application layer (explicit)
-  format is received by a ZigBee device using a polling mechanism. Before
-  receiving data in explicit format, the API output mode of the ZigBee device
-  is configured in explicit mode.
+  This sample Python application shows how data in the application layer
+  (explicit) format is received by a Zigbee device using a polling mechanism.
+  Before receiving data in explicit format, the API output mode of the Zigbee
+  device is configured in explicit mode.
 
   The application prints the data that was received as well as the application
   layer fields to the standard output.
 
-  NOTE: This example uses the ZigBee device (ZigBeeDevice) class, but it can
+  NOTE: This example uses the Zigbee device (ZigBeeDevice) class, but it can
         be applied to any other protocol specific device class that supports
         receiving data in explicit format.
 
@@ -17,7 +17,7 @@
   ------------
   To run this example you will need:
 
-    * At least two ZigBee radios in API mode and their corresponding carrier
+    * At least two Zigbee radios in API mode and their corresponding carrier
       board (XBIB or equivalent).
     * The XCTU application (available at www.digi.com/xctu).
 
@@ -26,24 +26,24 @@
   --------------------
     * DigiMesh
     * Point-to-Multipoint
-    * ZigBee
+    * Zigbee
 
 
   Example setup
   -------------
-    1) Find the 64-bit address labeled on the back of your local ZigBee device,
+    1) Find the 64-bit address labeled on the back of your local Zigbee device,
        which is a 16 character string that follows the format 0013A20040XXXXXX.
        It will be used later in the example. The application will display this
        address at the beginning of the execution.
 
-    2) Plug the ZigBee radios into the XBee adapters and connect them to your
+    2) Plug the Zigbee radios into the XBee adapters and connect them to your
        computer's USB or serial ports.
 
     3) Ensure that the modules are in API mode and on the same network.
        For further information on how to perform this task, read the
        'Configuring Your XBee Modules' topic of the Getting Started guide.
 
-    4) Set the port and baud rate of the receiver ZigBee radio in the sample
+    4) Set the port and baud rate of the receiver Zigbee radio in the sample
        file.
        If you configured the modules in the previous step with XCTU, you will
        see the port number and baud rate in the 'Port' label of the device
@@ -58,7 +58,7 @@
 
     1) Launch the XCTU application.
 
-    2) Add the sender (remote) ZigBee module to XCTU, specifying its port
+    2) Add the sender (remote) Zigbee module to XCTU, specifying its port
        settings.
 
     3) Once the module is added, change to the 'Consoles' working mode and
@@ -90,5 +90,5 @@
      - Cluster ID:            0x0011
      - Profile ID:            0xC105
 
-   - Where 0013A20040XXXXXX is the 64-bit address of the remote ZigBee device
+   - Where 0013A20040XXXXXX is the 64-bit address of the remote Zigbee device
      that sent the data frame.

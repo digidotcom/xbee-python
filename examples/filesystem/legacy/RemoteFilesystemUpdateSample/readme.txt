@@ -29,7 +29,7 @@
   --------------------
     * 802.15.4
     * DigiMesh
-    * ZigBee
+    * Zigbee
 
 
   Example setup

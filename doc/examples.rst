@@ -195,8 +195,8 @@ Send data asynchronously
 This sample application shows how to send data asynchronously from the XBee
 device to another remote device on the same network using the XBee Python
 Library. Transmitting data asynchronously means the execution is not blocked
-during the transmit request, but you cannot determine if the data was sent
-successfully.
+during the transmit request, but you cannot determine if the data was
+successfully sent.
 
 The application sends data asynchronously to a remote XBee device on the
 network with a specific node identifier (name).
@@ -228,11 +228,11 @@ You can locate the example in the following path:
 Send explicit data
 ``````````````````
 
-This sample application shows how to send data in application layer (explicit)
-format to a remote Zigbee device on the same network as the local one using the
-XBee Python Library. In this example, the XBee module sends explicit data using
-a reliable transmission method. The application blocks during the transmission
-request, but you are notified if there is any error during the process.
+This sample application shows how to send data in the application layer
+(explicit) format to a remote Zigbee device using the XBee Python Library.
+In this example, the XBee module sends explicit data using a reliable
+transmission method. The application blocks during the transmission request,
+but you are notified if there is any error during the process.
 
 You can locate the example in the following path:
 **examples/communication/explicit/SendExplicitDataSample**
@@ -245,11 +245,11 @@ You can locate the example in the following path:
 Send explicit data asynchronously
 `````````````````````````````````
 
-This sample application shows how to send data in application layer (explicit)
-format asynchronously to a remote Zigbee device on the same network as the
-local one using the XBee Python Library. Transmitting data asynchronously means
-the execution is not blocked during the transmit request, but you cannot
-determine if the data was sent successfully.
+This sample application shows how to send data in the application layer
+(explicit) format asynchronously to a remote Zigbee device using the XBee
+Python Library. Transmitting data asynchronously means the execution is not
+blocked during the transmit request, but you cannot determine if the data was
+successfully sent.
 
 You can locate the example in the following path:
 **examples/communication/explicit/SendExplicitDataAsyncSample**
@@ -262,10 +262,10 @@ You can locate the example in the following path:
 Send broadcast explicit data
 ````````````````````````````
 
-This sample application shows how to send data in application layer (explicit)
-format to all remote devices on the same network (broadcast) as the local one
-using the XBee Python Library. The application blocks during the transmission
-request, but you are notified if there is any error during the process.
+This sample application shows how to send data in the application layer
+(explicit) format to all remote devices on the network (broadcast) using the
+XBee Python Library. The application blocks during the transmission request,
+but you are notified if there is any error during the process.
 
 You can locate the example in the following path:
 **examples/communication/explicit/SendBroadcastExplicitDataSample**
@@ -394,10 +394,10 @@ You can locate the example in the following path:
 Receive explicit data
 `````````````````````
 
-This sample application shows how a Zigbee device receives data in application
-layer (explicit) format using a callback executed every time new data is
-received. Before receiving data in explicit format, the API output mode of the
-Zigbee device is configured in explicit mode.
+This sample application shows how a Zigbee device receives data in the
+application layer (explicit) format using a callback executed every time new
+data is received. Before receiving data in explicit format, the API output mode
+of the Zigbee device is configured in explicit mode.
 
 You can locate the example in the following path:
 **examples/communication/explicit/ReceiveExplicitDataSample**
@@ -410,10 +410,10 @@ You can locate the example in the following path:
 Receive explicit data polling
 `````````````````````````````
 
-This sample application shows how a Zigbee device receives data in application
-layer (explicit) format using a polling mechanism. Before receiving data in
-explicit format, the API output mode of the Zigbee device is configured in
-explicit mode.
+This sample application shows how a Zigbee device receives data in the
+application layer (explicit) format using a polling mechanism. Before receiving
+data in explicit format, the API output mode of the Zigbee device is configured
+in explicit mode.
 
 You can locate the example in the following path:
 **examples/communication/explicit/ReceiveExplicitDataPollingSample**

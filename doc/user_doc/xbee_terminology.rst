@@ -24,9 +24,9 @@ to deploy wireless technology. Multiple protocols and RF features are available,
 giving customers enormous flexibility to choose the best technology for their
 needs.
 
-The XBee RF modules are available in two form factors: Through-Hole and Surface
-Mount, with different antenna options. Almost all modules are available in the
-Through-Hole form factor and share the same footprint.
+The XBee RF modules are available in three form factors: Through-Hole, Surface
+Mount, and Micro, with different antenna options. Almost all modules are
+available in the Through-Hole form factor and share the same footprint.
 
 .. image:: ../images/concepts_form_factor.jpg
    :align: center
@@ -38,8 +38,8 @@ Radio firmware
 --------------
 
 Radio firmware is the program code stored in the radio module's persistent
-memory that provides the control program for the device. From the local web
-interface of the XBee Gateway, you can update or change the firmware of the
+memory that provides the control program for the device. From XCTU or the local
+web interface of the XBee Gateway, you can update or change the firmware of the
 local XBee module or any other module connected to the same network. This is a
 common task when changing the role of the device or updating to the latest
 version of the firmware.

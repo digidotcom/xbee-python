@@ -27,7 +27,7 @@
     * DigiMesh
     * Point-to-Multipoint
     * Wi-Fi
-    * ZigBee
+    * Zigbee
 
 
   Example setup

@@ -1,7 +1,7 @@
   Introduction
   ------------
-  This sample Python application shows how data packets are received from another
-  XBee device on the same network using a polling mechanism.
+  This sample Python application shows how data packets are received from
+  another XBee device on the same network using a polling mechanism.
 
   The application prints the data that was received to the standard output in
   ASCII and hexadecimal formats after the sender address.
@@ -24,7 +24,7 @@
     * 802.15.4
     * DigiMesh
     * Point-to-Multipoint
-    * ZigBee
+    * Zigbee
 
 
   Example setup

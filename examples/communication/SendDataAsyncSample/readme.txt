@@ -2,9 +2,8 @@
   ------------
   This sample Python application shows how to send data asynchronously from the
   XBee device to another remote device on the same network. Transmitting data
-  asynchronously means the execution will not be blocked during the transmit
-  request, but you will not be able to determine if the data was sent
-  successfully.
+  asynchronously means the execution is not blocked during the transmit request,
+  but you cannot determine if the data was successfully sent.
 
   The application sends data asynchronously to a remote XBee device on the
   network with a specific node identifier (name).
@@ -27,7 +26,7 @@
     * 802.15.4
     * DigiMesh
     * Point-to-Multipoint
-    * ZigBee
+    * Zigbee
 
 
   Example setup

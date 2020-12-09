@@ -1,9 +1,9 @@
   Introduction
   ------------
   This sample Python application shows how to send data from the local XBee
-  device to all remote devices on the same network (broadcast). The
-  application will block during the transmission request, but you will be
-  notified if there is any error during the process.
+  device to all remote devices in the network (broadcast). The application
+  blocks during the transmission request, but you are notified if there is any
+  error during the process.
 
   NOTE: This example uses the generic XBee device (XBeeDevice) class,
         but it can be applied to any other local XBee device class.
@@ -23,7 +23,7 @@
     * 802.15.4
     * DigiMesh
     * Point-to-Multipoint
-    * ZigBee
+    * Zigbee
 
 
   Example setup
