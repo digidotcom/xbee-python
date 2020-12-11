@@ -1467,7 +1467,7 @@ class _ProfileUpdater:
         """
         _log.info("%s - Updating XBee firmware", self._xbee_device)
         try:
-            if self._xbee_device.is_remote():
+            if self._xbee_device and self._xbee_device.is_remote():
                 update_remote_firmware(
                     self._xbee_device, self._xbee_profile.firmware_description_file,
                     bootloader_file=self._xbee_profile.bootloader_file, timeout=self._timeout,
