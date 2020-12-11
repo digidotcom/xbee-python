@@ -89,7 +89,7 @@ SUPPORTED_HW_VERSIONS = (HardwareVersion.XBEE3.code,
 XB3_MIN_FW_VERSION_FS_API_SUPPORT = {
     XBeeProtocol.ZIGBEE: 0x100C,
     XBeeProtocol.DIGI_MESH: 0x300C,
-    XBeeProtocol.RAW_802_15_4: 0x200C
+    XBeeProtocol.RAW_802_15_4: 0x200D
 }
 
 XB3_MAX_FW_VERSION_FS_OTA_SUPPORT = {
