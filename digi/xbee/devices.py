@@ -10262,7 +10262,8 @@ class XBeeNetwork:
                 self._log.debug("     o Removed connection: %s", conn)
 
         # Remove the discovery process from the active processes list
-        self.__active_processes.remove(str(requester.get_64bit_addr()))
+        if str(requester.get_64bit_addr()) in self.__active_processes:
+            self.__active_processes.remove(str(requester.get_64bit_addr()))
 
         if code and code not in (NetworkDiscoveryStatus.SUCCESS,
                                  NetworkDiscoveryStatus.CANCEL) or error:
