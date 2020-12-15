@@ -7916,12 +7916,12 @@ class RemoteXBeeDevice(AbstractXBeeDevice):
         self._64bit_addr = x64bit_addr
         if not x64bit_addr:
             self._64bit_addr = XBee64BitAddress.UNKNOWN_ADDRESS
+        self._protocol = local_xbee.get_protocol()
         self._16bit_addr = x16bit_addr
-        if not x16bit_addr:
+        if not x16bit_addr or self._protocol in (XBeeProtocol.DIGI_MESH,
+                                                 XBeeProtocol.DIGI_POINT):
             self._16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
         self._node_id = node_id
-
-        self._protocol = local_xbee.get_protocol()
 
     def get_parameter(self, parameter, parameter_value=None, apply=None):
         """
