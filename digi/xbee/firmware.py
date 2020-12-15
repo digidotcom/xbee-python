@@ -5794,7 +5794,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         if not connections:
             return None
         # Sort the connections list by link quality from 'node a' to 'node b'.
-        connections.sort(key=lambda conn: conn.lq_a2b)
+        connections.sort(key=lambda conn: conn.lq_a2b.lq)
         candidates = []
         for connection in connections:
             # Only use connections that have remote device as 'node b'.
