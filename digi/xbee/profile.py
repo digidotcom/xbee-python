@@ -31,7 +31,7 @@ from serial.serialutil import SerialException
 
 from digi.xbee.firmware import UpdateConfigurer, EXTENSION_GBL, EXTENSION_XML, \
     EXTENSION_EBIN, EXTENSION_EHX2, EXTENSION_OTB, EXTENSION_OTA, \
-    update_local_firmware, update_remote_firmware
+    EXTENSION_EBL, update_local_firmware, update_remote_firmware
 from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice
 from digi.xbee.exception import XBeeException, FirmwareUpdateException, \
     InvalidOperatingModeException
@@ -115,7 +115,7 @@ _WILDCARD_CELLULAR_FIRMWARE = "fw_.*"
 _WILDCARD_CELLULAR_BOOTLOADER = "bl_.*"
 _WILDCARD_XML = "*%s" % EXTENSION_XML
 _WILDCARDS_FW_LOCAL_BINARY_FILES = (EXTENSION_EBIN, EXTENSION_EHX2, EXTENSION_GBL)
-_WILDCARDS_FW_REMOTE_BINARY_FILES = (EXTENSION_OTA, EXTENSION_OTB)
+_WILDCARDS_FW_REMOTE_BINARY_FILES = (EXTENSION_OTA, EXTENSION_OTB, EXTENSION_EBL)
 
 _XML_COMMAND = "command"
 _XML_CONTROL_TYPE = "control_type"
