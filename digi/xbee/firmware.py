@@ -5578,6 +5578,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         self._ota_msg_type = None
         self._any_data_sent = False
         self._packet_received = False
+        self._updater_configurer = None
 
     def _get_default_reset_timeout(self):
         """
@@ -5648,6 +5649,11 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         if not self._updater:
             self._exit_with_error(_ERROR_NO_UPDATER_AVAILABLE, restore_updater=True)
         _log.debug("Updater device: %s", self._updater)
+        # For async sleep devices: reconfigure updater to stay awake the maximum time
+        self._updater_configurer = UpdateConfigurer(self._updater, timeout=self._timeout)
+        self._updater_configurer.prepare_for_update(
+            prepare_node=True, prepare_net=False, restore_later=True)
+
         # Save DH parameter.
         self._updater_dh_val = _get_parameter_with_retries(self._updater,
                                                            ATStringCommand.DH)
@@ -5685,6 +5691,9 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         if self._updater_dl_val:
             _set_parameter_with_retries(self._updater, ATStringCommand.DL,
                                         self._updater_dl_val, apply=True)
+
+        if self._updater_configurer:
+            self._updater_configurer.restore_after_update(restore_settings=True)
 
     def _determine_updater_device_zigbee(self):
         """
