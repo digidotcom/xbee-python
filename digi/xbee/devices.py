@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10291,7 +10291,11 @@ class XBeeNetwork:
                 or error.endswith(TransmitStatus.NETWORK_ACK_FAILURE.description)
                 or error.endswith("ZDO command not sent")
                 or error.endswith("ZDO command answer not received")
-                or error.endswith("FN command answer not received")):
+                or error.endswith("%s command answer not received" % ATStringCommand.FN.command)
+                or error.endswith("Error executing %s command (status: %s (%d))"
+                                  % (ATStringCommand.FN.command,
+                                     ATCommandStatus.TX_FAILURE.description,
+                                     ATCommandStatus.TX_FAILURE.code))):
             return
 
         # The node is not found so it is not reachable
