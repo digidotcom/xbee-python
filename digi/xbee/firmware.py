@@ -5738,12 +5738,12 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                 self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
             return updater
         # Look for updater using the current network connections.
-        candidates = self._get_updater_candidates_from_network_connections()
+        candidates = self._get_updater_candidates(net_discover=False)
         updater = self._determine_best_updater_from_candidates_list_zigbee(candidates)
         if updater:
             return updater
         # Could not retrieve updater from current network connections, try discovering neighbors.
-        candidates = self._get_updater_candidates_from_neighbor_discover()
+        candidates = self._get_updater_candidates(net_discover=True)
         updater = self._determine_best_updater_from_candidates_list_zigbee(candidates)
         return updater
 
@@ -5761,12 +5761,12 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                 updater device.
         """
         # Look for updater using the current network connections.
-        candidates = self._get_updater_candidates_from_network_connections()
+        candidates = self._get_updater_candidates(net_discover=False)
         updater = self._determine_best_updater_from_candidates_list_digimesh(candidates)
         if updater:
             return updater
         # Could not retrieve updater from current network connections, try discovering neighbors.
-        candidates = self._get_updater_candidates_from_neighbor_discover()
+        candidates = self._get_updater_candidates(net_discover=True)
         updater = self._determine_best_updater_from_candidates_list_digimesh(candidates)
         return updater
 
@@ -5791,81 +5791,87 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             return self._local
         self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
 
-    def _get_updater_candidates_from_network_connections(self):
+    def _get_updater_candidates(self, net_discover=False):
         """
         Returns a list of updater candidates extracted from the current
-        network connections.
+        network connections or from a neighbor discover.
+
+        Params:
+            net_discover (Boolean, optional, default=False): `True` to perform
+                a neighbor discover, `False` to use current network connections.
 
         Returns:
             List: List of possible XBee updater devices.
         """
-        connections = self._local.get_network().get_connections()
-        if not connections:
-            return None
-        # Sort the connections list by link quality from 'node a' to 'node b'.
-        connections.sort(key=lambda conn: conn.lq_a2b.lq)
-        candidates = []
-        for connection in connections:
-            # Only use connections that have remote device as 'node b'.
-            if not connection.node_b == self._remote:
-                continue
-            # Do not use connections that have 'node a' as end devices.
-            if connection.node_a.get_role() == Role.END_DEVICE:
-                continue
-            # Do not use connections that have 'node a' as the remote device.
-            if connection.node_a == self._remote:
-                continue
-            # The 'node a' must be an S2C.
-            if not connection.node_a.get_hardware_version():
-                updater_hw_version = _get_parameter_with_retries(
-                    connection.node_a, ATStringCommand.HV)
+        from digi.xbee.models.zdo import Neighbor
+        from digi.xbee.devices import Connection
+
+        def get_lq(element):
+            if isinstance(element, Connection):
+                dest_node = element.node_b
+                lq = element.lq_a2b.lq
+                if dest_node == self._remote:
+                    dest_node = element.node_a
+                    lq = element.lq_b2a.lq
+            elif isinstance(element, Neighbor):
+                lq = element.lq
+                dest_node = element.node
             else:
-                updater_hw_version = [connection.node_a.get_hardware_version().code]
-            if not updater_hw_version or updater_hw_version[0] not in S2C_HW_VERSIONS:
+                return 0
+
+            return lq * (Role.UNKNOWN.id - dest_node.get_role().id + 1)
+
+        if net_discover:
+            neighbor_list = self._remote.get_neighbors()
+            if not neighbor_list:
+                return None
+            neighbor_list.sort(key=lambda neighbor: get_lq(neighbor))
+            node_list = (neighbor.node for neighbor in neighbor_list)
+        else:
+            conn_list = self._local.get_network().get_node_connections(self._remote)
+            if not conn_list:
+                return None
+            conn_list.sort(key=lambda conn: get_lq(conn))
+            node_list = (conn.node_a
+                         if conn.node_a != self._remote else conn.node_b
+                         for conn in conn_list)
+
+        candidates = []
+        for candidate in node_list:
+            if not self._is_valid_updater_candidate(candidate):
                 continue
-            # If the 'node_a' is the local device, return only it.
-            if connection.node_a == self._local:
+            # If the candidate is the local device, return only it
+            if candidate == self._local:
                 candidates.append(self._local)
                 break
-            # The connection passed the tests, add connection 'node a' as updater candidate.
-            candidates.append(connection.node_a)
+            candidates.append(candidate)
+
         return candidates if candidates else None
 
-    def _get_updater_candidates_from_neighbor_discover(self):
+    def _is_valid_updater_candidate(self, node):
         """
-        Returns a list of updater candidates extracted from a neighbor discover.
+        Checks if the provided node is a valid candidate to be the updater node
+        for the update process of the remote.
 
-        Returns:
-            List: List of possible XBee updater devices.
+        Params:
+            node (:class: `.RemoteXBeeDevice`): The node to check if it is a
+                possible updater.
         """
-        neighbors = self._remote.get_neighbors()
-        if not neighbors:
-            return None
-        # Sort the connections list by link quality from 'node a' to 'node b'.
-        neighbors.sort(key=lambda neigh: neigh.lq)
-        candidates = []
-        for neighbor in neighbors:
-            # Neighbor cannot be an end device.
-            if neighbor.node.get_role() == Role.END_DEVICE:
-                continue
-            # Neighbor cannot be the remote node itself.
-            if neighbor.node == self._remote:
-                continue
-            # The neighbor must be an S2C device.
-            if not neighbor.node.get_hardware_version():
-                neighbor_hw_version = _get_parameter_with_retries(
-                    neighbor.node, ATStringCommand.HV)
-            else:
-                neighbor_hw_version = [neighbor.node.get_hardware_version().code]
-            if not neighbor_hw_version or neighbor_hw_version[0] not in S2C_HW_VERSIONS:
-                continue
-            # If the neighbor is the local device, return only it.
-            if neighbor == self._local:
-                candidates.append(self._local)
-                break
-            # The neighbor passed the tests, add it as an updater candidate.
-            candidates.append(neighbor.node)
-        return candidates if candidates else None
+        # Updater cannot be the remote node itself
+        if node == self._remote:
+            return False
+        # Updater cannot be an end device
+        if node.get_role() == Role.END_DEVICE:
+            return False
+        # Updater must be an S2C device
+        if not node.get_hardware_version():
+            hw_version = _get_parameter_with_retries(node, ATStringCommand.HV)
+        else:
+            hw_version = [node.get_hardware_version().code]
+        if not hw_version or hw_version[0] not in S2C_HW_VERSIONS:
+            return False
+
+        return True
 
     def _determine_best_updater_from_candidates_list_zigbee(self, candidates):
         """
