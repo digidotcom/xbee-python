@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -235,7 +235,7 @@ _PROGRESS_TASK_UPDATE_XBEE = "Updating XBee firmware"
 
 _REGION_ALL = 0
 
-_REMOTE_FWE_UPDATE_DEFAULT_TIMEOUT = 20  # Seconds
+_REMOTE_FW_UPDATE_DEFAULT_TIMEOUT = 20  # Seconds
 
 _SEND_BLOCK_RETRIES = 5
 
@@ -6449,7 +6449,7 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
 
     # Launch the update process.
     if not timeout:
-        timeout = _REMOTE_FWE_UPDATE_DEFAULT_TIMEOUT
+        timeout = _REMOTE_FW_UPDATE_DEFAULT_TIMEOUT
 
     comm_iface = remote.get_comm_iface()
     if comm_iface and comm_iface.supports_update_firmware():
@@ -6527,7 +6527,7 @@ def update_remote_filesystem(remote, ota_fs_file, max_block_size=0, timeout=None
 
     # Launch the update process.
     if not timeout:
-        timeout = _REMOTE_FWE_UPDATE_DEFAULT_TIMEOUT
+        timeout = _REMOTE_FW_UPDATE_DEFAULT_TIMEOUT
     update_process = _RemoteFilesystemUpdater(
         remote, ota_fs_file, timeout=timeout, max_block_size=max_block_size,
         progress_cb=progress_callback)
