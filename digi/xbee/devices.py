@@ -2132,29 +2132,29 @@ class AbstractXBeeDevice:
 
         return self._get_packet_by_id(packet.frame_id) if sync else None
 
-    def _get_routes(self, route_callback=None, process_finished_callback=None, timeout=None):
+    def _get_routes(self, route_cb=None, finished_cb=None, timeout=None):
         """
-        Returns the routes of this XBee. If `route_callback` is not defined,
-        the process blocks until the complete routing table is read.
+        Returns the routes of this XBee. If `route_cb` is not defined, the
+        process blocks until the complete routing table is read.
 
         Args:
-            route_callback (Function, optional, default=`None`): Function called
-                when a new route is received. Receives two arguments:
+            route_cb (Function, optional, default=`None`): Method called when
+                a new route is received. Receives two arguments:
 
                 * The XBee that owns this new route.
                 * The new route.
 
-            process_finished_callback (Function, optional, default=`None`): Function
-                to execute when the process finishes. Receives two arguments:
+            finished_cb (Function, optional, default=`None`): Method to execute
+                when the process finishes. Receives three arguments:
 
-                * The XBee device that executed the ZDO command.
+                * The XBee that executed the ZDO command.
                 * A list with the discovered routes.
                 * An error message if something went wrong.
 
             timeout (Float, optional, default=`RouteTableReader.DEFAULT_TIMEOUT`): The
                 ZDO command timeout in seconds.
         Returns:
-            List: List of :class:`.Route` when `route_callback` is defined,
+            List: List of :class:`.Route` when `route_cb` is not defined,
                 `None` otherwise (in this case routes are received in the callback).
 
         Raises:
@@ -2167,25 +2167,24 @@ class AbstractXBeeDevice:
         reader = RouteTableReader(self, configure_ao=True,
                                   timeout=timeout if timeout else RouteTableReader.DEFAULT_TIMEOUT)
 
-        return reader.get_route_table(route_callback=route_callback,
-                                      process_finished_callback=process_finished_callback)
+        return reader.get_route_table(route_cb=route_cb, finished_cb=finished_cb)
 
-    def _get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+    def _get_neighbors(self, neighbor_cb=None, finished_cb=None, timeout=None):
         """
-        Returns the neighbors of this XBee. If `neighbor_callback` is not defined:
+        Returns the neighbors of this XBee. If `neighbor_cb` is not defined:
            * In Zigbee and SmartEnergy the process blocks until the complete
              neighbor table is read.
            * In DigiMesh the process blocks the provided timeout.
 
         Args:
-            neighbor_callback (Function, optional, default=`None`): Function
-                called when a new neighbor is received. Receives two arguments:
+            neighbor_cb (Function, optional, default=`None`): Function called
+                when a new neighbor is received. Receives two arguments:
 
                 * The XBee that owns this new neighbor.
                 * The new neighbor.
 
-            process_finished_callback (Function, optional, default=`None`): Function
-                to execute when the process finishes. Receives three arguments:
+            finished_cb (Function, optional, default=`None`): Function to
+                execute when the process finishes. Receives three arguments:
 
                 * The XBee device that is searching for its neighbors.
                 * A list with the discovered neighbors.
@@ -2193,7 +2192,7 @@ class AbstractXBeeDevice:
 
             timeout (Float, optional, default=`None`): The timeout in seconds.
         Returns:
-            List: List of :class:`.Neighbor` when `neighbor_callback` is defined,
+            List: List of :class:`.Neighbor` when `neighbor_cb` is not defined,
                 `None` otherwise (in this case neighbors are received in the callback).
 
         Raises:
@@ -2209,16 +2208,16 @@ class AbstractXBeeDevice:
                 self, configure_ao=True,
                 timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
 
-            neighbors = reader.get_neighbor_table(neighbor_callback=neighbor_callback,
-                                                  process_finished_callback=process_finished_callback)
+            neighbors = reader.get_neighbor_table(neighbor_cb=neighbor_cb,
+                                                  finished_cb=finished_cb)
         elif self.get_protocol() in (XBeeProtocol.DIGI_MESH, XBeeProtocol.XLR_DM,
                                      XBeeProtocol.XTEND_DM, XBeeProtocol.SX):
             from digi.xbee.models.zdo import NeighborFinder
             finder = NeighborFinder(
                 self, timeout=timeout if timeout else NeighborFinder.DEFAULT_TIMEOUT)
 
-            neighbors = finder.get_neighbors(neighbor_callback=neighbor_callback,
-                                             process_finished_callback=process_finished_callback)
+            neighbors = finder.get_neighbors(neighbor_cb=neighbor_cb,
+                                             finished_cb=finished_cb)
         else:
             raise OperationNotSupportedException("Get neighbors is not supported in %s"
                                                  % self.get_protocol().description)
@@ -5034,20 +5033,20 @@ class DigiMeshDevice(XBeeDevice):
                                    dest_endpoint, cluster_id, profile_id,
                                    transmit_options=transmit_options)
 
-    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+    def get_neighbors(self, neighbor_cb=None, finished_cb=None, timeout=None):
         """
-        Returns the neighbors of this XBee. If `neighbor_callback` is not
+        Returns the neighbors of this XBee. If `neighbor_cb` is not
         defined, the process blocks during the specified timeout.
 
         Args:
-            neighbor_callback (Function, optional, default=`None`): Method
-                called when a new neighbor is received. Receives two arguments:
+            neighbor_cb (Function, optional, default=`None`): Method called
+                when a new neighbor is received. Receives two arguments:
 
                 * The XBee that owns this new neighbor.
                 * The new neighbor.
 
-            process_finished_callback (Function, optional, default=`None`):
-                Method to execute when the process finishes. Receives two arguments:
+            finished_cb (Function, optional, default=`None`): Method to execute
+                when the process finishes. Receives two arguments:
 
                 * The XBee that is searching for its neighbors.
                 * A list with the discovered neighbors.
@@ -5056,7 +5055,7 @@ class DigiMeshDevice(XBeeDevice):
             timeout (Float, optional, default=`NeighborFinder.DEFAULT_TIMEOUT`): The timeout
                 in seconds.
         Returns:
-            List: List of :class:`.Neighbor` when `neighbor_callback` is defined,
+            List: List of :class:`.Neighbor` when `neighbor_cb` is not defined,
                 `None` otherwise (in this case neighbors are received in the callback).
 
         Raises:
@@ -5067,8 +5066,7 @@ class DigiMeshDevice(XBeeDevice):
         """
         from digi.xbee.models.zdo import NeighborFinder
         return super()._get_neighbors(
-            neighbor_callback=neighbor_callback,
-            process_finished_callback=process_finished_callback,
+            neighbor_cb=neighbor_cb, finished_cb=finished_cb,
             timeout=timeout if timeout else NeighborFinder.DEFAULT_TIMEOUT)
 
 
@@ -6017,20 +6015,20 @@ class ZigBeeDevice(XBeeDevice):
         self.register_joining_device_async(unregistrant_address,
                                            RegisterKeyOptions.LINK_KEY, None)
 
-    def get_routes(self, route_callback=None, process_finished_callback=None, timeout=None):
+    def get_routes(self, route_cb=None, finished_cb=None, timeout=None):
         """
-        Returns the routes of this XBee. If `route_callback` is not defined,
+        Returns the routes of this XBee. If `route_cb` is not defined,
         the process blocks until the complete routing table is read.
 
         Args:
-            route_callback (Function, optional, default=`None`): Method called
+            route_cb (Function, optional, default=`None`): Method called
                 when a new route is received. Receives two arguments:
 
                 * The XBee that owns this new route.
                 * The new route.
 
-            process_finished_callback (Function, optional, default=`None`): Method
-                to execute when the process finishes. Receives three arguments:
+            finished_cb (Function, optional, default=`None`): Method to execute
+                when the process finishes. Receives three arguments:
 
                 * The XBee that executed the ZDO command.
                 * A list with the discovered routes.
@@ -6039,7 +6037,7 @@ class ZigBeeDevice(XBeeDevice):
             timeout (Float, optional, default=`RouteTableReader.DEFAULT_TIMEOUT`): The
                 ZDO command timeout in seconds.
         Returns:
-            List: List of :class:`.Route` when `route_callback` is defined,
+            List: List of :class:`.Route` when `route_cb` is not defined,
                 `None` otherwise (in this case routes are received in the callback).
 
         Raises:
@@ -6053,24 +6051,23 @@ class ZigBeeDevice(XBeeDevice):
            | :class:`com.digi.models.zdo.Route`
         """
         from digi.xbee.models.zdo import RouteTableReader
-        return super()._get_routes(route_callback=route_callback,
-                                   process_finished_callback=process_finished_callback,
+        return super()._get_routes(route_cb=route_cb, finished_cb=finished_cb,
                                    timeout=timeout if timeout else RouteTableReader.DEFAULT_TIMEOUT)
 
-    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+    def get_neighbors(self, neighbor_cb=None, finished_cb=None, timeout=None):
         """
-        Returns the neighbors of this XBee. If `neighbor_callback` is not
+        Returns the neighbors of this XBee. If `neighbor_cb` is not
         defined, the process blocks until the complete neighbor table is read.
 
         Args:
-            neighbor_callback (Function, optional, default=`None`): Method
-                called when a new neighbor is received. Receives two arguments:
+            neighbor_cb (Function, optional, default=`None`): Method called
+                when a new neighbor is received. Receives two arguments:
 
                 * The XBee that owns this new neighbor.
                 * The new neighbor.
 
-            process_finished_callback (Function, optional, default=`None`): Method
-                to execute when the process finishes. Receives three arguments:
+            finished_cb (Function, optional, default=`None`): Method to execute
+                when the process finishes. Receives three arguments:
 
                 * The XBee that executed the ZDO command.
                 * A list with the discovered neighbors.
@@ -6079,7 +6076,7 @@ class ZigBeeDevice(XBeeDevice):
             timeout (Float, optional, default=`NeighborTableReader.DEFAULT_TIMEOUT`): The ZDO
                 command timeout in seconds.
         Returns:
-            List: List of :class:`.Neighbor` when `neighbor_callback` is defined,
+            List: List of :class:`.Neighbor` when `neighbor_cb` is not defined,
                 `None` otherwise (in this case neighbors are received in the callback).
 
         Raises:
@@ -6090,8 +6087,7 @@ class ZigBeeDevice(XBeeDevice):
         """
         from digi.xbee.models.zdo import NeighborTableReader
         return super()._get_neighbors(
-            neighbor_callback=neighbor_callback,
-            process_finished_callback=process_finished_callback,
+            neighbor_cb=neighbor_cb, finished_cb=finished_cb,
             timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
 
     def create_source_route(self, dest_node, hops):
@@ -8207,20 +8203,20 @@ class RemoteDigiMeshDevice(RemoteXBeeDevice):
         """
         return XBeeProtocol.DIGI_MESH
 
-    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+    def get_neighbors(self, neighbor_cb=None, finished_cb=None, timeout=None):
         """
-        Returns the neighbors of this XBee. If `neighbor_callback` is not
+        Returns the neighbors of this XBee. If `neighbor_cb` is not
         defined, the process blocks during the specified timeout.
 
         Args:
-            neighbor_callback (Function, optional, default=`None`): Method
-                called when a new neighbor is received. Receives two arguments:
+            neighbor_cb (Function, optional, default=`None`): Method called
+                when a new neighbor is received. Receives two arguments:
 
                 * The XBee that owns this new neighbor.
                 * The new neighbor.
 
-            process_finished_callback (Function, optional, default=`None`): Method
-                to execute when the process finishes. Receives three arguments:
+            finished_cb (Function, optional, default=`None`): Method to execute
+                when the process finishes. Receives three arguments:
 
                 * The XBee that is searching for its neighbors.
                 * A list with the discovered neighbors.
@@ -8229,7 +8225,7 @@ class RemoteDigiMeshDevice(RemoteXBeeDevice):
             timeout (Float, optional, default=`NeighborFinder.DEFAULT_TIMEOUT`): The timeout
                 in seconds.
         Returns:
-            List: List of :class:`.Neighbor` when `neighbor_callback` is defined,
+            List: List of :class:`.Neighbor` when `neighbor_cb` is not defined,
                 `None` otherwise (in this case neighbors are received in the callback).
 
         Raises:
@@ -8240,8 +8236,7 @@ class RemoteDigiMeshDevice(RemoteXBeeDevice):
         """
         from digi.xbee.models.zdo import NeighborFinder
         return super()._get_neighbors(
-            neighbor_callback=neighbor_callback,
-            process_finished_callback=process_finished_callback,
+            neighbor_cb=neighbor_cb, finished_cb=finished_cb,
             timeout=timeout if timeout else NeighborFinder.DEFAULT_TIMEOUT)
 
 
@@ -8435,20 +8430,20 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
         """
         self._force_disassociate()
 
-    def get_routes(self, route_callback=None, process_finished_callback=None, timeout=None):
+    def get_routes(self, route_cb=None, finished_cb=None, timeout=None):
         """
-        Returns the routes of this XBee. If `route_callback` is not defined,
-        the process blocks until the complete routing table is read.
+        Returns the routes of this XBee. If `route_cb` is not defined, the
+        process blocks until the complete routing table is read.
 
         Args:
-            route_callback (Function, optional, default=`None`): Method called
-                when a new route is received. Receives two arguments:
+            route_cb (Function, optional, default=`None`): Method called when a
+                new route is received. Receives two arguments:
 
                 * The XBee that owns this new route.
                 * The new route.
 
-            process_finished_callback (Function, optional, default=`None`): Method
-                to execute when the process finishes. Receives three arguments:
+            finished_cb (Function, optional, default=`None`): Method to execute
+                when the process finishes. Receives three arguments:
 
                 * The XBee that executed the ZDO command.
                 * A list with the discovered routes.
@@ -8457,7 +8452,7 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
             timeout (Float, optional, default=`RouteTableReader.DEFAULT_TIMEOUT`): The ZDO command
                 timeout in seconds.
         Returns:
-            List: List of :class:`.Route` when `route_callback` is defined,
+            List: List of :class:`.Route` when `route_cb` is not defined,
                 `None` otherwise (in this case routes are received in the callback).
 
         Raises:
@@ -8467,24 +8462,23 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
            | :class:`com.digi.models.zdo.Route`
         """
         from digi.xbee.models.zdo import RouteTableReader
-        return super()._get_routes(route_callback=route_callback,
-                                   process_finished_callback=process_finished_callback,
+        return super()._get_routes(route_cb=route_cb, finished_cb=finished_cb,
                                    timeout=timeout if timeout else RouteTableReader.DEFAULT_TIMEOUT)
 
-    def get_neighbors(self, neighbor_callback=None, process_finished_callback=None, timeout=None):
+    def get_neighbors(self, neighbor_cb=None, finished_cb=None, timeout=None):
         """
-        Returns the neighbors of this XBee. If `neighbor_callback` is not
+        Returns the neighbors of this XBee. If `neighbor_cb` is not
         defined, the process blocks until the complete neighbor table is read.
 
         Args:
-            neighbor_callback (Function, optional, default=`None`): Method
-                called when a new neighbor is received. Receives two arguments:
+            neighbor_cb (Function, optional, default=`None`): Method called
+                when a new neighbor is received. Receives two arguments:
 
                 * The XBee that owns this new neighbor.
                 * The new neighbor.
 
-            process_finished_callback (Function, optional, default=`None`): Method
-                to execute when the process finishes. Receives three arguments:
+            finished_cb (Function, optional, default=`None`): Method to execute
+                when the process finishes. Receives three arguments:
 
                 * The XBee that executed the ZDO command.
                 * A list with the discovered neighbors.
@@ -8493,7 +8487,7 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
             timeout (Float, optional, default=`NeighborTableReader.DEFAULT_TIMEOUT`): The ZDO
                 command timeout in seconds.
         Returns:
-            List: List of :class:`.Neighbor` when `neighbor_callback` is defined,
+            List: List of :class:`.Neighbor` when `neighbor_cb` is not defined,
                 `None` otherwise (in this case neighbors are received in the callback).
 
         Raises:
@@ -8504,8 +8498,7 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
         """
         from digi.xbee.models.zdo import NeighborTableReader
         return super()._get_neighbors(
-            neighbor_callback=neighbor_callback,
-            process_finished_callback=process_finished_callback,
+            neighbor_cb=neighbor_cb, finished_cb=finished_cb,
             timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
 
 
@@ -11140,7 +11133,7 @@ class ZigBeeNetwork(XBeeNetwork):
         Returns:
             :class:`.NetworkDiscoveryStatus`: Resulting status of the process.
         """
-        def __new_route_callback(xbee, route):
+        def __new_route_cb(xbee, route):
             self._log.debug("     o Discovered route of %s: %s - %s -> %s",
                             xbee, route.destination, route.next_hop, route.status)
 
@@ -11163,7 +11156,7 @@ class ZigBeeNetwork(XBeeNetwork):
                 if cmd:
                     cmd.stop()
 
-        def __route_discover_finished_callback(xbee, _routes, error):
+        def __route_discover_finished_cb(xbee, _routes, error):
             zdo_processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
             if zdo_processes:
                 zdo_processes.pop(self.__ROUTE_TABLE_TYPE)
@@ -11192,8 +11185,8 @@ class ZigBeeNetwork(XBeeNetwork):
 
         from digi.xbee.models.zdo import RouteTableReader
         reader = RouteTableReader(requester, configure_ao=False, timeout=node_timeout)
-        reader.get_route_table(route_callback=__new_route_callback,
-                               process_finished_callback=__route_discover_finished_callback)
+        reader.get_route_table(route_cb=__new_route_cb,
+                               finished_cb=__route_discover_finished_cb)
 
         processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
         if not processes:
@@ -11217,7 +11210,7 @@ class ZigBeeNetwork(XBeeNetwork):
         Returns:
             :class:`.NetworkDiscoveryStatus`: Resulting status of the process.
         """
-        def __new_neighbor_callback(xbee, neighbor):
+        def __new_neighbor_cb(xbee, neighbor):
             # Do not add a connection to the same node
             if neighbor == xbee:
                 return
@@ -11234,7 +11227,7 @@ class ZigBeeNetwork(XBeeNetwork):
                 if cmd:
                     cmd.stop()
 
-        def __neighbor_discover_finished_callback(xbee, _, error):
+        def __neighbor_discover_finished_cb(xbee, _, error):
             zdo_processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
             if zdo_processes:
                 zdo_processes.pop(self.__NEIGHBOR_TABLE_TYPE, None)
@@ -11252,8 +11245,8 @@ class ZigBeeNetwork(XBeeNetwork):
 
         from digi.xbee.models.zdo import NeighborTableReader
         reader = NeighborTableReader(requester, configure_ao=False, timeout=node_timeout)
-        reader.get_neighbor_table(neighbor_callback=__new_neighbor_callback,
-                                  process_finished_callback=__neighbor_discover_finished_callback)
+        reader.get_neighbor_table(neighbor_cb=__new_neighbor_cb,
+                                  finished_cb=__neighbor_discover_finished_cb)
 
         processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
         if not processes:
@@ -11528,7 +11521,7 @@ class DigiMeshNetwork(XBeeNetwork):
         .. seealso::
            | :meth:`.XBeeNetwork._discover_neighbors`
         """
-        def __new_neighbor_callback(xbee, neighbor):
+        def __new_neighbor_cb(xbee, neighbor):
             # Do not add a connection to the same node
             if neighbor == xbee:
                 return
@@ -11536,7 +11529,7 @@ class DigiMeshNetwork(XBeeNetwork):
             # Add the new neighbor
             self.__process_discovered_neighbor_data(xbee, neighbor, nodes_queue)
 
-        def __neighbor_discover_finished_callback(xbee, _, error):
+        def __neighbor_discover_finished_cb(xbee, _, error):
             self.__neighbor_finders.pop(str(requester.get_64bit_addr()), None)
 
             # Process the error if exists
@@ -11563,8 +11556,8 @@ class DigiMeshNetwork(XBeeNetwork):
 
         from digi.xbee.models.zdo import NeighborFinder
         finder = NeighborFinder(requester, timeout=self.__real_node_timeout)
-        finder.get_neighbors(neighbor_callback=__new_neighbor_callback,
-                             process_finished_callback=__neighbor_discover_finished_callback)
+        finder.get_neighbors(neighbor_cb=__new_neighbor_cb,
+                             finished_cb=__neighbor_discover_finished_cb)
 
         active_processes.append(str(requester.get_64bit_addr()))
         self.__neighbor_finders.update({str(requester.get_64bit_addr()): finder})
