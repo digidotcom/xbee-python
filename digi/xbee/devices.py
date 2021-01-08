@@ -2209,19 +2209,35 @@ class AbstractXBeeDevice:
                 self, configure_ao=True,
                 timeout=timeout if timeout else NeighborTableReader.DEFAULT_TIMEOUT)
 
-            return reader.get_neighbor_table(neighbor_callback=neighbor_callback,
-                                             process_finished_callback=process_finished_callback)
-        if self.get_protocol() in (XBeeProtocol.DIGI_MESH, XBeeProtocol.XLR_DM,
-                                   XBeeProtocol.XTEND_DM, XBeeProtocol.SX):
+            neighbors = reader.get_neighbor_table(neighbor_callback=neighbor_callback,
+                                                  process_finished_callback=process_finished_callback)
+        elif self.get_protocol() in (XBeeProtocol.DIGI_MESH, XBeeProtocol.XLR_DM,
+                                     XBeeProtocol.XTEND_DM, XBeeProtocol.SX):
             from digi.xbee.models.zdo import NeighborFinder
             finder = NeighborFinder(
                 self, timeout=timeout if timeout else NeighborFinder.DEFAULT_TIMEOUT)
 
-            return finder.get_neighbors(neighbor_callback=neighbor_callback,
-                                        process_finished_callback=process_finished_callback)
+            neighbors = finder.get_neighbors(neighbor_callback=neighbor_callback,
+                                             process_finished_callback=process_finished_callback)
+        else:
+            raise OperationNotSupportedException("Get neighbors is not supported in %s"
+                                                 % self.get_protocol().description)
 
-        raise OperationNotSupportedException("Get neighbors is not supported in %s"
-                                             % self.get_protocol().description)
+        if not neighbors:
+            return neighbors
+
+        network = self.get_local_xbee_device().get_network() if self.is_remote() \
+            else self.get_network()
+        for neighbor in neighbors:
+            is_local = bool(
+                neighbor.node.get_64bit_addr() == (self.get_local_xbee_device().get_64bit_addr() if self.is_remote() else self.get_64bit_addr()))
+            network._add_remote_from_attr(
+                NetworkEventReason.NEIGHBOR,
+                x64bit_addr="local" if is_local else neighbor.node.get_64bit_addr(),
+                x16bit_addr=neighbor.node.get_16bit_addr(), node_id=neighbor.node.get_node_id())
+            neighbor._node = network.get_device_by_64(neighbor.node.get_64bit_addr())
+
+        return neighbors
 
     @property
     def reachable(self):

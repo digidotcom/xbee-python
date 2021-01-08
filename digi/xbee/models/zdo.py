@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -1420,14 +1420,14 @@ class Neighbor:
            | :class:`.NeighborRelationship`
            | :class:`.RemoteXBeeDevice`
         """
-        self.__node = node
+        self._node = node
         self.__relationship = relationship
         self.__depth = depth
         self.__lq = lq
 
     def __str__(self):
         return "Node: {!s} (relationship: {!s}, depth: {!r}, lq: {!r})".format(
-            self.__node, self.__relationship.name, self.__depth, self.__lq)
+            self._node, self.__relationship.name, self.__depth, self.__lq)
 
     @property
     def node(self):
@@ -1440,7 +1440,7 @@ class Neighbor:
         .. seealso::
            | :class:`.RemoteXBeeDevice`
         """
-        return self.__node
+        return self._node
 
     @property
     def relationship(self):
