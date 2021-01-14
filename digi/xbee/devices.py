@@ -62,7 +62,6 @@ from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, \
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
 
-
 _ERROR_INCOMPATIBLE_PROTOCOL = \
     "Error reading device information: Your module seems to be %s and NOT %s. " \
     "Check if you are using the appropriate device class."
@@ -8854,6 +8853,58 @@ class XBeeNetwork:
             Integer: Number of nodes in the network.
         """
         return len(self.__devices_list)
+
+    def export(self, dir_path=None, name=None, desc=None):
+        """
+        Exports this network to the given file path.
+
+        If the provided path already exists the file is removed.
+
+        Params:
+            dir_path (String, optional, default=`None`): Absolute path of the
+                directory to export the network. It should not include the file
+                name. If not defined home directory is used.
+            name (String, optional, default=`None`): Network human readable name.
+            desc (String, optional, default=`None`): Network description.
+
+        Returns:
+            Tuple (Integer, String): Tuple with result (0: success, 1: failure)
+                and string (exported file path if success, error string otherwise).
+        """
+        import datetime
+        from pathlib import Path
+
+        date_now = datetime.datetime.now()
+        if not dir_path:
+            dir_path = str(Path.home())
+        if not name:
+            name = "%s network" % str(self._local_xbee)
+        file_name = "%s_%s.xnet" % (name.strip().replace(" ", "_"),
+                                    date_now.strftime("%m%d%y_%H%M%S"))
+        file = Path(dir_path, file_name)
+        try:
+            if file.exists():
+                file.unlink()
+            file.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            return 1, "%s (%d): %s" % (exc.strerror, exc.errno, exc.filename)
+
+        from digi.xbee.util.exportutils import generate_network_xml
+        tree = generate_network_xml(self._local_xbee, date_now=date_now,
+                                    name=name, desc=desc)
+
+        from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
+        try:
+            with ZipFile(str(file), 'w') as xnet_zip:
+                info = ZipInfo(filename='network.xml',
+                               date_time=time.localtime(date_now.timestamp()))
+                info.compress_type = ZIP_DEFLATED
+                with xnet_zip.open(info, 'w') as xnet_file:
+                    tree.write(xnet_file, encoding='utf-8', xml_declaration=False)
+        except (OSError, IOError) as exc:
+            return 1, "%s (%d): %s" % (exc.strerror, exc.errno, exc.filename)
+
+        return 0, str(file)
 
     def add_network_modified_callback(self, callback):
         """
