@@ -2317,7 +2317,7 @@ class XBeeDevice(AbstractXBeeDevice):
                  stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
                  flow_control=FlowControl.NONE,
                  _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
-                 comm_iface=None):
+                 comm_iface=None, exclusive=None):
         """
         Class constructor. Instantiates a new :class:`.XBeeDevice` with the
         provided parameters.
@@ -2332,6 +2332,7 @@ class XBeeDevice(AbstractXBeeDevice):
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): Port flow control.
             _sync_ops_timeout (Integer, default: 4): Read timeout (in seconds).
             comm_iface (:class:`.XBeeCommunicationInterface`): Communication interface.
+            exclusive (Boolean, optional, default=False) Set exclusive access mode (POSIX only).
 
         Raises:
             All exceptions raised by PySerial's Serial class constructor.
@@ -2343,7 +2344,7 @@ class XBeeDevice(AbstractXBeeDevice):
             serial_port=XBeeSerialPort(baud_rate=baud_rate, port=port,
                                        data_bits=data_bits, stop_bits=stop_bits,
                                        parity=parity, flow_control=flow_control,
-                                       timeout=_sync_ops_timeout) if comm_iface is None else None,
+                                       timeout=_sync_ops_timeout, exclusive=exclusive) if comm_iface is None else None,
             sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         # If there is no XBeeNetwork object provided by comm_iface,
         # initialize a default XBeeNetwork

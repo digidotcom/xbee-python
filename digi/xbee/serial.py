@@ -53,11 +53,12 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
     __DEFAULT_STOP_BITS = STOPBITS_ONE
     __DEFAULT_PARITY = PARITY_NONE
     __DEFAULT_FLOW_CONTROL = FlowControl.NONE
+    __DEFAULT_EXCLUSIVE = None
 
     def __init__(self, baud_rate, port, data_bits=__DEFAULT_DATA_BITS,
                  stop_bits=__DEFAULT_STOP_BITS, parity=__DEFAULT_PARITY,
                  flow_control=__DEFAULT_FLOW_CONTROL,
-                 timeout=__DEFAULT_PORT_TIMEOUT):
+                 timeout=__DEFAULT_PORT_TIMEOUT, exclusive=__DEFAULT_EXCLUSIVE):
         """
         Class constructor. Instantiates a new `XBeeSerialPort` object with the
         given port parameters.
@@ -70,26 +71,29 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
             parity (Char, optional, default=`N`): Parity. Default to 'N' (None).
             flow_control (Integer, optional, default=`None`): Flow control.
             timeout (Integer, optional, default=0.1): Read timeout (seconds).
-
+            exclusive (Boolean, optional, default=False) Set exclusive access mode (POSIX only).
         .. seealso::
            | _PySerial: https://github.com/pyserial/pyserial
         """
         if flow_control == FlowControl.SOFTWARE:
             Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits,
-                            parity=parity, timeout=timeout, xonxoff=True)
+                            parity=parity, timeout=timeout,
+                            exclusive=exclusive, xonxoff=True)
         elif flow_control == FlowControl.HARDWARE_DSR_DTR:
             Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits,
-                            parity=parity, timeout=timeout, dsrdtr=True)
+                            parity=parity, timeout=timeout,
+                            exclusive=exclusive, dsrdtr=True)
         elif flow_control == FlowControl.HARDWARE_RTS_CTS:
             Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits,
-                            parity=parity, timeout=timeout, rtscts=True)
+                            parity=parity, timeout=timeout,
+                            exclusive=exclusive, rtscts=True)
         else:
             Serial.__init__(self, port=None, baudrate=baud_rate,
                             bytesize=data_bits, stopbits=stop_bits,
-                            parity=parity, timeout=timeout)
+                            parity=parity, timeout=timeout, exclusive=exclusive)
         self.setPort(port)
         self._is_reading = False
 
