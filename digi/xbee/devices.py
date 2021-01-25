@@ -635,17 +635,17 @@ class AbstractXBeeDevice:
                     self._node_id = node_id
                     updated = True
             # 16-bit address:
-            if (self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4,
-                                   XBeeProtocol.XTEND, XBeeProtocol.SMART_ENERGY,
-                                   XBeeProtocol.ZNET)
-                    and (init or not XBee16BitAddress.is_known_node_addr(self._16bit_addr))):
-                x16bit_addr = XBee16BitAddress(
-                    self.get_parameter(ATStringCommand.MY, apply=False))
-                if self._16bit_addr != x16bit_addr:
-                    self._16bit_addr = x16bit_addr
-                    updated = True
-            elif not self._16bit_addr:
-                # For protocols that do not support a 16 bit address, set it to unknown
+            if self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.RAW_802_15_4,
+                                  XBeeProtocol.XTEND, XBeeProtocol.SMART_ENERGY,
+                                  XBeeProtocol.ZNET):
+                if init or not XBee16BitAddress.is_known_node_addr(self._16bit_addr):
+                    x16bit_addr = XBee16BitAddress(
+                        self.get_parameter(ATStringCommand.MY, apply=False))
+                    if self._16bit_addr != x16bit_addr:
+                        self._16bit_addr = x16bit_addr
+                        updated = True
+            else:
+                # For protocols that do not support a 16-bit address, set it to unknown
                 self._16bit_addr = XBee16BitAddress.UNKNOWN_ADDRESS
 
             # Role:
