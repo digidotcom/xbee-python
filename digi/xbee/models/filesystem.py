@@ -12,7 +12,6 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 from enum import unique, Enum
 
-import digi.xbee.filesystem
 from digi.xbee.exception import InvalidPacketException
 from digi.xbee.models.options import DirResponseFlag
 from digi.xbee.models.status import FSCommandStatus
@@ -2000,10 +1999,10 @@ class OpenDirCmdResponse(FileIdCmd):
         for item in self._fs_entries:
             if not item:
                 continue
+            from digi.xbee.filesystem import FileSystemElement
             # File size: lower 24 bits (3 bytes) of size_and_flags
-            f_list.append(
-                digi.xbee.filesystem.FileSystemElement.from_data(
-                    item[4:].decode('utf-8'), item[1:4], item[0]))
+            f_list.append(FileSystemElement.from_data(item[4:].decode('utf-8'),
+                                                      item[1:4], item[0]))
 
         return f_list
 
