@@ -4150,7 +4150,9 @@ class XBeeDevice(AbstractXBeeDevice):
                                   XBeeProtocol.SMART_ENERGY,
                                   XBeeProtocol.DIGI_MESH,
                                   XBeeProtocol.DIGI_POINT, XBeeProtocol.SX):
-            raise ValueError("Cannot register callback for %s XBee devices" % self._protocol)
+            raise ValueError(
+                "Cannot register route received callback for %s XBee devices"
+                % self._protocol.description)
 
         self.__route_received += callback
 

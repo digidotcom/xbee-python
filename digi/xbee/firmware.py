@@ -6010,8 +6010,9 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                         and self._ota_msg_type == EmberBootloaderMessageType.QUERY_RESPONSE):
                     recovery_set = True
                 else:
-                    _log.warning("Invalid OTA message type for 'set recovery' command: %s",
-                                 self._ota_msg_type.description)
+                    _log.warning(
+                        "Invalid OTA message type for 'set recovery' command: %s",
+                        self._ota_msg_type.description if self._ota_msg_type else "no OTA message")
                     retries -= 1
             except XBeeException as exc:
                 _log.warning("Could not send 'set recovery' command: %s", str(exc))
@@ -6148,8 +6149,9 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                 if not self._packet_received:
                     _log.warning("Answer for data initialization command not received")
                 else:
-                    _log.warning("Invalid answer for initialization command: %s",
-                                 self._ota_msg_type.description)
+                    _log.warning(
+                        "Invalid answer for initialization command: %s",
+                        self._ota_msg_type.description if self._ota_msg_type else "no OTA message")
                 retries -= 1
                 if retries > 0:
                     time.sleep(2)
@@ -6231,8 +6233,9 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                 if not self._packet_received:
                     _log.warning("Answer for data block %s not received", ota_block_number)
                 else:
-                    _log.warning("Invalid answer for data block %s: %s",
-                                 ota_block_number, self._ota_msg_type.description)
+                    _log.warning(
+                        "Invalid answer for data block %s: %s", ota_block_number,
+                        self._ota_msg_type.description if self._ota_msg_type else "no OTA message")
                 retries -= 1
                 if retries > 0:
                     time.sleep(0.5)
