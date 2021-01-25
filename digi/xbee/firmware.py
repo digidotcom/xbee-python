@@ -1584,15 +1584,22 @@ class UpdateConfigurer:
             self._prepare_network_for_update()
         self.progress_cb(self.TASK_PREPARE)
 
-    def restore_after_update(self, restore_settings=True):
+    def restore_after_update(self, restore_settings=True, port_settings=None):
         """
         Restores the node after an update process.
+
+        Args:
+            restore_settings(Boolean, optional, default=`True`): `True` to
+                restore stored settngs, `False` otherwise.
+            port_settings(Dictionary, optional, default=`None`): Dictionary
+                with the new serial port configuration, `None` for remote node
+                or if the serial config has not changed.
         """
         _log.info("'%s' - %s", self._xbee, self.TASK_RESTORE)
 
         if restore_settings and self.cmd_dict:
             self.progress_cb(self.TASK_RESTORE)
-            self._restore_node_after_update(self._xbee)
+            self._restore_node_after_update(self._xbee, port_settings=port_settings)
 
             self.progress_cb(self.TASK_RESTORE)
             self._restore_network_after_update()
@@ -1878,19 +1885,22 @@ class UpdateConfigurer:
         finally:
             local.set_sync_ops_timeout(old_timeout)
 
-    def _restore_node_after_update(self, node):
+    def _restore_node_after_update(self, node, port_settings=None):
         """
         Restores the node parameters after an update process.
 
         Args:
              node (:class: `.AbstractXBeeDevice): The node to restore.
+             port_settings(Dictionary, optional, default=`None`): Dictionary
+                with the new serial port configuration, `None` for remote node
+                or if the serial config has not changed.
         """
         to_restore = self.cmd_dict.pop(node, {})
         if not to_restore:
             self._update_node_info(node, self.TASK_RESTORE)
             return
 
-        _log.debug("'%s' - %s: node", self._xbee, self.TASK_RESTORE)
+        _log.debug("'%s' - %s: node", node, self.TASK_RESTORE)
 
         # Set stored parameter values
         for cmd, val in to_restore.items():
@@ -1929,6 +1939,7 @@ class UpdateConfigurer:
                 wait_time = (utils.bytes_to_int(sp_val) / 100
                              + utils.bytes_to_int(st_val) / 1000)
 
+        error_applying = False
         # Apply changed values
         try:
             self.exec_at_cmd(AbstractXBeeDevice.set_parameter, node,
@@ -1936,8 +1947,21 @@ class UpdateConfigurer:
         except XBeeException as exc:
             _log.info("'%s' - %s: Unable to restore configuration: %s", node,
                       self.TASK_RESTORE, str(exc))
+            error_applying = True
 
-        self._update_node_info(node, self.TASK_RESTORE)
+        # Check if port settings have changed on local devices.
+        if not error_applying and port_settings and not node.is_remote():
+            # Apply the new port configuration.
+            try:
+                node.close()  # This is necessary to stop the frames read thread.
+                node.serial_port.apply_settings(port_settings)
+                node.open()
+            except (XBeeException, SerialException) as exc:
+                _log.info("Error re-configuring XBee serial port: %s", str(exc))
+                error_applying = True
+
+        if not error_applying and not node.is_remote():
+            self._update_node_info(node, self.TASK_RESTORE)
 
         # Wait for sync sleep configuration to apply
         if wait_time:
@@ -1977,6 +2001,10 @@ class UpdateConfigurer:
                 updated.
             node_config (Dictionary): The dictionary with the restored node
                 configuration.
+
+        Returns:
+            Boolean: `True` if must wait for network to wake up, `False`
+                otherwise.
         """
         if not self.sync_sleep:
             return False

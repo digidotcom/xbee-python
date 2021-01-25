@@ -65,7 +65,6 @@ _ERROR_PROFILE_XML_PARSE = "Error parsing profile XML file: %s"
 _ERROR_READ_REMOTE_PARAMETER = "Error reading remote parameter: %s"
 _ERROR_UPDATE_FS = "Error updating XBee filesystem: %s"
 _ERROR_UPDATE_FW = "Error updating XBee firmware: %s"
-_ERROR_UPDATE_SERIAL_PORT = "Error re-configuring XBee device serial port: %s"
 _ERROR_UPDATE_SETTINGS = "Error updating XBee settings: %s"
 _ERROR_PROTOCOL_CHANGE = "Cannot %s as the protocol changed and it is no" \
                          " longer reachable"
@@ -1373,7 +1372,7 @@ class _UpdateConfigurer:
         """
         self._configurer.prepare_for_update(restore_later=True)
 
-    def restore_after_update(self, net_changed, protocol_changed_by_settings):
+    def restore_after_update(self, net_changed, protocol_changed_by_settings, port_settings):
         """
         Restores the node configuration.
 
@@ -1382,6 +1381,9 @@ class _UpdateConfigurer:
                 after the update, `False` otherwise.
             protocol_changed_by_settings (Boolean): `True` if the protocol of
                 the node changed after the update, `False` otherwise.
+            port_settings (Dictionary): Dictionary with the serial port
+                configuration after applying settings, `None` for remote node
+                or if the serial config has not changed.
         """
         self._configurer.restore_total = self._configurer.restore_total + 3
 
@@ -1407,7 +1409,8 @@ class _UpdateConfigurer:
         self._configurer.progress_cb(self._configurer.TASK_RESTORE)
 
         self._configurer.restore_after_update(
-            restore_settings=not self._xbee.is_remote() or not protocol_changed_by_settings)
+            restore_settings=not self._xbee.is_remote() or not protocol_changed_by_settings,
+            port_settings=port_settings)
 
         # Check if network or cache settings have changed.
         if net_changed or protocol_changed_by_settings:
@@ -1491,7 +1494,7 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error updating the XBee
                 firmware.
         """
-        _log.info("%s - Updating XBee firmware", self._xbee)
+        _log.info("%s - Updating XBee firmware", self._xbee if self._xbee is not None else self._target)
         try:
             if self._xbee and self._xbee.is_remote():
                 if not self._profile.has_remote_firmware_files:
@@ -1517,6 +1520,10 @@ class _ProfileUpdater:
         """
         Checks whether the port settings of the device have changed in order
         to update serial port connection.
+
+        Returns:
+            Dictionary: A dictionary with the new serial port configuration,
+                `None` if no serial parameter has changed.
 
         Raises:
             UpdateProfileException: If there is any error checking serial port
@@ -1569,13 +1576,9 @@ class _ProfileUpdater:
                 port_params["rtscts"] = True  # Default CTS value is always on.
 
         if baudrate_changed or parity_changed or stop_bits_changed or cts_flow_control_changed:
-            # Apply the new port configuration.
-            try:
-                self._xbee.close()  # This is necessary to stop the frames read thread.
-                self._xbee.serial_port.apply_settings(port_params)
-                self._xbee.open()
-            except (XBeeException, SerialException) as exc:
-                raise UpdateProfileException(_ERROR_UPDATE_SERIAL_PORT % str(exc))
+            return port_params
+
+        return None
 
     def _check_protocol_changed_by_fw(self):
         """
@@ -1615,9 +1618,12 @@ class _ProfileUpdater:
         Updates the device settings using the profile.
 
         Returns:
-            Tuple (Boolean, Boolean):
+            Tuple (Boolean, Boolean, Dictionary):
                 - `True` if network settings changed, `False` otherwise.
                 - `True` if cache settings changed, `False` otherwise.
+                - A dictionary with the new serial port configuration if it
+                  it is a local XBee and the port configuration has changed,
+                  `None` otherwise.
 
         Raises:
             UpdateProfileException: If there is any error updating device
@@ -1730,19 +1736,20 @@ class _ProfileUpdater:
             if self._progress_callback is not None and percent != previous_percent:
                 self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
             self.set_parameter_with_retries(ATStringCommand.WR, bytearray(0),
-                                            _PARAM_WRITE_RETRIES, apply=True)
+                                            _PARAM_WRITE_RETRIES, apply=bool(not cmd_dict))
         except XBeeException as exc:
             raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(exc))
 
         # Check if port settings have changed on local devices.
+        port_params = None
         if self._is_local:
-            self._check_port_settings_changed()
+            port_params = self._check_port_settings_changed()
 
         # If the target is a serial port, we do not need to continue
         if isinstance(self._target, str):
-            return False, False
+            return False, False, port_params
 
-        return network_settings_changed, cache_settings_changed
+        return network_settings_changed, cache_settings_changed, port_params
 
     def _update_file_system(self):
         """
@@ -1970,6 +1977,7 @@ class _ProfileUpdater:
         """
         net_changed = False
         protocol_changed_by_settings = False
+        port_settings = None
         try:
             if self._xbee:
                 # Retrieve device parameters.
@@ -2008,11 +2016,11 @@ class _ProfileUpdater:
                     self._profile.open()
                 self._update_file_system()
             # Update the settings.
-            net_changed, _info_changed = self._update_device_settings()
+            net_changed, _info_changed, port_settings = self._update_device_settings()
         finally:
             if self._configurer:
-                self._configurer.restore_after_update(net_changed,
-                                                      protocol_changed_by_settings)
+                self._configurer.restore_after_update(
+                    net_changed, protocol_changed_by_settings, port_settings)
 
             self._profile.close()
 
