@@ -50,7 +50,7 @@ Requirements
 The XBee Python library requires the following components in order to work
 properly:
 
-* **Python 3**. You can get it from https://www.python.org/getit/
+* **Python 3.6**. You can get it from https://www.python.org/getit/
 * **PySerial 3**. Install it with pip (``pip install pyserial``) or refer to
   the `PySerial installation guide
   <http://pythonhosted.org/pyserial/pyserial.html#installation>`_ for further

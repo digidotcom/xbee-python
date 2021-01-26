@@ -356,7 +356,7 @@ The ``connect`` method may fail for the following reasons:
   [...]
 
   # Create the file system manager and connect it.
-  filesystem_manager = LocalXBeeFileSystemManager(device)
+  filesystem_manager = LocalXBeeFileSystemManager(xbee)
   filesystem_manager.connect()
 
   [...]
