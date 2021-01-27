@@ -1736,6 +1736,16 @@ class UpdateConfigurer:
             # For sync sleeping routers, do nothing
             if self.sync_sleep:
                 return
+        elif self._xbee.get_protocol() == XBeeProtocol.RAW_802_15_4:
+            # Read SM value, if not enabled is not a sleeping device
+            sm_val = None
+            try:
+                sm_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter,
+                                          self._xbee, ATStringCommand.SM)
+                if sm_val is not None and int.from_bytes(sm_val, "big") == 0:
+                    return
+            except XBeeException as exc:
+                _log.info("Unable to read '%s' configuration: %s", self._xbee, str(exc))
 
         default_sp = self._get_min_value(ATStringCommand.SP, self._xbee.get_protocol())
         default_sn = self._get_min_value(ATStringCommand.SN, self._xbee.get_protocol())

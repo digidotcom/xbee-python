@@ -1675,8 +1675,10 @@ class _ProfileUpdater:
 
                 cmd_dict[ATStringCommand.SM] = utils.hex_string_to_bytes(
                     self._profile.get_setting_default_value(ATStringCommand.SM))
-                cmd_dict[ATStringCommand.SN] = utils.hex_string_to_bytes(
-                    self._profile.get_setting_default_value(ATStringCommand.SN))
+                # 'SN' parameter does not exist in all firmwares
+                sn_def = self._profile.get_setting_default_value(ATStringCommand.SN)
+                if sn_def is not None:
+                    cmd_dict[ATStringCommand.SN] = utils.hex_string_to_bytes(sn_def)
                 cmd_dict[ATStringCommand.SO] = utils.hex_string_to_bytes(
                     self._profile.get_setting_default_value(ATStringCommand.SO))
                 cmd_dict[ATStringCommand.SP] = utils.hex_string_to_bytes(
