@@ -219,10 +219,13 @@ class AbstractXBeeDevice:
             updated = True
 
         new_addr16 = device.get_16bit_addr()
-        if (XBee16BitAddress.is_known_node_addr(new_addr16)
-                and new_addr16 != self._16bit_addr):
-            self._16bit_addr = new_addr16
-            updated = True
+        if new_addr16 != self._16bit_addr:
+            if (device.get_protocol() in (XBeeProtocol.DIGI_MESH,
+                                          XBeeProtocol.DIGI_POINT,
+                                          XBeeProtocol.RAW_802_15_4)
+                    or XBee16BitAddress.is_known_node_addr(new_addr16)):
+                self._16bit_addr = new_addr16
+                updated = True
 
         new_role = device.get_role()
         if (new_role is not None
