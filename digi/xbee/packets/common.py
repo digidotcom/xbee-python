@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -46,8 +46,8 @@ class ATCommPacket(XBeeAPIPacket):
 
         Args:
             frame_id (Integer): the frame ID of the packet.
-            command (String): the AT command of the packet. Must be a string.
-            parameter (Bytearray, optional): the AT command parameter. Optional.
+            command (String or bytearray): AT command of the packet.
+            parameter (Bytearray, optional): the AT command parameter.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -56,14 +56,16 @@ class ATCommPacket(XBeeAPIPacket):
         .. seealso::
             | :class:`.XBeeAPIPacket`
         """
+        if not isinstance(command, (str, bytearray, bytes)):
+            raise ValueError("Command must be a string or bytearray")
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
-
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
         super().__init__(ApiFrameType.AT_COMMAND)
-        self.__command = command
+        self.__command = _encode_at_cmd(command)
         self.__parameter = parameter
         self._frame_id = frame_id
 
@@ -102,7 +104,7 @@ class ATCommPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.AT_COMMAND.code:
             raise InvalidPacketException(message="This packet is not an AT command packet.")
 
-        return ATCommPacket(raw[4], raw[5:7].decode("utf8"),
+        return ATCommPacket(raw[4], raw[5:7],
                             parameter=raw[7:-1] if len(raw) > ATCommPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
@@ -122,8 +124,8 @@ class ATCommPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         if self.__parameter is not None:
-            return bytearray(self.__command, "utf8") + self.__parameter
-        return bytearray(self.__command, "utf8")
+            return bytearray(self.__command) + self.__parameter
+        return bytearray(self.__command)
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -143,7 +145,7 @@ class ATCommPacket(XBeeAPIPacket):
         Returns:
             String: the AT command of the packet.
         """
-        return self.__command
+        return _decode_at_cmd(self.__command)
 
     @command.setter
     def command(self, command):
@@ -151,14 +153,16 @@ class ATCommPacket(XBeeAPIPacket):
         Sets the AT command of the packet.
 
         Args:
-            command (String): the new AT command of the packet. Must have length = 2.
+            command (String or bytearray): New AT command of the packet.
+                Must have length = 2.
 
         Raises:
             ValueError: if length of `command` is different from 2.
         """
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
-        self.__command = command
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
+        self.__command = _encode_at_cmd(command)
 
     @property
     def parameter(self):
@@ -208,7 +212,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
 
         Args:
             frame_id (Integer): the frame ID of the packet.
-            command (String): the AT command of the packet. Must be a string.
+            command (String or bytearray): the AT command of the packet.
             parameter (Bytearray, optional): the AT command parameter. Optional.
 
         Raises:
@@ -218,14 +222,16 @@ class ATCommQueuePacket(XBeeAPIPacket):
         .. seealso::
             | :class:`.XBeeAPIPacket`
         """
+        if not isinstance(command, (str, bytearray, bytes)):
+            raise ValueError("Command must be a string or bytearray")
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
-
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
         super().__init__(ApiFrameType.AT_COMMAND_QUEUE)
-        self.__command = command
+        self.__command = _encode_at_cmd(command)
         self.__parameter = parameter
         self._frame_id = frame_id
 
@@ -264,7 +270,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.AT_COMMAND_QUEUE.code:
             raise InvalidPacketException(message="This packet is not an AT command Queue packet.")
 
-        return ATCommQueuePacket(raw[4], raw[5:7].decode("utf8"),
+        return ATCommQueuePacket(raw[4], raw[5:7],
                                  parameter=raw[7:-1] if len(raw) > ATCommQueuePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
@@ -284,8 +290,8 @@ class ATCommQueuePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         if self.__parameter is not None:
-            return bytearray(self.__command, "utf8") + self.__parameter
-        return bytearray(self.__command, "utf8")
+            return bytearray(self.__command) + self.__parameter
+        return bytearray(self.__command)
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -305,7 +311,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
         Returns:
             String: the AT command of the packet.
         """
-        return self.__command
+        return _decode_at_cmd(self.__command)
 
     @command.setter
     def command(self, command):
@@ -313,14 +319,16 @@ class ATCommQueuePacket(XBeeAPIPacket):
         Sets the AT command of the packet.
 
         Args:
-            command (String): the new AT command of the packet. Must have length = 2.
+            command (String or bytearray): New AT command of the packet.
+                Must have length = 2.
 
         Raises:
             ValueError: if length of `command` is different from 2.
         """
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
-        self.__command = command
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
+        self.__command = _encode_at_cmd(command)
 
     @property
     def parameter(self):
@@ -371,7 +379,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
 
         Args:
             frame_id (Integer): the frame ID of the packet. Must be between 0 and 255.
-            command (String): the AT command of the packet. Must be a string.
+            command (String or bytearray): the AT command of the packet.
             response_status (:class:`.ATCommandStatus` or Integer): the status of the AT command.
             comm_value (Bytearray, optional): the AT command response value. Optional.
 
@@ -385,8 +393,11 @@ class ATCommResponsePacket(XBeeAPIPacket):
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
+        if not isinstance(command, (str, bytearray, bytes)):
+            raise ValueError("Command must be a string or bytearray")
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
         if response_status is None:
             response_status = ATCommandStatus.OK.code
         elif not isinstance(response_status, (ATCommandStatus, int)):
@@ -395,7 +406,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
 
         super().__init__(ApiFrameType.AT_COMMAND_RESPONSE)
         self._frame_id = frame_id
-        self.__command = command
+        self.__command = _encode_at_cmd(command)
         if isinstance(response_status, ATCommandStatus):
             self.__response_status = response_status.code
         elif 0 <= response_status <= 255:
@@ -439,11 +450,12 @@ class ATCommResponsePacket(XBeeAPIPacket):
         XBeeAPIPacket._check_api_packet(raw, min_length=ATCommResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.AT_COMMAND_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not an AT command response packet.")
+            raise InvalidPacketException(
+                message="This packet is not an AT command response packet.")
         if ATCommandStatus.get(raw[7]) is None:
             raise InvalidPacketException(message="Invalid command status.")
 
-        return ATCommResponsePacket(raw[4], raw[5:7].decode("utf8"), raw[7],
+        return ATCommResponsePacket(raw[4], raw[5:7], raw[7],
                                     comm_value=raw[8:-1] if len(raw) > ATCommResponsePacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
@@ -462,7 +474,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        ret = bytearray(self.__command, "utf8")
+        ret = bytearray(self.__command)
         ret.append(self.__response_status)
         if self.__comm_value is not None:
             ret += self.__comm_value
@@ -487,7 +499,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         Returns:
             String: the AT command of the packet.
         """
-        return self.__command
+        return _decode_at_cmd(self.__command)
 
     @command.setter
     def command(self, command):
@@ -495,14 +507,16 @@ class ATCommResponsePacket(XBeeAPIPacket):
         Sets the AT command of the packet.
 
         Args:
-            command (String): the new AT command of the packet. Must have length = 2.
+            command (String or bytearray): New AT command of the packet.
+                Must have length = 2.
 
         Raises:
             ValueError: if length of `command` is different from 2.
         """
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
-        self.__command = command
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
+        self.__command = _encode_at_cmd(command)
 
     @property
     def command_value(self):
@@ -838,7 +852,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit destination address.
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit destination address.
             transmit_options (Integer): bitfield of supported transmission options.
-            command (String): AT command to send.
+            command (String or bytearray): AT command to send.
             parameter (Bytearray, optional): AT command parameter. Optional.
 
         Raises:
@@ -853,16 +867,18 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
-
+        if not isinstance(command, (str, bytearray, bytes)):
+            raise ValueError("Command must be a string or bytearray")
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
 
         super().__init__(ApiFrameType.REMOTE_AT_COMMAND_REQUEST)
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
         self.__transmit_options = transmit_options
-        self.__command = command
+        self.__command = _encode_at_cmd(command)
         self.__parameter = parameter
 
     @staticmethod
@@ -899,12 +915,13 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_REQUEST.code:
-            raise InvalidPacketException(message="This packet is not a remote AT command request packet.")
+            raise InvalidPacketException(
+                message="This packet is not a remote AT command request packet.")
 
-        return RemoteATCommandPacket(raw[4], XBee64BitAddress(raw[5:13]),
-                                     XBee16BitAddress(raw[13:15]), raw[15],
-                                     raw[16:18].decode("utf8"),
-                                     parameter=raw[18:-1] if len(raw) > RemoteATCommandPacket.__MIN_PACKET_LENGTH else None)
+        return RemoteATCommandPacket(
+            raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
+            raw[15], raw[16:18],
+            parameter=raw[18:-1] if len(raw) > RemoteATCommandPacket.__MIN_PACKET_LENGTH else None)
 
     def needs_id(self):
         """
@@ -925,7 +942,8 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
         ret.append(self.__transmit_options)
-        ret += bytearray(self.__command, "utf8")
+        ret += self.__command
+
         return ret if self.__parameter is None else ret + self.__parameter
 
     def _get_api_packet_spec_data_dict(self):
@@ -1047,7 +1065,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         Returns:
             String: the AT command.
         """
-        return self.__command
+        return _decode_at_cmd(self.__command)
 
     @command.setter
     def command(self, command):
@@ -1055,9 +1073,12 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         Sets the AT command.
 
         Args:
-            command (String): the new AT command.
+            command (String or bytearray): New AT command.
         """
-        self.__command = command
+        if len(command) != 2:
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
+        self.__command = _encode_at_cmd(command)
 
 
 class RemoteATCommandResponsePacket(XBeeAPIPacket):
@@ -1092,7 +1113,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit source address
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit source address.
-            command (String): the AT command of the packet. Must be a string.
+            command (String or bytearray): the AT command of the packet.
             response_status (:class:`.ATCommandStatus` or Integer): the status of the AT command.
             comm_value (Bytearray, optional): the AT command response value. Optional.
 
@@ -1108,8 +1129,11 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         """
         if frame_id > 255 or frame_id < 0:
             raise ValueError("frame_id must be between 0 and 255.")
+        if not isinstance(command, (str, bytearray, bytes)):
+            raise ValueError("Command must be a string or bytearray")
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
         if response_status is None:
             response_status = ATCommandStatus.OK.code
         elif not isinstance(response_status, (ATCommandStatus, int)):
@@ -1120,7 +1144,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
-        self.__command = command
+        self.__command = _encode_at_cmd(command)
         if isinstance(response_status, ATCommandStatus):
             self.__response_status = response_status.code
         elif 0 <= response_status <= 255:
@@ -1160,15 +1184,20 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
                                   OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=RemoteATCommandResponsePacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=RemoteATCommandResponsePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.REMOTE_AT_COMMAND_RESPONSE.code:
-            raise InvalidPacketException(message="This packet is not a remote AT command response packet.")
+            raise InvalidPacketException(
+                message="This packet is not a remote AT command response packet.")
+
+        value = None
+        if len(raw) > RemoteATCommandResponsePacket.__MIN_PACKET_LENGTH:
+            value = raw[18:-1]
 
         return RemoteATCommandResponsePacket(
             raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
-            raw[15:17].decode("utf8"), raw[17],
-            comm_value=raw[18:-1] if len(raw) > RemoteATCommandResponsePacket.__MIN_PACKET_LENGTH else None)
+            raw[15:17], raw[17], comm_value=value)
 
     def needs_id(self):
         """
@@ -1188,7 +1217,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         """
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
-        ret += bytearray(self.__command, "utf8")
+        ret += self.__command
         ret.append(self.__response_status)
         if self.__comm_value is not None:
             ret += self.__comm_value
@@ -1209,7 +1238,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         Returns:
             String: the AT command of the packet.
         """
-        return self.__command
+        return _decode_at_cmd(self.__command)
 
     @command.setter
     def command(self, command):
@@ -1217,14 +1246,16 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         Sets the AT command of the packet.
 
         Args:
-            command (String): the new AT command of the packet. Must have length = 2.
+            command (String or bytearray): New AT command of the packet.
+                Must have length = 2.
 
         Raises:
             ValueError: if length of `command` is different from 2.
         """
         if len(command) != 2:
-            raise ValueError("Invalid command " + command)
-        self.__command = command
+            raise ValueError("Invalid command %s"
+                             % str(command, encoding='utf8', errors='ignore'))
+        self.__command = _encode_at_cmd(command)
 
     @property
     def command_value(self):
@@ -3006,3 +3037,43 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
             self.__rf_data = None
         else:
             self.__rf_data = rf_data.copy()
+
+
+def _decode_at_cmd(cmd_bytearray):
+    """
+    Decodes the given bytearray to an string with 2 characters.
+
+    Args:
+        cmd_bytearray (Bytearray): The bytearray to decode.
+
+    Returns:
+        String: The decoded AT command string.
+    """
+    cmd = cmd_bytearray.decode('utf8', errors='backslashreplace')[0:2]
+    if len(cmd) != 2:
+        # If the command is corrupted it may be an utf-8 valid character
+        # which value is bigger than 0xFF, for example '€' 0xc280C. In this
+        # situation, add a '?' as the second character not to throw an
+        # exception when creating the package that is valid from the
+        # conforming bytes point of view
+        cmd += '?'
+
+    return cmd
+
+
+def _encode_at_cmd(cmd):
+    """
+    Encodes an string AT command to get a bytearray.
+
+    Args:
+        cmd (String or bytearray): The string to encode.
+
+    Returns:
+        Bytearray: A 2-length bytearray with the command.
+    """
+    if isinstance(cmd, str):
+        cmd = cmd.encode(encoding='utf8', errors='ignore')
+        while len(cmd) != 2:
+            cmd += b'?'
+
+    return cmd

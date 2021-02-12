@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -1565,7 +1565,7 @@ class PacketListener(threading.Thread):
                 x64bit_addr = "local"
 
             if cmd == ATStringCommand.NI.command:
-                node_id = val.decode()
+                node_id = val.decode(encoding='utf8', errors='ignore')
             elif cmd == ATStringCommand.HV.command:
                 hw_version = HardwareVersion.get(val[0])
             elif cmd == ATStringCommand.VR.command:

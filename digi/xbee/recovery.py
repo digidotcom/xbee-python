@@ -164,7 +164,7 @@ class _LocalRecoverDevice:
                        "assuming device is in bootloader mode and retrying")
             # Only for XBee 3 modules
             self._xbee_serial_port.apply_settings({_BAUDRATE_KEY: _BOOTLOADER_BAUDRATE})
-            self._xbee_serial_port.write(str.encode(_BOOTLOADER_CONTINUE_KEY))
+            self._xbee_serial_port.write(str.encode(_BOOTLOADER_CONTINUE_KEY, encoding="utf8"))
 
             _log.debug("Retrying to determine the baudrate in recovery mode")
             recovery_baudrate = self._get_recovery_baudrate(_RECOVERY_DETECTION_TRIES)
@@ -234,7 +234,7 @@ class _LocalRecoverDevice:
                 _AT_COMMANDS[_APPLY_CHANGES_KEY],
                 _AT_COMMANDS[_WRITE_REGISTER_KEY],
                 _AT_COMMANDS[_EXIT_MODE_KEY]):
-            self._xbee_serial_port.write(str.encode(command))
+            self._xbee_serial_port.write(str.encode(command, encoding="utf8"))
             if command == _AT_COMMANDS[_EXIT_MODE_KEY]:
                 time.sleep(_DEFAULT_GUARD_TIME)
             timeout = time.time() + 2
@@ -385,7 +385,7 @@ def enter_at_command_mode(port):
     # any data to the device
     time.sleep(1)
     # Send the command mode sequence
-    b_array = bytearray('+', "utf8")
+    b_array = bytearray('+', encoding="utf8")
     port.write(b_array)
     port.write(b_array)
     port.write(b_array)

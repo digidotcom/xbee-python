@@ -633,7 +633,8 @@ class AbstractXBeeDevice:
                     updated = True
             # Node ID:
             if init or not self._node_id:
-                node_id = self.get_parameter(ATStringCommand.NI, apply=False).decode()
+                node_id = str(self.get_parameter(ATStringCommand.NI, apply=False),
+                              encoding='utf8', errors='ignore')
                 if self._node_id != node_id:
                     self._node_id = node_id
                     updated = True
@@ -2597,15 +2598,15 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("64-bit address cannot be None")
         if x16addr is None:
             raise ValueError("16-bit address cannot be None")
-        if data is None:
-            raise ValueError("Data cannot be None")
+        if not isinstance(data, (str, bytearray, bytes)):
+            raise ValueError("Data must be a string or bytearray")
 
         if self.is_remote():
             raise OperationNotSupportedException(
                 message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors="ignore")
 
         packet = TransmitPacket(self.get_next_frame_id(), x64addr, x16addr,
                                 0, transmit_options, rf_data=data)
@@ -2647,15 +2648,15 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         if x64addr is None:
             raise ValueError("64-bit address cannot be None")
-        if data is None:
-            raise ValueError("Data cannot be None")
+        if not isinstance(data, (str, bytearray, bytes)):
+            raise ValueError("Data must be a string or bytearray")
 
         if self.is_remote():
             raise OperationNotSupportedException(
                 message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors="ignore")
 
         if self.get_protocol() == XBeeProtocol.RAW_802_15_4:
             packet = TX64Packet(self.get_next_frame_id(), x64addr,
@@ -2702,15 +2703,15 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         if x16addr is None:
             raise ValueError("16-bit address cannot be None")
-        if data is None:
-            raise ValueError("Data cannot be None")
+        if not isinstance(data, (str, bytearray, bytes)):
+            raise ValueError("Data must be a string or bytearray")
 
         if self.is_remote():
             raise OperationNotSupportedException(
                 message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors="ignore")
 
         packet = TX16Packet(self.get_next_frame_id(), x16addr,
                             transmit_options, rf_data=data)
@@ -2806,15 +2807,15 @@ class XBeeDevice(AbstractXBeeDevice):
             raise ValueError("64-bit address cannot be None")
         if x16addr is None:
             raise ValueError("16-bit address cannot be None")
-        if data is None:
-            raise ValueError("Data cannot be None")
+        if not isinstance(data, (str, bytearray, bytes)):
+            raise ValueError("Data must be a string or bytearray")
 
         if self.is_remote():
             raise OperationNotSupportedException(
                 message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors="ignore")
 
         packet = TransmitPacket(self.get_next_frame_id(), x64addr, x16addr, 0,
                                 transmit_options, rf_data=data)
@@ -2848,15 +2849,15 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         if x64addr is None:
             raise ValueError("64-bit address cannot be None")
-        if data is None:
-            raise ValueError("Data cannot be None")
+        if not isinstance(data, (str, bytearray, bytes)):
+            raise ValueError("Data must be a string or bytearray")
 
         if self.is_remote():
             raise OperationNotSupportedException(
                 message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors="ignore")
 
         if self.get_protocol() == XBeeProtocol.RAW_802_15_4:
             packet = TX64Packet(self.get_next_frame_id(), x64addr,
@@ -2895,15 +2896,15 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         if x16addr is None:
             raise ValueError("16-bit address cannot be None")
-        if data is None:
-            raise ValueError("Data cannot be None")
+        if not isinstance(data, (str, bytearray, bytes)):
+            raise ValueError("Data must be a string or bytearray")
 
         if self.is_remote():
             raise OperationNotSupportedException(
                 message="Cannot send data to a remote device from a remote device")
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors="ignore")
 
         packet = TX16Packet(self.get_next_frame_id(),
                             x16addr,
@@ -3900,7 +3901,7 @@ class XBeeDevice(AbstractXBeeDevice):
             raise InvalidOperatingModeException(
                 message="Invalid mode. Command mode can be only be exited while in AT mode")
 
-        self._serial_port.write("ATCN\r".encode("utf-8"))
+        self._serial_port.write("ATCN\r".encode("utf8"))
         time.sleep(self.__DEFAULT_GUARD_TIME)
 
     def _determine_operating_mode(self):
@@ -4089,7 +4090,7 @@ class XBeeDevice(AbstractXBeeDevice):
             x16addr = XBee16BitAddress.UNKNOWN_ADDRESS
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors='ignore')
 
         return ExplicitAddressingPacket(self._get_next_frame_id(), x64addr,
                                         x16addr, src_endpoint, dest_endpoint,
@@ -4115,14 +4116,18 @@ class XBeeDevice(AbstractXBeeDevice):
         # Clear the serial input stream.
         self._serial_port.flushInput()
         # Send the 'AP' command.
-        self._serial_port.write("ATAP\r".encode("utf-8"))
+        self._serial_port.write("ATAP\r".encode(encoding="utf8"))
         time.sleep(0.1)
         # Read the 'AP' answer.
-        ap_answer = self._serial_port.read_existing().decode("utf-8").rstrip()
+        ap_answer = self._serial_port.read_existing() \
+            .decode(encoding="utf8", errors='ignore').rstrip()
         if len(ap_answer) == 0:
             return OperatingMode.UNKNOWN
         # Return the corresponding operating mode for the AP answer.
-        return OperatingMode.get(int(ap_answer, 16))
+        try:
+            return OperatingMode.get(int(ap_answer, 16))
+        except ValueError:
+            return OperatingMode.UNKNOWN
 
     def get_next_frame_id(self):
         """
@@ -6297,8 +6302,8 @@ class IPDevice(XBeeDevice):
         .. seealso::
            | :class:`ipaddress.IPv4Address`
         """
-        resp = self.get_parameter(ATStringCommand.DL, apply=False)
-        return IPv4Address(resp.decode("utf8"))
+        return IPv4Address(
+            str(self.get_parameter(ATStringCommand.DL, apply=False), encoding="utf8"))
 
     def add_ip_data_received_callback(self, callback):
         """
@@ -6383,8 +6388,8 @@ class IPDevice(XBeeDevice):
             raise ValueError("IP address cannot be None")
         if protocol is None:
             raise ValueError("Protocol cannot be None")
-        if data is None:
-            raise ValueError("Data cannot be None")
+        if not isinstance(data, (str, bytearray, bytes)):
+            raise ValueError("Data must be a string or bytearray")
 
         if not 0 <= dest_port <= 65535:
             raise ValueError("Destination port must be between 0 and 65535")
@@ -6400,7 +6405,7 @@ class IPDevice(XBeeDevice):
             src_port = 0
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors="ignore")
 
         opts = TXIPv4Packet.OPTIONS_CLOSE_SOCKET if close_socket else TXIPv4Packet.OPTIONS_LEAVE_SOCKET_OPEN
 
@@ -6438,8 +6443,8 @@ class IPDevice(XBeeDevice):
             raise ValueError("IP address cannot be None")
         if protocol is None:
             raise ValueError("Protocol cannot be None")
-        if data is None:
-            raise ValueError("Data cannot be None")
+        if not isinstance(data, (str, bytearray, bytes)):
+            raise ValueError("Data must be a string or bytearray")
 
         if not 0 <= dest_port <= 65535:
             raise ValueError("Destination port must be between 0 and 65535")
@@ -6456,7 +6461,7 @@ class IPDevice(XBeeDevice):
             src_port = 0
 
         if isinstance(data, str):
-            data = data.encode("utf8")
+            data = data.encode(encoding="utf8", errors="ignore")
 
         opts = TXIPv4Packet.OPTIONS_CLOSE_SOCKET if close_socket else TXIPv4Packet.OPTIONS_LEAVE_SOCKET_OPEN
 
@@ -7669,9 +7674,9 @@ class WiFiDevice(IPDevice):
             return None
 
         signal_quality = self.__get_signal_quality(version, signal_strength)
-        ssid = (ap_data[index:]).decode("utf8")
 
-        return AccessPoint(ssid, WiFiEncryptionType.get(encryption_type),
+        return AccessPoint(str(ap_data[index:], encoding="utf8"),
+                           WiFiEncryptionType.get(encryption_type),
                            channel=channel, signal_quality=signal_quality)
 
     @staticmethod
@@ -8905,7 +8910,7 @@ class XBeeNetwork:
                                date_time=time.localtime(date_now.timestamp()))
                 info.compress_type = ZIP_DEFLATED
                 with xnet_zip.open(info, 'w') as xnet_file:
-                    tree.write(xnet_file, encoding='utf-8', xml_declaration=False)
+                    tree.write(xnet_file, encoding='utf8', xml_declaration=False)
         except (OSError, IOError) as exc:
             return 1, "%s (%d): %s" % (exc.strerror, exc.errno, exc.filename)
 
@@ -10283,10 +10288,12 @@ class XBeeNetwork:
         try:
             timeout = self._calculate_timeout(default_timeout=XBeeNetwork._DEFAULT_DISCOVERY_TIMEOUT)
             # send "ND" async
-            self._local_xbee.send_packet(ATCommPacket(self._local_xbee.get_next_frame_id(),
-                                                      ATStringCommand.ND.command,
-                                                      parameter=None if node_id is None else bytearray(node_id, 'utf8')),
-                                         sync=False)
+            self._local_xbee.send_packet(
+                ATCommPacket(self._local_xbee.get_next_frame_id(),
+                             ATStringCommand.ND.command,
+                             parameter=None if node_id is None
+                             else bytearray(node_id, encoding='utf8', errors='ignore')),
+                sync=False)
 
             self.__nd_processes.update({str(self._local_xbee.get_64bit_addr()): self})
 
@@ -10612,7 +10619,7 @@ class XBeeNetwork:
             # role is the next byte
             role = Role.get(utils.bytes_to_int(data[i:i+1]))
         return XBee16BitAddress(data[0:2]), XBee64BitAddress(data[2:10]), \
-            node_id.decode(), role, parent_addr
+            node_id.decode('utf8', errors='ignore'), role, parent_addr
 
     def _set_node_reachable(self, node, reachable):
         """

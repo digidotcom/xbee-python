@@ -557,10 +557,11 @@ class _OTAFile:
                 _log.debug(" - Zigbee stack version: %d", self._zb_stack_version)
                 if (utils.bytes_to_int(f_version[1:])
                         < _XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER[_XB3_PROTOCOL_FROM_FW_VERSION[f_version[2] >> 4]]):
-                    self._header_str = _reverse_bytearray(
-                        file.read(_BUFFER_SIZE_STR)).decode(encoding="utf-8")
+                    self._header_str = str(_reverse_bytearray(
+                        file.read(_BUFFER_SIZE_STR)), encoding="utf8", errors="ignore")
                 else:
-                    self._header_str = file.read(_BUFFER_SIZE_STR).decode(encoding="utf-8")
+                    self._header_str = str(file.read(_BUFFER_SIZE_STR),
+                                           encoding="utf8", errors="ignore")
                 _log.debug(" - Header string: %s", self._header_str)
                 bad_ota_size = utils.bytes_to_int(
                     _reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
@@ -1216,7 +1217,7 @@ class _LoopbackTest:
             _EXPL_PACKET_ENDPOINT_DATA, _EXPL_PACKET_CLUSTER_LOOPBACK,
             _EXPL_PACKET_PROFILE_DIGI, _EXPL_PACKET_BROADCAST_RADIUS_MAX,
             _EXPL_PACKET_EXTENDED_TIMEOUT if self._local.get_protocol() == XBeeProtocol.ZIGBEE else 0x00,
-            (self._LOOPBACK_DATA % self._frame_id).encode())
+            (self._LOOPBACK_DATA % self._frame_id).encode(encoding='utf8'))
 
     def _loopback_callback(self, frame):
         f_type = frame.get_frame_type()
@@ -1236,10 +1237,10 @@ class _LoopbackTest:
                 self._receive_lock.set()
                 return
             # Check received payload.
-            payload = frame.rf_data
-            if not payload or len(payload) < 2:
+            if not frame.rf_data:
                 return
-            if payload.decode('utf-8') == (self._LOOPBACK_DATA % self._frame_id):
+            if str(frame.rf_data, encoding='utf8', errors='ignore') == \
+                    (self._LOOPBACK_DATA % self._frame_id):
                 self._packet_received = True
                 self._receive_lock.set()
 
@@ -3424,11 +3425,12 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
         """
         try:
             # Display bootloader menu and consume it.
-            self._serial_port.write(str.encode(_GECKO_BOOTLOADER_TEST_CHAR))
+            self._serial_port.write(str.encode(_GECKO_BOOTLOADER_TEST_CHAR, encoding='utf8'))
             time.sleep(1)
             self._serial_port.purge_port()
             # Write '1' to execute bootloader option '1': Upload gbl and consume answer.
-            self._serial_port.write(str.encode(_GECKO_BOOTLOADER_OPTION_UPLOAD_GBL))
+            self._serial_port.write(
+                str.encode(_GECKO_BOOTLOADER_OPTION_UPLOAD_GBL, encoding='utf8'))
             time.sleep(0.5)
             self._serial_port.purge_port()
             # Look for the 'C' character during some time, it indicates device
@@ -3459,11 +3461,11 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
         try:
             _log.debug("Sending bootloader run operation...")
             # Display bootloader menu and consume it.
-            self._serial_port.write(str.encode(_GECKO_BOOTLOADER_TEST_CHAR))
+            self._serial_port.write(str.encode(_GECKO_BOOTLOADER_TEST_CHAR, encoding='utf8'))
             time.sleep(1)
             self._serial_port.purge_port()
             # Write '2' to execute bootloader option '2': Run.
-            self._serial_port.write(str.encode(_GECKO_BOOTLOADER_OPTION_RUN_FW))
+            self._serial_port.write(str.encode(_GECKO_BOOTLOADER_OPTION_RUN_FW, encoding='utf8'))
 
             # Look for the '2' character during some time, it indicates firmware was executed.
             read_bytes = self._serial_port.read(1)
@@ -3670,7 +3672,7 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         data = bytearray()
         try:
             self._serial_port.purge_port()
-            self._serial_port.write(str.encode(cmd.command))
+            self._serial_port.write(str.encode(cmd.command, encoding='utf8'))
             while len(data) < cmd.answer_length and _get_milliseconds() < deadline:
                 read_bytes = self._serial_port.read(cmd.answer_length - len(data))
                 if len(read_bytes) > 0:
@@ -3689,12 +3691,13 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         """
         # GEN3 bootloader does not support retrieving its version.
         version = self._execute_bootloader_cmd(_Gen3BootloaderCmd.BOOTLOADER_VERSION)
-        if not version or len(version) < 1:
+        if not version:
             return None
         version_byte_array = bytearray()
         for byte in version:
             try:
-                if _GEN3_BOOTLOADER_PROMPT == bytes.decode(bytes([byte])):
+                if _GEN3_BOOTLOADER_PROMPT == \
+                        bytes([byte]).decode(encoding='utf8', errors='ignore'):
                     break
                 version_byte_array.append(byte)
             except TypeError:
@@ -3724,7 +3727,7 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         """
         # Assume the device is already in bootloader mode.
         region_info = self._execute_bootloader_cmd(_Gen3BootloaderCmd.REGION_LOCK)
-        if not region_info or len(region_info) < 1:
+        if not region_info:
             return _REGION_ALL
 
         return region_info[0]
@@ -3752,13 +3755,14 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         """
         # Assume the device is already in bootloader mode.
         answer = self._execute_bootloader_cmd(_Gen3BootloaderCmd.PROTOCOL_VERSION)
+        if not answer:
+            return _GEN3_BOOTLOADER_PROTOCOL_VERSION_0
         try:
-            if (not answer
-                    or len(answer) < 1
-                    or _GEN3_BOOTLOADER_PROMPT in bytes.decode(bytes(answer))):
+            answer_str = answer.decode(encoding='utf8', errors='ignore')
+            if _GEN3_BOOTLOADER_PROMPT in answer_str:
                 return _GEN3_BOOTLOADER_PROTOCOL_VERSION_0
-            return int(bytes.decode(answer))
-        except TypeError:
+            return int(answer_str)
+        except (TypeError, ValueError):
             return _GEN3_BOOTLOADER_PROTOCOL_VERSION_0
 
     def _send_change_baudrate_cmd(self):
@@ -3767,15 +3771,19 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         in order to improve the firmware transfer speed.
         """
         answer = self._execute_bootloader_cmd(_Gen3BootloaderCmd.CHANGE_BAUDRATE)
+        if not answer:
+            return
         try:
             # Change baudrate only if a new value was given and it is different
             # from the current one.
-            if answer and _GEN3_BOOTLOADER_PROMPT not in bytes.decode(bytes(answer)):
-                new_baudrate = int(bytes.decode(bytes(answer)))
-                if new_baudrate != _GEN3_BOOTLOADER_PORT_PARAMS["baudrate"]:
-                    self._serial_port.set_baudrate(new_baudrate)
-                    _log.debug("Changed port baudrate to %s", new_baudrate)
-        except TypeError:
+            answer_str = str(answer, encoding='utf8', errors='ignore')
+            if _GEN3_BOOTLOADER_PROMPT in answer_str:
+                return
+            new_baudrate = int(answer_str)
+            if new_baudrate != _GEN3_BOOTLOADER_PORT_PARAMS["baudrate"]:
+                self._serial_port.set_baudrate(new_baudrate)
+                _log.debug("Changed port baudrate to %s", new_baudrate)
+        except (TypeError, ValueError):
             # Do nothing, device did not change its baudrate if an invalid value is read.
             pass
 
@@ -3790,8 +3798,11 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         """
         _log.debug("Sending Initialize command...")
         answer = self._execute_bootloader_cmd(_Gen3BootloaderCmd.INIT_UPDATE)
+        if not answer:
+            raise FirmwareUpdateException(_ERROR_INITIALIZE_PROCESS)
         try:
-            if not answer or _GEN3_BOOTLOADER_PROMPT not in bytes.decode(bytes(answer)):
+            answer_str = str(answer, encoding='utf8', errors='ignore')
+            if _GEN3_BOOTLOADER_PROMPT not in answer_str:
                 raise FirmwareUpdateException(_ERROR_INITIALIZE_PROCESS)
         except TypeError:
             raise FirmwareUpdateException(_ERROR_INITIALIZE_PROCESS)
@@ -3805,8 +3816,11 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         """
         _log.debug("Sending finish command...")
         answer = self._execute_bootloader_cmd(_Gen3BootloaderCmd.FINISH_UPDATE)
+        if not answer:
+            raise FirmwareUpdateException(_ERROR_FINISH_PROCESS)
         try:
-            if not answer or _GEN3_BOOTLOADER_PROMPT not in bytes.decode(bytes(answer)):
+            answer_str = str(answer, encoding='utf8', errors='ignore')
+            if _GEN3_BOOTLOADER_PROMPT not in answer_str:
                 raise FirmwareUpdateException(_ERROR_FINISH_PROCESS)
         except TypeError:
             raise FirmwareUpdateException(_ERROR_FINISH_PROCESS)
@@ -3871,14 +3885,18 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
                        ebin_file.percent, retry)
             try:
                 # Send program page command.
-                self._serial_port.write(str.encode(_Gen3BootloaderCmd.PROGRAM_PAGE.command))
+                self._serial_port.write(
+                    str.encode(_Gen3BootloaderCmd.PROGRAM_PAGE.command, encoding='utf8'))
                 # Write page index. This depends on the protocol version.
                 if self._protocol_version == _GEN3_BOOTLOADER_PROTOCOL_VERSION_0:
-                    self._serial_port.write(bytes([ebin_file.page_index & 0xFF]))  # Truncate to one byte.
+                    # Truncate to one byte.
+                    self._serial_port.write(bytes([ebin_file.page_index & 0xFF]))
                 else:
-                    page_index = ebin_file.page_index & 0xFFFF  # Truncate to two bytes.
+                    # Truncate to two bytes.
+                    page_index = ebin_file.page_index & 0xFFFF
                     page_index_bytes = utils.int_to_bytes(page_index, num_bytes=2)
-                    page_index_bytes = bytearray(reversed(page_index_bytes))  # Swap the array order.
+                    # Swap the array order.
+                    page_index_bytes = bytearray(reversed(page_index_bytes))
                     self._serial_port.write(page_index_bytes)
                 # Write the page data.
                 self._serial_port.write(page)
@@ -4892,7 +4910,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             self._local.del_packet_received_callback(self._fw_receive_frame_cb)
             self._exit_with_error(str(exc))
         # Wait for answer.
-        if self._requested_offset == -1:  # If offset is different from -1 it means callback was executed.
+        if self._requested_offset == -1:
+            # If offset is different from -1 it means callback was executed.
             self._transfer_lock.wait(self._timeout)
 
         while (self._requested_offset != -1 and self._transfer_status is None
@@ -6876,19 +6895,19 @@ def _read_bootloader_header_generic(serial_port, test_char):
     """
     try:
         serial_port.purge_port()
-        serial_port.write(str.encode(test_char))
+        serial_port.write(str.encode(test_char, encoding='utf8', errors='ignore'))
         read_bytes = serial_port.read(_READ_BUFFER_LEN)
     except SerialException as exc:
         _log.exception(exc)
         return None
 
-    if len(read_bytes) > 0:
-        try:
-            return bytes.decode(read_bytes)
-        except UnicodeDecodeError:
-            pass
+    if not read_bytes:
+        return None
 
-    return None
+    try:
+        return str(read_bytes, encoding='utf8', errors='strict')
+    except UnicodeDecodeError:
+        return None
 
 
 def _is_bootloader_active_generic(serial_port, test_char, bootloader_prompt):

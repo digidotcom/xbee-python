@@ -1,4 +1,4 @@
-# Copyright 2020, Digi International Inc.
+# Copyright 2020, 2021 Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -597,8 +597,8 @@ class FileIdNameCmd(FileIdCmd):
             cmd_type (:class:`.FSCmdType` or Integer): The command type.
             fid (Integer): Id of the file/path to operate with. Set to 0x0000
                 for the root directory (/).
-            name (String): The path name of the file to operate with. Its
-                maximum length is 252 characters.
+            name (String or bytearray): The path name of the file to operate
+                with. Its maximum length is 252 characters.
             direction (Integer, optional, default=0): If this command is a
                 request (0) or a response (1).
             status (:class:`.FSCommandStatus` or Integer): Status of the file
@@ -611,15 +611,18 @@ class FileIdNameCmd(FileIdCmd):
            | :class:`.FSCmd`
         """
         if name is not None:
-            if not isinstance(name, str):
-                raise ValueError("Name must be a string")
+            if not isinstance(name, (str, bytearray, bytes)):
+                raise ValueError("Name must be a string or bytearray")
             if not name or len(name) > self._get_name_max_len():
                 raise ValueError(
                     "Name cannot be empty or exceed %d chars" % self._get_name_max_len())
 
         super().__init__(cmd_type, fid, direction=direction, status=status)
 
-        self._name = name
+        if isinstance(name, str):
+            self._name = name.encode('utf8', errors='ignore')
+        else:
+            self._name = name
 
     @property
     def name(self):
@@ -629,7 +632,7 @@ class FileIdNameCmd(FileIdCmd):
         Returns:
             String: The file path name.
         """
-        return self._name
+        return self._name.decode(encoding='utf8', errors='ignore')
 
     @classmethod
     def create_cmd(cls, raw, direction=FSCmd.REQUEST):
@@ -650,11 +653,15 @@ class FileIdNameCmd(FileIdCmd):
         cmd = super().create_cmd(raw, direction=direction)
 
         id_idx = 1 if direction == FSCmd.REQUEST else 2
+        fid = None
+        if len(raw) > cls._get_min_len(status=cmd.status_value):
+            fid = utils.bytes_to_int(raw[id_idx:id_idx + 2])
+        name = None
+        if len(raw) > cls._get_min_len(status=cmd.status_value):
+            name = raw[id_idx + 2:]
+
         return FileIdNameCmd(
-            cmd.type,
-            utils.bytes_to_int(raw[id_idx:id_idx + 2]) if len(raw) > cls._get_min_len(status=cmd.status_value) else None,
-            raw[id_idx + 2:].decode('utf-8') if len(raw) > cls._get_min_len(status=cmd.status_value) else None,
-            direction=direction, status=cmd.status_value)
+            cmd.type, fid, name, direction=direction, status=cmd.status_value)
 
     @staticmethod
     def _get_name_max_len():
@@ -693,7 +700,7 @@ class FileIdNameCmd(FileIdCmd):
         """
         ret = super()._get_spec_data()
         if self._dir == FSCmd.REQUEST or self._status == FSCommandStatus.SUCCESS.code:
-            return ret + self._name.encode('utf8')
+            return ret + self._name
 
         return ret
 
@@ -729,8 +736,8 @@ class OpenFileCmdRequest(FileIdNameCmd):
         Args:
             path_id (Integer): Directory path id. Set to 0x0000 for the root
                 directory (/).
-            name (String): The path name of the file to open/create, relative
-                to `path_id`. Its maximum length is 251 chars.
+            name (String or bytearray): The path name of the file to open/create,
+                relative to `path_id`. Its maximum length is 251 chars.
             flags (:class:`.FileOpenRequestOption`): Bitfield of supported flags.
                 Use :class:`.FileOpenRequestOption` to compose its value.
 
@@ -743,8 +750,8 @@ class OpenFileCmdRequest(FileIdNameCmd):
         """
         if not isinstance(path_id, int):
             raise ValueError("Directory path id must be an integer")
-        if not isinstance(name, str):
-            raise ValueError("Path name must be a string")
+        if not isinstance(name, (str, bytearray, bytes)):
+            raise ValueError("Name must be a string or bytearray")
         if flags not in range(0, 0x100):
             raise ValueError("Flags must be between 0 and 0xFF")
 
@@ -789,8 +796,7 @@ class OpenFileCmdRequest(FileIdNameCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return OpenFileCmdRequest(utils.bytes_to_int(raw[1:3]),
-                                  raw[4:].decode('utf-8'),
+        return OpenFileCmdRequest(utils.bytes_to_int(raw[1:3]), raw[4:],
                                   utils.bytes_to_int(raw[3:4]))
 
     @staticmethod
@@ -824,7 +830,7 @@ class OpenFileCmdRequest(FileIdNameCmd):
         ret = utils.int_to_bytes(self._fid, num_bytes=2)
         ret += utils.int_to_bytes(self.__flags.value, num_bytes=1)
 
-        return ret + self._name.encode('utf8')
+        return ret + self._name
 
     def _get_spec_data_dict(self):
         """
@@ -1599,8 +1605,8 @@ class HashFileCmdRequest(FileIdNameCmd):
         Args:
             path_id (Integer): Directory path id. Set to 0x0000 for the root
                 directory (/).
-            name (String): The path name of the file to hash, relative
-                to `path_id`. Its maximum length is 252 chars.
+            name (String or bytearray): The path name of the file to hash,
+                relative to `path_id`. Its maximum length is 252 chars.
 
         Raises:
             ValueError: If any of the parameters is invalid.
@@ -1610,8 +1616,8 @@ class HashFileCmdRequest(FileIdNameCmd):
         """
         if not isinstance(path_id, int):
             raise ValueError("Directory path id must be an integer")
-        if not isinstance(name, str):
-            raise ValueError("Path name must be a string")
+        if not isinstance(name, (str, bytearray, bytes)):
+            raise ValueError("Name must be a string or bytearray")
         super().__init__(FSCmdType.FILE_HASH, path_id, name,
                          direction=self.REQUEST)
 
@@ -1640,8 +1646,7 @@ class HashFileCmdRequest(FileIdNameCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return HashFileCmdRequest(utils.bytes_to_int(raw[1:3]),
-                                  raw[3:].decode('utf-8'))
+        return HashFileCmdRequest(utils.bytes_to_int(raw[1:3]), raw[3:])
 
 
 class HashFileCmdResponse(FSCmd):
@@ -1765,8 +1770,8 @@ class CreateDirCmdRequest(FileIdNameCmd):
         Args:
             path_id (Integer): Directory path id. Set to 0x0000 for the root
                 directory (/).
-            name (String): The path name of the directory to create, relative
-                to `path_id`. Its maximum length is 252 chars.
+            name (String or bytearray): The path name of the directory to
+                create, relative to `path_id`. Its maximum length is 252 chars.
 
         Raises:
             ValueError: If any of the parameters is invalid.
@@ -1804,8 +1809,7 @@ class CreateDirCmdRequest(FileIdNameCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return CreateDirCmdRequest(utils.bytes_to_int(raw[1:3]),
-                                   raw[3:].decode('utf-8'))
+        return CreateDirCmdRequest(utils.bytes_to_int(raw[1:3]), raw[3:])
 
 
 class CreateDirCmdResponse(FSCmd):
@@ -1873,9 +1877,10 @@ class OpenDirCmdRequest(FileIdNameCmd):
         Args:
             path_id (Integer): Directory path id. Set to 0x0000 for the root
                 directory (/).
-            name (String): Path name of the directory to open, relative
-                to `path_id`. An empty name is equivalent to '.', both refer to
-                the current directory path id. Its maximum length is 252 chars.
+            name (String or bytearray): Path name of the directory to open,
+                relative to `path_id`. An empty name is equivalent to '.', both
+                refer to the current directory path id. Its maximum length is
+                252 chars.
 
         Raises:
             ValueError: If any of the parameters is invalid.
@@ -1915,8 +1920,7 @@ class OpenDirCmdRequest(FileIdNameCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return OpenDirCmdRequest(utils.bytes_to_int(raw[1:3]),
-                                 raw[3:].decode('utf-8'))
+        return OpenDirCmdRequest(utils.bytes_to_int(raw[1:3]), raw[3:])
 
 
 class OpenDirCmdResponse(FileIdCmd):
@@ -2001,8 +2005,7 @@ class OpenDirCmdResponse(FileIdCmd):
                 continue
             from digi.xbee.filesystem import FileSystemElement
             # File size: lower 24 bits (3 bytes) of size_and_flags
-            f_list.append(FileSystemElement.from_data(item[4:].decode('utf-8'),
-                                                      item[1:4], item[0]))
+            f_list.append(FileSystemElement.from_data(item[4:], item[1:4], item[0]))
 
         return f_list
 
@@ -2370,9 +2373,10 @@ class GetPathIdCmdRequest(FileIdNameCmd):
         Args:
             path_id (Integer): Directory path id. Set to 0x0000 for the root
                 directory (/).
-            name (String): The path name of the directory to change, relative
-                to `path_id`. An empty name is equivalent to '.', both refer to
-                the current directory path id. Its maximum length is 252 chars.
+            name (String or bytearray): The path name of the directory to
+                change, relative to `path_id`. An empty name is equivalent to
+                '.', both refer to the current directory path id. Its maximum
+                length is 252 chars.
 
         Raises:
             ValueError: If any of the parameters is invalid.
@@ -2412,8 +2416,7 @@ class GetPathIdCmdRequest(FileIdNameCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return GetPathIdCmdRequest(utils.bytes_to_int(raw[1:3]),
-                                   raw[3:].decode('utf-8'))
+        return GetPathIdCmdRequest(utils.bytes_to_int(raw[1:3]), raw[3:])
 
 
 class GetPathIdCmdResponse(FileIdCmd):
@@ -2433,10 +2436,11 @@ class GetPathIdCmdResponse(FileIdCmd):
             status (:class:`.FSCommandStatus` or Integer): Status of the file
                 system command execution.
             path_id (Integer, optional, default=`None`): New directory path id.
-            full_path (String, optional, default=`None`): If short enough, the
-                full path of the current directory , relative to `path_id`. Deep
-                subdirectories may return an empty field instead of their full
-                path name. The maximum full path length is 255 characters.
+            full_path (String or bytearray, optional, default=`None`): If short
+                enough, the full path of the current directory , relative to
+                `path_id`. Deep subdirectories may return an empty field
+                instead of their full path name. The maximum full path length
+                is 255 characters.
 
         Raises:
             ValueError: If any of the parameters is invalid.
@@ -2445,8 +2449,8 @@ class GetPathIdCmdResponse(FileIdCmd):
            | :class:`.FileIdCmd`
         """
         if full_path is not None:
-            if not isinstance(full_path, str):
-                raise ValueError("Full path must be a string")
+            if not isinstance(full_path, (str, bytearray, bytes)):
+                raise ValueError("Full path must be a string or bytearray")
             if not full_path or len(full_path) > 255:
                 raise ValueError(
                     "Full path cannot be empty and cannot exceed 255 chars")
@@ -2454,7 +2458,10 @@ class GetPathIdCmdResponse(FileIdCmd):
         super().__init__(FSCmdType.GET_PATH_ID, path_id,
                          direction=self.RESPONSE, status=status)
 
-        self.__path = full_path
+        if isinstance(full_path, str):
+            self.__path = full_path.encode('utf8', errors='ignore')
+        else:
+            self.__path = full_path
 
     @property
     def full_path(self):
@@ -2464,7 +2471,7 @@ class GetPathIdCmdResponse(FileIdCmd):
         Returns:
             String: The directory full path.
         """
-        return self.__path
+        return self.__path.decode(encoding='utf8', errors='ignore')
 
     @classmethod
     def create_cmd(cls, raw, direction=FSCmd.RESPONSE):
@@ -2492,10 +2499,13 @@ class GetPathIdCmdResponse(FileIdCmd):
             raise InvalidPacketException(message="Direction must be 1")
 
         ok_status = cmd.status == FSCommandStatus.SUCCESS
+        f_path = None
+        if len(raw) > cls._get_min_len(status=cmd.status_value):
+            f_path = raw[4:]
         return GetPathIdCmdResponse(
             cmd.status_value,
             path_id=utils.bytes_to_int(raw[2:4]) if ok_status else None,
-            full_path=raw[4:].decode('utf-8') if len(raw) > cls._get_min_len(status=cmd.status_value) else None)
+            full_path=f_path)
 
     @staticmethod
     def _get_min_len(status=FSCommandStatus.SUCCESS.code):
@@ -2517,7 +2527,7 @@ class GetPathIdCmdResponse(FileIdCmd):
         """
         ret = super()._get_spec_data()
         if self._status == FSCommandStatus.SUCCESS.code and self.__path:
-            return ret + self.__path.encode('utf8')
+            return ret + self.__path
 
         return ret
 
@@ -2553,10 +2563,11 @@ class RenameCmdRequest(FileIdNameCmd):
         Args:
             path_id (Integer): Directory path id. Set to 0x0000 for the root
                 directory (/).
-            name (String): The current path name of the file/directory to
-                rename relative to `path_id`. Its maximum length is 255 chars.
-            new_name (String): The new name of the file/directory relative
-                to `path_id`. Its maximum length is 255 chars.
+            name (String or bytearray): The current path name of the
+                file/directory to rename relative to `path_id`. Its maximum
+                length is 255 chars.
+            new_name (String or bytearray): The new name of the file/directory
+                relative to `path_id`. Its maximum length is 255 chars.
 
         Raises:
             ValueError: If any of the parameters is invalid.
@@ -2566,17 +2577,20 @@ class RenameCmdRequest(FileIdNameCmd):
         """
         if not isinstance(path_id, int):
             raise ValueError("Directory path id must be an integer")
-        if not isinstance(name, str):
-            raise ValueError("Path name must be a string")
-        if not isinstance(new_name, str):
-            raise ValueError("New name must be a string")
+        if not isinstance(name, (str, bytearray, bytes)):
+            raise ValueError("Name must be a string or bytearray")
+        if not isinstance(new_name, (str, bytearray, bytes)):
+            raise ValueError("New name must be a string or bytearray")
         if (len(name) + len(new_name)) > self._get_name_max_len():
             raise ValueError(
                 "Name length plus new name length cannot exceed %d chars" % self._get_name_max_len())
 
         super().__init__(FSCmdType.RENAME, path_id, name, direction=self.REQUEST)
 
-        self.__new_name = new_name
+        if isinstance(name, str):
+            self.__new_name = new_name.encode('utf8', errors='ignore')
+        else:
+            self.__new_name = new_name
 
     @property
     def new_name(self):
@@ -2586,7 +2600,7 @@ class RenameCmdRequest(FileIdNameCmd):
         Returns:
             String: The new name.
         """
-        return self.__new_name
+        return self.__new_name.decode(encoding='utf8', errors='ignore')
 
     @classmethod
     def create_cmd(cls, raw, direction=FSCmd.REQUEST):
@@ -2614,7 +2628,7 @@ class RenameCmdRequest(FileIdNameCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        names = raw[3:].decode('utf-8').split(',')
+        names = raw[3:].split(b',')
         if len(names) != 2:
             raise InvalidPacketException(
                 "Invalid bytearray format, it must contain a ','")
@@ -2641,9 +2655,9 @@ class RenameCmdRequest(FileIdNameCmd):
            | :meth:`.FSCmd._get_spec_data`
         """
         ret = super()._get_spec_data()
-        ret.append(b',')
+        ret.extend(b',')
 
-        return ret + self.__new_name.encode('utf8')
+        return ret + self.__new_name
 
     def _get_spec_data_dict(self):
         """
@@ -2729,8 +2743,8 @@ class DeleteCmdRequest(FileIdNameCmd):
         Args:
             path_id (Integer): Directory path id. Set to 0x0000 for the root
                 directory (/).
-            name (String): The name of the file/directory to delete relative to
-                `path_id`. Its maximum length is 252 chars.
+            name (String or bytearray): The name of the file/directory to
+                delete relative to `path_id`. Its maximum length is 252 chars.
 
         Raises:
             ValueError: If any of the parameters is invalid.
@@ -2740,8 +2754,8 @@ class DeleteCmdRequest(FileIdNameCmd):
         """
         if not isinstance(path_id, int):
             raise ValueError("Directory path id must be an integer")
-        if not isinstance(name, str):
-            raise ValueError("Path name must be a string")
+        if not isinstance(name, (str, bytearray, bytes)):
+            raise ValueError("Name must be a string or bytearray")
         super().__init__(FSCmdType.DELETE, path_id, name, direction=self.REQUEST)
 
     @classmethod
@@ -2769,8 +2783,7 @@ class DeleteCmdRequest(FileIdNameCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return DeleteCmdRequest(utils.bytes_to_int(raw[1:3]),
-                                raw[3:].decode('utf-8'))
+        return DeleteCmdRequest(utils.bytes_to_int(raw[1:3]), raw[3:])
 
 
 class DeleteCmdResponse(FSCmd):
@@ -2838,8 +2851,8 @@ class VolStatCmdRequest(FSCmd):
         object with the provided parameters.
 
         Args:
-            name (String): The name of the volume. Its maximum length is
-                254 characters.
+            name (String or bytearray): The name of the volume. Its maximum
+                length is 254 characters.
 
         Raises:
             ValueError: If `name` is invalid.
@@ -2847,8 +2860,8 @@ class VolStatCmdRequest(FSCmd):
         .. seealso::
            | :class:`.FSCmd`
         """
-        if not isinstance(name, str):
-            raise ValueError("Name must be a string")
+        if not isinstance(name, (str, bytearray, bytes)):
+            raise ValueError("Name must be a string or bytearray")
         max_len = 255 - 1  # cmd_id (1)
         if not name or len(name) > max_len:
             raise ValueError(
@@ -2856,7 +2869,10 @@ class VolStatCmdRequest(FSCmd):
 
         super().__init__(FSCmdType.STAT, direction=self.REQUEST)
 
-        self._name = name
+        if isinstance(name, str):
+            self._name = name.encode('utf8', errors='ignore')
+        else:
+            self._name = name
 
     @property
     def name(self):
@@ -2866,7 +2882,7 @@ class VolStatCmdRequest(FSCmd):
         Returns:
             String: The volume name.
         """
-        return self._name
+        return self._name.decode(encoding='utf8', errors='ignore')
 
     @classmethod
     def create_cmd(cls, raw, direction=FSCmd.REQUEST):
@@ -2893,7 +2909,7 @@ class VolStatCmdRequest(FSCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return VolStatCmdRequest(raw[1:].decode('utf-8'))
+        return VolStatCmdRequest(raw[1:])
 
     @staticmethod
     def _get_min_len(status=None):
@@ -2913,7 +2929,7 @@ class VolStatCmdRequest(FSCmd):
         .. seealso::
            | :meth:`.FSCmd._get_spec_data`
         """
-        return self._name.encode('utf8')
+        return self._name
 
     def _get_spec_data_dict(self):
         """
@@ -3083,8 +3099,8 @@ class VolFormatCmdRequest(VolStatCmdRequest):
         object with the provided parameters.
 
         Args:
-            name (String): The name of the volume. Its maximum length is
-                254 chars.
+            name (String or bytearray): The name of the volume. Its maximum
+                length is 254 chars.
 
         Raises:
             ValueError: If `name` is invalid.
@@ -3120,7 +3136,7 @@ class VolFormatCmdRequest(VolStatCmdRequest):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return VolFormatCmdRequest(raw[1:].decode('utf-8'))
+        return VolFormatCmdRequest(raw[1:])
 
 
 class VolFormatCmdResponse(VolStatCmdResponse):

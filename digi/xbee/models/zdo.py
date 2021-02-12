@@ -1717,7 +1717,8 @@ class NeighborFinder:
             node = self.__xbee.get_local_xbee_device()
 
         # Create a new remote node
-        n_xb = RemoteDigiMeshDevice(node, x64bit_addr=x64, node_id=node_id.decode())
+        n_xb = RemoteDigiMeshDevice(
+            node, x64bit_addr=x64, node_id=node_id.decode('utf8', errors='ignore'))
         n_xb._role = role
 
         neighbor = Neighbor(n_xb, NeighborRelationship.SIBLING, -1, rssi)

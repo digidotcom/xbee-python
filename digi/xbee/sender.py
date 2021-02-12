@@ -1,4 +1,4 @@
-# Copyright 2020, Digi International Inc.
+# Copyright 2020, 2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -212,7 +212,7 @@ class PacketSender:
 
         # Node identifier
         if param == ATStringCommand.NI.command:
-            node_id = value.decode()
+            node_id = str(value, encoding='utf8', errors='ignore')
             changed = node.get_node_id() != node_id
             updated = changed and apply
             if updated:
@@ -471,7 +471,7 @@ class SyncRequestSender:
             received_response = self._is_valid_socket_bind_response(rcv_packet)
         elif s_f_type == ApiFrameType.REGISTER_JOINING_DEVICE:
             received_response = (
-                    r_f_type == ApiFrameType.REGISTER_JOINING_DEVICE_STATUS)
+                r_f_type == ApiFrameType.REGISTER_JOINING_DEVICE_STATUS)
         else:
             received_response = True
 

@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -103,7 +103,7 @@ _DEFAULT_BLOCK_SIZE = 64
 _TRANSFER_TIMEOUT = 5  # Seconds.
 
 _log = logging.getLogger(__name__)
-_printable_ascii_bytes = string.printable.encode()
+_printable_ascii_bytes = string.printable.encode(encoding='utf8')
 
 
 class _FilesystemFunction(Enum):
@@ -183,8 +183,9 @@ class FileSystemElement:
         object with the given parameters.
 
         Args:
-            name (String): Name of the file system element.
-            path (String, optional, default=`None`): Absolute path of the element.
+            name (String or bytearray): Name of the file system element.
+            path (String or bytearray, optional, default=`None`): Absolute path
+                of the element.
             is_dir (Boolean, optional, default=`True`): `True` if the
                 element is a directory, `False` for a file.
             size (Integer, optional, default=0): Element size in bytes.
@@ -195,15 +196,21 @@ class FileSystemElement:
         Raises:
             ValueError: If any of the parameters are invalid.
         """
-        if not name or not isinstance(name, str):
-            raise ValueError("Name must be a non-empty string")
+        if not name or not isinstance(name, (str, bytearray, bytes)):
+            raise ValueError("Name must be a non-empty string or bytearray")
         if not isinstance(size, int):
             raise ValueError("Size must be a integer")
-        if path and not isinstance(path, str):
-            raise ValueError("Path must be a string")
+        if path and not isinstance(path, (str, bytearray, bytes)):
+            raise ValueError("Path must be a string or bytearray")
 
-        self._name = name
-        self._path = path if path is not None else ""
+        if isinstance(name, str):
+            self._name = name.encode('utf8', errors='ignore')
+        else:
+            self._name = name
+        if isinstance(path, str):
+            self._path = path.encode('utf8', errors='ignore')
+        else:
+            self._path = path if path is not None else bytearray()
         self._is_dir = is_dir
         self._size = size if not is_dir else 0
         self._is_secure = is_secure
@@ -211,7 +218,7 @@ class FileSystemElement:
     def __str__(self):
         return "{:s} {:10s} {:25s} {:s}".format(
             "d" if self._is_dir else "*" if self._is_secure else "-", self.size_pretty,
-            self._name, self._path if self._path else "")
+            self.name, self.path)
 
     @property
     def name(self):
@@ -221,7 +228,7 @@ class FileSystemElement:
         Returns:
             String: File system element name.
          """
-        return self._name
+        return self._name.decode(encoding='utf8', errors='ignore')
 
     @property
     def path(self):
@@ -231,7 +238,7 @@ class FileSystemElement:
         Returns:
             String: File system element absolute path.
          """
-        return self._path
+        return self._path.decode(encoding='utf8', errors='ignore')
 
     @path.setter
     def path(self, element_path):
@@ -299,11 +306,11 @@ class FileSystemElement:
         size.
 
         Args:
-            name (String): The name of the element to create.
+            name (String or bytearray): The name of the element to create.
             size (Bytearray): Byte array containing file size.
             flags (Integer): Integer with file system element information.
-            path (String, optional, default=`None`): The absolute path of the
-                element (without its name).
+            path (String or bytearray, optional, default=`None`): The absolute
+                path of the element (without its name).
 
         Returns:
             :class:`.FileSystemElement`: The new file system element.
@@ -881,7 +888,7 @@ class _WriteFileProcess(FileProcess):
 
         self.__data = data
         if isinstance(data, str):
-            self.__data = bytearray(data, 'utf-8')
+            self.__data = bytearray(data, encoding='utf8')
 
         super()._next(last=last)
 
@@ -2184,7 +2191,7 @@ class FileSystemManager:
             timeout = self.DEFAULT_TIMEOUT
 
         if isinstance(data, str):
-            data = bytearray(data, 'utf-8')
+            data = bytearray(data, encoding='utf8')
         elif isinstance(data, bytes):
             data = bytearray(data)
 
@@ -2558,7 +2565,7 @@ class LocalXBeeFileSystemManager:
         """
         _log.debug("Checking AT command mode...")
         try:
-            self._serial_port.write(str.encode(_COMMAND_AT, encoding='utf-8'))
+            self._serial_port.write(str.encode(_COMMAND_AT, encoding='utf8'))
             answer = self._read_data(timeout=_GUARD_TIME)
 
             return answer is not None and _COMMAND_MODE_ANSWER_OK in answer
@@ -2582,7 +2589,7 @@ class LocalXBeeFileSystemManager:
             self._serial_port.purge_port()
             for _ in range(3):
                 self._serial_port.write(str.encode(_COMMAND_MODE_CHAR,
-                                                   encoding='utf-8'))
+                                                   encoding='utf8'))
             answer = self._read_data(timeout=_GUARD_TIME,
                                      empty_retries=_READ_EMPTY_DATA_RETRIES)
 
@@ -2597,7 +2604,7 @@ class LocalXBeeFileSystemManager:
         """
         _log.debug("Exiting AT command mode...")
         try:
-            self._serial_port.write(str.encode(_COMMAND_MODE_EXIT, encoding='utf-8'))
+            self._serial_port.write(str.encode(_COMMAND_MODE_EXIT, encoding='utf8'))
         except SerialException as exc:
             _log.exception(exc)
         finally:
@@ -2634,7 +2641,7 @@ class LocalXBeeFileSystemManager:
             return False
 
         try:
-            self._serial_port.write(str.encode(_COMMAND_FILE_SYSTEM, encoding='utf-8'))
+            self._serial_port.write(str.encode(_COMMAND_FILE_SYSTEM, encoding='utf8'))
             answer = self._read_data()
             if answer and _ANSWER_ATFS in answer.upper():
                 self._parse_filesystem_functions(answer.replace("\r", ""))
@@ -2774,7 +2781,7 @@ class LocalXBeeFileSystemManager:
 
         command = _COMMAND_ATFS % (cmd_type.command % args)
         try:
-            self._serial_port.write(str.encode(command, encoding='utf-8'))
+            self._serial_port.write(str.encode(command, encoding='utf8', errors='ignore'))
             answer = None
             if wait_for_answer:
                 answer = self._read_data()
@@ -3414,4 +3421,4 @@ def _filter_non_printable(byte_array):
         String: Resulting string after filtering non printable characters of
             the byte array.
     """
-    return bytes(x for x in byte_array if x in _printable_ascii_bytes).decode()
+    return bytes(x for x in byte_array if x in _printable_ascii_bytes).decode(encoding='utf8')

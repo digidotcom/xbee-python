@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -276,7 +276,10 @@ class ATCommand:
             raise ValueError("Command length must be 2.")
 
         self.__command = command
-        self.__parameter = parameter
+        if isinstance(parameter, str):
+            self.__parameter = bytearray(parameter, encoding='utf8', errors='ignore')
+        else:
+            self.__parameter = parameter
 
     def __str__(self):
         """
@@ -286,7 +289,7 @@ class ATCommand:
             String: representation of this ATCommand.
         """
         return "Command: %s - Parameter: %s" \
-               % (self.__command, str(self.__parameter))
+               % (self.__command, utils.hex_to_string(self.__parameter))
 
     def __len__(self):
         """
@@ -306,7 +309,7 @@ class ATCommand:
         Returns the AT command.
 
         Returns:
-            :class:`.ATCommand`: the AT command.
+            String: the AT command.
         """
         return self.__command
 
@@ -328,7 +331,9 @@ class ATCommand:
         Returns:
             String: this ATCommand parameter. `None` if there is no parameter.
         """
-        return self.__parameter.decode() if self.__parameter else None
+        if not self.__parameter:
+            return None
+        return str(self.__parameter, encoding='utf8', errors='ignore')
 
     @parameter.setter
     def parameter(self, parameter):
@@ -336,10 +341,10 @@ class ATCommand:
         Sets the AT command parameter.
 
         Args:
-            parameter (Bytearray): the parameter to be set.
+            parameter (Bytearray or String): the parameter to be set.
         """
         if isinstance(parameter, str):
-            self.__parameter = bytearray(parameter, 'utf8')
+            self.__parameter = bytearray(parameter, encoding='utf8', errors='ignore')
         else:
             self.__parameter = parameter
 

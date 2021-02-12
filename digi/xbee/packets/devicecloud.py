@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -129,7 +129,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
         ret += utils.int_to_bytes(self.__flags, num_bytes=1)
         if self.__target is not None:
             ret += utils.int_to_bytes(len(self.__target), num_bytes=1)
-            ret += bytearray(self.__target, "utf8")
+            ret += bytearray(self.__target, encoding="utf8")
         else:
             ret += utils.int_to_bytes(0x00, num_bytes=1)
         if self.__request_data is not None:
@@ -770,12 +770,12 @@ class SendDataRequestPacket(XBeeAPIPacket):
         """
         if self.__path is not None:
             ret = utils.int_to_bytes(len(self.__path), num_bytes=1)
-            ret += bytearray(self.__path, "utf8")
+            ret += bytearray(self.__path, encoding="utf8")
         else:
             ret = utils.int_to_bytes(0x00, num_bytes=1)
         if self.__content_type is not None:
             ret += utils.int_to_bytes(len(self.__content_type), num_bytes=1)
-            ret += bytearray(self.__content_type, "utf8")
+            ret += bytearray(self.__content_type, encoding="utf8")
         else:
             ret += utils.int_to_bytes(0x00, num_bytes=1)
         ret += utils.int_to_bytes(0x00, num_bytes=1)  # Transport is always TCP

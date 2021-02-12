@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -775,8 +775,8 @@ class SocketConnectPacket(XBeeAPIPacket):
     """Indicates the destination address field is a binary IPv4 address in network byte order."""
 
     DEST_ADDRESS_STRING = 1
-    """Indicates the destination address field is a string containing either a dotted quad value or a domain name to be
-    resolved."""
+    """Indicates the destination address field is a string containing either a
+    dotted quad value or a domain name to be resolved."""
 
     def __init__(self, frame_id, socket_id, dest_port, dest_address_type, dest_address):
         """
@@ -868,7 +868,7 @@ class SocketConnectPacket(XBeeAPIPacket):
         addr_type = raw[8]
         address = raw[9:-1]
         if address is not None and addr_type == SocketConnectPacket.DEST_ADDRESS_STRING:
-            address = address.decode("utf8")
+            address = address.decode(encoding="utf8", errors='ignore')
 
         return SocketConnectPacket(
             raw[4], raw[5], utils.bytes_to_int(raw[6:8]), addr_type, address)
@@ -893,7 +893,10 @@ class SocketConnectPacket(XBeeAPIPacket):
         ret.append(self.__socket_id)
         ret += utils.int_to_bytes(self.__dest_port, num_bytes=2)
         ret.append(self.__dest_address_type)
-        ret += self.__dest_address.encode() if isinstance(self.__dest_address, str) else self.__dest_address
+        if isinstance(self.__dest_address, str):
+            ret += self.__dest_address.encode(encoding='utf8')
+        else:
+            ret += self.__dest_address
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -910,7 +913,7 @@ class SocketConnectPacket(XBeeAPIPacket):
                 DictKeys.DEST_ADDR_TYPE.value: utils.hex_to_string(bytearray([self.__dest_address_type])),
                 DictKeys.DEST_ADDR.value:      ("%s (%s)" % (
                     utils.hex_to_string(
-                        self.__dest_address.encode()), self.__dest_address)) if isinstance(self.__dest_address, str) else utils.hex_to_string(self.__dest_address)}
+                        self.__dest_address.encode(encoding="utf8", errors='ignore')), self.__dest_address)) if isinstance(self.__dest_address, str) else utils.hex_to_string(self.__dest_address)}
 
     @property
     def socket_id(self):

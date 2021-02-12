@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -475,16 +475,16 @@ class _XModemTransferSession:
             XModemException: if there is any error transferring the block 0.
         """
         self._seq_index = 0
-        name = str.encode(os.path.basename(self._src_path), encoding='utf-8')
-        size = str.encode(str(os.path.getsize(self._src_path)), encoding='utf-8')
-        mod_time = str.encode(str(oct(int(os.path.getctime(self._src_path)))), encoding='utf-8')
+        name = str.encode(os.path.basename(self._src_path), encoding='utf8')
+        size = str.encode(str(os.path.getsize(self._src_path)), encoding='utf8')
+        mod_time = str.encode(str(oct(int(os.path.getctime(self._src_path)))), encoding='utf8')
         if (len(name) + len(size) + len(mod_time)) > 110:
             data = bytearray(_XMODEM_BLOCK_SIZE_1K)
         else:
             data = bytearray(_XMODEM_BLOCK_SIZE_128)
         data[0:len(name)] = name
         data[len(name) + 1:len(name) + 1 + len(size)] = size
-        data[len(name) + len(size) + 1] = str.encode(" ", encoding='utf-8')[0]
+        data[len(name) + len(size) + 1] = str.encode(" ", encoding='utf8')[0]
         data[len(name) + len(size) + 2:len(name) + len(size) + len(mod_time)] = mod_time[2:]
         self._send_next_block(data)
 
@@ -883,7 +883,7 @@ class _XModemReadSession:
                 break
             name.append(byte)
             index += 1
-        name = name.decode(encoding='utf-8')
+        name = str(encoding='utf8', errors='ignore')
         self._download_file.name = name
         # File size is the next data block until a '0' (0x00) is found.
         size = bytearray()
@@ -892,7 +892,10 @@ class _XModemReadSession:
                 break
             size.append(byte)
             index += 1
-        size = int(size.decode(encoding='utf-8'))
+        try:
+            size = int(size.decode(encoding='utf8', errors='ignore'))
+        except ValueError:
+            raise XModemException("Bad file size")
         self._download_file.size = size
 
         self._send_ack()

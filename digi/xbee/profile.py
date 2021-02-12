@@ -610,7 +610,7 @@ class XBeeProfileSetting:
             return utils.hex_string_to_bytes(self._value)
         if self._type is XBeeSettingType.TEXT:
             if self._format in (XBeeSettingFormat.ASCII, XBeeSettingFormat.PHONE):
-                return bytearray(self._value, 'utf8')
+                return bytearray(self._value, encoding='utf8')
             if self._format in (XBeeSettingFormat.HEX, XBeeSettingFormat.NO_FORMAT):
                 return utils.hex_string_to_bytes(self._value)
             if self._format is XBeeSettingFormat.IPV4:
@@ -618,7 +618,7 @@ class XBeeProfileSetting:
                 return bytearray(octets)
             if (self._format is XBeeSettingFormat.IPV6
                     and _IPV6_SEPARATOR in self._value):
-                return bytearray(self._value, 'utf8')
+                return bytearray(self._value, encoding='utf8')
         elif self._type in (XBeeSettingType.BUTTON, XBeeSettingType.NO_TYPE):
             return bytearray(0)
 

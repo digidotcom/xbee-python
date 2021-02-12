@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -44,8 +44,8 @@ class RXSMSPacket(XBeeAPIPacket):
         the provided parameters.
 
         Args:
-            phone_number (String): phone number of the device that sent the SMS.
-            data (String): packet data (text of the SMS).
+            phone_number (String): Phone number of the device that sent the SMS.
+            data (String or bytearray): Packet data (text of the SMS).
 
         Raises:
             ValueError: if length of `phone_number` is greater than 20.
@@ -58,8 +58,11 @@ class RXSMSPacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.RX_SMS)
 
         self.__phone_number = bytearray(20)
-        self.__phone_number[0:len(phone_number)] = phone_number.encode("utf8")
-        self.__data = data
+        self.__phone_number[0:len(phone_number)] = phone_number.encode(encoding="utf8")
+        if isinstance(data, str):
+            self.__data = data.encode('utf8', errors='ignore')
+        else:
+            self.__data = data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -95,7 +98,8 @@ class RXSMSPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.RX_SMS.code:
             raise InvalidPacketException(message="This packet is not an RXSMSPacket")
 
-        return RXSMSPacket(raw[4:23].decode("utf8").replace("\0", ""), raw[24:-1].decode("utf8"))
+        return RXSMSPacket(raw[4:23].decode(encoding="utf8").replace("\0", ""),
+                           raw[24:-1])
 
     def needs_id(self):
         """
@@ -123,7 +127,7 @@ class RXSMSPacket(XBeeAPIPacket):
         Returns:
             String: phone number of the device that sent the SMS.
         """
-        return self.__phone_number.decode("utf8").replace("\0", "")
+        return self.__phone_number.decode(encoding="utf8").replace("\0", "")
 
     @phone_number.setter
     def phone_number(self, phone_number):
@@ -143,7 +147,7 @@ class RXSMSPacket(XBeeAPIPacket):
             raise ValueError("Phone number invalid, only numbers and '+' prefix allowed.")
 
         self.__phone_number = bytearray(20)
-        self.__phone_number[0:len(phone_number)] = phone_number.encode("utf8")
+        self.__phone_number[0:len(phone_number)] = phone_number.encode(encoding="utf8")
 
     @property
     def data(self):
@@ -153,7 +157,7 @@ class RXSMSPacket(XBeeAPIPacket):
         Returns:
             String: the data of the packet.
         """
-        return self.__data
+        return self.__data.decode(encoding='utf8', errors='ignore')
 
     @data.setter
     def data(self, data):
@@ -161,9 +165,12 @@ class RXSMSPacket(XBeeAPIPacket):
         Sets the data of the packet.
 
         Args:
-            data (String): the new data of the packet.
+            data (String or bytearrray): New data of the packet.
         """
-        self.__data = data
+        if isinstance(data, str):
+            self.__data = data.encode('utf8', errors='ignore')
+        else:
+            self.__data = data
 
     def _get_api_packet_spec_data(self):
         """
@@ -175,7 +182,7 @@ class RXSMSPacket(XBeeAPIPacket):
         ret = bytearray()
         ret += self.__phone_number
         if self.__data is not None:
-            ret += self.__data.encode("utf8")
+            ret += self.__data
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -209,7 +216,7 @@ class TXSMSPacket(XBeeAPIPacket):
         Args:
             frame_id (Integer): the frame ID. Must be between 0 and 255.
             phone_number (String): the phone number.
-            data (String): this packet's data.
+            data (String or bytearray): this packet's data.
 
         Raises:
             ValueError: if `frame_id` is not between 0 and 255.
@@ -230,8 +237,11 @@ class TXSMSPacket(XBeeAPIPacket):
         self._frame_id = frame_id
         self.__transmit_options = TransmitOptions.NONE.value
         self.__phone_number = bytearray(20)
-        self.__phone_number[0:len(phone_number)] = phone_number.encode("utf8")
-        self.__data = data
+        self.__phone_number[0:len(phone_number)] = phone_number.encode(encoding="utf8")
+        if isinstance(data, str):
+            self.__data = data.encode('utf8', errors='ignore')
+        else:
+            self.__data = data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -267,8 +277,11 @@ class TXSMSPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.TX_SMS.code:
             raise InvalidPacketException(message="This packet is not a TXSMSPacket")
 
-        return TXSMSPacket(raw[4], raw[6:25].decode("utf8").replace("\0", ""),
-                           raw[26:-1].decode("utf8") if len(raw) > TXSMSPacket.__MIN_PACKET_LENGTH else None)
+        data = None
+        if len(raw) > TXSMSPacket.__MIN_PACKET_LENGTH:
+            data = raw[26:-1]
+        return TXSMSPacket(
+            raw[4], raw[6:25].decode(encoding="utf8").replace("\0", ""), data)
 
     def needs_id(self):
         """
@@ -296,7 +309,7 @@ class TXSMSPacket(XBeeAPIPacket):
         Returns:
             String: the phone number of the transmitter device.
         """
-        return self.__phone_number.decode("utf8").replace("\0", "")
+        return self.__phone_number.decode(encoding="utf8").replace("\0", "")
 
     @phone_number.setter
     def phone_number(self, phone_number):
@@ -316,7 +329,7 @@ class TXSMSPacket(XBeeAPIPacket):
             raise ValueError("Phone number invalid, only numbers and '+' prefix allowed.")
 
         self.__phone_number = bytearray(20)
-        self.__phone_number[0:len(phone_number)] = phone_number.encode("utf8")
+        self.__phone_number[0:len(phone_number)] = phone_number.encode(encoding="utf8")
 
     @property
     def data(self):
@@ -334,9 +347,12 @@ class TXSMSPacket(XBeeAPIPacket):
         Sets the data of the packet.
 
         Args:
-            data (Bytearray): the new data of the packet.
+            data (String or Bytearray): the new data of the packet.
         """
-        self.__data = data
+        if isinstance(data, str):
+            self.__data = data.encode('utf8', errors='ignore')
+        else:
+            self.__data = data
 
     def _get_api_packet_spec_data(self):
         """
@@ -348,7 +364,7 @@ class TXSMSPacket(XBeeAPIPacket):
         ret = utils.int_to_bytes(self.__transmit_options, num_bytes=1)
         ret += self.__phone_number
         if self.__data is not None:
-            ret += self.__data.encode("utf8")
+            ret += self.__data
         return ret
 
     def _get_api_packet_spec_data_dict(self):

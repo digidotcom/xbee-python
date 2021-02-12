@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -565,7 +565,8 @@ class IOSample:
             Boolean. `True` if the given IOLine has a power supply value,
                 `False` otherwise.
         """
-        return utils.is_bit_enabled(self.__analog_mask, 7)
+        return (utils.is_bit_enabled(self.__analog_mask, 7)
+                and self.__power_supply_voltage is not None)
 
     def get_digital_value(self, io_line):
         """
