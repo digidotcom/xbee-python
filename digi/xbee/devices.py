@@ -8864,7 +8864,7 @@ class XBeeNetwork:
         """
         return len(self.__devices_list)
 
-    def export(self, dir_path=None, name=None, desc=None):
+    def export(self, dir_path=None, name=None, desc=None, method="xml"):
         """
         Exports this network to the given file path.
 
@@ -8876,6 +8876,7 @@ class XBeeNetwork:
                 name. If not defined home directory is used.
             name (String, optional, default=`None`): Network human readable name.
             desc (String, optional, default=`None`): Network description.
+            method (String, optional, default='xml'): Type of structure to export to. Supports (xml, json)
 
         Returns:
             Tuple (Integer, String): Tuple with result (0: success, 1: failure)
@@ -8884,13 +8885,14 @@ class XBeeNetwork:
         import datetime
         from pathlib import Path
 
+        method = method.strip().lower()
         date_now = datetime.datetime.now()
         if not dir_path:
             dir_path = str(Path.home())
         if not name:
             name = "%s network" % str(self._local_xbee)
-        file_name = "%s_%s.xnet" % (name.strip().replace(" ", "_"),
-                                    date_now.strftime("%m%d%y_%H%M%S"))
+        file_name = "%s_%s.xnet" % (name.strip().replace(
+            " ", "_"), date_now.strftime("%m%d%y_%H%M%S"))
         file = Path(dir_path, file_name)
         try:
             if file.exists():
@@ -8899,22 +8901,52 @@ class XBeeNetwork:
         except OSError as exc:
             return 1, "%s (%d): %s" % (exc.strerror, exc.errno, exc.filename)
 
-        from digi.xbee.util.exportutils import generate_network_xml
-        tree = generate_network_xml(self._local_xbee, date_now=date_now,
-                                    name=name, desc=desc)
-
+        from digi.xbee.util.exportutils import generate_network_xml, generate_network_json
         from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
-        try:
-            with ZipFile(str(file), 'w') as xnet_zip:
-                info = ZipInfo(filename='network.xml',
-                               date_time=time.localtime(date_now.timestamp()))
-                info.compress_type = ZIP_DEFLATED
-                with xnet_zip.open(info, 'w') as xnet_file:
-                    tree.write(xnet_file, encoding='utf8', xml_declaration=False)
-        except (OSError, IOError) as exc:
-            return 1, "%s (%d): %s" % (exc.strerror, exc.errno, exc.filename)
 
-        return 0, str(file)
+        if method == "xml":
+            tree = generate_network_xml(self._local_xbee,
+                                        date_now=date_now,
+                                        name=name,
+                                        desc=desc)
+
+            try:
+                with ZipFile(str(file), 'w') as xnet_zip:
+                    info = ZipInfo(filename='network.xml',
+                                   date_time=time.localtime(
+                                       date_now.timestamp()))
+                    info.compress_type = ZIP_DEFLATED
+                    with xnet_zip.open(info, 'w') as xnet_file:
+                        tree.write(xnet_file,
+                                   encoding='utf8',
+                                   xml_declaration=False)
+            except (OSError, IOError) as exc:
+                return 1, "%s (%d): %s" % (exc.strerror, exc.errno,
+                                           exc.filename)
+
+            return 0, str(file)
+        elif method == "json":
+            json = generate_network_json(self._local_xbee,
+                                         date_now=date_now,
+                                         name=name,
+                                         desc=desc)
+            try:
+                with ZipFile(str(file), 'w') as xnet_zip:
+                    info = ZipInfo(filename='network.json',
+                                   date_time=time.localtime(
+                                       date_now.timestamp()))
+                    info.compress_type = ZIP_DEFLATED
+
+                    with xnet_zip.open(info, 'w') as xnet_file:
+                        json.dump(json, xnet_file)
+            except (OSError, IOError) as exc:
+                return 1, "%s (%d): %s" % (exc.strerror, exc.errno,
+                                           exc.filename)
+
+            return 0, str(file)
+        else:
+            raise NotImplementedError(
+                f"`{method}` is not an allowed method for serialization")
 
     def add_network_modified_callback(self, callback):
         """
