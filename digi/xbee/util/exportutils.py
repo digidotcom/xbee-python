@@ -47,13 +47,14 @@ def generate_network_json(xbee, date_now=None, name=None, desc=None):
         date_now = datetime.datetime.now()
 
     root = OrderedDict({
-        network_name: {
+        network_name:
+        OrderedDict({
             "description": "" if not desc else str(desc),
             "date": str(date_now),
             "map_type": "dynamic",
             "protocol": str(xbee.get_protocol().code),
             "devices": _generate_nodes_json(xbee)
-        }
+        })
     })
 
     try:
@@ -97,11 +98,15 @@ def _generate_node_json(node) -> dict:
     fw = node.get_firmware_version()
     addr = str(node.get_64bit_addr())
 
-    node_info = {
-        'addr': addr,
-        'nwk_address': str(node.get_16bit_addr()),
-        'node_id': node.get_node_id(),
-        'role': node.get_role().description,
+    node_info = OrderedDict({
+        'addr':
+        addr,
+        'nwk_address':
+        str(node.get_16bit_addr()),
+        'node_id':
+        node.get_node_id(),
+        'role':
+        node.get_role().description,
         'hw_version':
         f"{utils.hex_to_string([hw.code], pretty=False) if hw else '???'}",
         "fw_version":
@@ -160,14 +165,16 @@ def _generate_connections_json(node, connections):
     for conn in connections:
         end_device = conn.node_b if node == conn.node_a else conn.node_a
         addr = str(end_device.get_64bit_addr())
-        conn_info.append({
-            'addr': addr,
-            'strength':
-            str(conn.lq_a2b if node == conn.node_a else conn.lq_b2a),
-            'status':
-            str(conn.status_a2b.id if node ==
-                conn.node_a else conn.status_b2a.id)
-        })
+        conn_info.append(
+            OrderedDict({
+                'addr':
+                addr,
+                'strength':
+                str(conn.lq_a2b if node == conn.node_a else conn.lq_b2a),
+                'status':
+                str(conn.status_a2b.id if node ==
+                    conn.node_a else conn.status_b2a.id)
+            }))
     return conn_info
 
 
