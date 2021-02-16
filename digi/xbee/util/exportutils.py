@@ -70,14 +70,13 @@ def _generate_nodes_json(xbee):
         xbee (:class:`.XBeeDevice`): Local XBee node.
 
     Return:
-        :class:`dict`: A dict of nodes.
+        :class:`dict`: A list of nodes.
     """
-    nodes = dict()
+    nodes = list()
 
     network = xbee.get_network()
     for node in [xbee] + network.get_devices():
-        addr = str(node.get_64bit_addr())
-        nodes[addr] = _generate_node_json(node)
+        nodes.append(_generate_node_json(node))
 
     return nodes
 
@@ -95,8 +94,10 @@ def _generate_node_json(node) -> dict:
 
     hw = node.get_hardware_version()
     fw = node.get_firmware_version()
+    addr = str(node.get_64bit_addr())
 
     node_info = {
+        'addr': addr,
         'nwk_address': str(node.get_16bit_addr()),
         'node_id': node.get_node_id(),
         'role': node.get_role().description,
@@ -147,19 +148,20 @@ def _generate_connections_json(node, connections):
         connections (List): List of :class:`.Connection`.
 
     Return:
-        :class:`dict`: Generated dictionary list of Connections.
+        :class:`dict`: Generated list of Connections.
     """
-    conn_info = dict()
+    conn_info = list()
     for conn in connections:
         end_device = conn.node_b if node == conn.node_a else conn.node_a
         addr = str(end_device.get_64bit_addr())
-        conn_info[addr] = {
+        conn_info.append({
+            'addr': addr,
             'strength':
             str(conn.lq_a2b if node == conn.node_a else conn.lq_b2a),
             'status':
             str(conn.status_a2b.id if node ==
                 conn.node_a else conn.status_b2a.id)
-        }
+        })
     return conn_info
 
 
