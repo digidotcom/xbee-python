@@ -21,6 +21,7 @@ import logging
 import datetime
 import json
 
+from collections import OrderedDict
 from xml.etree.ElementTree import Element, SubElement, ElementTree
 
 from digi.xbee.devices import RemoteZigBeeDevice
@@ -45,7 +46,7 @@ def generate_network_json(xbee, date_now=None, name=None, desc=None):
     if not date_now:
         date_now = datetime.datetime.now()
 
-    root = {
+    root = OrderedDict({
         network_name: {
             "description": "" if not desc else str(desc),
             "date": str(date_now),
@@ -53,7 +54,7 @@ def generate_network_json(xbee, date_now=None, name=None, desc=None):
             "protocol": str(xbee.get_protocol().code),
             "devices": _generate_nodes_json(xbee)
         }
-    }
+    })
 
     try:
         return json.dumps(root, indent=2)
@@ -72,7 +73,7 @@ def _generate_nodes_json(xbee):
     Return:
         :class:`dict`: A dict of nodes.
     """
-    nodes = dict()
+    nodes = OrderedDict()
 
     network = xbee.get_network()
     for node in [xbee] + network.get_devices():
@@ -96,15 +97,18 @@ def _generate_node_json(node) -> dict:
     hw = node.get_hardware_version()
     fw = node.get_firmware_version()
 
-    node_info = {
-        'nwk_address': str(node.get_16bit_addr()),
-        'node_id': node.get_node_id(),
-        'role': node.get_role().description,
+    node_info = OrderedDict({
+        'nwk_address':
+        str(node.get_16bit_addr()),
+        'node_id':
+        node.get_node_id(),
+        'role':
+        node.get_role().description,
         'hw_version':
         f"{utils.hex_to_string([hw.code], pretty=False) if hw else '???'}",
         "fw_version":
         f"{utils.hex_to_string(fw,pretty=False) if fw else '???'}"
-    }
+    })
 
     # handle ZiGBee specifics
     if isinstance(node, RemoteZigBeeDevice) and node.parent:
@@ -114,13 +118,18 @@ def _generate_node_json(node) -> dict:
     if not node.is_remote():
         ser = node.serial_port
 
-        node_info['serial_config'] = {
-            'port': str(ser.port),
-            'baud_rate': str(ser.baudrate),
-            'data_bits': str(ser.bytesize),
-            'stop_bits': str(ser.stopbits),
-            'parity': str(FirmwareParity.get_by_parity(ser.parity).index),
-        }
+        node_info['serial_config'] = OrderedDict({
+            'port':
+            str(ser.port),
+            'baud_rate':
+            str(ser.baudrate),
+            'data_bits':
+            str(ser.bytesize),
+            'stop_bits':
+            str(ser.stopbits),
+            'parity':
+            str(FirmwareParity.get_by_parity(ser.parity).index),
+        })
         # handle flow control based on logic provided in `_generatoe_serial_config_xml`
         fc = "0"
         if ser.rtscts:
@@ -149,7 +158,7 @@ def _generate_connections_json(node, connections):
     Return:
         :class:`dict`: Generated dictionary list of Connections.
     """
-    conn_info = dict()
+    conn_info = OrderedDict()
     for conn in connections:
         end_device = conn.node_b if node == conn.node_a else conn.node_a
         addr = str(end_device.get_64bit_addr())
