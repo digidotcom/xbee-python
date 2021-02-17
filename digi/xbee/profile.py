@@ -27,8 +27,6 @@ from xml.etree.ElementTree import ParseError
 import zipfile
 import serial
 
-from serial.serialutil import SerialException
-
 from digi.xbee.firmware import UpdateConfigurer, EXTENSION_GBL, EXTENSION_XML, \
     EXTENSION_EBIN, EXTENSION_EHX2, EXTENSION_OTB, EXTENSION_OTA, \
     EXTENSION_EBL, update_local_firmware, update_remote_firmware
@@ -1776,8 +1774,10 @@ class _ProfileUpdater:
                 # Format file system to ensure resulting file system is exactly
                 # the same as the profile one.
                 if self._progress_callback is not None:
-                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, None)
+                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, 0)
                 fs_mng.format()
+                if self._progress_callback is not None:
+                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, 100)
                 # Transfer the file system folder.
                 fs_mng.put_dir(
                     self._profile.file_system_path, dest=None, verify=True,
@@ -1805,14 +1805,18 @@ class _ProfileUpdater:
             try:
                 fs_manager = LocalXBeeFileSystemManager(self._xbee)
                 if self._progress_callback is not None:
-                    self._progress_callback(_TASK_CONNECT_FILESYSTEM, None)
+                    self._progress_callback(_TASK_CONNECT_FILESYSTEM, 0)
                 time.sleep(0.2)
                 fs_manager.connect()
+                if self._progress_callback is not None:
+                    self._progress_callback(_TASK_CONNECT_FILESYSTEM, 100)
                 # Format file system to ensure resulting file system is exactly
                 # the same as the profile one.
                 if self._progress_callback is not None:
-                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, None)
+                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, 0)
                 fs_manager.format_filesystem()
+                if self._progress_callback is not None:
+                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, 100)
                 # Transfer the file system folder.
                 fs_manager.put_dir(
                     self._profile.file_system_path, dest_dir=None,

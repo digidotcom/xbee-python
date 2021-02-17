@@ -1485,7 +1485,7 @@ class UpdateConfigurer:
         self._sync_sleep = None
         self._task_done = {self.TASK_PREPARE: 0,
                            self.TASK_RESTORE: 0}
-        self._task_total = {self.TASK_PREPARE: 4,
+        self._task_total = {self.TASK_PREPARE: 3,
                             self.TASK_RESTORE: 2}
         self.cmd_dict = {}
 
