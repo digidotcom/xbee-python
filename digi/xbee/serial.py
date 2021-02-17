@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,6 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import enum
+import os
 import time
 
 from serial import Serial, EIGHTBITS, STOPBITS_ONE, PARITY_NONE
@@ -190,9 +191,12 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
             # reused to signal the stop reading request.
             self._is_reading = False
 
-            # Ensure we block until the reading thread resumes.
-            # (could be improved using locks in the future)
-            time.sleep(self.timeout)
+            if os.name in ('nt', 'posix'):
+                self.cancel_read()
+            else:
+                # Ensure we block until the reading thread resumes.
+                # (could be improved using locks in the future)
+                time.sleep(self.timeout)
 
     def wait_for_frame(self, operating_mode):
         """
