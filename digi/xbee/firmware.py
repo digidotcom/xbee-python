@@ -1793,7 +1793,6 @@ class UpdateConfigurer:
         (bit 2 = 1). It stores original values to restore them later.
         """
         if not self.sync_sleep:
-            self.progress_cb(self.TASK_PREPARE)
             return
 
         _log.debug("'%s' - %s: network", self._xbee, self.TASK_PREPARE)
