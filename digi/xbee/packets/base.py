@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -498,11 +498,14 @@ class XBeeAPIPacket(XBeePacket):
         length_field = utils.length_to_int(raw[1:3])
         if real_length != length_field:
             raise InvalidPacketException(
-                message="The real length of this frame is distinct than the "
-                        "specified by length field (bytes 2 and 3)")
+                message="The real length of this frame does not match the "
+                        "specified in length field (bytes 2 and 3) (real %d, "
+                        "length field %d)" % (real_length, length_field))
 
-        if 0xFF - (sum(raw[3:-1]) & 0xFF) != raw[-1]:
-            raise InvalidPacketException(message="Wrong checksum")
+        checksum = 0xFF - (sum(raw[3:-1]) & 0xFF)
+        if checksum != raw[-1]:
+            raise InvalidPacketException(
+                message="Wrong checksum (expected %02X, received %02X)" % (checksum, raw[-1]))
 
     @abstractmethod
     def _get_api_packet_spec_data(self):
@@ -591,8 +594,9 @@ class GenericXBeePacket(XBeeAPIPacket):
         XBeeAPIPacket._check_api_packet(raw, min_length=GenericXBeePacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.GENERIC.code:
-            raise InvalidPacketException(message="Wrong frame type, expected: " + ApiFrameType.GENERIC.description +
-                                         ". Value: " + ApiFrameType.GENERIC.code)
+            raise InvalidPacketException(
+                message="Wrong frame type, expected: %s. Value %d" %
+                (ApiFrameType.GENERIC.description, ApiFrameType.GENERIC.code))
 
         return GenericXBeePacket(raw[4:-1])
 
