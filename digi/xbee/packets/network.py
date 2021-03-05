@@ -32,7 +32,8 @@ class RXIPv4Packet(XBeeAPIPacket):
     """
     __MIN_PACKET_LENGTH = 15
 
-    def __init__(self, source_address, dest_port, source_port, ip_protocol, data=None):
+    def __init__(self, source_address, dest_port, source_port, ip_protocol,
+                 data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.RXIPv4Packet` object
         with the provided parameters.
@@ -42,7 +43,9 @@ class RXIPv4Packet(XBeeAPIPacket):
             dest_port (Integer): destination port number.
             source_port (Integer): source port number.
             ip_protocol (:class:`.IPProtocol`): IP protocol used for transmitted data.
-            data (Bytearray, optional): data that is sent to the destination device. Optional.
+            data (Bytearray, optional): data that is sent to the destination device.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `dest_port` is less than 0 or greater than 65535 or
@@ -56,7 +59,7 @@ class RXIPv4Packet(XBeeAPIPacket):
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
-        super().__init__(ApiFrameType.RX_IPV4)
+        super().__init__(ApiFrameType.RX_IPV4, op_mode=op_mode)
         self.__source_address = source_address
         self.__dest_port = dest_port
         self.__source_port = source_port
@@ -103,7 +106,8 @@ class RXIPv4Packet(XBeeAPIPacket):
 
         return RXIPv4Packet(IPv4Address(bytes(raw[4:8])), utils.bytes_to_int(raw[8:10]),
                             utils.bytes_to_int(raw[10:12]), IPProtocol.get(raw[12]),
-                            data=raw[14:-1] if len(raw) > RXIPv4Packet.__MIN_PACKET_LENGTH else None)
+                            data=raw[14:-1] if len(raw) > RXIPv4Packet.__MIN_PACKET_LENGTH else None,
+                            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -280,7 +284,7 @@ class TXIPv4Packet(XBeeAPIPacket):
     __MIN_PACKET_LENGTH = 16
 
     def __init__(self, frame_id, dest_address, dest_port, source_port,
-                 ip_protocol, transmit_options, data=None):
+                 ip_protocol, transmit_options, data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.TXIPv4Packet` object
         with the provided parameters.
@@ -292,7 +296,9 @@ class TXIPv4Packet(XBeeAPIPacket):
             source_port (Integer): source port number.
             ip_protocol (:class:`.IPProtocol`): IP protocol used for transmitted data.
             transmit_options (Integer): the transmit options of the packet.
-            data (Bytearray, optional): data that is sent to the destination device. Optional.
+            data (Bytearray, optional): data that is sent to the destination device.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -309,7 +315,7 @@ class TXIPv4Packet(XBeeAPIPacket):
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
-        super().__init__(ApiFrameType.TX_IPV4)
+        super().__init__(ApiFrameType.TX_IPV4, op_mode=op_mode)
         self._frame_id = frame_id
         self.__dest_address = dest_address
         self.__dest_port = dest_port
@@ -356,8 +362,9 @@ class TXIPv4Packet(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not an TXIPv4Packet.")
 
         return TXIPv4Packet(raw[4], IPv4Address(bytes(raw[5:9])), utils.bytes_to_int(raw[9:11]),
-                            utils.bytes_to_int(raw[11:13]), IPProtocol.get(raw[13]),
-                            raw[14], data=raw[15:-1] if len(raw) > TXIPv4Packet.__MIN_PACKET_LENGTH else None)
+                            utils.bytes_to_int(raw[11:13]), IPProtocol.get(raw[13]), raw[14],
+                            data=raw[15:-1] if len(raw) > TXIPv4Packet.__MIN_PACKET_LENGTH else None,
+                            op_mode=operating_mode)
 
     def needs_id(self):
         """

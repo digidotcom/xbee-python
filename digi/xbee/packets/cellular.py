@@ -38,7 +38,7 @@ class RXSMSPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 25
 
-    def __init__(self, phone_number, data):
+    def __init__(self, phone_number, data, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.RXSMSPacket` object with
         the provided parameters.
@@ -46,6 +46,8 @@ class RXSMSPacket(XBeeAPIPacket):
         Args:
             phone_number (String): Phone number of the device that sent the SMS.
             data (String or bytearray): Packet data (text of the SMS).
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if length of `phone_number` is greater than 20.
@@ -55,7 +57,7 @@ class RXSMSPacket(XBeeAPIPacket):
             raise ValueError("Phone number length cannot be greater than 20 bytes")
         if not re.match(PATTERN_PHONE_NUMBER, phone_number):
             raise ValueError("Phone number invalid, only numbers and '+' prefix allowed.")
-        super().__init__(ApiFrameType.RX_SMS)
+        super().__init__(ApiFrameType.RX_SMS, op_mode=op_mode)
 
         self.__phone_number = bytearray(20)
         self.__phone_number[0:len(phone_number)] = phone_number.encode(encoding="utf8")
@@ -99,7 +101,7 @@ class RXSMSPacket(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not an RXSMSPacket")
 
         return RXSMSPacket(raw[4:23].decode(encoding="utf8").replace("\0", ""),
-                           raw[24:-1])
+                           raw[24:-1], op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -208,7 +210,7 @@ class TXSMSPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 27
 
-    def __init__(self, frame_id, phone_number, data):
+    def __init__(self, frame_id, phone_number, data, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.TXSMSPacket` object with
         the provided parameters.
@@ -217,6 +219,8 @@ class TXSMSPacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID. Must be between 0 and 255.
             phone_number (String): the phone number.
             data (String or bytearray): this packet's data.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is not between 0 and 255.
@@ -232,7 +236,7 @@ class TXSMSPacket(XBeeAPIPacket):
             raise ValueError("Phone number length cannot be greater than 20 bytes")
         if not re.match(PATTERN_PHONE_NUMBER, phone_number):
             raise ValueError("Phone number invalid, only numbers and '+' prefix allowed.")
-        super().__init__(ApiFrameType.TX_SMS)
+        super().__init__(ApiFrameType.TX_SMS, op_mode=op_mode)
 
         self._frame_id = frame_id
         self.__transmit_options = TransmitOptions.NONE.value

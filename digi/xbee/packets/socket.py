@@ -39,7 +39,7 @@ class SocketCreatePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, protocol):
+    def __init__(self, frame_id, protocol, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketCreatePacket`
         object with the provided parameters.
@@ -47,6 +47,8 @@ class SocketCreatePacket(XBeeAPIPacket):
         Args:
             frame_id (Integer): the frame ID of the packet.
             protocol (:class:`.IPProtocol`): the protocol used to create the socket.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -58,7 +60,7 @@ class SocketCreatePacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
 
-        super().__init__(ApiFrameType.SOCKET_CREATE)
+        super().__init__(ApiFrameType.SOCKET_CREATE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__protocol = protocol
 
@@ -99,7 +101,7 @@ class SocketCreatePacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 message="This packet is not a Socket Create packet.")
 
-        return SocketCreatePacket(raw[4], IPProtocol.get(raw[5]))
+        return SocketCreatePacket(raw[4], IPProtocol.get(raw[5]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -174,7 +176,7 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 8
 
-    def __init__(self, frame_id, socket_id, status):
+    def __init__(self, frame_id, socket_id, status, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.SocketCreateResponsePacket` object with the provided parameters.
@@ -183,6 +185,8 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): the unique socket ID to address the socket.
             status (:class:`.SocketStatus`): the socket create status.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -197,7 +201,7 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
 
-        super().__init__(ApiFrameType.SOCKET_CREATE_RESPONSE)
+        super().__init__(ApiFrameType.SOCKET_CREATE_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__status = status
@@ -240,7 +244,7 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
                 message="This packet is not a Socket Create Response packet.")
 
         return SocketCreateResponsePacket(
-            raw[4], raw[5], SocketStatus.get(raw[6]))
+            raw[4], raw[5], SocketStatus.get(raw[6]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -343,7 +347,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 8
 
-    def __init__(self, frame_id, socket_id, option, option_data=None):
+    def __init__(self, frame_id, socket_id, option, option_data=None,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketOptionRequestPacket`
         object with the provided parameters.
@@ -352,7 +357,9 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): the socket ID to modify.
             option (:class:`.SocketOption`): the socket option of the parameter to change.
-            option_data (Bytearray, optional): the option data. Optional.
+            option_data (Bytearray, optional): the option data.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -367,7 +374,7 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
 
-        super().__init__(ApiFrameType.SOCKET_OPTION_REQUEST)
+        super().__init__(ApiFrameType.SOCKET_OPTION_REQUEST, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__option = option
@@ -412,7 +419,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
 
         return SocketOptionRequestPacket(
             raw[4], raw[5], SocketOption.get(raw[6]),
-            option_data=raw[7:-1] if len(raw) > SocketOptionRequestPacket.__MIN_PACKET_LENGTH else None)
+            option_data=raw[7:-1] if len(raw) > SocketOptionRequestPacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -536,7 +544,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 9
 
-    def __init__(self, frame_id, socket_id, option, status, option_data=None):
+    def __init__(self, frame_id, socket_id, option, status, option_data=None,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketOptionResponsePacket`
         object with the provided parameters.
@@ -546,7 +555,9 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
             socket_id (Integer): the socket ID for which modification was requested.
             option (:class:`.SocketOption`): the socket option of the parameter requested.
             status (:class:`.SocketStatus`): the socket option status of the parameter requested.
-            option_data (Bytearray, optional): the option data. Optional.
+            option_data (Bytearray, optional): the option data.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -562,7 +573,7 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
 
-        super().__init__(ApiFrameType.SOCKET_OPTION_RESPONSE)
+        super().__init__(ApiFrameType.SOCKET_OPTION_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__option = option
@@ -608,7 +619,8 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
 
         return SocketOptionResponsePacket(
             raw[4], raw[5], SocketOption.get(raw[6]), SocketStatus.get(raw[7]),
-            option_data=raw[8:-1] if len(raw) > SocketOptionResponsePacket.__MIN_PACKET_LENGTH else None)
+            option_data=raw[8:-1] if len(raw) > SocketOptionResponsePacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -778,7 +790,8 @@ class SocketConnectPacket(XBeeAPIPacket):
     """Indicates the destination address field is a string containing either a
     dotted quad value or a domain name to be resolved."""
 
-    def __init__(self, frame_id, socket_id, dest_port, dest_address_type, dest_address):
+    def __init__(self, frame_id, socket_id, dest_port, dest_address_type,
+                 dest_address, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketConnectPacket` object with the provided parameters.
 
@@ -790,6 +803,8 @@ class SocketConnectPacket(XBeeAPIPacket):
                                          :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` or
                                          :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
             dest_address (Bytearray or String): the destination address.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY`
@@ -820,7 +835,7 @@ class SocketConnectPacket(XBeeAPIPacket):
                     and (not isinstance(dest_address, str) or len(dest_address) < 1))):
             raise ValueError("Invalid destination address")
 
-        super().__init__(ApiFrameType.SOCKET_CONNECT)
+        super().__init__(ApiFrameType.SOCKET_CONNECT, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__dest_port = dest_port
@@ -870,8 +885,8 @@ class SocketConnectPacket(XBeeAPIPacket):
         if address is not None and addr_type == SocketConnectPacket.DEST_ADDRESS_STRING:
             address = address.decode(encoding="utf8", errors='ignore')
 
-        return SocketConnectPacket(
-            raw[4], raw[5], utils.bytes_to_int(raw[6:8]), addr_type, address)
+        return SocketConnectPacket(raw[4], raw[5], utils.bytes_to_int(raw[6:8]),
+                                   addr_type, address, op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -1038,7 +1053,7 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 8
 
-    def __init__(self, frame_id, socket_id, status):
+    def __init__(self, frame_id, socket_id, status, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketConnectPacket`
         object with the provided parameters.
@@ -1047,6 +1062,8 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): the ID of the socket to connect.
             status (:class:`.SocketStatus`): the socket connect status.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -1061,7 +1078,7 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
 
-        super().__init__(ApiFrameType.SOCKET_CONNECT_RESPONSE)
+        super().__init__(ApiFrameType.SOCKET_CONNECT_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__status = status
@@ -1104,7 +1121,7 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
                 message="This packet is not a Socket Connect Response packet.")
 
         return SocketConnectResponsePacket(
-            raw[4], raw[5], SocketStatus.get(raw[6]))
+            raw[4], raw[5], SocketStatus.get(raw[6]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -1203,7 +1220,7 @@ class SocketClosePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, socket_id):
+    def __init__(self, frame_id, socket_id, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketClosePacket`
         object with the provided parameters.
@@ -1211,6 +1228,8 @@ class SocketClosePacket(XBeeAPIPacket):
         Args:
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): the ID of the socket to close.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -1224,7 +1243,7 @@ class SocketClosePacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
 
-        super().__init__(ApiFrameType.SOCKET_CLOSE)
+        super().__init__(ApiFrameType.SOCKET_CLOSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
 
@@ -1263,7 +1282,7 @@ class SocketClosePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.SOCKET_CLOSE.code:
             raise InvalidPacketException(message="This packet is not a Socket Close packet.")
 
-        return SocketClosePacket(raw[4], raw[5])
+        return SocketClosePacket(raw[4], raw[5], op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -1337,7 +1356,7 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 8
 
-    def __init__(self, frame_id, socket_id, status):
+    def __init__(self, frame_id, socket_id, status, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketCloseResponsePacket`
         object with the provided parameters.
@@ -1346,6 +1365,8 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): the ID of the socket to close.
             status (:class:`.SocketStatus`): the socket close status.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -1360,7 +1381,7 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
 
-        super().__init__(ApiFrameType.SOCKET_CLOSE_RESPONSE)
+        super().__init__(ApiFrameType.SOCKET_CLOSE_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__status = status
@@ -1403,7 +1424,7 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
                 message="This packet is not a Socket Close Response packet.")
 
         return SocketCloseResponsePacket(
-            raw[4], raw[5], SocketStatus.get(raw[6]))
+            raw[4], raw[5], SocketStatus.get(raw[6]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -1509,7 +1530,7 @@ class SocketSendPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, socket_id, payload=None):
+    def __init__(self, frame_id, socket_id, payload=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketSendPacket` object
         with the provided parameters.
@@ -1518,6 +1539,8 @@ class SocketSendPacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): the socket identifier.
             payload (Bytearray, optional): data that is sent.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -1531,7 +1554,7 @@ class SocketSendPacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.SOCKET_SEND)
+        super().__init__(ApiFrameType.SOCKET_SEND, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__payload = payload
@@ -1574,7 +1597,8 @@ class SocketSendPacket(XBeeAPIPacket):
                 "This packet is not a Socket Send (transmit) packet.")
 
         return SocketSendPacket(
-            raw[4], raw[5], payload=raw[7:-1] if len(raw) > SocketSendPacket.__MIN_PACKET_LENGTH else None)
+            raw[4], raw[5], payload=raw[7:-1] if len(raw) > SocketSendPacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -1682,7 +1706,8 @@ class SocketSendToPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 14
 
-    def __init__(self, frame_id, socket_id, dest_address, dest_port, payload=None):
+    def __init__(self, frame_id, socket_id, dest_address, dest_port,
+                 payload=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketSendToPacket`
         object with the provided parameters.
@@ -1693,6 +1718,8 @@ class SocketSendToPacket(XBeeAPIPacket):
             dest_address (:class:`.IPv4Address`): IPv4 address of the destination device.
             dest_port (Integer): destination port number.
             payload (Bytearray, optional): data that is sent.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -1709,7 +1736,7 @@ class SocketSendToPacket(XBeeAPIPacket):
         if dest_port < 0 or dest_port > 65535:
             raise ValueError("Destination port must be between 0 and 65535")
 
-        super().__init__(ApiFrameType.SOCKET_SENDTO)
+        super().__init__(ApiFrameType.SOCKET_SENDTO, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__dest_address = dest_address
@@ -1757,7 +1784,8 @@ class SocketSendToPacket(XBeeAPIPacket):
 
         return SocketSendToPacket(
             raw[4], raw[5], IPv4Address(bytes(raw[6:10])), utils.bytes_to_int(raw[10:12]),
-            payload=raw[13:-1] if len(raw) > SocketSendToPacket.__MIN_PACKET_LENGTH else None)
+            payload=raw[13:-1] if len(raw) > SocketSendToPacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -1922,7 +1950,7 @@ class SocketBindListenPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 9
 
-    def __init__(self, frame_id, socket_id, source_port):
+    def __init__(self, frame_id, socket_id, source_port, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketBindListenPacket`
         object with the provided parameters.
@@ -1931,6 +1959,8 @@ class SocketBindListenPacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): socket ID to listen on.
             source_port (Integer): the port to listen on.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -1947,7 +1977,7 @@ class SocketBindListenPacket(XBeeAPIPacket):
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
-        super().__init__(ApiFrameType.SOCKET_BIND)
+        super().__init__(ApiFrameType.SOCKET_BIND, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__source_port = source_port
@@ -1990,7 +2020,7 @@ class SocketBindListenPacket(XBeeAPIPacket):
                 "This packet is not a Socket Bind/Listen packet.")
 
         return SocketBindListenPacket(
-            raw[4], raw[5], utils.bytes_to_int(raw[6:8]))
+            raw[4], raw[5], utils.bytes_to_int(raw[6:8]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -2091,7 +2121,7 @@ class SocketListenResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 8
 
-    def __init__(self, frame_id, socket_id, status):
+    def __init__(self, frame_id, socket_id, status, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketListenResponsePacket`
         object with the provided parameters.
@@ -2100,6 +2130,8 @@ class SocketListenResponsePacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): socket ID.
             status (:class:`.SocketStatus`): socket listen status.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -2114,7 +2146,7 @@ class SocketListenResponsePacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.SOCKET_LISTEN_RESPONSE)
+        super().__init__(ApiFrameType.SOCKET_LISTEN_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__status = status
@@ -2157,7 +2189,7 @@ class SocketListenResponsePacket(XBeeAPIPacket):
                 "This packet is not a Socket Listen Response packet.")
 
         return SocketListenResponsePacket(
-            raw[4], raw[5], SocketStatus.get(raw[6]))
+            raw[4], raw[5], SocketStatus.get(raw[6]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -2261,7 +2293,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 13
 
-    def __init__(self, socket_id, client_socket_id, remote_address, remote_port):
+    def __init__(self, socket_id, client_socket_id, remote_address,
+                 remote_port, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketNewIPv4ClientPacket`
         object with the provided parameters.
@@ -2271,6 +2304,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
             client_socket_id (Integer): the socket ID of the new connection.
             remote_address (:class:`.IPv4Address`): the remote IPv4 address.
             remote_port (Integer): the remote port number.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `socket_id` is less than 0 or greater than 255.
@@ -2287,7 +2322,7 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         if remote_port < 0 or remote_port > 65535:
             raise ValueError("Remote port must be between 0 and 65535")
 
-        super().__init__(ApiFrameType.SOCKET_NEW_IPV4_CLIENT)
+        super().__init__(ApiFrameType.SOCKET_NEW_IPV4_CLIENT, op_mode=op_mode)
         self.__socket_id = socket_id
         self.__client_socket_id = client_socket_id
         self.__remote_address = remote_address
@@ -2331,9 +2366,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 "This packet is not a Socket New IPv4 Client packet.")
 
-        return SocketNewIPv4ClientPacket(raw[4], raw[5],
-                                         IPv4Address(bytes(raw[6:10])),
-                                         utils.bytes_to_int(raw[10:12]))
+        return SocketNewIPv4ClientPacket(raw[4], raw[5], IPv4Address(bytes(raw[6:10])),
+                                         utils.bytes_to_int(raw[10:12]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -2484,7 +2518,7 @@ class SocketReceivePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, socket_id, payload=None):
+    def __init__(self, frame_id, socket_id, payload=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketReceivePacket`
         object with the provided parameters.
@@ -2493,6 +2527,8 @@ class SocketReceivePacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): the ID of the socket the data has been received on.
             payload (Bytearray, optional): data that is received.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -2506,7 +2542,7 @@ class SocketReceivePacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.SOCKET_RECEIVE)
+        super().__init__(ApiFrameType.SOCKET_RECEIVE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__payload = payload
@@ -2549,7 +2585,9 @@ class SocketReceivePacket(XBeeAPIPacket):
                 "This packet is not a Socket Receive packet.")
 
         return SocketReceivePacket(
-            raw[4], raw[5], payload=raw[7:-1] if len(raw) > SocketReceivePacket.__MIN_PACKET_LENGTH else None)
+            raw[4], raw[5],
+            payload=raw[7:-1] if len(raw) > SocketReceivePacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -2651,7 +2689,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 14
 
-    def __init__(self, frame_id, socket_id, source_address, source_port, payload=None):
+    def __init__(self, frame_id, socket_id, source_address, source_port,
+                 payload=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketReceiveFromPacket`
         object with the provided parameters.
@@ -2662,6 +2701,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             source_address (:class:`.IPv4Address`): IPv4 address of the source device.
             source_port (Integer): source port number.
             payload (Bytearray, optional): data that is received.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -2678,7 +2719,7 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
-        super().__init__(ApiFrameType.SOCKET_RECEIVE_FROM)
+        super().__init__(ApiFrameType.SOCKET_RECEIVE_FROM, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__source_address = source_address
@@ -2724,9 +2765,9 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
                 "This packet is not a Socket Receive From packet.")
 
         return SocketReceiveFromPacket(
-            raw[4], raw[5], IPv4Address(bytes(raw[6:10])),
-            utils.bytes_to_int(raw[10:12]),
-            payload=raw[13:-1] if len(raw) > SocketReceiveFromPacket.__MIN_PACKET_LENGTH else None)
+            raw[4], raw[5], IPv4Address(bytes(raw[6:10])), utils.bytes_to_int(raw[10:12]),
+            payload=raw[13:-1] if len(raw) > SocketReceiveFromPacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -2881,7 +2922,7 @@ class SocketStatePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, socket_id, state):
+    def __init__(self, socket_id, state, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketStatePacket`
         object with the provided parameters.
@@ -2889,6 +2930,8 @@ class SocketStatePacket(XBeeAPIPacket):
         Args:
             socket_id (Integer): the socket identifier.
             state (:class:`.SocketState`): socket status.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `socket_id` is less than 0 or greater than 255.
@@ -2900,7 +2943,7 @@ class SocketStatePacket(XBeeAPIPacket):
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.SOCKET_STATE)
+        super().__init__(ApiFrameType.SOCKET_STATE, op_mode=op_mode)
         self.__socket_id = socket_id
         self.__state = state
 
@@ -2941,7 +2984,7 @@ class SocketStatePacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 "This packet is not a Socket State packet.")
 
-        return SocketStatePacket(raw[4], SocketState.get(raw[5]))
+        return SocketStatePacket(raw[4], SocketState.get(raw[5]), op_mode=operating_mode)
 
     def needs_id(self):
         """

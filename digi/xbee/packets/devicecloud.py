@@ -36,7 +36,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 9
 
-    def __init__(self, request_id, target=None, request_data=None):
+    def __init__(self, request_id, target=None, request_data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.DeviceRequestPacket`
         object with the provided parameters.
@@ -45,7 +45,9 @@ class DeviceRequestPacket(XBeeAPIPacket):
             request_id (Integer): number that identifies the device request.
                 (0 has no special meaning)
             target (String): device request target.
-            request_data (Bytearray, optional): data of the request. Optional.
+            request_data (Bytearray, optional): data of the request.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `request_id` is less than 0 or greater than 255.
@@ -60,7 +62,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
         if target is not None and len(target) > 255:
             raise ValueError("Target length cannot exceed 255 bytes.")
 
-        super().__init__(ApiFrameType.DEVICE_REQUEST)
+        super().__init__(ApiFrameType.DEVICE_REQUEST, op_mode=op_mode)
         self.__request_id = request_id
         self.__transport = 0x00  # Reserved.
         self.__flags = 0x00  # Reserved.
@@ -106,7 +108,8 @@ class DeviceRequestPacket(XBeeAPIPacket):
 
         return DeviceRequestPacket(
             raw[4], target=raw[8:8 + target_length].decode("utf8"),
-            request_data=raw[8 + target_length:-1] if len(raw) > DeviceRequestPacket.__MIN_PACKET_LENGTH else None)
+            request_data=raw[8 + target_length:-1] if len(raw) > DeviceRequestPacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -262,7 +265,7 @@ class DeviceResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 8
 
-    def __init__(self, frame_id, request_id, response_data=None):
+    def __init__(self, frame_id, request_id, response_data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.DeviceResponsePacket`
         object with the provided parameters.
@@ -271,7 +274,9 @@ class DeviceResponsePacket(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             request_id (Integer): device Request ID. This number should match the device request ID in the
                 device request. Otherwise, an error will occur. (0 has no special meaning)
-            response_data (Bytearray, optional): data of the response. Optional.
+            response_data (Bytearray, optional): data of the response.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -285,7 +290,7 @@ class DeviceResponsePacket(XBeeAPIPacket):
         if request_id < 0 or request_id > 255:
             raise ValueError("Device request ID must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.DEVICE_RESPONSE)
+        super().__init__(ApiFrameType.DEVICE_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__request_id = request_id
         self.__response_data = response_data
@@ -325,8 +330,10 @@ class DeviceResponsePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.DEVICE_RESPONSE.code:
             raise InvalidPacketException(message="This packet is not a device response packet.")
 
-        return DeviceResponsePacket(raw[4], raw[5],
-                                    response_data=raw[7:-1] if len(raw) > DeviceResponsePacket.__MIN_PACKET_LENGTH else None)
+        return DeviceResponsePacket(
+            raw[4], raw[5],
+            response_data=raw[7:-1] if len(raw) > DeviceResponsePacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -428,7 +435,7 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, status):
+    def __init__(self, frame_id, status, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.DeviceResponseStatusPacket` object with the provided parameters.
 
@@ -446,7 +453,7 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.DEVICE_RESPONSE_STATUS)
+        super().__init__(ApiFrameType.DEVICE_RESPONSE_STATUS, op_mode=op_mode)
         self._frame_id = frame_id
         self.__status = status
 
@@ -485,7 +492,8 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.DEVICE_RESPONSE_STATUS.code:
             raise InvalidPacketException(message="This packet is not a device response status packet.")
 
-        return DeviceResponseStatusPacket(raw[4], DeviceCloudStatus.get(raw[5]))
+        return DeviceResponseStatusPacket(
+            raw[4], DeviceCloudStatus.get(raw[5]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -555,19 +563,21 @@ class FrameErrorPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 6
 
-    def __init__(self, frame_error):
+    def __init__(self, frame_error, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.FrameErrorPacket` object
         with the provided parameters.
 
         Args:
             frame_error (:class:`.FrameError`): the frame error.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.FrameError`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.FRAME_ERROR)
+        super().__init__(ApiFrameType.FRAME_ERROR, op_mode=op_mode)
         self.__frame_error = frame_error
 
     @staticmethod
@@ -605,7 +615,7 @@ class FrameErrorPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.FRAME_ERROR.code:
             raise InvalidPacketException(message="This packet is not a frame error packet.")
 
-        return FrameErrorPacket(FrameError.get(raw[4]))
+        return FrameErrorPacket(FrameError.get(raw[4]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -679,7 +689,8 @@ class SendDataRequestPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 10
 
-    def __init__(self, frame_id, path, content_type, options, file_data=None):
+    def __init__(self, frame_id, path, content_type, options, file_data=None,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SendDataRequestPacket`
         object with the provided parameters.
@@ -689,7 +700,9 @@ class SendDataRequestPacket(XBeeAPIPacket):
             path (String): path of the file to upload to Device Cloud.
             content_type (String): content type of the file to upload.
             options (:class:`.SendDataRequestOptions`): the action when uploading a file.
-            file_data (Bytearray, optional): data of the file to upload. Optional.
+            file_data (Bytearray, optional): data of the file to upload.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -700,7 +713,7 @@ class SendDataRequestPacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.SEND_DATA_REQUEST)
+        super().__init__(ApiFrameType.SEND_DATA_REQUEST, op_mode=op_mode)
         self._frame_id = frame_id
         self.__path = path
         self.__content_type = content_type
@@ -746,11 +759,11 @@ class SendDataRequestPacket(XBeeAPIPacket):
 
         path_length = raw[5]
         content_type_length = raw[6 + path_length]
-        return SendDataRequestPacket(raw[4],
-                                     raw[6:6 + path_length].decode("utf8"),
-                                     raw[6 + path_length + 1:6 + path_length + 1 + content_type_length].decode("utf8"),
-                                     SendDataRequestOptions.get(raw[6 + path_length + 2 + content_type_length]),
-                                     file_data=raw[6 + path_length + 3 + content_type_length:-1])
+        return SendDataRequestPacket(
+            raw[4], raw[6:6 + path_length].decode("utf8"),
+            raw[6 + path_length + 1:6 + path_length + 1 + content_type_length].decode("utf8"),
+            SendDataRequestOptions.get(raw[6 + path_length + 2 + content_type_length]),
+            file_data=raw[6 + path_length + 3 + content_type_length:-1], op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -907,7 +920,7 @@ class SendDataResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, status):
+    def __init__(self, frame_id, status, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SendDataResponsePacket`
         object with the provided parameters.
@@ -915,6 +928,8 @@ class SendDataResponsePacket(XBeeAPIPacket):
         Args:
             frame_id (Integer): the frame ID of the packet.
             status (:class:`.DeviceCloudStatus`): the file upload status.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -926,7 +941,7 @@ class SendDataResponsePacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.SEND_DATA_RESPONSE)
+        super().__init__(ApiFrameType.SEND_DATA_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__status = status
 
@@ -965,7 +980,7 @@ class SendDataResponsePacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.SEND_DATA_RESPONSE.code:
             raise InvalidPacketException(message="This packet is not a send data response packet.")
 
-        return SendDataResponsePacket(raw[4], DeviceCloudStatus.get(raw[5]))
+        return SendDataResponsePacket(raw[4], DeviceCloudStatus.get(raw[5]), op_mode=operating_mode)
 
     def needs_id(self):
         """

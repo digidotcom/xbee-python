@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -49,7 +49,7 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 17
 
-    def __init__(self, frame_id, registrant_address, options, key):
+    def __init__(self, frame_id, registrant_address, options, key, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.RegisterJoiningDevicePacket` object with the
@@ -64,6 +64,8 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
             key (Bytearray): key of the device to register. Up to 16 bytes if
                 entering a Link Key or up to 18 bytes
                 (16-byte code + 2 byte CRC) if entering an Install Code.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -76,7 +78,7 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.REGISTER_JOINING_DEVICE)
+        super().__init__(ApiFrameType.REGISTER_JOINING_DEVICE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__registrant_address = registrant_address
         self.__options = options
@@ -124,7 +126,7 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
 
         return RegisterJoiningDevicePacket(raw[4], XBee64BitAddress(raw[5:13]),
                                            RegisterKeyOptions.get(raw[15]),
-                                           raw[16:-1])
+                                           raw[16:-1], op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -260,7 +262,7 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, status):
+    def __init__(self, frame_id, status, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.RegisterDeviceStatusPacket` object with the
@@ -270,6 +272,8 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
             frame_id (integer): the frame ID of the packet.
             status (:class:`.ZigbeeRegisterStatus`): status of the register
                 device operation.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -281,7 +285,7 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.REGISTER_JOINING_DEVICE_STATUS)
+        super().__init__(ApiFrameType.REGISTER_JOINING_DEVICE_STATUS, op_mode=op_mode)
         self._frame_id = frame_id
         self.__status = status
 
@@ -324,7 +328,7 @@ class RegisterDeviceStatusPacket(XBeeAPIPacket):
                 "This packet is not a Register Device Status packet.")
 
         return RegisterDeviceStatusPacket(
-            raw[4], ZigbeeRegisterStatus.get(raw[5]))
+            raw[4], ZigbeeRegisterStatus.get(raw[5]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -401,7 +405,8 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 17
 
-    def __init__(self, x64bit_addr, x16bit_addr, receive_options, hops=None):
+    def __init__(self, x64bit_addr, x16bit_addr, receive_options, hops=None,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.RouteRecordIndicatorPacket` object with the provided
@@ -414,6 +419,8 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
             hops (List, optional, default=`None`): List of 16-bit address of
                 intermediate hops in the source route (excluding source and
                 destination).
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.ReceiveOptions`
@@ -421,7 +428,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
            | :class:`.XBee64BitAddress`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.ROUTE_RECORD_INDICATOR)
+        super().__init__(ApiFrameType.ROUTE_RECORD_INDICATOR, op_mode=op_mode)
 
         self.__x64_addr = x64bit_addr
         self.__x16_addr = x16bit_addr
@@ -478,7 +485,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
 
         return RouteRecordIndicatorPacket(
             XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]),
-            raw[14], hops)
+            raw[14], hops, op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -668,7 +675,8 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 18
 
-    def __init__(self, frame_id, x64bit_addr, x16bit_addr, route_options=0, hops=None):
+    def __init__(self, frame_id, x64bit_addr, x16bit_addr, route_options=0,
+                 hops=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.CreateSourceRoutePacket`
         object with the provided parameters.
@@ -681,6 +689,8 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
             hops (List, optional, default=`None`): List of 16-bit addresses of
                 intermediate hops in the source route (excluding source and
                 destination).
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBee16BitAddress`
@@ -690,7 +700,7 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.CREATE_SOURCE_ROUTE)
+        super().__init__(ApiFrameType.CREATE_SOURCE_ROUTE, op_mode=op_mode)
 
         self._frame_id = frame_id
         self.__x64_addr = x64bit_addr
@@ -748,7 +758,7 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
 
         return CreateSourceRoutePacket(
             raw[4], XBee64BitAddress(raw[5:13]), XBee16BitAddress(raw[13:15]),
-            raw[15], hops)
+            raw[15], hops, op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -926,7 +936,7 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
     __MIN_PACKET_LENGTH = 26
 
     def __init__(self, source_address_64, updater_address_16, receive_options,
-                 message_type, block_number, target_address_64):
+                 message_type, block_number, target_address_64, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.OTAFirmwareUpdateStatusPacket` object with the
@@ -939,6 +949,8 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
             message_type (:class:`.EmberBootloaderMessageType`): Ember bootloader message type
             block_number (Integer): block number used in the update request.
             target_address_64 (:class:`.XBee64BitAddress`): the 64-bit address of the device that is being updated.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -947,7 +959,7 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
            | :class:`.ReceiveOptions`
            | :class:`.EmberBootloaderMessageType`
         """
-        super().__init__(ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS)
+        super().__init__(ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS, op_mode=op_mode)
         self.__source_x64bit_addr = source_address_64
         self.__updater_x16bit_addr = updater_address_16
         self.__receive_options = receive_options
@@ -997,7 +1009,8 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
 
         return OTAFirmwareUpdateStatusPacket(
             XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]), raw[14],
-            EmberBootloaderMessageType.get(raw[15]), raw[16], XBee64BitAddress(raw[17:25]))
+            EmberBootloaderMessageType.get(raw[15]), raw[16], XBee64BitAddress(raw[17:25]),
+            op_mode=operating_mode)
 
     def needs_id(self):
         """

@@ -36,7 +36,7 @@ class RouteInformationPacket(XBeeAPIPacket):
 
     def __init__(self, src_event, timestamp, ack_timeout_count, tx_block_count,
                  dst_addr, src_addr, responder_addr, successor_addr,
-                 additional_data=None):
+                 additional_data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.RouteInformationPacket` object with the provided
@@ -63,6 +63,8 @@ class RouteInformationPacket(XBeeAPIPacket):
                 the successor node.
             additional_data (Bytearray, optional, default=`None`): Additional
                 data of the packet.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `src_event` is not 0x11 or 0x12.
@@ -83,7 +85,7 @@ class RouteInformationPacket(XBeeAPIPacket):
         if tx_block_count < 0 or tx_block_count > 0xFF:  # 1 byte
             raise ValueError("TX blocked count must be between 0 and 255")
 
-        super().__init__(ApiFrameType.DIGIMESH_ROUTE_INFORMATION)
+        super().__init__(ApiFrameType.DIGIMESH_ROUTE_INFORMATION, op_mode=op_mode)
 
         self.__src_event = src_event
         self.__timestamp = timestamp
@@ -148,13 +150,11 @@ class RouteInformationPacket(XBeeAPIPacket):
         additional_data = []
         if len(raw) > RouteInformationPacket.__MIN_PACKET_LENGTH:
             additional_data = raw[45:]
-        packet = RouteInformationPacket(raw[4], utils.bytes_to_int(raw[6:10]),
-                                        raw[10], raw[11],
-                                        XBee64BitAddress(raw[13:21]),
-                                        XBee64BitAddress(raw[21:29]),
-                                        XBee64BitAddress(raw[29:37]),
-                                        XBee64BitAddress(raw[37:45]),
-                                        additional_data)
+        packet = RouteInformationPacket(
+            raw[4], utils.bytes_to_int(raw[6:10]), raw[10], raw[11],
+            XBee64BitAddress(raw[13:21]), XBee64BitAddress(raw[21:29]),
+            XBee64BitAddress(raw[29:37]), XBee64BitAddress(raw[37:45]),
+            additional_data, op_mode=operating_mode)
         packet._reserved = raw[12]
 
         return packet

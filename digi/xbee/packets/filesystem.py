@@ -1,4 +1,4 @@
-# Copyright 2020, Digi International Inc.
+# Copyright 2020, 2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -44,7 +44,7 @@ class FSRequestPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, command):
+    def __init__(self, frame_id, command, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.FSRequestPacket`
         object with the provided parameters.
@@ -53,6 +53,8 @@ class FSRequestPacket(XBeeAPIPacket):
             frame_id (Integer): Frame ID of the packet.
             command (:class:`.FSCmd` or bytearray): File system command to
                 execute.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: If `frame_id` is less than 0 or greater than 255.
@@ -70,7 +72,7 @@ class FSRequestPacket(XBeeAPIPacket):
                 "Command must be a bytearray or a FSCmd, "
                 "not {!r}".format(command.__class__.__name__))
 
-        super().__init__(ApiFrameType.FILE_SYSTEM_REQUEST)
+        super().__init__(ApiFrameType.FILE_SYSTEM_REQUEST, op_mode=op_mode)
 
         self._frame_id = frame_id
 
@@ -116,7 +118,7 @@ class FSRequestPacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 message="This packet is not a File System request packet.")
 
-        return FSRequestPacket(raw[4], raw[5:-1])
+        return FSRequestPacket(raw[4], raw[5:-1], op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -190,7 +192,7 @@ class FSResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 8
 
-    def __init__(self, frame_id, command):
+    def __init__(self, frame_id, command, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.FSResponsePacket`
         object with the provided parameters.
@@ -199,6 +201,8 @@ class FSResponsePacket(XBeeAPIPacket):
             frame_id (Integer): The frame ID of the packet.
             command (:class:`.FSCmd` or bytearray): File system command to
                 execute.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: If `frame_id` is less than 0 or greater than 255.
@@ -216,7 +220,7 @@ class FSResponsePacket(XBeeAPIPacket):
                 "Command must be a bytearray or a FSCmd, "
                 "not {!r}".format(command.__class__.__name__))
 
-        super().__init__(ApiFrameType.FILE_SYSTEM_RESPONSE)
+        super().__init__(ApiFrameType.FILE_SYSTEM_RESPONSE, op_mode=op_mode)
 
         self._frame_id = frame_id
 
@@ -262,7 +266,7 @@ class FSResponsePacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 message="This packet is not a File System response packet.")
 
-        return FSResponsePacket(raw[4], raw[5:-1])
+        return FSResponsePacket(raw[4], raw[5:-1], op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -344,7 +348,7 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
     __MIN_PACKET_LENGTH = 16
 
     def __init__(self, frame_id, x64bit_addr, command,
-                 transmit_options=TransmitOptions.NONE.value):
+                 transmit_options=TransmitOptions.NONE.value, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.RemoteFSRequestPacket`
         object with the provided parameters.
@@ -356,6 +360,8 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
                 execute.
             transmit_options (Integer, optional, default=`TransmitOptions.NONE.value`): Bitfield of
                 supported transmission options.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: If `frame_id` is less than 0 or greater than 255.
@@ -378,7 +384,7 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
                 "Command must be a bytearray or a FSCmd, "
                 "not {!r}".format(command.__class__.__name__))
 
-        super().__init__(ApiFrameType.REMOTE_FILE_SYSTEM_REQUEST)
+        super().__init__(ApiFrameType.REMOTE_FILE_SYSTEM_REQUEST, op_mode=op_mode)
 
         self._frame_id = frame_id
 
@@ -429,7 +435,7 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
                 message="This packet is not a Remote File System request packet.")
 
         return RemoteFSRequestPacket(raw[4], XBee64BitAddress(raw[5:13]),
-                                     raw[14:-1], transmit_options=raw[13])
+                                     raw[14:-1], transmit_options=raw[13], op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -564,7 +570,8 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 17
 
-    def __init__(self, frame_id, x64bit_addr, command, receive_options):
+    def __init__(self, frame_id, x64bit_addr, command, receive_options,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.RemoteFSResponsePacket`
         object with the provided parameters.
@@ -575,6 +582,8 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
             command (:class:`.FSCmd` or bytearray): File system command to
                 execute.
             receive_options (Integer): Bitfield indicating the receive options.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: If `frame_id` is less than 0 or greater than 255.
@@ -596,7 +605,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
                 "Command must be a bytearray or a FSCmd, "
                 "not {!r}".format(command.__class__.__name__))
 
-        super().__init__(ApiFrameType.REMOTE_FILE_SYSTEM_RESPONSE)
+        super().__init__(ApiFrameType.REMOTE_FILE_SYSTEM_RESPONSE, op_mode=op_mode)
 
         self._frame_id = frame_id
 
@@ -647,7 +656,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
                 message="This packet is not a Remote File System response packet.")
 
         return RemoteFSResponsePacket(raw[4], XBee64BitAddress(raw[5:13]),
-                                      raw[14:-1], raw[13])
+                                      raw[14:-1], raw[13], op_mode=operating_mode)
 
     def needs_id(self):
         """

@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -38,7 +38,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, local_interface, data=None):
+    def __init__(self, frame_id, local_interface, data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.UserDataRelayPacket`
         object with the provided parameters.
@@ -47,6 +47,8 @@ class UserDataRelayPacket(XBeeAPIPacket):
             frame_id (integer): the frame ID of the packet.
             local_interface (:class:`.XBeeLocalInterface`): the destination interface.
             data (Bytearray, optional): Data to send to the destination interface.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.XBeeAPIPacket`
@@ -61,7 +63,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
         if frame_id > 255 or frame_id < 0:
             raise ValueError("frame_id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.USER_DATA_RELAY_REQUEST)
+        super().__init__(ApiFrameType.USER_DATA_RELAY_REQUEST, op_mode=op_mode)
         self._frame_id = frame_id
         self.__local_interface = local_interface
         self.__data = data
@@ -101,8 +103,10 @@ class UserDataRelayPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.USER_DATA_RELAY_REQUEST.code:
             raise InvalidPacketException(message="This packet is not a user data relay packet.")
 
-        return UserDataRelayPacket(raw[4], XBeeLocalInterface.get(raw[5]),
-                                   data=raw[6:-1] if len(raw) > UserDataRelayPacket.__MIN_PACKET_LENGTH else None)
+        return UserDataRelayPacket(
+            raw[4], XBeeLocalInterface.get(raw[5]),
+            data=raw[6:-1] if len(raw) > UserDataRelayPacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -206,7 +210,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 6
 
-    def __init__(self, local_interface, data=None):
+    def __init__(self, local_interface, data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.UserDataRelayOutputPacket` object with the provided
@@ -215,6 +219,8 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         Args:
             local_interface (:class:`.XBeeLocalInterface`): the source interface.
             data (Bytearray, optional): Data received from the source interface.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `local_interface` is `None`.
@@ -226,7 +232,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         if local_interface is None:
             raise ValueError("Source interface cannot be None")
 
-        super().__init__(ApiFrameType.USER_DATA_RELAY_OUTPUT)
+        super().__init__(ApiFrameType.USER_DATA_RELAY_OUTPUT, op_mode=op_mode)
         self.__local_interface = local_interface
         self.__data = data
 
@@ -267,8 +273,10 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
             raise InvalidPacketException(
                 message="This packet is not a user data relay output packet.")
 
-        return UserDataRelayOutputPacket(XBeeLocalInterface.get(raw[4]),
-                                         data=raw[5:-1] if len(raw) > UserDataRelayOutputPacket.__MIN_PACKET_LENGTH else None)
+        return UserDataRelayOutputPacket(
+            XBeeLocalInterface.get(raw[4]),
+            data=raw[5:-1] if len(raw) > UserDataRelayOutputPacket.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
 
     def needs_id(self):
         """

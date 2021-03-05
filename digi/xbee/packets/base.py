@@ -136,10 +136,17 @@ class XBeePacket:
     __ESCAPE_FACTOR = 0x20
     ESCAPE_BYTE = SpecialByte.ESCAPE_BYTE.code
 
-    def __init__(self):
+    def __init__(self, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.XBeePacket` object.
+
+        Args:
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
         """
+        self._op_mode = op_mode
+        if op_mode not in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
+            self._op_mode = OperatingMode.API_MODE
 
     def __len__(self):
         """
@@ -188,6 +195,16 @@ class XBeePacket:
         for byte in self.output():
             res = 31 * (res + byte)
         return res
+
+    @property
+    def op_mode(self):
+        """
+        Retrieves the operating mode in which this packet was read.
+
+        Returns:
+             :class:`.OperatingMode`: The operating mode.
+        """
+        return self._op_mode
 
     def get_checksum(self):
         """
@@ -354,7 +371,7 @@ class XBeeAPIPacket(XBeePacket):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, api_frame_type):
+    def __init__(self, api_frame_type, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.XBeeAPIPacket` object
         with the provided parameters.
@@ -362,12 +379,14 @@ class XBeeAPIPacket(XBeePacket):
         Args:
             api_frame_type (:class:`.ApiFrameType` or Integer): The API frame
                 type.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.ApiFrameType`
            | :class:`.XBeePacket`
         """
-        super().__init__()
+        super().__init__(op_mode=op_mode)
         # Check the type of the API frame type.
         if isinstance(api_frame_type, ApiFrameType):
             self._frame_type = api_frame_type
@@ -546,7 +565,7 @@ class GenericXBeePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 5
 
-    def __init__(self, rf_data):
+    def __init__(self, rf_data, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a :class:`.GenericXBeePacket` object
         with the provided parameters.
@@ -554,13 +573,15 @@ class GenericXBeePacket(XBeeAPIPacket):
         Args:
             rf_data (bytearray): the frame specific data without frame type and
                 frame ID.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :mod:`.factory`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(api_frame_type=ApiFrameType.GENERIC)
         self.__rf_data = rf_data
+        super().__init__(api_frame_type=ApiFrameType.GENERIC, op_mode=op_mode)
 
     @staticmethod
     def create_packet(raw, operating_mode=OperatingMode.API_MODE):
@@ -598,7 +619,7 @@ class GenericXBeePacket(XBeeAPIPacket):
                 message="Wrong frame type, expected: %s. Value %d" %
                 (ApiFrameType.GENERIC.description, ApiFrameType.GENERIC.code))
 
-        return GenericXBeePacket(raw[4:-1])
+        return GenericXBeePacket(raw[4:-1], op_mode=operating_mode)
 
     def _get_api_packet_spec_data(self):
         """
@@ -638,7 +659,7 @@ class UnknownXBeePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 5
 
-    def __init__(self, api_frame, rf_data):
+    def __init__(self, api_frame, rf_data, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a :class:`.UnknownXBeePacket` object
         with the provided parameters.
@@ -646,12 +667,14 @@ class UnknownXBeePacket(XBeeAPIPacket):
         Args:
             api_frame (Integer): the API frame integer value of this packet.
             rf_data (bytearray): the frame specific data without frame type and frame ID.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :mod:`.factory`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(api_frame_type=api_frame)
+        super().__init__(api_frame_type=api_frame, op_mode=op_mode)
         self.__rf_data = rf_data
 
     @staticmethod
@@ -683,7 +706,7 @@ class UnknownXBeePacket(XBeeAPIPacket):
 
         XBeeAPIPacket._check_api_packet(raw, min_length=UnknownXBeePacket.__MIN_PACKET_LENGTH)
 
-        return UnknownXBeePacket(raw[3], raw[4:-1])
+        return UnknownXBeePacket(raw[3], raw[4:-1], op_mode=operating_mode)
 
     def _get_api_packet_spec_data(self):
         """

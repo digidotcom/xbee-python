@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -36,7 +36,8 @@ class TX64Packet(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 15
 
-    def __init__(self, frame_id, x64bit_addr, transmit_options, rf_data=None):
+    def __init__(self, frame_id, x64bit_addr, transmit_options, rf_data=None,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.TX64Packet` object with
         the provided parameters.
@@ -45,7 +46,9 @@ class TX64Packet(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit destination address.
             transmit_options (Integer): bitfield of supported transmission options.
-            rf_data (Bytearray, optional): RF data that is sent to the destination device. Optional.
+            rf_data (Bytearray, optional): RF data that is sent to the destination device.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.TransmitOptions`
@@ -58,7 +61,7 @@ class TX64Packet(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.TX_64)
+        super().__init__(ApiFrameType.TX_64, op_mode=op_mode)
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__transmit_options = transmit_options
@@ -100,7 +103,8 @@ class TX64Packet(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not a TX 64 packet.")
 
         return TX64Packet(raw[4], XBee64BitAddress(raw[5:13]), raw[13],
-                          rf_data=raw[14:-1] if len(raw) > TX64Packet.__MIN_PACKET_LENGTH else None)
+                          rf_data=raw[14:-1] if len(raw) > TX64Packet.__MIN_PACKET_LENGTH else None,
+                          op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -227,7 +231,8 @@ class TX16Packet(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 9
 
-    def __init__(self, frame_id, x16bit_addr, transmit_options, rf_data=None):
+    def __init__(self, frame_id, x16bit_addr, transmit_options, rf_data=None,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.TX16Packet` object with
         the provided parameters.
@@ -236,7 +241,9 @@ class TX16Packet(XBeeAPIPacket):
             frame_id (Integer): the frame ID of the packet.
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit destination address.
             transmit_options (Integer): bitfield of supported transmission options.
-            rf_data (Bytearray, optional): RF data that is sent to the destination device. Optional.
+            rf_data (Bytearray, optional): RF data that is sent to the destination device.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.TransmitOptions`
@@ -249,7 +256,7 @@ class TX16Packet(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.TX_16)
+        super().__init__(ApiFrameType.TX_16, op_mode=op_mode)
         self._frame_id = frame_id
         self.__x16bit_addr = x16bit_addr
         self.__transmit_options = transmit_options
@@ -291,7 +298,8 @@ class TX16Packet(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not a TX 16 packet.")
 
         return TX16Packet(raw[4], XBee16BitAddress(raw[5:7]), raw[7],
-                          rf_data=raw[8:-1] if len(raw) > TX16Packet.__MIN_PACKET_LENGTH else None)
+                          rf_data=raw[8:-1] if len(raw) > TX16Packet.__MIN_PACKET_LENGTH else None,
+                          op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -421,14 +429,16 @@ class TXStatusPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, transmit_status):
+    def __init__(self, frame_id, transmit_status, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.TXStatusPacket` object
         with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
-            transmit_status (:class:`.TransmitStatus`): transmit status. Default: SUCCESS.
+            transmit_status (:class:`.TransmitStatus`): transmit status.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         Raises:
             ValueError: if `frame_id` is less than 0 or greater than 255.
@@ -440,7 +450,7 @@ class TXStatusPacket(XBeeAPIPacket):
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
 
-        super().__init__(ApiFrameType.TX_STATUS)
+        super().__init__(ApiFrameType.TX_STATUS, op_mode=op_mode)
         self._frame_id = frame_id
         self.__transmit_status = transmit_status
 
@@ -479,7 +489,7 @@ class TXStatusPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.TX_STATUS.code:
             raise InvalidPacketException(message="This packet is not a TX status packet.")
 
-        return TXStatusPacket(raw[4], TransmitStatus.get(raw[5]))
+        return TXStatusPacket(raw[4], TransmitStatus.get(raw[5]), op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -553,7 +563,8 @@ class RX64Packet(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 15
 
-    def __init__(self, x64bit_addr, rssi, receive_options, rf_data=None):
+    def __init__(self, x64bit_addr, rssi, receive_options, rf_data=None,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a :class:`.RX64Packet` object with the
         provided parameters.
@@ -562,7 +573,9 @@ class RX64Packet(XBeeAPIPacket):
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit source address.
             rssi (Integer): received signal strength indicator.
             receive_options (Integer): bitfield indicating the receive options.
-            rf_data (Bytearray, optional): received RF data. Optional.
+            rf_data (Bytearray, optional): received RF data.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.ReceiveOptions`
@@ -570,7 +583,7 @@ class RX64Packet(XBeeAPIPacket):
            | :class:`.XBeeAPIPacket`
         """
 
-        super().__init__(ApiFrameType.RX_64)
+        super().__init__(ApiFrameType.RX_64, op_mode=op_mode)
 
         self.__x64bit_addr = x64bit_addr
         self.__rssi = rssi
@@ -613,7 +626,8 @@ class RX64Packet(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not an RX 64 packet.")
 
         return RX64Packet(XBee64BitAddress(raw[4:12]), raw[12], raw[13],
-                          rf_data=raw[14:-1] if len(raw) > RX64Packet.__MIN_PACKET_LENGTH else None)
+                          rf_data=raw[14:-1] if len(raw) > RX64Packet.__MIN_PACKET_LENGTH else None,
+                          op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -776,7 +790,8 @@ class RX16Packet(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 9
 
-    def __init__(self, x16bit_addr, rssi, receive_options, rf_data=None):
+    def __init__(self, x16bit_addr, rssi, receive_options, rf_data=None,
+                 op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a :class:`.RX16Packet` object with the
         provided parameters.
@@ -785,7 +800,9 @@ class RX16Packet(XBeeAPIPacket):
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit source address.
             rssi (Integer): received signal strength indicator.
             receive_options (Integer): bitfield indicating the receive options.
-            rf_data (Bytearray, optional): received RF data. Optional.
+            rf_data (Bytearray, optional): received RF data.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.ReceiveOptions`
@@ -793,7 +810,7 @@ class RX16Packet(XBeeAPIPacket):
            | :class:`.XBeeAPIPacket`
         """
 
-        super().__init__(ApiFrameType.RX_16)
+        super().__init__(ApiFrameType.RX_16, op_mode=op_mode)
 
         self.__x16bit_addr = x16bit_addr
         self.__rssi = rssi
@@ -836,7 +853,8 @@ class RX16Packet(XBeeAPIPacket):
             raise InvalidPacketException(message="This packet is not an RX 16 Packet")
 
         return RX16Packet(XBee16BitAddress(raw[4:6]), raw[6], raw[7],
-                          rf_data=raw[8:-1] if len(raw) > RX16Packet.__MIN_PACKET_LENGTH else None)
+                          rf_data=raw[8:-1] if len(raw) > RX16Packet.__MIN_PACKET_LENGTH else None,
+                          op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -995,7 +1013,7 @@ class RX64IOPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 20
 
-    def __init__(self, x64bit_addr, rssi, receive_options, rf_data):
+    def __init__(self, x64bit_addr, rssi, receive_options, rf_data, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates an :class:`.RX64IOPacket` object with
         the provided parameters.
@@ -1005,13 +1023,15 @@ class RX64IOPacket(XBeeAPIPacket):
             rssi (Integer): received signal strength indicator.
             receive_options (Integer): bitfield indicating the receive options.
             rf_data (Bytearray): received RF data.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.ReceiveOptions`
            | :class:`.XBee64BitAddress`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.RX_IO_64)
+        super().__init__(ApiFrameType.RX_IO_64, op_mode=op_mode)
         self.__x64bit_addr = x64bit_addr
         self.__rssi = rssi
         self.__receive_options = receive_options
@@ -1053,7 +1073,8 @@ class RX64IOPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.RX_IO_64.code:
             raise InvalidPacketException(message="This packet is not an RX 64 IO packet.")
 
-        return RX64IOPacket(XBee64BitAddress(raw[4:12]), raw[12], raw[13], raw[14:-1])
+        return RX64IOPacket(XBee64BitAddress(raw[4:12]), raw[12], raw[13], raw[14:-1],
+                            op_mode=operating_mode)
 
     def needs_id(self):
         """
@@ -1270,7 +1291,7 @@ class RX16IOPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 14
 
-    def __init__(self, x16bit_addr, rssi, receive_options, rf_data):
+    def __init__(self, x16bit_addr, rssi, receive_options, rf_data, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates an :class:`.RX16IOPacket` object with
         the provided parameters.
@@ -1280,13 +1301,15 @@ class RX16IOPacket(XBeeAPIPacket):
             rssi (Integer): received signal strength indicator.
             receive_options (Integer): bitfield indicating the receive options.
             rf_data (Bytearray): received RF data.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
 
         .. seealso::
            | :class:`.ReceiveOptions`
            | :class:`.XBee16BitAddress`
            | :class:`.XBeeAPIPacket`
         """
-        super().__init__(ApiFrameType.RX_IO_16)
+        super().__init__(ApiFrameType.RX_IO_16, op_mode=op_mode)
         self.__x16bit_addr = x16bit_addr
         self.__rssi = rssi
         self.__receive_options = receive_options
@@ -1328,7 +1351,8 @@ class RX16IOPacket(XBeeAPIPacket):
         if raw[3] != ApiFrameType.RX_IO_16.code:
             raise InvalidPacketException(message="This packet is not an RX 16 IO packet.")
 
-        return RX16IOPacket(XBee16BitAddress(raw[4:6]), raw[6], raw[7], raw[8:-1])
+        return RX16IOPacket(XBee16BitAddress(raw[4:6]), raw[6], raw[7], raw[8:-1],
+                            op_mode=operating_mode)
 
     def needs_id(self):
         """
