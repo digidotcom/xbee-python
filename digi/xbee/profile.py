@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -84,11 +84,11 @@ _PARAMS_SERIAL_PORT = [ATStringCommand.BD.command,
                        ATStringCommand.NB.command,
                        ATStringCommand.SB.command,
                        ATStringCommand.D7.command]
-_PARAS_CACHE = [ATStringCommand.NI.command,
-                ATStringCommand.CE.command,
-                ATStringCommand.SM.command,
-                ATStringCommand.BR.command,  # This may affect the role
-                ATStringCommand.MY.command]
+_PARAMS_CACHE = [ATStringCommand.NI.command,
+                 ATStringCommand.CE.command,
+                 ATStringCommand.SM.command,
+                 ATStringCommand.BR.command,  # This may affect the role
+                 ATStringCommand.MY.command]
 _PARAMS_NETWORK = [ATStringCommand.ID.command,
                    ATStringCommand.CH.command,
                    ATStringCommand.HP.command,
@@ -1728,7 +1728,7 @@ class _ProfileUpdater:
                 # Check if the setting was sensitive for network or cache information
                 if name in _PARAMS_NETWORK:
                     network_settings_changed = True
-                if name in _PARAS_CACHE:
+                if name in _PARAMS_CACHE:
                     cache_settings_changed = True
 
             # Write settings.
