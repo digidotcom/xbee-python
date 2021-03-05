@@ -457,7 +457,11 @@ class AbstractXBeeDevice:
         if (not self.is_remote() and command.parameter
                 and command.command.upper() == ATStringCommand.AP.command
                 and not self._packet_sender.is_op_mode_valid(command.parameter)):
-            return None
+            op_mode_val = utils.bytes_to_int(command.parameter)
+            op_mode = OperatingMode.get(op_mode_val)
+            raise ATCommandException(
+                message="Operating mode '%d' (%s) not set not to loose XBee connection"
+                % (op_mode_val, op_mode.description if op_mode else "Unknown"))
 
         operating_mode = self._get_operating_mode()
         if operating_mode not in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
