@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -51,7 +51,7 @@ class SocketInfo:
         self.__protocol = protocol
         self.__local_port = local_port
         self.__remote_port = remote_port
-        self.__remote_address = remote_address
+        self.__remote_addr = remote_address
 
     @staticmethod
     def create_socket_info(raw):
@@ -76,9 +76,9 @@ class SocketInfo:
         protocol = IPProtocol.get_by_description(info_array[2])
         local_port = int(info_array[3], 0)
         remote_port = int(info_array[4], 0)
-        remote_address = info_array[5]
+        remote_addr = info_array[5]
         return SocketInfo(socket_id, state, protocol, local_port,
-                          remote_port, remote_address)
+                          remote_port, remote_addr)
 
     @staticmethod
     def parse_socket_list(raw):
@@ -162,7 +162,7 @@ class SocketInfo:
         Returns:
             String: the remote IPv4 address of the socket.
         """
-        return self.__remote_address
+        return self.__remote_addr
 
     def __str__(self):
         return "ID:             0x%s\n" \
@@ -175,4 +175,4 @@ class SocketInfo:
                   self.__state.description, self.__protocol.description,
                   utils.hex_to_string(utils.int_to_bytes(self.__local_port, num_bytes=2), False),
                   utils.hex_to_string(utils.int_to_bytes(self.__remote_port, num_bytes=2), False),
-                  self.__remote_address)
+                  self.__remote_addr)

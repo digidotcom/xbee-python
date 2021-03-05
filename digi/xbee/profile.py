@@ -1485,7 +1485,8 @@ class _ProfileUpdater:
             UpdateProfileException: If there is any error updating the XBee
                 firmware.
         """
-        _log.info("%s - Updating XBee firmware", self._xbee if self._xbee is not None else self._target)
+        _log.info("%s - Updating XBee firmware",
+                  self._xbee if self._xbee is not None else self._target)
         try:
             if self._xbee and self._xbee.is_remote():
                 if not self._profile.has_remote_firmware_files:

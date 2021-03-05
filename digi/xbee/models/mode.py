@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -37,7 +37,7 @@ class OperatingMode(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -57,7 +57,7 @@ class OperatingMode(Enum):
         Returns:
             String: the description of the OperatingMode element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -96,7 +96,7 @@ class APIOutputMode(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -116,7 +116,7 @@ class APIOutputMode(Enum):
         Returns:
             String: the description of the APIOutputMode element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -165,7 +165,7 @@ class APIOutputModeBit(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -185,7 +185,7 @@ class APIOutputModeBit(Enum):
         Returns:
             String: the description of the APIOutputModeBit element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -248,7 +248,7 @@ class IPAddressingMode(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -268,7 +268,7 @@ class IPAddressingMode(Enum):
         Returns:
             String: the description of the IPAddressingMode element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -321,7 +321,7 @@ class NeighborDiscoveryMode(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -341,7 +341,7 @@ class NeighborDiscoveryMode(Enum):
         Returns:
             String: the description of the NeighborDiscoveryMode element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):

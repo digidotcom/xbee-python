@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -96,7 +96,7 @@ class HardwareVersion(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -116,7 +116,7 @@ class HardwareVersion(Enum):
         Returns:
             String: the description of the HardwareVersion element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -205,7 +205,7 @@ class LegacyHardwareVersion(Enum):
 
         Returns:
             :class:`LegacyHardwareVersion`: the LegacyHardwareVersion with the
-                                            given letter, `None` if not found.
+                given letter, `None` if not found.
         """
         for version in cls:
             if version.letter == letter:

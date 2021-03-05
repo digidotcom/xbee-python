@@ -239,7 +239,7 @@ class TXSMSPacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.TX_SMS, op_mode=op_mode)
 
         self._frame_id = frame_id
-        self.__transmit_options = TransmitOptions.NONE.value
+        self.__tx_opts = TransmitOptions.NONE.value
         self.__phone_number = bytearray(20)
         self.__phone_number[0:len(phone_number)] = phone_number.encode(encoding="utf8")
         if isinstance(data, str):
@@ -365,7 +365,7 @@ class TXSMSPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_API_packet_spec_data`
         """
-        ret = utils.int_to_bytes(self.__transmit_options, num_bytes=1)
+        ret = utils.int_to_bytes(self.__tx_opts, num_bytes=1)
         ret += self.__phone_number
         if self.__data is not None:
             ret += self.__data
@@ -378,6 +378,6 @@ class TXSMSPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_API_packet_spec_data_dict`
         """
-        return {DictKeys.OPTIONS:      self.__transmit_options,
+        return {DictKeys.OPTIONS:      self.__tx_opts,
                 DictKeys.PHONE_NUMBER: self.__phone_number,
                 DictKeys.RF_DATA:      self.__data}

@@ -62,7 +62,7 @@ class SocketCreatePacket(XBeeAPIPacket):
 
         super().__init__(ApiFrameType.SOCKET_CREATE, op_mode=op_mode)
         self._frame_id = frame_id
-        self.__protocol = protocol
+        self.__prot = protocol
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -119,7 +119,7 @@ class SocketCreatePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        return bytearray([self.__protocol.code])
+        return bytearray([self.__prot.code])
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -128,7 +128,8 @@ class SocketCreatePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.IP_PROTOCOL.value: "%s (%s)" % (self.__protocol.code, self.__protocol.description)}
+        return {
+            DictKeys.IP_PROTOCOL.value: "%s (%s)" % (self.__prot.code, self.__prot.description)}
 
     @property
     def protocol(self):
@@ -141,7 +142,7 @@ class SocketCreatePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.IPProtocol`
         """
-        return self.__protocol
+        return self.__prot
 
     @protocol.setter
     def protocol(self, protocol):
@@ -154,7 +155,7 @@ class SocketCreatePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.IPProtocol`
         """
-        self.__protocol = protocol
+        self.__prot = protocol
 
 
 class SocketCreateResponsePacket(XBeeAPIPacket):
@@ -274,8 +275,9 @@ class SocketCreateResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
+        return {
+            DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
+            DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
 
     @property
     def socket_id(self):
@@ -377,8 +379,8 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.SOCKET_OPTION_REQUEST, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
-        self.__option = option
-        self.__option_data = option_data
+        self.__opt = option
+        self.__opt_data = option_data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -440,9 +442,9 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         """
         ret = bytearray()
         ret.append(self.__socket_id)
-        ret.append(self.__option.code)
-        if self.__option_data is not None:
-            ret += self.__option_data
+        ret.append(self.__opt.code)
+        if self.__opt_data is not None:
+            ret += self.__opt_data
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -453,9 +455,9 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
         return {DictKeys.SOCKET_ID.value:   utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.OPTION_ID.value:   "%s (%s)" % (self.__option.code, self.__option.description),
+                DictKeys.OPTION_ID.value:   "%s (%s)" % (self.__opt.code, self.__opt.description),
                 DictKeys.OPTION_DATA.value: utils.hex_to_string(
-                    self.__option_data, True) if self.__option_data is not None else None}
+                    self.__opt_data, True) if self.__opt_data is not None else None}
 
     @property
     def socket_id(self):
@@ -493,7 +495,7 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.SocketOption`
         """
-        return self.__option
+        return self.__opt
 
     @option.setter
     def option(self, option):
@@ -506,7 +508,7 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.SocketOption`
         """
-        self.__option = option
+        self.__opt = option
 
     @property
     def option_data(self):
@@ -516,7 +518,7 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         Returns:
             Bytearray: the socket option data.
         """
-        return self.__option_data if self.__option_data is None else self.__option_data.copy()
+        return self.__opt_data if self.__opt_data is None else self.__opt_data.copy()
 
     @option_data.setter
     def option_data(self, option_data):
@@ -526,7 +528,7 @@ class SocketOptionRequestPacket(XBeeAPIPacket):
         Args:
             option_data (Bytearray): the new socket option data.
         """
-        self.__option_data = None if option_data is None else option_data.copy()
+        self.__opt_data = None if option_data is None else option_data.copy()
 
 
 class SocketOptionResponsePacket(XBeeAPIPacket):
@@ -576,9 +578,9 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.SOCKET_OPTION_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
-        self.__option = option
+        self.__opt = option
         self.__status = status
-        self.__option_data = option_data
+        self.__opt_data = option_data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -640,10 +642,10 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         """
         ret = bytearray()
         ret.append(self.__socket_id)
-        ret.append(self.__option.code)
+        ret.append(self.__opt.code)
         ret.append(self.__status.code)
-        if self.__option_data is not None:
-            ret += self.__option_data
+        if self.__opt_data is not None:
+            ret += self.__opt_data
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -653,11 +655,12 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value:   utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.OPTION_ID.value:   "%s (%s)" % (self.__option.code, self.__option.description),
-                DictKeys.STATUS.value:      "%s (%s)" % (self.__status.code, self.__status.description),
-                DictKeys.OPTION_DATA.value: utils.hex_to_string(self.__option_data,
-                                                                True) if self.__option_data is not None else None}
+        return {
+            DictKeys.SOCKET_ID.value:   utils.hex_to_string(bytearray([self.__socket_id])),
+            DictKeys.OPTION_ID.value:   "%s (%s)" % (self.__opt.code, self.__opt.description),
+            DictKeys.STATUS.value:      "%s (%s)" % (self.__status.code, self.__status.description),
+            DictKeys.OPTION_DATA.value: utils.hex_to_string(
+                self.__opt_data, True) if self.__opt_data is not None else None}
 
     @property
     def socket_id(self):
@@ -695,7 +698,7 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.SocketOption`
         """
-        return self.__option
+        return self.__opt
 
     @option.setter
     def option(self, option):
@@ -708,7 +711,7 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.SocketOption`
         """
-        self.__option = option
+        self.__opt = option
 
     @property
     def status(self):
@@ -744,7 +747,7 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         Returns:
             Bytearray: the socket option data.
         """
-        return self.__option_data if self.__option_data is None else self.__option_data.copy()
+        return self.__opt_data if self.__opt_data is None else self.__opt_data.copy()
 
     @option_data.setter
     def option_data(self, option_data):
@@ -754,7 +757,7 @@ class SocketOptionResponsePacket(XBeeAPIPacket):
         Args:
             option_data (Bytearray): the new socket option data.
         """
-        self.__option_data = None if option_data is None else option_data.copy()
+        self.__opt_data = None if option_data is None else option_data.copy()
 
 
 class SocketConnectPacket(XBeeAPIPacket):
@@ -793,7 +796,8 @@ class SocketConnectPacket(XBeeAPIPacket):
     def __init__(self, frame_id, socket_id, dest_port, dest_address_type,
                  dest_address, op_mode=OperatingMode.API_MODE):
         """
-        Class constructor. Instantiates a new :class:`.SocketConnectPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.SocketConnectPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -815,9 +819,11 @@ class SocketConnectPacket(XBeeAPIPacket):
             ValueError: if `frame_id` is less than 0 or greater than 255.
             ValueError: if `socket_id` is less than 0 or greater than 255.
             ValueError: if `dest_port` is less than 0 or greater than 65535.
-            ValueError: if `dest_address_type` is different than :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
-                        :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
-            ValueError: if `dest_address` is `None` or does not follow the format specified in the configured type.
+            ValueError: if `dest_address_type` is different than
+                :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
+                :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
+            ValueError: if `dest_address` is `None` or does not follow the
+                format specified in the configured type.
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame ID must be between 0 and 255")
@@ -825,9 +831,10 @@ class SocketConnectPacket(XBeeAPIPacket):
             raise ValueError("Socket ID must be between 0 and 255")
         if dest_port < 0 or dest_port > 65535:
             raise ValueError("Destination port must be between 0 and 65535")
-        if dest_address_type not in (SocketConnectPacket.DEST_ADDRESS_BINARY, SocketConnectPacket.DEST_ADDRESS_STRING):
-            raise ValueError("Destination address type must be %d or %d" % (SocketConnectPacket.DEST_ADDRESS_BINARY,
-                                                                            SocketConnectPacket.DEST_ADDRESS_STRING))
+        if dest_address_type not in (SocketConnectPacket.DEST_ADDRESS_BINARY,
+                                     SocketConnectPacket.DEST_ADDRESS_STRING):
+            raise ValueError("Destination address type must be %d or %d" % (
+                SocketConnectPacket.DEST_ADDRESS_BINARY, SocketConnectPacket.DEST_ADDRESS_STRING))
         if (dest_address is None
                 or (dest_address_type == SocketConnectPacket.DEST_ADDRESS_BINARY
                     and (not isinstance(dest_address, bytearray) or len(dest_address) != 4))
@@ -839,8 +846,8 @@ class SocketConnectPacket(XBeeAPIPacket):
         self._frame_id = frame_id
         self.__socket_id = socket_id
         self.__dest_port = dest_port
-        self.__dest_address_type = dest_address_type
-        self.__dest_address = dest_address
+        self.__dest_addr_type = dest_address_type
+        self.__dest_addr = dest_address
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -907,11 +914,11 @@ class SocketConnectPacket(XBeeAPIPacket):
         ret = bytearray()
         ret.append(self.__socket_id)
         ret += utils.int_to_bytes(self.__dest_port, num_bytes=2)
-        ret.append(self.__dest_address_type)
-        if isinstance(self.__dest_address, str):
-            ret += self.__dest_address.encode(encoding='utf8')
+        ret.append(self.__dest_addr_type)
+        if isinstance(self.__dest_addr, str):
+            ret += self.__dest_addr.encode(encoding='utf8')
         else:
-            ret += self.__dest_address
+            ret += self.__dest_addr
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -921,14 +928,15 @@ class SocketConnectPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.DEST_PORT.value: "%s (%s)"
-                                          % (utils.hex_to_string(utils.int_to_bytes(self.__dest_port, num_bytes=2)),
-                                             self.__dest_port),
-                DictKeys.DEST_ADDR_TYPE.value: utils.hex_to_string(bytearray([self.__dest_address_type])),
-                DictKeys.DEST_ADDR.value:      ("%s (%s)" % (
-                    utils.hex_to_string(
-                        self.__dest_address.encode(encoding="utf8", errors='ignore')), self.__dest_address)) if isinstance(self.__dest_address, str) else utils.hex_to_string(self.__dest_address)}
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.DEST_PORT.value: "%s (%s)"
+                                      % (utils.hex_to_string(utils.int_to_bytes(self.__dest_port, num_bytes=2)),
+                                         self.__dest_port),
+            DictKeys.DEST_ADDR_TYPE.value: "%02X" % self.__dest_addr_type,
+            DictKeys.DEST_ADDR.value:      ("%s (%s)" % (
+                utils.hex_to_string(
+                    self.__dest_addr.encode(encoding="utf8", errors='ignore')), self.__dest_addr)) if isinstance(self.__dest_addr, str) else utils.hex_to_string(self.__dest_addr)}
 
     @property
     def socket_id(self):
@@ -988,7 +996,7 @@ class SocketConnectPacket(XBeeAPIPacket):
         Returns:
             Integer: the destination address type.
         """
-        return self.__dest_address_type
+        return self.__dest_addr_type
 
     @dest_address_type.setter
     def dest_address_type(self, dest_address_type):
@@ -999,13 +1007,15 @@ class SocketConnectPacket(XBeeAPIPacket):
             dest_address_type (Integer): the new destination address type.
 
         Raises:
-            ValueError: if `dest_address_type` is different than :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
-                        :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
+            ValueError: if `dest_address_type` is different from
+                :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
+                :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
         """
-        if dest_address_type not in (SocketConnectPacket.DEST_ADDRESS_BINARY, SocketConnectPacket.DEST_ADDRESS_STRING):
-            raise ValueError("Destination address type must be %d or %d" % (SocketConnectPacket.DEST_ADDRESS_BINARY,
-                                                                            SocketConnectPacket.DEST_ADDRESS_STRING))
-        self.__dest_address_type = dest_address_type
+        if dest_address_type not in (SocketConnectPacket.DEST_ADDRESS_BINARY,
+                                     SocketConnectPacket.DEST_ADDRESS_STRING):
+            raise ValueError("Destination address type must be %d or %d" % (
+                SocketConnectPacket.DEST_ADDRESS_BINARY, SocketConnectPacket.DEST_ADDRESS_STRING))
+        self.__dest_addr_type = dest_address_type
 
     @property
     def dest_address(self):
@@ -1015,7 +1025,7 @@ class SocketConnectPacket(XBeeAPIPacket):
         Returns:
             Bytearray or String: the destination address.
         """
-        return self.__dest_address
+        return self.__dest_addr
 
     @dest_address.setter
     def dest_address(self, dest_address):
@@ -1027,15 +1037,16 @@ class SocketConnectPacket(XBeeAPIPacket):
 
         Raises:
             ValueError: if `dest_address` is `None`.
-            ValueError: if `dest_address` does not follow the format specified in the configured type.
+            ValueError: if `dest_address` does not follow the format specified
+                in the configured type.
         """
         if (dest_address is None
-                or (self.__dest_address_type == SocketConnectPacket.DEST_ADDRESS_BINARY
+                or (self.__dest_addr_type == SocketConnectPacket.DEST_ADDRESS_BINARY
                     and (not isinstance(dest_address, bytearray) or len(dest_address) != 4))
-                or (self.__dest_address_type == SocketConnectPacket.DEST_ADDRESS_STRING
+                or (self.__dest_addr_type == SocketConnectPacket.DEST_ADDRESS_STRING
                     and (not isinstance(dest_address, str) or len(dest_address) < 1))):
             raise ValueError("Invalid destination address")
-        self.__dest_address = dest_address
+        self.__dest_addr = dest_address
 
 
 class SocketConnectResponsePacket(XBeeAPIPacket):
@@ -1151,8 +1162,9 @@ class SocketConnectResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
 
     @property
     def socket_id(self):
@@ -1454,8 +1466,9 @@ class SocketCloseResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.STATUS.value:    "%s (%s)" % (self.__status.code, self.__status.description)}
 
     @property
     def socket_id(self):
@@ -1597,7 +1610,8 @@ class SocketSendPacket(XBeeAPIPacket):
                 "This packet is not a Socket Send (transmit) packet.")
 
         return SocketSendPacket(
-            raw[4], raw[5], payload=raw[7:-1] if len(raw) > SocketSendPacket.__MIN_PACKET_LENGTH else None,
+            raw[4], raw[5],
+            payload=raw[7:-1] if len(raw) > SocketSendPacket.__MIN_PACKET_LENGTH else None,
             op_mode=operating_mode)
 
     def needs_id(self):
@@ -1630,10 +1644,11 @@ class SocketSendPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value:        utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.TRANSMIT_OPTIONS.value: utils.hex_to_string(bytearray([0])),
-                DictKeys.PAYLOAD.value:          utils.hex_to_string(self.__payload,
-                                                                     True) if self.__payload is not None else None}
+        return {
+            DictKeys.SOCKET_ID.value:        "%02X" % self.__socket_id,
+            DictKeys.TRANSMIT_OPTIONS.value: "00",
+            DictKeys.PAYLOAD.value:          utils.hex_to_string(self.__payload,
+                                                                 True) if self.__payload is not None else None}
 
     @property
     def socket_id(self):
@@ -1739,7 +1754,7 @@ class SocketSendToPacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.SOCKET_SENDTO, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
-        self.__dest_address = dest_address
+        self.__dest_addr = dest_address
         self.__dest_port = dest_port
         self.__payload = payload
 
@@ -1805,7 +1820,7 @@ class SocketSendToPacket(XBeeAPIPacket):
         """
         ret = bytearray()
         ret.append(self.__socket_id)
-        ret += self.__dest_address.packed
+        ret += self.__dest_addr.packed
         ret += utils.int_to_bytes(self.__dest_port, num_bytes=2)
         ret.append(0)  # Transmit options (Reserved)
         if self.__payload is not None:
@@ -1819,15 +1834,16 @@ class SocketSendToPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value:        utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.DEST_IPV4_ADDR.value:   "%s (%s)" % (utils.hex_to_string(self.__dest_address.packed, True),
-                                                              self.__dest_address.exploded),
-                DictKeys.DEST_PORT.value:        "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__dest_port,
-                                                                                                     num_bytes=2)),
-                                                              self.__dest_port),
-                DictKeys.TRANSMIT_OPTIONS.value: utils.hex_to_string(bytearray([0])),
-                DictKeys.PAYLOAD.value:          utils.hex_to_string(self.__payload,
-                                                                     True) if self.__payload is not None else None}
+        return {
+            DictKeys.SOCKET_ID.value:        "%02X" % self.__socket_id,
+            DictKeys.DEST_IPV4_ADDR.value:   "%s (%s)" % (utils.hex_to_string(self.__dest_addr.packed, True),
+                                                          self.__dest_addr.exploded),
+            DictKeys.DEST_PORT.value:        "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__dest_port,
+                                                                                                 num_bytes=2)),
+                                                          self.__dest_port),
+            DictKeys.TRANSMIT_OPTIONS.value: "00",
+            DictKeys.PAYLOAD.value:          utils.hex_to_string(self.__payload,
+                                                                 True) if self.__payload is not None else None}
 
     @property
     def socket_id(self):
@@ -1862,7 +1878,7 @@ class SocketSendToPacket(XBeeAPIPacket):
         Returns:
             :class:`ipaddress.IPv4Address`: the IPv4 address of the destination device.
         """
-        return self.__dest_address
+        return self.__dest_addr
 
     @dest_address.setter
     def dest_address(self, dest_address):
@@ -1873,7 +1889,7 @@ class SocketSendToPacket(XBeeAPIPacket):
             dest_address (:class:`ipaddress.IPv4Address`): The new IPv4 destination address.
         """
         if dest_address is not None:
-            self.__dest_address = dest_address
+            self.__dest_addr = dest_address
 
     @property
     def dest_port(self):
@@ -1950,7 +1966,7 @@ class SocketBindListenPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 9
 
-    def __init__(self, frame_id, socket_id, source_port, op_mode=OperatingMode.API_MODE):
+    def __init__(self, frame_id, socket_id, src_port, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketBindListenPacket`
         object with the provided parameters.
@@ -1958,7 +1974,7 @@ class SocketBindListenPacket(XBeeAPIPacket):
         Args:
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): socket ID to listen on.
-            source_port (Integer): the port to listen on.
+            src_port (Integer): the port to listen on.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
 
@@ -1974,13 +1990,13 @@ class SocketBindListenPacket(XBeeAPIPacket):
             raise ValueError("Frame ID must be between 0 and 255.")
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
-        if source_port < 0 or source_port > 65535:
+        if src_port < 0 or src_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
         super().__init__(ApiFrameType.SOCKET_BIND, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
-        self.__source_port = source_port
+        self.__src_port = src_port
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -2040,7 +2056,7 @@ class SocketBindListenPacket(XBeeAPIPacket):
         """
         ret = bytearray()
         ret.append(self.__socket_id)
-        ret += utils.int_to_bytes(self.__source_port, num_bytes=2)
+        ret += utils.int_to_bytes(self.__src_port, num_bytes=2)
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -2050,10 +2066,11 @@ class SocketBindListenPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.SRC_PORT.value:  "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__source_port,
-                                                                                              num_bytes=2)),
-                                                       self.__source_port)}
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.SRC_PORT.value:  "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__src_port,
+                                                                                          num_bytes=2)),
+                                                   self.__src_port)}
 
     @property
     def socket_id(self):
@@ -2088,7 +2105,7 @@ class SocketBindListenPacket(XBeeAPIPacket):
         Returns:
             Integer: the source port.
         """
-        return self.__source_port
+        return self.__src_port
 
     @source_port.setter
     def source_port(self, source_port):
@@ -2103,7 +2120,7 @@ class SocketBindListenPacket(XBeeAPIPacket):
         """
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
-        self.__source_port = source_port
+        self.__src_port = source_port
 
 
 class SocketListenResponsePacket(XBeeAPIPacket):
@@ -2219,9 +2236,10 @@ class SocketListenResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.STATUS.value:    "%s (%s)" % (utils.hex_to_string(bytearray([self.__status.code])),
-                                                       self.__status.description)}
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.STATUS.value:    "%s (%s)" % (utils.hex_to_string(bytearray([self.__status.code])),
+                                                   self.__status.description)}
 
     @property
     def socket_id(self):
@@ -2324,8 +2342,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
 
         super().__init__(ApiFrameType.SOCKET_NEW_IPV4_CLIENT, op_mode=op_mode)
         self.__socket_id = socket_id
-        self.__client_socket_id = client_socket_id
-        self.__remote_address = remote_address
+        self.__client_sock_id = client_socket_id
+        self.__remote_addr = remote_address
         self.__remote_port = remote_port
 
     @staticmethod
@@ -2387,8 +2405,8 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         """
         ret = bytearray()
         ret.append(self.__socket_id)
-        ret.append(self.__client_socket_id)
-        ret += self.__remote_address.packed
+        ret.append(self.__client_sock_id)
+        ret += self.__remote_addr.packed
         ret += utils.int_to_bytes(self.__remote_port, num_bytes=2)
         return ret
 
@@ -2399,13 +2417,14 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value:        utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.CLIENT_SOCKET_ID.value: utils.hex_to_string(bytearray([self.__client_socket_id])),
-                DictKeys.REMOTE_ADDR.value:      "%s (%s)" % (utils.hex_to_string(self.__remote_address.packed, True),
-                                                              self.__remote_address.exploded),
-                DictKeys.REMOTE_PORT.value:      "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__remote_port,
-                                                                                                     num_bytes=2)),
-                                                              self.__remote_port)}
+        return {
+            DictKeys.SOCKET_ID.value:        "%02X" % self.__socket_id,
+            DictKeys.CLIENT_SOCKET_ID.value: "%02X" % self.__client_sock_id,
+            DictKeys.REMOTE_ADDR.value:      "%s (%s)" % (utils.hex_to_string(self.__remote_addr.packed, True),
+                                                          self.__remote_addr.exploded),
+            DictKeys.REMOTE_PORT.value:      "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__remote_port,
+                                                                                                 num_bytes=2)),
+                                                          self.__remote_port)}
 
     @property
     def socket_id(self):
@@ -2440,7 +2459,7 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         Returns:
             Integer: the client socket ID.
         """
-        return self.__client_socket_id
+        return self.__client_sock_id
 
     @client_socket_id.setter
     def client_socket_id(self, client_socket_id):
@@ -2455,7 +2474,7 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         """
         if client_socket_id < 0 or client_socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255")
-        self.__client_socket_id = client_socket_id
+        self.__client_sock_id = client_socket_id
 
     @property
     def remote_address(self):
@@ -2465,7 +2484,7 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
         Returns:
             :class:`ipaddress.IPv4Address`: the remote IPv4 address.
         """
-        return self.__remote_address
+        return self.__remote_addr
 
     @remote_address.setter
     def remote_address(self, remote_address):
@@ -2476,7 +2495,7 @@ class SocketNewIPv4ClientPacket(XBeeAPIPacket):
             remote_address (:class:`ipaddress.IPv4Address`): The new remote IPv4 address.
         """
         if remote_address is not None:
-            self.__remote_address = remote_address
+            self.__remote_addr = remote_address
 
     @property
     def remote_port(self):
@@ -2619,9 +2638,10 @@ class SocketReceivePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.STATUS.value:    utils.hex_to_string(bytearray([0])),
-                DictKeys.PAYLOAD.value:   utils.hex_to_string(self.__payload) if self.__payload is not None else None}
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.STATUS.value:    "00",
+            DictKeys.PAYLOAD.value:   utils.hex_to_string(self.__payload) if self.__payload is not None else None}
 
     @property
     def socket_id(self):
@@ -2689,7 +2709,7 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 14
 
-    def __init__(self, frame_id, socket_id, source_address, source_port,
+    def __init__(self, frame_id, socket_id, src_address, src_port,
                  payload=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.SocketReceiveFromPacket`
@@ -2698,8 +2718,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         Args:
             frame_id (Integer): the frame ID of the packet.
             socket_id (Integer): the ID of the socket the data has been received on.
-            source_address (:class:`.IPv4Address`): IPv4 address of the source device.
-            source_port (Integer): source port number.
+            src_address (:class:`.IPv4Address`): IPv4 address of the source device.
+            src_port (Integer): source port number.
             payload (Bytearray, optional): data that is received.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -2716,14 +2736,14 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             raise ValueError("Frame ID must be between 0 and 255.")
         if socket_id < 0 or socket_id > 255:
             raise ValueError("Socket ID must be between 0 and 255.")
-        if source_port < 0 or source_port > 65535:
+        if src_port < 0 or src_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
         super().__init__(ApiFrameType.SOCKET_RECEIVE_FROM, op_mode=op_mode)
         self._frame_id = frame_id
         self.__socket_id = socket_id
-        self.__source_address = source_address
-        self.__source_port = source_port
+        self.__src_addr = src_address
+        self.__src_port = src_port
         self.__payload = payload
 
     @staticmethod
@@ -2787,8 +2807,8 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         """
         ret = bytearray()
         ret.append(self.__socket_id)
-        ret += self.__source_address.packed
-        ret += utils.int_to_bytes(self.__source_port, num_bytes=2)
+        ret += self.__src_addr.packed
+        ret += utils.int_to_bytes(self.__src_port, num_bytes=2)
         ret.append(0)  # Status (Reserved)
         if self.__payload is not None:
             ret += self.__payload
@@ -2801,15 +2821,16 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value:     utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.SRC_IPV4_ADDR.value: "%s (%s)" % (utils.hex_to_string(self.__source_address.packed),
-                                                           self.__source_address.exploded),
-                DictKeys.SRC_PORT.value:      "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__source_port,
-                                                                                                  num_bytes=2)),
-                                                           self.__source_port),
-                DictKeys.STATUS.value:        utils.hex_to_string(bytearray([0])),
-                DictKeys.PAYLOAD.value:       utils.hex_to_string(self.__payload,
-                                                                  True) if self.__payload is not None else None}
+        return {
+            DictKeys.SOCKET_ID.value:     "%02X" % self.__socket_id,
+            DictKeys.SRC_IPV4_ADDR.value: "%s (%s)" % (utils.hex_to_string(self.__src_addr.packed),
+                                                       self.__src_addr.exploded),
+            DictKeys.SRC_PORT.value:      "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__src_port,
+                                                                                              num_bytes=2)),
+                                                       self.__src_port),
+            DictKeys.STATUS.value:        "00",
+            DictKeys.PAYLOAD.value:       utils.hex_to_string(self.__payload,
+                                                              True) if self.__payload is not None else None}
 
     @property
     def socket_id(self):
@@ -2844,7 +2865,7 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         Returns:
             :class:`ipaddress.IPv4Address`: the IPv4 address of the source device.
         """
-        return self.__source_address
+        return self.__src_addr
 
     @source_address.setter
     def source_address(self, source_address):
@@ -2855,7 +2876,7 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
             source_address (:class:`ipaddress.IPv4Address`): The new IPv4 source address.
         """
         if source_address is not None:
-            self.__source_address = source_address
+            self.__src_addr = source_address
 
     @property
     def source_port(self):
@@ -2865,7 +2886,7 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         Returns:
             Integer: the source port.
         """
-        return self.__source_port
+        return self.__src_port
 
     @source_port.setter
     def source_port(self, source_port):
@@ -2880,7 +2901,7 @@ class SocketReceiveFromPacket(XBeeAPIPacket):
         """
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
-        self.__source_port = source_port
+        self.__src_port = source_port
 
     @property
     def payload(self):
@@ -3014,9 +3035,10 @@ class SocketStatePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOCKET_ID.value: utils.hex_to_string(bytearray([self.__socket_id])),
-                DictKeys.STATUS.value:    "%s (%s)" % (utils.hex_to_string(bytearray([self.__state.code])),
-                                                       self.__state.description)}
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.STATUS.value:    "%s (%s)" % (utils.hex_to_string(bytearray([self.__state.code])),
+                                                   self.__state.description)}
 
     @property
     def socket_id(self):

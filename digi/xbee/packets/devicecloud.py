@@ -63,11 +63,11 @@ class DeviceRequestPacket(XBeeAPIPacket):
             raise ValueError("Target length cannot exceed 255 bytes.")
 
         super().__init__(ApiFrameType.DEVICE_REQUEST, op_mode=op_mode)
-        self.__request_id = request_id
+        self.__req_id = request_id
         self.__transport = 0x00  # Reserved.
         self.__flags = 0x00  # Reserved.
         self.__target = target
-        self.__request_data = request_data
+        self.__req_data = request_data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -127,7 +127,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        ret = utils.int_to_bytes(self.__request_id, num_bytes=1)
+        ret = utils.int_to_bytes(self.__req_id, num_bytes=1)
         ret += utils.int_to_bytes(self.__transport, num_bytes=1)
         ret += utils.int_to_bytes(self.__flags, num_bytes=1)
         if self.__target is not None:
@@ -135,8 +135,8 @@ class DeviceRequestPacket(XBeeAPIPacket):
             ret += bytearray(self.__target, encoding="utf8")
         else:
             ret += utils.int_to_bytes(0x00, num_bytes=1)
-        if self.__request_data is not None:
-            ret += self.__request_data
+        if self.__req_data is not None:
+            ret += self.__req_data
 
         return ret
 
@@ -147,11 +147,11 @@ class DeviceRequestPacket(XBeeAPIPacket):
         See:
             :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.REQUEST_ID: self.__request_id,
+        return {DictKeys.REQUEST_ID: self.__req_id,
                 DictKeys.TRANSPORT:  self.__transport,
                 DictKeys.FLAGS:      self.__flags,
                 DictKeys.TARGET:     self.__target,
-                DictKeys.RF_DATA:    list(self.__request_data) if self.__request_data is not None else None}
+                DictKeys.RF_DATA:    list(self.__req_data) if self.__req_data is not None else None}
 
     @property
     def request_id(self):
@@ -161,7 +161,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
         Returns:
             Integer: the request ID of the packet.
         """
-        return self.__request_id
+        return self.__req_id
 
     @request_id.setter
     def request_id(self, request_id):
@@ -176,7 +176,7 @@ class DeviceRequestPacket(XBeeAPIPacket):
         """
         if request_id < 0 or request_id > 255:
             raise ValueError("Device request ID must be between 0 and 255.")
-        self.__request_id = request_id
+        self.__req_id = request_id
 
     @property
     def transport(self):
@@ -231,9 +231,9 @@ class DeviceRequestPacket(XBeeAPIPacket):
         Returns:
             Bytearray: the data of the device request.
         """
-        if self.__request_data is None:
+        if self.__req_data is None:
             return None
-        return self.__request_data.copy()
+        return self.__req_data.copy()
 
     @request_data.setter
     def request_data(self, request_data):
@@ -244,9 +244,9 @@ class DeviceRequestPacket(XBeeAPIPacket):
             request_data (Bytearray): the new data of the device request.
         """
         if request_data is None:
-            self.__request_data = None
+            self.__req_data = None
         else:
-            self.__request_data = request_data.copy()
+            self.__req_data = request_data.copy()
 
 
 class DeviceResponsePacket(XBeeAPIPacket):
@@ -272,8 +272,9 @@ class DeviceResponsePacket(XBeeAPIPacket):
 
         Args:
             frame_id (Integer): the frame ID of the packet.
-            request_id (Integer): device Request ID. This number should match the device request ID in the
-                device request. Otherwise, an error will occur. (0 has no special meaning)
+            request_id (Integer): device Request ID. This number should match
+                the device request ID in the device request. Otherwise, an
+                error will occur. (0 has no special meaning)
             response_data (Bytearray, optional): data of the response.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -292,8 +293,8 @@ class DeviceResponsePacket(XBeeAPIPacket):
 
         super().__init__(ApiFrameType.DEVICE_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
-        self.__request_id = request_id
-        self.__response_data = response_data
+        self.__req_id = request_id
+        self.__resp_data = response_data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -351,10 +352,10 @@ class DeviceResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        ret = utils.int_to_bytes(self.__request_id, num_bytes=1)
+        ret = utils.int_to_bytes(self.__req_id, num_bytes=1)
         ret += utils.int_to_bytes(0x00, num_bytes=1)
-        if self.__response_data is not None:
-            ret += self.__response_data
+        if self.__resp_data is not None:
+            ret += self.__resp_data
 
         return ret
 
@@ -365,9 +366,9 @@ class DeviceResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.REQUEST_ID: self.__request_id,
+        return {DictKeys.REQUEST_ID: self.__req_id,
                 DictKeys.RESERVED:   0x00,
-                DictKeys.RF_DATA:    list(self.__response_data) if self.__response_data is not None else None}
+                DictKeys.RF_DATA:    list(self.__resp_data) if self.__resp_data is not None else None}
 
     @property
     def request_id(self):
@@ -377,7 +378,7 @@ class DeviceResponsePacket(XBeeAPIPacket):
         Returns:
             Integer: the request ID of the packet.
         """
-        return self.__request_id
+        return self.__req_id
 
     @request_id.setter
     def request_id(self, request_id):
@@ -392,7 +393,7 @@ class DeviceResponsePacket(XBeeAPIPacket):
         """
         if request_id < 0 or request_id > 255:
             raise ValueError("Device request ID must be between 0 and 255.")
-        self.__request_id = request_id
+        self.__req_id = request_id
 
     @property
     def request_data(self):
@@ -402,9 +403,9 @@ class DeviceResponsePacket(XBeeAPIPacket):
         Returns:
             Bytearray: the data of the device response.
         """
-        if self.__response_data is None:
+        if self.__resp_data is None:
             return None
-        return self.__response_data.copy()
+        return self.__resp_data.copy()
 
     @request_data.setter
     def request_data(self, response_data):
@@ -415,9 +416,9 @@ class DeviceResponsePacket(XBeeAPIPacket):
             response_data (Bytearray): the new data of the device response.
         """
         if response_data is None:
-            self.__response_data = None
+            self.__resp_data = None
         else:
-            self.__response_data = response_data.copy()
+            self.__resp_data = response_data.copy()
 
 
 class DeviceResponseStatusPacket(XBeeAPIPacket):
@@ -437,7 +438,8 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
 
     def __init__(self, frame_id, status, op_mode=OperatingMode.API_MODE):
         """
-        Class constructor. Instantiates a new :class:`.DeviceResponseStatusPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.DeviceResponseStatusPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
@@ -487,10 +489,12 @@ class DeviceResponseStatusPacket(XBeeAPIPacket):
                                   OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=DeviceResponseStatusPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=DeviceResponseStatusPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.DEVICE_RESPONSE_STATUS.code:
-            raise InvalidPacketException(message="This packet is not a device response status packet.")
+            raise InvalidPacketException(
+                message="This packet is not a device response status packet.")
 
         return DeviceResponseStatusPacket(
             raw[4], DeviceCloudStatus.get(raw[5]), op_mode=operating_mode)
@@ -718,7 +722,7 @@ class SendDataRequestPacket(XBeeAPIPacket):
         self.__path = path
         self.__content_type = content_type
         self.__transport = 0x00  # Always TCP.
-        self.__options = options
+        self.__opts = options
         self.__file_data = file_data
 
     @staticmethod
@@ -792,7 +796,7 @@ class SendDataRequestPacket(XBeeAPIPacket):
         else:
             ret += utils.int_to_bytes(0x00, num_bytes=1)
         ret += utils.int_to_bytes(0x00, num_bytes=1)  # Transport is always TCP
-        ret += utils.int_to_bytes(self.__options.code, num_bytes=1)
+        ret += utils.int_to_bytes(self.__opts.code, num_bytes=1)
         if self.__file_data is not None:
             ret += self.__file_data
 
@@ -805,13 +809,14 @@ class SendDataRequestPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.PATH_LENGTH:         len(self.__path) if self.__path is not None else 0x00,
-                DictKeys.PATH:                self.__path if self.__path is not None else None,
-                DictKeys.CONTENT_TYPE_LENGTH: len(self.__content_type) if self.__content_type is not None else 0x00,
-                DictKeys.CONTENT_TYPE:        self.__content_type if self.__content_type is not None else None,
-                DictKeys.TRANSPORT:           0x00,
-                DictKeys.TRANSMIT_OPTIONS:    self.__options,
-                DictKeys.RF_DATA:             list(self.__file_data) if self.__file_data is not None else None}
+        return {
+            DictKeys.PATH_LENGTH:         len(self.__path) if self.__path else 0x00,
+            DictKeys.PATH:                self.__path if self.__path is not None else None,
+            DictKeys.CONTENT_TYPE_LENGTH: len(self.__content_type) if self.__content_type else 0x00,
+            DictKeys.CONTENT_TYPE:        self.__content_type if self.__content_type is not None else None,
+            DictKeys.TRANSPORT:           0x00,
+            DictKeys.TRANSMIT_OPTIONS:    self.__opts,
+            DictKeys.RF_DATA:             list(self.__file_data) if self.__file_data is not None else None}
 
     @property
     def path(self):
@@ -864,7 +869,7 @@ class SendDataRequestPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.SendDataRequestOptions`
         """
-        return self.__options
+        return self.__opts
 
     @options.setter
     def options(self, options):
@@ -877,7 +882,7 @@ class SendDataRequestPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.SendDataRequestOptions`
         """
-        self.__options = options
+        self.__opts = options
 
     @property
     def file_data(self):

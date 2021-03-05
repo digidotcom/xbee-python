@@ -32,16 +32,16 @@ class RXIPv4Packet(XBeeAPIPacket):
     """
     __MIN_PACKET_LENGTH = 15
 
-    def __init__(self, source_address, dest_port, source_port, ip_protocol,
+    def __init__(self, src_address, dest_port, src_port, ip_protocol,
                  data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.RXIPv4Packet` object
         with the provided parameters.
 
         Args:
-            source_address (:class:`.IPv4Address`): IPv4 address of the source device.
+            src_address (:class:`.IPv4Address`): IPv4 address of the source device.
             dest_port (Integer): destination port number.
-            source_port (Integer): source port number.
+            src_port (Integer): source port number.
             ip_protocol (:class:`.IPProtocol`): IP protocol used for transmitted data.
             data (Bytearray, optional): data that is sent to the destination device.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
@@ -56,14 +56,14 @@ class RXIPv4Packet(XBeeAPIPacket):
         """
         if dest_port < 0 or dest_port > 65535:
             raise ValueError("Destination port must be between 0 and 65535")
-        if source_port < 0 or source_port > 65535:
+        if src_port < 0 or src_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
         super().__init__(ApiFrameType.RX_IPV4, op_mode=op_mode)
-        self.__source_address = source_address
+        self.__src_addr = src_address
         self.__dest_port = dest_port
-        self.__source_port = source_port
-        self.__ip_protocol = ip_protocol
+        self.__src_port = src_port
+        self.__ip_prot = ip_protocol
         self.__status = 0  # Reserved
         self.__data = data
 
@@ -126,7 +126,7 @@ class RXIPv4Packet(XBeeAPIPacket):
         Returns:
             :class:`ipaddress.IPv4Address`: the IPv4 address of the source device.
         """
-        return self.__source_address
+        return self.__src_addr
 
     @source_address.setter
     def source_address(self, source_address):
@@ -137,7 +137,7 @@ class RXIPv4Packet(XBeeAPIPacket):
             source_address (:class:`.IPv4Address`): The new IPv4 source address.
         """
         if source_address is not None:
-            self.__source_address = source_address
+            self.__src_addr = source_address
 
     @property
     def dest_port(self):
@@ -172,7 +172,7 @@ class RXIPv4Packet(XBeeAPIPacket):
         Returns:
             Integer: the source port.
         """
-        return self.__source_port
+        return self.__src_port
 
     @source_port.setter
     def source_port(self, source_port):
@@ -187,7 +187,7 @@ class RXIPv4Packet(XBeeAPIPacket):
         """
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
-        self.__source_port = source_port
+        self.__src_port = source_port
 
     @property
     def ip_protocol(self):
@@ -197,7 +197,7 @@ class RXIPv4Packet(XBeeAPIPacket):
         Returns:
             :class:`.IPProtocol`: the IP protocol used for transmitted data.
         """
-        return self.__ip_protocol
+        return self.__ip_prot
 
     @ip_protocol.setter
     def ip_protocol(self, ip_protocol):
@@ -207,7 +207,7 @@ class RXIPv4Packet(XBeeAPIPacket):
         Args:
             ip_protocol (:class:`.IPProtocol`): the new IP protocol.
         """
-        self.__ip_protocol = ip_protocol
+        self.__ip_prot = ip_protocol
 
     @property
     def data(self):
@@ -241,10 +241,10 @@ class RXIPv4Packet(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_API_packet_spec_data`
         """
-        ret = bytearray(self.__source_address.packed)
+        ret = bytearray(self.__src_addr.packed)
         ret += utils.int_to_bytes(self.__dest_port, num_bytes=2)
-        ret += utils.int_to_bytes(self.__source_port, num_bytes=2)
-        ret += utils.int_to_bytes(self.__ip_protocol.code, num_bytes=1)
+        ret += utils.int_to_bytes(self.__src_port, num_bytes=2)
+        ret += utils.int_to_bytes(self.__ip_prot.code, num_bytes=1)
         ret += utils.int_to_bytes(self.__status, num_bytes=1)
         if self.__data is not None:
             ret += self.__data
@@ -257,12 +257,13 @@ class RXIPv4Packet(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_API_packet_spec_data_dict`
         """
-        return {DictKeys.SRC_IPV4_ADDR: "%s (%s)" % (self.__source_address.packed, self.__source_address.exploded),
-                DictKeys.DEST_PORT:     self.__dest_port,
-                DictKeys.SRC_PORT:      self.__source_port,
-                DictKeys.IP_PROTOCOL:   "%s (%s)" % (self.__ip_protocol.code, self.__ip_protocol.description),
-                DictKeys.STATUS:        self.__status,
-                DictKeys.RF_DATA:       bytearray(self.__data)}
+        return {
+            DictKeys.SRC_IPV4_ADDR: "%s (%s)" % (self.__src_addr.packed, self.__src_addr.exploded),
+            DictKeys.DEST_PORT:     self.__dest_port,
+            DictKeys.SRC_PORT:      self.__src_port,
+            DictKeys.IP_PROTOCOL:   "%s (%s)" % (self.__ip_prot.code, self.__ip_prot.description),
+            DictKeys.STATUS:        self.__status,
+            DictKeys.RF_DATA:       bytearray(self.__data)}
 
 
 class TXIPv4Packet(XBeeAPIPacket):
@@ -283,8 +284,8 @@ class TXIPv4Packet(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 16
 
-    def __init__(self, frame_id, dest_address, dest_port, source_port,
-                 ip_protocol, transmit_options, data=None, op_mode=OperatingMode.API_MODE):
+    def __init__(self, frame_id, dest_address, dest_port, src_port,
+                 ip_protocol, tx_opts, data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.TXIPv4Packet` object
         with the provided parameters.
@@ -293,9 +294,9 @@ class TXIPv4Packet(XBeeAPIPacket):
             frame_id (Integer): the frame ID. Must be between 0 and 255.
             dest_address (:class:`.IPv4Address`): IPv4 address of the destination device.
             dest_port (Integer): destination port number.
-            source_port (Integer): source port number.
+            src_port (Integer): source port number.
             ip_protocol (:class:`.IPProtocol`): IP protocol used for transmitted data.
-            transmit_options (Integer): the transmit options of the packet.
+            tx_opts (Integer): the transmit options of the packet.
             data (Bytearray, optional): data that is sent to the destination device.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -312,16 +313,16 @@ class TXIPv4Packet(XBeeAPIPacket):
             raise ValueError("Frame id must be between 0 and 255")
         if dest_port < 0 or dest_port > 65535:
             raise ValueError("Destination port must be between 0 and 65535")
-        if source_port < 0 or source_port > 65535:
+        if src_port < 0 or src_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
         super().__init__(ApiFrameType.TX_IPV4, op_mode=op_mode)
         self._frame_id = frame_id
-        self.__dest_address = dest_address
+        self.__dest_addr = dest_address
         self.__dest_port = dest_port
-        self.__source_port = source_port
-        self.__ip_protocol = ip_protocol
-        self.__transmit_options = transmit_options
+        self.__src_port = src_port
+        self.__ip_prot = ip_protocol
+        self.__tx_opts = tx_opts
         self.__data = data
 
     @staticmethod
@@ -383,7 +384,7 @@ class TXIPv4Packet(XBeeAPIPacket):
         Returns:
             :class:`ipaddress.IPv4Address`: the IPv4 address of the destination device.
         """
-        return self.__dest_address
+        return self.__dest_addr
 
     @dest_address.setter
     def dest_address(self, dest_address):
@@ -394,7 +395,7 @@ class TXIPv4Packet(XBeeAPIPacket):
             dest_address (:class:`ipaddress.IPv4Address`): The new IPv4 destination address.
         """
         if dest_address is not None:
-            self.__dest_address = dest_address
+            self.__dest_addr = dest_address
 
     @property
     def dest_port(self):
@@ -429,7 +430,7 @@ class TXIPv4Packet(XBeeAPIPacket):
         Returns:
             Integer: the source port.
         """
-        return self.__source_port
+        return self.__src_port
 
     @source_port.setter
     def source_port(self, source_port):
@@ -445,7 +446,7 @@ class TXIPv4Packet(XBeeAPIPacket):
         if source_port < 0 or source_port > 65535:
             raise ValueError("Source port must be between 0 and 65535")
 
-        self.__source_port = source_port
+        self.__src_port = source_port
 
     @property
     def ip_protocol(self):
@@ -455,7 +456,7 @@ class TXIPv4Packet(XBeeAPIPacket):
         Returns:
             :class:`.IPProtocol`: the IP protocol used for transmitted data.
         """
-        return self.__ip_protocol
+        return self.__ip_prot
 
     @ip_protocol.setter
     def ip_protocol(self, ip_protocol):
@@ -465,7 +466,7 @@ class TXIPv4Packet(XBeeAPIPacket):
         Args:
             ip_protocol (:class:`.IPProtocol`): the new IP protocol.
         """
-        self.__ip_protocol = ip_protocol
+        self.__ip_prot = ip_protocol
 
     @property
     def transmit_options(self):
@@ -475,7 +476,7 @@ class TXIPv4Packet(XBeeAPIPacket):
         Returns:
             Integer: the transmit options of the packet.
         """
-        return self.__transmit_options
+        return self.__tx_opts
 
     @transmit_options.setter
     def transmit_options(self, transmit_options):
@@ -486,7 +487,7 @@ class TXIPv4Packet(XBeeAPIPacket):
             transmit_options (Integer): the new transmit options. Can
                 be :attr:`OPTIONS_CLOSE_SOCKET` or :attr:`OPTIONS_LEAVE_SOCKET_OPEN`.
         """
-        self.__transmit_options = transmit_options
+        self.__tx_opts = transmit_options
 
     @property
     def data(self):
@@ -515,11 +516,11 @@ class TXIPv4Packet(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_API_packet_spec_data`
         """
-        ret = bytearray(self.__dest_address.packed)
+        ret = bytearray(self.__dest_addr.packed)
         ret += utils.int_to_bytes(self.__dest_port, num_bytes=2)
-        ret += utils.int_to_bytes(self.__source_port, num_bytes=2)
-        ret += utils.int_to_bytes(self.__ip_protocol.code)
-        ret += utils.int_to_bytes(self.__transmit_options)
+        ret += utils.int_to_bytes(self.__src_port, num_bytes=2)
+        ret += utils.int_to_bytes(self.__ip_prot.code)
+        ret += utils.int_to_bytes(self.__tx_opts)
         if self.__data is not None:
             ret += self.__data
         return ret
@@ -531,9 +532,10 @@ class TXIPv4Packet(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_API_packet_spec_data_dict`
         """
-        return {DictKeys.DEST_IPV4_ADDR: "%s (%s)" % (self.__dest_address.packed, self.__dest_address.exploded),
-                DictKeys.DEST_PORT:      self.__dest_port,
-                DictKeys.SRC_PORT:       self.__source_port,
-                DictKeys.IP_PROTOCOL:    "%s (%s)" % (self.__ip_protocol.code, self.__ip_protocol.description),
-                DictKeys.OPTIONS:        self.__transmit_options,
-                DictKeys.RF_DATA:        bytearray(self.__data)}
+        return {
+            DictKeys.DEST_IPV4_ADDR: "%s (%s)" % (self.__dest_addr.packed, self.__dest_addr.exploded),
+            DictKeys.DEST_PORT:      self.__dest_port,
+            DictKeys.SRC_PORT:       self.__src_port,
+            DictKeys.IP_PROTOCOL:    "%s (%s)" % (self.__ip_prot.code, self.__ip_prot.description),
+            DictKeys.OPTIONS:        self.__tx_opts,
+            DictKeys.RF_DATA:        bytearray(self.__data)}

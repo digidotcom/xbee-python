@@ -44,7 +44,7 @@ class _ZDOCommand(metaclass=ABCMeta):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, xbee, cluster_id, receive_cluster_id, configure_ao, timeout):
+    def __init__(self, xbee, cluster_id, rx_cluster_id, configure_ao, timeout):
         """
         Class constructor. Instantiates a new :class:`._ZDOCommand` object
         with the provided parameters.
@@ -53,7 +53,7 @@ class _ZDOCommand(metaclass=ABCMeta):
             xbee (class:`.XBeeDevice` or class:`.RemoteXBeeDevice`): XBee to
                 send the ZDO command.
             cluster_id (Integer): The ZDO command cluster ID.
-            receive_cluster_id (Integer): The ZDO command receive cluster ID.
+            rx_cluster_id (Integer): The ZDO command receive cluster ID.
             configure_ao (Boolean): `True` to configure AO value before and
                 after executing this ZDO command, `False` otherwise.
             timeout(Float): The ZDO command timeout in seconds.
@@ -80,13 +80,13 @@ class _ZDOCommand(metaclass=ABCMeta):
                 % xbee.get_protocol().description)
         if cluster_id < 0:
             raise ValueError("Cluster id cannot be negative")
-        if receive_cluster_id < 0:
+        if rx_cluster_id < 0:
             raise ValueError("Receive cluster id cannot be negative")
         if timeout < 0:
             raise ValueError("Timeout cannot be negative")
 
         self.__cluster_id = cluster_id
-        self.__receive_cluster_id = receive_cluster_id
+        self.__rx_cluster_id = rx_cluster_id
         self.__configure_ao = configure_ao
         self.__timeout = timeout
 
@@ -360,7 +360,7 @@ class _ZDOCommand(metaclass=ABCMeta):
             #    * If transaction ID matches, if not discard: not the frame we
             #      are waiting for.
             if (frame.profile_id != self.PROFILE_ID
-                    or frame.cluster_id != self.__receive_cluster_id
+                    or frame.cluster_id != self.__rx_cluster_id
                     or frame.source_endpoint != self.SOURCE_ENDPOINT
                     or frame.dest_endpoint != self.DEST_ENDPOINT
                     or frame.rf_data[0] != self._current_transaction_id):
@@ -578,8 +578,8 @@ class NodeDescriptor:
         self.__mac_capabilities = mac_capabilities
         self.__manufacturer_code = manufacturer_code
         self.__max_buffer_size = max_buffer_size
-        self.__max_in_transfer_size = max_in_transfer_size
-        self.__max_out_transfer_size = max_out_transfer_size
+        self.__max_in_tx_size = max_in_transfer_size
+        self.__max_out_tx_size = max_out_transfer_size
         self.__desc_capabilities = desc_capabilities
 
     @property
@@ -675,7 +675,7 @@ class NodeDescriptor:
         Returns:
              Integer: Maximum number of bytes that can be received by the node.
         """
-        return self.__max_in_transfer_size
+        return self.__max_in_tx_size
 
     @property
     def max_out_transfer_size(self):
@@ -686,7 +686,7 @@ class NodeDescriptor:
         Returns:
              Integer: Maximum number of bytes that can be transmitted by the node.
         """
-        return self.__max_out_transfer_size
+        return self.__max_out_tx_size
 
     @property
     def desc_capabilities(self):

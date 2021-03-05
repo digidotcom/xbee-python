@@ -46,7 +46,7 @@ class FSCmdType(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -66,7 +66,7 @@ class FSCmdType(Enum):
         Returns:
             Integer: Description of the file system command element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -86,10 +86,10 @@ class FSCmdType(Enum):
         return None
 
     def __repr__(self):
-        return "%s (%d)" % (self.__description, self.__code)
+        return "%s (%d)" % (self.__desc, self.__code)
 
     def __str__(self):
-        return "%s (%d)" % (self.__description, self.__code)
+        return "%s (%d)" % (self.__desc, self.__code)
 
 
 FSCmdType.__doc__ += utils.doc_enum(FSCmdType)

@@ -80,8 +80,8 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
 
         super().__init__(ApiFrameType.REGISTER_JOINING_DEVICE, op_mode=op_mode)
         self._frame_id = frame_id
-        self.__registrant_address = registrant_address
-        self.__options = options
+        self.__registrant_addr = registrant_address
+        self.__opts = options
         self.__key = key
 
     @staticmethod
@@ -144,9 +144,9 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        ret = self.__registrant_address.address
+        ret = self.__registrant_addr.address
         ret += XBee16BitAddress.UNKNOWN_ADDRESS.address
-        ret.append(self.__options.code)
+        ret.append(self.__opts.code)
         if self.__key is not None:
             ret += self.__key
         return ret
@@ -158,11 +158,11 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.X64BIT_ADDR: "%s (%s)" % (self.__registrant_address.packed,
-                                                   self.__registrant_address.exploded),
+        return {DictKeys.X64BIT_ADDR: "%s (%s)" % (self.__registrant_addr.packed,
+                                                   self.__registrant_addr.exploded),
                 DictKeys.RESERVED:    XBee16BitAddress.UNKNOWN_ADDRESS.address,
-                DictKeys.OPTIONS:     "%s (%s)" % (self.__options.code,
-                                                   self.__options.description),
+                DictKeys.OPTIONS:     "%s (%s)" % (self.__opts.code,
+                                                   self.__opts.description),
                 DictKeys.KEY:         list(self.__key) if self.__key is not None else None}
 
     @property
@@ -176,7 +176,7 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBee64BitAddress`
         """
-        return self.__registrant_address
+        return self.__registrant_addr
 
     @registrant_address.setter
     def registrant_address(self, registrant_address):
@@ -191,7 +191,7 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
            | :class:`.XBee64BitAddress`
         """
         if registrant_address is not None:
-            self.__registrant_address = registrant_address
+            self.__registrant_addr = registrant_address
 
     @property
     def options(self):
@@ -204,7 +204,7 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.RegisterKeyOptions`
         """
-        return self.__options
+        return self.__opts
 
     @options.setter
     def options(self, options):
@@ -217,7 +217,7 @@ class RegisterJoiningDevicePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.RegisterKeyOptions`
         """
-        self.__options = options
+        self.__opts = options
 
     @property
     def key(self):
@@ -405,7 +405,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 17
 
-    def __init__(self, x64bit_addr, x16bit_addr, receive_options, hops=None,
+    def __init__(self, x64bit_addr, x16bit_addr, rx_opts, hops=None,
                  op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
@@ -415,7 +415,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         Args:
             x64bit_addr (:class:`.XBee64BitAddress`): The 64-bit source address.
             x16bit_addr (:class:`.XBee16BitAddress`): The 16-bit source address.
-            receive_options (Integer): Bitfield indicating the receive options.
+            rx_opts (Integer): Bitfield indicating the receive options.
             hops (List, optional, default=`None`): List of 16-bit address of
                 intermediate hops in the source route (excluding source and
                 destination).
@@ -432,7 +432,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
 
         self.__x64_addr = x64bit_addr
         self.__x16_addr = x16bit_addr
-        self.__receive_options = receive_options
+        self.__rx_opts = rx_opts
         self.__hops = hops if hops else []
 
     @staticmethod
@@ -503,7 +503,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`XBeeAPIPacket.is_broadcast`
         """
-        return utils.is_bit_enabled(self.__receive_options, 1)
+        return utils.is_bit_enabled(self.__rx_opts, 1)
 
     def _get_api_packet_spec_data(self):
         """
@@ -514,7 +514,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         """
         ret = self.__x64_addr.address
         ret += self.__x16_addr.address
-        ret.append(self.__receive_options)
+        ret.append(self.__rx_opts)
         ret.append(len(self.__hops))
         for hop in self.__hops:
             ret += hop.address
@@ -532,7 +532,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
 
         return {DictKeys.X64BIT_ADDR:     self.__x64_addr.address,
                 DictKeys.X16BIT_ADDR:     self.__x16_addr.address,
-                DictKeys.RECEIVE_OPTIONS: self.__receive_options,
+                DictKeys.RECEIVE_OPTIONS: self.__rx_opts,
                 DictKeys.NUM_OF_HOPS:     len(hops_array),
                 DictKeys.HOPS:            hops_array}
 
@@ -599,7 +599,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        return self.__receive_options
+        return self.__rx_opts
 
     @receive_options.setter
     def receive_options(self, receive_options):
@@ -612,7 +612,7 @@ class RouteRecordIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        self.__receive_options = receive_options
+        self.__rx_opts = receive_options
 
     @property
     def number_of_hops(self):
@@ -705,7 +705,7 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
         self._frame_id = frame_id
         self.__x64_addr = x64bit_addr
         self.__x16_addr = x16bit_addr
-        self.__route_options = route_options
+        self.__route_opts = route_options
         self.__hops = hops if hops else []
 
     @staticmethod
@@ -778,7 +778,7 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
         """
         ret = self.__x64_addr.address
         ret += self.__x16_addr.address
-        ret.append(self.__route_options)
+        ret.append(self.__route_opts)
         ret.append(len(self.__hops))
         for hop in self.__hops:
             ret += hop.address
@@ -796,7 +796,7 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
 
         return {DictKeys.X64BIT_ADDR:       self.__x64_addr.address,
                 DictKeys.X16BIT_ADDR:       self.__x16_addr.address,
-                DictKeys.ROUTE_CMD_OPTIONS: self.__route_options,
+                DictKeys.ROUTE_CMD_OPTIONS: self.__route_opts,
                 DictKeys.NUM_OF_HOPS:       len(hops_array),
                 DictKeys.HOPS:              hops_array}
 
@@ -860,7 +860,7 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
         Returns:
             Integer: The route command options bitfield.
         """
-        return self.__route_options
+        return self.__route_opts
 
     @route_cmd_options.setter
     def route_cmd_options(self, route_options):
@@ -870,7 +870,7 @@ class CreateSourceRoutePacket(XBeeAPIPacket):
         Args:
             route_options (Integer): The new route command options bitfield.
         """
-        self.__route_options = route_options
+        self.__route_opts = route_options
 
     @property
     def number_of_hops(self):
@@ -935,20 +935,23 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 26
 
-    def __init__(self, source_address_64, updater_address_16, receive_options,
-                 message_type, block_number, target_address_64, op_mode=OperatingMode.API_MODE):
+    def __init__(self, src_address_64, updater_address_16, rx_options, msg_type,
+                 block_number, target_address_64, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.OTAFirmwareUpdateStatusPacket` object with the
         provided parameters.
 
         Args:
-            source_address_64 (:class:`.XBee64BitAddress`): the 64-bit address of the device returning this answer.
-            updater_address_16 (:class:`.XBee16BitAddress`): the 16-bit address of the updater device.
-            receive_options (Integer): bitfield indicating the receive options.
-            message_type (:class:`.EmberBootloaderMessageType`): Ember bootloader message type
+            src_address_64 (:class:`.XBee64BitAddress`): the 64-bit address
+                of the device returning this answer.
+            updater_address_16 (:class:`.XBee16BitAddress`): the 16-bit address
+                of the updater device.
+            rx_options (Integer): bitfield indicating the receive options.
+            msg_type (:class:`.EmberBootloaderMessageType`): Ember bootloader message type
             block_number (Integer): block number used in the update request.
-            target_address_64 (:class:`.XBee64BitAddress`): the 64-bit address of the device that is being updated.
+            target_address_64 (:class:`.XBee64BitAddress`): the 64-bit address
+                of the device that is being updated.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
 
@@ -960,10 +963,10 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
            | :class:`.EmberBootloaderMessageType`
         """
         super().__init__(ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS, op_mode=op_mode)
-        self.__source_x64bit_addr = source_address_64
+        self.__src_x64bit_addr = src_address_64
         self.__updater_x16bit_addr = updater_address_16
-        self.__receive_options = receive_options
-        self.__message_type = message_type
+        self.__rx_opts = rx_options
+        self.__msg_type = msg_type
         self.__block_number = block_number
         self.__target_x64bit_addr = target_address_64
 
@@ -1028,10 +1031,10 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        raw = self.__source_x64bit_addr.address
+        raw = self.__src_x64bit_addr.address
         raw += self.__updater_x16bit_addr.address
-        raw.append(self.__receive_options & 0xFF)
-        raw.append(self.__message_type.code & 0xFF)
+        raw.append(self.__rx_opts & 0xFF)
+        raw.append(self.__msg_type.code & 0xFF)
         raw.append(self.__block_number & 0xFF)
         raw += self.__target_x64bit_addr.address
         return raw
@@ -1043,10 +1046,10 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SRC_64BIT_ADDR:        self.__source_x64bit_addr.address,
+        return {DictKeys.SRC_64BIT_ADDR:        self.__src_x64bit_addr.address,
                 DictKeys.UPDATER_16BIT_ADDR:    self.__updater_x16bit_addr.address,
-                DictKeys.RECEIVE_OPTIONS:       self.__receive_options,
-                DictKeys.BOOTLOADER_MSG_TYPE:   self.__message_type,
+                DictKeys.RECEIVE_OPTIONS:       self.__rx_opts,
+                DictKeys.BOOTLOADER_MSG_TYPE:   self.__msg_type,
                 DictKeys.BLOCK_NUMBER:          self.__block_number,
                 DictKeys.TARGET_64BIT_ADDR:     self.__target_x64bit_addr.address}
 
@@ -1061,7 +1064,7 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBee64BitAddress`
         """
-        return self.__source_x64bit_addr
+        return self.__src_x64bit_addr
 
     @x64bit_source_addr.setter
     def x64bit_source_addr(self, x64bit_source_addr):
@@ -1074,7 +1077,7 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBee64BitAddress`
         """
-        self.__source_x64bit_addr = x64bit_source_addr
+        self.__src_x64bit_addr = x64bit_source_addr
 
     @property
     def x16bit_updater_addr(self):
@@ -1113,7 +1116,7 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        return self.__receive_options
+        return self.__rx_opts
 
     @receive_options.setter
     def receive_options(self, receive_options):
@@ -1126,7 +1129,7 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        self.__receive_options = receive_options
+        self.__rx_opts = receive_options
 
     @property
     def bootloader_msg_type(self):
@@ -1139,7 +1142,7 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.EmberBootloaderMessageType`
         """
-        return self.__message_type
+        return self.__msg_type
 
     @bootloader_msg_type.setter
     def bootloader_msg_type(self, bootloader_message_type):
@@ -1147,12 +1150,13 @@ class OTAFirmwareUpdateStatusPacket(XBeeAPIPacket):
         Sets the receive options bitfield.
 
         Args:
-            bootloader_message_type (:class:`.EmberBootloaderMessageType`): the new bootloader message type.
+            bootloader_message_type (:class:`.EmberBootloaderMessageType`): the
+                new bootloader message type.
 
         .. seealso::
            | :class:`.EmberBootloaderMessageType`
         """
-        self.__message_type = bootloader_message_type
+        self.__msg_type = bootloader_message_type
 
     @property
     def block_number(self):

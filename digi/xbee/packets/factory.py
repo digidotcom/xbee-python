@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -105,7 +105,8 @@ from digi.xbee.packets.devicecloud import SendDataRequestPacket, \
 from digi.xbee.packets.digimesh import RouteInformationPacket
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.models.mode import OperatingMode
-from digi.xbee.packets.filesystem import FSRequestPacket, FSResponsePacket, RemoteFSRequestPacket, RemoteFSResponsePacket
+from digi.xbee.packets.filesystem import FSRequestPacket, FSResponsePacket, \
+    RemoteFSRequestPacket, RemoteFSResponsePacket
 from digi.xbee.packets.network import TXIPv4Packet, RXIPv4Packet
 from digi.xbee.packets.raw import RX64Packet, RX16Packet, TXStatusPacket, \
     RX16IOPacket, RX64IOPacket
@@ -319,4 +320,3 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
         return OTAFirmwareUpdateStatusPacket.create_packet(packet_bytearray, operating_mode)
 
     return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)
-

@@ -67,8 +67,8 @@ class ATCommPacket(XBeeAPIPacket):
             raise ValueError("Frame id must be between 0 and 255.")
 
         super().__init__(ApiFrameType.AT_COMMAND, op_mode=op_mode)
-        self.__command = _encode_at_cmd(command)
-        self.__parameter = parameter
+        self.__cmd = _encode_at_cmd(command)
+        self.__param = parameter
         self._frame_id = frame_id
 
     @staticmethod
@@ -127,9 +127,9 @@ class ATCommPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        if self.__parameter is not None:
-            return bytearray(self.__command) + self.__parameter
-        return bytearray(self.__command)
+        if self.__param is not None:
+            return bytearray(self.__cmd) + self.__param
+        return bytearray(self.__cmd)
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -138,8 +138,8 @@ class ATCommPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.COMMAND: self.__command,
-                DictKeys.PARAMETER: list(self.__parameter) if self.__parameter is not None else None}
+        return {DictKeys.COMMAND: self.__cmd,
+                DictKeys.PARAMETER: list(self.__param) if self.__param is not None else None}
 
     @property
     def command(self):
@@ -149,7 +149,7 @@ class ATCommPacket(XBeeAPIPacket):
         Returns:
             String: the AT command of the packet.
         """
-        return _decode_at_cmd(self.__command)
+        return _decode_at_cmd(self.__cmd)
 
     @command.setter
     def command(self, command):
@@ -166,7 +166,7 @@ class ATCommPacket(XBeeAPIPacket):
         if len(command) != 2:
             raise ValueError("Invalid command %s"
                              % str(command, encoding='utf8', errors='ignore'))
-        self.__command = _encode_at_cmd(command)
+        self.__cmd = _encode_at_cmd(command)
 
     @property
     def parameter(self):
@@ -176,7 +176,7 @@ class ATCommPacket(XBeeAPIPacket):
         Returns:
             Bytearray: the parameter of the packet.
         """
-        return self.__parameter
+        return self.__param
 
     @parameter.setter
     def parameter(self, param):
@@ -186,7 +186,7 @@ class ATCommPacket(XBeeAPIPacket):
         Args:
             param (Bytearray): the new parameter of the packet.
         """
-        self.__parameter = param
+        self.__param = param
 
 
 class ATCommQueuePacket(XBeeAPIPacket):
@@ -237,8 +237,8 @@ class ATCommQueuePacket(XBeeAPIPacket):
             raise ValueError("Frame id must be between 0 and 255.")
 
         super().__init__(ApiFrameType.AT_COMMAND_QUEUE, op_mode=op_mode)
-        self.__command = _encode_at_cmd(command)
-        self.__parameter = parameter
+        self.__cmd = _encode_at_cmd(command)
+        self.__param = parameter
         self._frame_id = frame_id
 
     @staticmethod
@@ -297,9 +297,9 @@ class ATCommQueuePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        if self.__parameter is not None:
-            return bytearray(self.__command) + self.__parameter
-        return bytearray(self.__command)
+        if self.__param is not None:
+            return bytearray(self.__cmd) + self.__param
+        return bytearray(self.__cmd)
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -308,8 +308,8 @@ class ATCommQueuePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.COMMAND: self.__command,
-                DictKeys.PARAMETER: list(self.__parameter) if self.__parameter is not None else None}
+        return {DictKeys.COMMAND: self.__cmd,
+                DictKeys.PARAMETER: list(self.__param) if self.__param is not None else None}
 
     @property
     def command(self):
@@ -319,7 +319,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
         Returns:
             String: the AT command of the packet.
         """
-        return _decode_at_cmd(self.__command)
+        return _decode_at_cmd(self.__cmd)
 
     @command.setter
     def command(self, command):
@@ -336,7 +336,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
         if len(command) != 2:
             raise ValueError("Invalid command %s"
                              % str(command, encoding='utf8', errors='ignore'))
-        self.__command = _encode_at_cmd(command)
+        self.__cmd = _encode_at_cmd(command)
 
     @property
     def parameter(self):
@@ -346,7 +346,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
         Returns:
             Bytearray: the parameter of the packet.
         """
-        return self.__parameter
+        return self.__param
 
     @parameter.setter
     def parameter(self, param):
@@ -356,7 +356,7 @@ class ATCommQueuePacket(XBeeAPIPacket):
         Args:
             param (Bytearray): the new parameter of the packet.
         """
-        self.__parameter = param
+        self.__param = param
 
 
 class ATCommResponsePacket(XBeeAPIPacket):
@@ -417,14 +417,14 @@ class ATCommResponsePacket(XBeeAPIPacket):
 
         super().__init__(ApiFrameType.AT_COMMAND_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
-        self.__command = _encode_at_cmd(command)
+        self.__cmd = _encode_at_cmd(command)
         if isinstance(response_status, ATCommandStatus):
-            self.__response_status = response_status.code
+            self.__resp_st = response_status.code
         elif 0 <= response_status <= 255:
-            self.__response_status = response_status
+            self.__resp_st = response_status
         else:
             raise ValueError("Response status must be between 0 and 255.")
-        self.__comm_value = comm_value
+        self.__comm_val = comm_value
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -487,10 +487,10 @@ class ATCommResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
-        ret = bytearray(self.__command)
-        ret.append(self.__response_status)
-        if self.__comm_value is not None:
-            ret += self.__comm_value
+        ret = bytearray(self.__cmd)
+        ret.append(self.__resp_st)
+        if self.__comm_val is not None:
+            ret += self.__comm_val
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -500,9 +500,9 @@ class ATCommResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.COMMAND: self.__command,
-                DictKeys.AT_CMD_STATUS: self.__response_status,
-                DictKeys.RF_DATA: list(self.__comm_value) if self.__comm_value is not None else None}
+        return {DictKeys.COMMAND: self.__cmd,
+                DictKeys.AT_CMD_STATUS: self.__resp_st,
+                DictKeys.RF_DATA: list(self.__comm_val) if self.__comm_val is not None else None}
 
     @property
     def command(self):
@@ -512,7 +512,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         Returns:
             String: the AT command of the packet.
         """
-        return _decode_at_cmd(self.__command)
+        return _decode_at_cmd(self.__cmd)
 
     @command.setter
     def command(self, command):
@@ -529,7 +529,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         if len(command) != 2:
             raise ValueError("Invalid command %s"
                              % str(command, encoding='utf8', errors='ignore'))
-        self.__command = _encode_at_cmd(command)
+        self.__cmd = _encode_at_cmd(command)
 
     @property
     def command_value(self):
@@ -539,7 +539,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         Returns:
             Bytearray: the AT command response value.
         """
-        return self.__comm_value
+        return self.__comm_val
 
     @command_value.setter
     def command_value(self, __comm_value):
@@ -549,7 +549,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         Args:
             __comm_value (Bytearray): the new AT command response value.
         """
-        self.__comm_value = __comm_value
+        self.__comm_val = __comm_value
 
     @property
     def status(self):
@@ -562,7 +562,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ATCommandStatus`
         """
-        return ATCommandStatus.get(self.__response_status)
+        return ATCommandStatus.get(self.__resp_st)
 
     @property
     def real_status(self):
@@ -572,7 +572,7 @@ class ATCommResponsePacket(XBeeAPIPacket):
         Returns:
             Integer: the AT command response status of the packet.
         """
-        return self.__response_status
+        return self.__resp_st
 
     @status.setter
     def status(self, response_status):
@@ -590,10 +590,10 @@ class ATCommResponsePacket(XBeeAPIPacket):
             raise ValueError("Response status cannot be None")
 
         if isinstance(response_status, ATCommandStatus):
-            self.__response_status = response_status.code
+            self.__resp_st = response_status.code
         elif isinstance(response_status, int):
             if 0 <= response_status <= 255:
-                self.__response_status = response_status
+                self.__resp_st = response_status
             else:
                 raise ValueError("Response status must be between 0 and 255.")
         else:
@@ -624,7 +624,7 @@ class ReceivePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 16
 
-    def __init__(self, x64bit_addr, x16bit_addr, receive_options, rf_data=None,
+    def __init__(self, x64bit_addr, x16bit_addr, rx_options, rf_data=None,
                  op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.ReceivePacket` object
@@ -633,7 +633,7 @@ class ReceivePacket(XBeeAPIPacket):
         Args:
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit source address.
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit source address.
-            receive_options (Integer): bitfield indicating the receive options.
+            rx_options (Integer): bitfield indicating the receive options.
             rf_data (Bytearray, optional): received RF data.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -647,8 +647,8 @@ class ReceivePacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.RECEIVE_PACKET, op_mode=op_mode)
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
-        self.__receive_options = receive_options
-        self.__rf_data = rf_data
+        self.__rx_opts = rx_options
+        self.__data = rf_data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -705,7 +705,7 @@ class ReceivePacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`XBeeAPIPacket.is_broadcast`
         """
-        return utils.is_bit_enabled(self.__receive_options, 1)
+        return utils.is_bit_enabled(self.__rx_opts, 1)
 
     def _get_api_packet_spec_data(self):
         """
@@ -716,9 +716,9 @@ class ReceivePacket(XBeeAPIPacket):
         """
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
-        ret.append(self.__receive_options)
-        if self.__rf_data is not None:
-            return ret + self.__rf_data
+        ret.append(self.__rx_opts)
+        if self.__data is not None:
+            return ret + self.__data
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -730,8 +730,8 @@ class ReceivePacket(XBeeAPIPacket):
         """
         return {DictKeys.X64BIT_ADDR:     self.__x64bit_addr.address,
                 DictKeys.X16BIT_ADDR:     self.__x16bit_addr.address,
-                DictKeys.RECEIVE_OPTIONS: self.__receive_options,
-                DictKeys.RF_DATA:         list(self.__rf_data) if self.__rf_data is not None else None}
+                DictKeys.RECEIVE_OPTIONS: self.__rx_opts,
+                DictKeys.RF_DATA:         list(self.__data) if self.__data is not None else None}
 
     @property
     def x64bit_source_addr(self):
@@ -796,7 +796,7 @@ class ReceivePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        return self.__receive_options
+        return self.__rx_opts
 
     @receive_options.setter
     def receive_options(self, receive_options):
@@ -809,7 +809,7 @@ class ReceivePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        self.__receive_options = receive_options
+        self.__rx_opts = receive_options
 
     @property
     def rf_data(self):
@@ -819,9 +819,9 @@ class ReceivePacket(XBeeAPIPacket):
         Returns:
             Bytearray: the received RF data.
         """
-        if self.__rf_data is None:
+        if self.__data is None:
             return None
-        return self.__rf_data.copy()
+        return self.__data.copy()
 
     @rf_data.setter
     def rf_data(self, rf_data):
@@ -832,9 +832,9 @@ class ReceivePacket(XBeeAPIPacket):
             rf_data (Bytearray): the new received RF data.
         """
         if rf_data is None:
-            self.__rf_data = None
+            self.__data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__data = rf_data.copy()
 
 
 class RemoteATCommandPacket(XBeeAPIPacket):
@@ -858,7 +858,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 19
 
-    def __init__(self, frame_id, x64bit_addr, x16bit_addr, transmit_options,
+    def __init__(self, frame_id, x64bit_addr, x16bit_addr, tx_options,
                  command, parameter=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.RemoteATCommandPacket`
@@ -868,7 +868,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
             frame_id (integer): the frame ID of the packet.
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit destination address.
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit destination address.
-            transmit_options (Integer): bitfield of supported transmission options.
+            tx_options (Integer): bitfield of supported transmission options.
             command (String or bytearray): AT command to send.
             parameter (Bytearray, optional): AT command parameter.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
@@ -896,9 +896,9 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
-        self.__transmit_options = transmit_options
-        self.__command = _encode_at_cmd(command)
-        self.__parameter = parameter
+        self.__tx_opts = tx_options
+        self.__cmd = _encode_at_cmd(command)
+        self.__param = parameter
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -961,10 +961,10 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         """
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
-        ret.append(self.__transmit_options)
-        ret += self.__command
+        ret.append(self.__tx_opts)
+        ret += self.__cmd
 
-        return ret if self.__parameter is None else ret + self.__parameter
+        return ret if self.__param is None else ret + self.__param
 
     def _get_api_packet_spec_data_dict(self):
         """
@@ -975,9 +975,9 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         """
         return {DictKeys.X64BIT_ADDR: self.__x64bit_addr.address,
                 DictKeys.X16BIT_ADDR: self.__x16bit_addr.address,
-                DictKeys.TRANSMIT_OPTIONS: self.__transmit_options,
-                DictKeys.COMMAND: self.__command,
-                DictKeys.PARAMETER: list(self.__parameter) if self.__parameter is not None else None}
+                DictKeys.TRANSMIT_OPTIONS: self.__tx_opts,
+                DictKeys.COMMAND: self.__cmd,
+                DictKeys.PARAMETER: list(self.__param) if self.__param is not None else None}
 
     @property
     def x64bit_dest_addr(self):
@@ -1042,7 +1042,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.RemoteATCmdOptions`
         """
-        return self.__transmit_options
+        return self.__tx_opts
 
     @transmit_options.setter
     def transmit_options(self, transmit_options):
@@ -1055,7 +1055,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.RemoteATCmdOptions`
         """
-        self.__transmit_options = transmit_options
+        self.__tx_opts = transmit_options
 
     @property
     def parameter(self):
@@ -1065,7 +1065,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         Returns:
             Bytearray: the AT command parameter.
         """
-        return self.__parameter
+        return self.__param
 
     @parameter.setter
     def parameter(self, parameter):
@@ -1075,7 +1075,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         Args:
             parameter (Bytearray): the new AT command parameter.
         """
-        self.__parameter = parameter
+        self.__param = parameter
 
     @property
     def command(self):
@@ -1085,7 +1085,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         Returns:
             String: the AT command.
         """
-        return _decode_at_cmd(self.__command)
+        return _decode_at_cmd(self.__cmd)
 
     @command.setter
     def command(self, command):
@@ -1098,7 +1098,7 @@ class RemoteATCommandPacket(XBeeAPIPacket):
         if len(command) != 2:
             raise ValueError("Invalid command %s"
                              % str(command, encoding='utf8', errors='ignore'))
-        self.__command = _encode_at_cmd(command)
+        self.__cmd = _encode_at_cmd(command)
 
 
 class RemoteATCommandResponsePacket(XBeeAPIPacket):
@@ -1124,7 +1124,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
     __MIN_PACKET_LENGTH = 19
 
     def __init__(self, frame_id, x64bit_addr, x16bit_addr, command,
-                 response_status, comm_value=None, op_mode=OperatingMode.API_MODE):
+                 resp_status, comm_value=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.RemoteATCommandResponsePacket` object with the provided
@@ -1135,7 +1135,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit source address
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit source address.
             command (String or bytearray): the AT command of the packet.
-            response_status (:class:`.ATCommandStatus` or Integer): the status of the AT command.
+            resp_status (:class:`.ATCommandStatus` or Integer): the status of the AT command.
             comm_value (Bytearray, optional): the AT command response value. Optional.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -1157,24 +1157,24 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         if len(command) != 2:
             raise ValueError("Invalid command %s"
                              % str(command, encoding='utf8', errors='ignore'))
-        if response_status is None:
-            response_status = ATCommandStatus.OK.code
-        elif not isinstance(response_status, (ATCommandStatus, int)):
+        if resp_status is None:
+            resp_status = ATCommandStatus.OK.code
+        elif not isinstance(resp_status, (ATCommandStatus, int)):
             raise TypeError("Response status must be ATCommandStatus or int not {!r}".format(
-                response_status.__class__.__name__))
+                resp_status.__class__.__name__))
 
         super().__init__(ApiFrameType.REMOTE_AT_COMMAND_RESPONSE, op_mode=op_mode)
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
-        self.__command = _encode_at_cmd(command)
-        if isinstance(response_status, ATCommandStatus):
-            self.__response_status = response_status.code
-        elif 0 <= response_status <= 255:
-            self.__response_status = response_status
+        self.__cmd = _encode_at_cmd(command)
+        if isinstance(resp_status, ATCommandStatus):
+            self.__resp_st = resp_status.code
+        elif 0 <= resp_status <= 255:
+            self.__resp_st = resp_status
         else:
             raise ValueError("Response status must be between 0 and 255.")
-        self.__comm_value = comm_value
+        self.__comm_val = comm_value
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -1240,18 +1240,18 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         """
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
-        ret += self.__command
-        ret.append(self.__response_status)
-        if self.__comm_value is not None:
-            ret += self.__comm_value
+        ret += self.__cmd
+        ret.append(self.__resp_st)
+        if self.__comm_val is not None:
+            ret += self.__comm_val
         return ret
 
     def _get_api_packet_spec_data_dict(self):
         return {DictKeys.X64BIT_ADDR:   self.__x64bit_addr.address,
                 DictKeys.X16BIT_ADDR:   self.__x16bit_addr.address,
-                DictKeys.COMMAND:       self.__command,
-                DictKeys.AT_CMD_STATUS: self.__response_status,
-                DictKeys.RF_DATA:       list(self.__comm_value) if self.__comm_value is not None else None}
+                DictKeys.COMMAND:       self.__cmd,
+                DictKeys.AT_CMD_STATUS: self.__resp_st,
+                DictKeys.RF_DATA:       list(self.__comm_val) if self.__comm_val is not None else None}
 
     @property
     def command(self):
@@ -1261,7 +1261,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         Returns:
             String: the AT command of the packet.
         """
-        return _decode_at_cmd(self.__command)
+        return _decode_at_cmd(self.__cmd)
 
     @command.setter
     def command(self, command):
@@ -1278,7 +1278,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         if len(command) != 2:
             raise ValueError("Invalid command %s"
                              % str(command, encoding='utf8', errors='ignore'))
-        self.__command = _encode_at_cmd(command)
+        self.__cmd = _encode_at_cmd(command)
 
     @property
     def command_value(self):
@@ -1288,7 +1288,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         Returns:
             Bytearray: the AT command response value.
         """
-        return self.__comm_value
+        return self.__comm_val
 
     @command_value.setter
     def command_value(self, comm_value):
@@ -1298,7 +1298,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         Args:
             comm_value (Bytearray): the new AT command response value.
         """
-        self.__comm_value = comm_value
+        self.__comm_val = comm_value
 
     @property
     def status(self):
@@ -1311,7 +1311,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ATCommandStatus`
         """
-        return ATCommandStatus.get(self.__response_status)
+        return ATCommandStatus.get(self.__resp_st)
 
     @property
     def real_status(self):
@@ -1321,7 +1321,7 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
         Returns:
             Integer: the AT command response status of the packet.
         """
-        return self.__response_status
+        return self.__resp_st
 
     @status.setter
     def status(self, response_status):
@@ -1339,10 +1339,10 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
             raise ValueError("Response status cannot be None")
 
         if isinstance(response_status, ATCommandStatus):
-            self.__response_status = response_status.code
+            self.__resp_st = response_status.code
         elif isinstance(response_status, int):
             if 0 <= response_status <= 255:
-                self.__response_status = response_status
+                self.__resp_st = response_status
             else:
                 raise ValueError("Response status must be between 0 and 255.")
         else:
@@ -1449,7 +1449,7 @@ class TransmitPacket(XBeeAPIPacket):
     __MIN_PACKET_LENGTH = 18
 
     def __init__(self, frame_id, x64bit_addr, x16bit_addr, broadcast_radius,
-                 transmit_options, rf_data=None, op_mode=OperatingMode.API_MODE):
+                 tx_options, rf_data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.TransmitPacket` object
         with the provided parameters.
@@ -1459,7 +1459,7 @@ class TransmitPacket(XBeeAPIPacket):
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit destination address.
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit destination address.
             broadcast_radius (Integer): maximum number of hops a broadcast transmission can occur.
-            transmit_options (Integer): bitfield of supported transmission options.
+            tx_options (Integer): bitfield of supported transmission options.
             rf_data (Bytearray, optional): RF data that is sent to the destination device.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -1481,8 +1481,8 @@ class TransmitPacket(XBeeAPIPacket):
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
         self.__broadcast_radius = broadcast_radius
-        self.__transmit_options = transmit_options
-        self.__rf_data = rf_data
+        self.__tx_opts = tx_options
+        self.__data = rf_data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -1545,9 +1545,9 @@ class TransmitPacket(XBeeAPIPacket):
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
         ret.append(self.__broadcast_radius)
-        ret.append(self.__transmit_options)
-        if self.__rf_data is not None:
-            return ret + self.__rf_data
+        ret.append(self.__tx_opts)
+        if self.__data is not None:
+            return ret + self.__data
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -1560,8 +1560,8 @@ class TransmitPacket(XBeeAPIPacket):
         return {DictKeys.X64BIT_ADDR:      self.__x64bit_addr.address,
                 DictKeys.X16BIT_ADDR:      self.__x16bit_addr.address,
                 DictKeys.BROADCAST_RADIUS: self.__broadcast_radius,
-                DictKeys.TRANSMIT_OPTIONS: self.__transmit_options,
-                DictKeys.RF_DATA:          list(self.__rf_data) if self.__rf_data is not None else None}
+                DictKeys.TRANSMIT_OPTIONS: self.__tx_opts,
+                DictKeys.RF_DATA:          list(self.__data) if self.__data is not None else None}
 
     @property
     def rf_data(self):
@@ -1571,9 +1571,9 @@ class TransmitPacket(XBeeAPIPacket):
         Returns:
             Bytearray: the RF data to send.
         """
-        if self.__rf_data is None:
+        if self.__data is None:
             return None
-        return self.__rf_data.copy()
+        return self.__data.copy()
 
     @rf_data.setter
     def rf_data(self, rf_data):
@@ -1584,9 +1584,9 @@ class TransmitPacket(XBeeAPIPacket):
             rf_data (Bytearray): the new RF data to send.
         """
         if rf_data is None:
-            self.__rf_data = None
+            self.__data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__data = rf_data.copy()
 
     @property
     def transmit_options(self):
@@ -1599,7 +1599,7 @@ class TransmitPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.TransmitOptions`
         """
-        return self.__transmit_options
+        return self.__tx_opts
 
     @transmit_options.setter
     def transmit_options(self, transmit_options):
@@ -1612,7 +1612,7 @@ class TransmitPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.TransmitOptions`
         """
-        self.__transmit_options = transmit_options
+        self.__tx_opts = transmit_options
 
     @property
     def broadcast_radius(self):
@@ -1706,7 +1706,7 @@ class TransmitStatusPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 11
 
-    def __init__(self, frame_id, x16bit_addr, transmit_retry_count,
+    def __init__(self, frame_id, x16bit_addr, tx_retry_count,
                  transmit_status=TransmitStatus.SUCCESS,
                  discovery_status=DiscoveryStatus.NO_DISCOVERY_OVERHEAD,
                  op_mode=OperatingMode.API_MODE):
@@ -1716,11 +1716,14 @@ class TransmitStatusPacket(XBeeAPIPacket):
 
         Args:
             frame_id (Integer): the frame ID of the packet.
-            x16bit_addr (:class:`.XBee16BitAddress`): 16-bit network address the packet was delivered to.
-            transmit_retry_count (Integer): the number of application transmission retries that took place.
-            transmit_status (:class:`.TransmitStatus`, optional): transmit status. Default: SUCCESS. Optional.
-            discovery_status (:class:`DiscoveryStatus`, optional): discovery status. Default: NO_DISCOVERY_OVERHEAD.
-                Optional.
+            x16bit_addr (:class:`.XBee16BitAddress`): 16-bit network address
+                the packet was delivered to.
+            tx_retry_count (Integer): the number of application
+                transmission retries that took place.
+            transmit_status (:class:`.TransmitStatus`, optional): transmit
+                status. Default: SUCCESS.
+            discovery_status (:class:`DiscoveryStatus`, optional): discovery status.
+                Default: NO_DISCOVERY_OVERHEAD.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
 
@@ -1739,8 +1742,8 @@ class TransmitStatusPacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.TRANSMIT_STATUS, op_mode=op_mode)
         self._frame_id = frame_id
         self.__x16bit_addr = x16bit_addr
-        self.__transmit_retry_count = transmit_retry_count
-        self.__transmit_status = transmit_status
+        self.__tx_retry_count = tx_retry_count
+        self.__tx_status = transmit_status
         self.__discovery_status = discovery_status
 
     @staticmethod
@@ -1801,8 +1804,8 @@ class TransmitStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         ret = self.__x16bit_addr.address
-        ret.append(self.__transmit_retry_count)
-        ret.append(self.__transmit_status.code)
+        ret.append(self.__tx_retry_count)
+        ret.append(self.__tx_status.code)
         ret.append(self.__discovery_status.code)
         return ret
 
@@ -1814,8 +1817,8 @@ class TransmitStatusPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
         return {DictKeys.X16BIT_ADDR: self.__x16bit_addr.address,
-                DictKeys.TRANS_R_COUNT: self.__transmit_retry_count,
-                DictKeys.TS_STATUS: self.__transmit_status,
+                DictKeys.TRANS_R_COUNT: self.__tx_retry_count,
+                DictKeys.TS_STATUS: self.__tx_status,
                 DictKeys.DS_STATUS: self.__discovery_status}
 
     @property
@@ -1855,7 +1858,7 @@ class TransmitStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.TransmitStatus`
         """
-        return self.__transmit_status
+        return self.__tx_status
 
     @transmit_status.setter
     def transmit_status(self, transmit_status):
@@ -1868,7 +1871,7 @@ class TransmitStatusPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.TransmitStatus`
         """
-        self.__transmit_status = transmit_status
+        self.__tx_status = transmit_status
 
     @property
     def transmit_retry_count(self):
@@ -1878,7 +1881,7 @@ class TransmitStatusPacket(XBeeAPIPacket):
         Returns:
             Integer: the transmit retry count.
         """
-        return self.__transmit_retry_count
+        return self.__tx_retry_count
 
     @transmit_retry_count.setter
     def transmit_retry_count(self, transmit_retry_count):
@@ -1888,7 +1891,7 @@ class TransmitStatusPacket(XBeeAPIPacket):
         Args:
             transmit_retry_count (Integer): the new transmit retry count.
         """
-        self.__transmit_retry_count = transmit_retry_count
+        self.__tx_retry_count = transmit_retry_count
 
     @property
     def discovery_status(self):
@@ -1933,7 +1936,8 @@ class ModemStatusPacket(XBeeAPIPacket):
 
     def __init__(self, modem_status, op_mode=OperatingMode.API_MODE):
         """
-        Class constructor. Instantiates a new :class:`.ModemStatusPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.ModemStatusPacket`
+        object with the provided parameters.
 
         Args:
             modem_status (:class:`.ModemStatus`): the modem status event.
@@ -2057,7 +2061,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 20
 
-    def __init__(self, x64bit_addr, x16bit_addr, receive_options, rf_data=None,
+    def __init__(self, x64bit_addr, x16bit_addr, rx_options, rf_data=None,
                  op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
@@ -2066,13 +2070,14 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         Args:
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit source address.
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit source address.
-            receive_options (Integer): bitfield indicating the receive options.
+            rx_options (Integer): bitfield indicating the receive options.
             rf_data (Bytearray, optional): received RF data.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
 
         Raises:
-            ValueError: if `rf_data` is not `None` and it's not valid for create an :class:`.IOSample`.
+            ValueError: if `rf_data` is not `None` and it's not valid for
+                create an :class:`.IOSample`.
 
         .. seealso::
            | :class:`.IOSample`
@@ -2084,8 +2089,8 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR, op_mode=op_mode)
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
-        self.__receive_options = receive_options
-        self.__rf_data = rf_data
+        self.__rx_opts = rx_options
+        self.__data = rf_data
         self.__io_sample = IOSample(rf_data) if rf_data is not None and len(rf_data) >= 5 else None
 
     @staticmethod
@@ -2118,10 +2123,12 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
                                   OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=IODataSampleRxIndicatorPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=IODataSampleRxIndicatorPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.IO_DATA_SAMPLE_RX_INDICATOR.code:
-            raise InvalidPacketException(message="This packet is not an IO data sample RX indicator packet.")
+            raise InvalidPacketException(
+                message="This packet is not an IO data sample RX indicator packet.")
 
         return IODataSampleRxIndicatorPacket(
             XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]),
@@ -2145,9 +2152,9 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         """
         ret = self.__x64bit_addr.address
         ret += self.__x16bit_addr.address
-        ret.append(self.__receive_options)
-        if self.__rf_data is not None:
-            ret += self.__rf_data
+        ret.append(self.__rx_opts)
+        if self.__data is not None:
+            ret += self.__data
         return ret
 
     def _get_api_packet_spec_data_dict(self):
@@ -2159,7 +2166,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         """
         base = {DictKeys.X64BIT_ADDR: self.__x64bit_addr.address,
                 DictKeys.X16BIT_ADDR: self.__x16bit_addr.address,
-                DictKeys.RECEIVE_OPTIONS: self.__receive_options}
+                DictKeys.RECEIVE_OPTIONS: self.__rx_opts}
 
         if self.__io_sample is not None:
             base[DictKeys.NUM_SAMPLES] = 1
@@ -2182,8 +2189,8 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
             if self.__io_sample.has_power_supply_value():
                 base["Power supply value "] = "%02X" % self.__io_sample.power_supply_value
 
-        elif self.__rf_data is not None:
-            base[DictKeys.RF_DATA] = utils.hex_to_string(self.__rf_data)
+        elif self.__data is not None:
+            base[DictKeys.RF_DATA] = utils.hex_to_string(self.__data)
 
         return base
 
@@ -2194,7 +2201,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`XBeeAPIPacket.is_broadcast`
         """
-        return utils.is_bit_enabled(self.__receive_options, 1)
+        return utils.is_bit_enabled(self.__rx_opts, 1)
 
     @property
     def x64bit_source_addr(self):
@@ -2259,7 +2266,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        return self.__receive_options
+        return self.__rx_opts
 
     @receive_options.setter
     def receive_options(self, receive_options):
@@ -2272,7 +2279,7 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        self.__receive_options = receive_options
+        self.__rx_opts = receive_options
 
     @property
     def rf_data(self):
@@ -2282,9 +2289,9 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         Returns:
             Bytearray: the received RF data.
         """
-        if self.__rf_data is None:
+        if self.__data is None:
             return None
-        return self.__rf_data.copy()
+        return self.__data.copy()
 
     @rf_data.setter
     def rf_data(self, rf_data):
@@ -2295,13 +2302,13 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
             rf_data (Bytearray): the new received RF data.
         """
         if rf_data is None:
-            self.__rf_data = None
+            self.__data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__data = rf_data.copy()
 
         # Modify the ioSample accordingly
         if rf_data is not None and len(rf_data) >= 5:
-            self.__io_sample = IOSample(self.__rf_data)
+            self.__io_sample = IOSample(self.__data)
         else:
             self.__io_sample = None
 
@@ -2388,17 +2395,18 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 24
 
-    def __init__(self, frame_id, x64bit_addr, x16bit_addr, source_endpoint,
+    def __init__(self, frame_id, x64bit_addr, x16bit_addr, src_endpoint,
                  dest_endpoint, cluster_id, profile_id, broadcast_radius=0x00,
                  transmit_options=0x00, rf_data=None, op_mode=OperatingMode.API_MODE):
         """
-        Class constructor. . Instantiates a new :class:`.ExplicitAddressingPacket` object with the provided parameters.
+        Class constructor. . Instantiates a new :class:`.ExplicitAddressingPacket`
+        object with the provided parameters.
 
         Args:
             frame_id (Integer): the frame ID of the packet.
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit address.
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit address.
-            source_endpoint (Integer): source endpoint. 1 byte.
+            src_endpoint (Integer): source endpoint. 1 byte.
             dest_endpoint (Integer): destination endpoint. 1 byte.
             cluster_id (Integer): cluster id. Must be between 0 and 0xFFFF.
             profile_id (Integer): profile id. Must be between 0 and 0xFFFF.
@@ -2409,9 +2417,10 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
                 The mode in which the frame was captured.
 
         Raises:
-            ValueError: if `frame_id`, `src_endpoint` or `dst_endpoint` are less than 0 or greater than 255.
-            ValueError: if lengths of `cluster_id` or `profile_id` (respectively) are less than 0 or greater than
-                0xFFFF.
+            ValueError: if `frame_id`, `src_endpoint` or `dst_endpoint` are less
+                than 0 or greater than 255.
+            ValueError: if lengths of `cluster_id` or `profile_id` (respectively)
+                are less than 0 or greater than 0xFFFF.
 
         .. seealso::
            | :class:`.XBee16BitAddress`
@@ -2421,7 +2430,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         """
         if frame_id < 0 or frame_id > 255:
             raise ValueError("Frame id must be between 0 and 255.")
-        if source_endpoint < 0 or source_endpoint > 255:
+        if src_endpoint < 0 or src_endpoint > 255:
             raise ValueError("Source endpoint must be between 0 and 255.")
         if dest_endpoint < 0 or dest_endpoint > 255:
             raise ValueError("Destination endpoint must be between 0 and 255.")
@@ -2434,13 +2443,13 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         self._frame_id = frame_id
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
-        self.__source_endpoint = source_endpoint
-        self.__dest_endpoint = dest_endpoint
+        self.__src_ed = src_endpoint
+        self.__dest_ed = dest_endpoint
         self.__cluster_id = cluster_id
         self.__profile_id = profile_id
         self.__broadcast_radius = broadcast_radius
-        self.__transmit_options = transmit_options
-        self.__rf_data = rf_data
+        self.__tx_opts = transmit_options
+        self.__data = rf_data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -2474,7 +2483,8 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
                                   OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=ExplicitAddressingPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=ExplicitAddressingPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.EXPLICIT_ADDRESSING.code:
             raise InvalidPacketException(message="This packet is not an explicit addressing packet")
@@ -2502,14 +2512,14 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         """
         raw = self.__x64bit_addr.address
         raw += self.__x16bit_addr.address
-        raw.append(self.__source_endpoint)
-        raw.append(self.__dest_endpoint)
+        raw.append(self.__src_ed)
+        raw.append(self.__dest_ed)
         raw += utils.int_to_bytes(self.__cluster_id, num_bytes=2)
         raw += utils.int_to_bytes(self.__profile_id, num_bytes=2)
         raw.append(self.__broadcast_radius)
-        raw.append(self.__transmit_options)
-        if self.__rf_data is not None:
-            raw += self.__rf_data
+        raw.append(self.__tx_opts)
+        if self.__data is not None:
+            raw += self.__data
         return raw
 
     def _get_api_packet_spec_data_dict(self):
@@ -2521,13 +2531,13 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         """
         return {DictKeys.X64BIT_ADDR:      self.__x64bit_addr.address,
                 DictKeys.X16BIT_ADDR:      self.__x16bit_addr.address,
-                DictKeys.SOURCE_ENDPOINT:  self.__source_endpoint,
-                DictKeys.DEST_ENDPOINT:    self.__dest_endpoint,
+                DictKeys.SOURCE_ENDPOINT:  self.__src_ed,
+                DictKeys.DEST_ENDPOINT:    self.__dest_ed,
                 DictKeys.CLUSTER_ID:       self.__cluster_id,
                 DictKeys.PROFILE_ID:       self.__profile_id,
                 DictKeys.BROADCAST_RADIUS: self.__broadcast_radius,
-                DictKeys.TRANSMIT_OPTIONS: self.__transmit_options,
-                DictKeys.RF_DATA:          self.__rf_data}
+                DictKeys.TRANSMIT_OPTIONS: self.__tx_opts,
+                DictKeys.RF_DATA:          self.__data}
 
     @property
     def source_endpoint(self):
@@ -2537,7 +2547,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         Returns:
             Integer: the source endpoint of the transmission.
         """
-        return self.__dest_endpoint
+        return self.__dest_ed
 
     @source_endpoint.setter
     def source_endpoint(self, source_endpoint):
@@ -2547,7 +2557,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         Args:
             source_endpoint (Integer): the new source endpoint of the transmission.
         """
-        self.__source_endpoint = source_endpoint
+        self.__src_ed = source_endpoint
 
     @property
     def dest_endpoint(self):
@@ -2557,7 +2567,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         Returns:
             Integer: the destination endpoint of the transmission.
         """
-        return self.__dest_endpoint
+        return self.__dest_ed
 
     @dest_endpoint.setter
     def dest_endpoint(self, dest_endpoint):
@@ -2567,7 +2577,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         Args:
             dest_endpoint (Integer): the new destination endpoint of the transmission.
         """
-        self.__dest_endpoint = dest_endpoint
+        self.__dest_ed = dest_endpoint
 
     @property
     def cluster_id(self):
@@ -2617,9 +2627,9 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         Returns:
             Bytearray: the RF data to send.
         """
-        if self.__rf_data is None:
+        if self.__data is None:
             return None
-        return self.__rf_data.copy()
+        return self.__data.copy()
 
     @rf_data.setter
     def rf_data(self, rf_data):
@@ -2630,9 +2640,9 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
             rf_data (Bytearray): the new RF data to send.
         """
         if rf_data is None:
-            self.__rf_data = None
+            self.__data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__data = rf_data.copy()
 
     @property
     def transmit_options(self):
@@ -2645,7 +2655,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.TransmitOptions`
         """
-        return self.__transmit_options
+        return self.__tx_opts
 
     @transmit_options.setter
     def transmit_options(self, transmit_options):
@@ -2658,7 +2668,7 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.TransmitOptions`
         """
-        self.__transmit_options = transmit_options
+        self.__tx_opts = transmit_options
 
     @property
     def broadcast_radius(self):
@@ -2758,27 +2768,29 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 22
 
-    def __init__(self, x64bit_addr, x16bit_addr, source_endpoint, dest_endpoint,
-                 cluster_id, profile_id, receive_options, rf_data=None,
+    def __init__(self, x64bit_addr, x16bit_addr, src_endpoint, dest_endpoint,
+                 cluster_id, profile_id, rx_options, rf_data=None,
                  op_mode=OperatingMode.API_MODE):
         """
-        Class constructor. Instantiates a new :class:`.ExplicitRXIndicatorPacket` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.ExplicitRXIndicatorPacket`
+        object with the provided parameters.
 
         Args:
             x64bit_addr (:class:`.XBee64BitAddress`): the 64-bit source address.
             x16bit_addr (:class:`.XBee16BitAddress`): the 16-bit source address.
-            source_endpoint (Integer): source endpoint. 1 byte.
+            src_endpoint (Integer): source endpoint. 1 byte.
             dest_endpoint (Integer): destination endpoint. 1 byte.
             cluster_id (Integer): cluster ID. Must be between 0 and 0xFFFF.
             profile_id (Integer): profile ID. Must be between 0 and 0xFFFF.
-            receive_options (Integer): bitfield indicating the receive options.
+            rx_options (Integer): bitfield indicating the receive options.
             rf_data (Bytearray, optional): received RF data.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
 
         Raises:
             ValueError: if `src_endpoint` or `dst_endpoint` are less than 0 or greater than 255.
-            ValueError: if lengths of `cluster_id` or `profile_id` (respectively) are different from 2.
+            ValueError: if lengths of `cluster_id` or `profile_id` (respectively)
+                are different from 2.
 
         .. seealso::
            | :class:`.XBee16BitAddress`
@@ -2786,7 +2798,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
            | :class:`.ReceiveOptions`
            | :class:`.XBeeAPIPacket`
         """
-        if source_endpoint < 0 or source_endpoint > 255:
+        if src_endpoint < 0 or src_endpoint > 255:
             raise ValueError("Source endpoint must be between 0 and 255.")
         if dest_endpoint < 0 or dest_endpoint > 255:
             raise ValueError("Destination endpoint must be between 0 and 255.")
@@ -2798,12 +2810,12 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         super().__init__(ApiFrameType.EXPLICIT_RX_INDICATOR, op_mode=op_mode)
         self.__x64bit_addr = x64bit_addr
         self.__x16bit_addr = x16bit_addr
-        self.__source_endpoint = source_endpoint
-        self.__dest_endpoint = dest_endpoint
+        self.__src_ed = src_endpoint
+        self.__dest_ed = dest_endpoint
         self.__cluster_id = cluster_id
         self.__profile_id = profile_id
-        self.__receive_options = receive_options
-        self.__rf_data = rf_data
+        self.__rx_opts = rx_options
+        self.__data = rf_data
 
     @staticmethod
     def create_packet(raw, operating_mode):
@@ -2837,10 +2849,12 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
                                   OperatingMode.API_MODE):
             raise InvalidOperatingModeException(op_mode=operating_mode)
 
-        XBeeAPIPacket._check_api_packet(raw, min_length=ExplicitRXIndicatorPacket.__MIN_PACKET_LENGTH)
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=ExplicitRXIndicatorPacket.__MIN_PACKET_LENGTH)
 
         if raw[3] != ApiFrameType.EXPLICIT_RX_INDICATOR.code:
-            raise InvalidPacketException(message="This packet is not an explicit RX indicator packet.")
+            raise InvalidPacketException(
+                message="This packet is not an explicit RX indicator packet.")
 
         return ExplicitRXIndicatorPacket(
             XBee64BitAddress(raw[4:12]), XBee16BitAddress(raw[12:14]), raw[14], raw[15],
@@ -2864,7 +2878,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`XBeeAPIPacket.is_broadcast`
         """
-        return utils.is_bit_enabled(self.__receive_options, 1)
+        return utils.is_bit_enabled(self.__rx_opts, 1)
 
     def _get_api_packet_spec_data(self):
         """
@@ -2875,13 +2889,13 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         """
         raw = self.__x64bit_addr.address
         raw += self.__x16bit_addr.address
-        raw.append(self.__source_endpoint)
-        raw.append(self.__dest_endpoint)
+        raw.append(self.__src_ed)
+        raw.append(self.__dest_ed)
         raw += utils.int_to_bytes(self.__cluster_id, num_bytes=2)
         raw += utils.int_to_bytes(self.__profile_id, num_bytes=2)
-        raw.append(self.__receive_options)
-        if self.__rf_data is not None:
-            raw += self.__rf_data
+        raw.append(self.__rx_opts)
+        if self.__data is not None:
+            raw += self.__data
         return raw
 
     def _get_api_packet_spec_data_dict(self):
@@ -2893,12 +2907,12 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         """
         return {DictKeys.X64BIT_ADDR:     self.__x64bit_addr.address,
                 DictKeys.X16BIT_ADDR:     self.__x16bit_addr.address,
-                DictKeys.SOURCE_ENDPOINT: self.__source_endpoint,
-                DictKeys.DEST_ENDPOINT:   self.__dest_endpoint,
+                DictKeys.SOURCE_ENDPOINT: self.__src_ed,
+                DictKeys.DEST_ENDPOINT:   self.__dest_ed,
                 DictKeys.CLUSTER_ID:      self.__cluster_id,
                 DictKeys.PROFILE_ID:      self.__profile_id,
-                DictKeys.RECEIVE_OPTIONS: self.__receive_options,
-                DictKeys.RF_DATA:         self.__rf_data}
+                DictKeys.RECEIVE_OPTIONS: self.__rx_opts,
+                DictKeys.RF_DATA:         self.__data}
 
     @property
     def x64bit_source_addr(self):
@@ -2960,7 +2974,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         Returns:
             Integer: the source endpoint of the transmission.
         """
-        return self.__source_endpoint
+        return self.__src_ed
 
     @source_endpoint.setter
     def source_endpoint(self, source_endpoint):
@@ -2970,7 +2984,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         Args:
             source_endpoint (Integer): the new source endpoint of the transmission.
         """
-        self.__source_endpoint = source_endpoint
+        self.__src_ed = source_endpoint
 
     @property
     def dest_endpoint(self):
@@ -2980,7 +2994,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         Returns:
             Integer: the destination endpoint of the transmission.
         """
-        return self.__dest_endpoint
+        return self.__dest_ed
 
     @dest_endpoint.setter
     def dest_endpoint(self, dest_endpoint):
@@ -2990,7 +3004,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         Args:
             dest_endpoint (Integer): the new destination endpoint of the transmission.
         """
-        self.__dest_endpoint = dest_endpoint
+        self.__dest_ed = dest_endpoint
 
     @property
     def cluster_id(self):
@@ -3043,7 +3057,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        return self.__receive_options
+        return self.__rx_opts
 
     @receive_options.setter
     def receive_options(self, receive_options):
@@ -3056,7 +3070,7 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        self.__receive_options = receive_options
+        self.__rx_opts = receive_options
 
     @property
     def rf_data(self):
@@ -3066,9 +3080,9 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
         Returns:
             Bytearray: the received RF data.
         """
-        if self.__rf_data is None:
+        if self.__data is None:
             return None
-        return self.__rf_data.copy()
+        return self.__data.copy()
 
     @rf_data.setter
     def rf_data(self, rf_data):
@@ -3079,9 +3093,9 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
             rf_data (Bytearray): the new received RF data.
         """
         if rf_data is None:
-            self.__rf_data = None
+            self.__data = None
         else:
-            self.__rf_data = rf_data.copy()
+            self.__data = rf_data.copy()
 
 
 def _decode_at_cmd(cmd_bytearray):

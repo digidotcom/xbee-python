@@ -146,8 +146,8 @@ class ATStringCommand(Enum):
     PERCENT_V = ("%V", "Supply voltage")
 
     def __init__(self, command, description):
-        self.__command = command
-        self.__description = description
+        self.__cmd = command
+        self.__desc = description
 
     @property
     def command(self):
@@ -157,7 +157,7 @@ class ATStringCommand(Enum):
         Returns:
              String: The AT command alias.
         """
-        return self.__command
+        return self.__cmd
 
     @property
     def description(self):
@@ -167,7 +167,7 @@ class ATStringCommand(Enum):
         Returns:
             String: The AT command description.
         """
-        return self.__description
+        return self.__desc
 
 
 ATStringCommand.__doc__ += utils.doc_enum(ATStringCommand)
@@ -275,11 +275,11 @@ class ATCommand:
         if len(command) != 2:
             raise ValueError("Command length must be 2.")
 
-        self.__command = command
+        self.__cmd = command
         if isinstance(parameter, str):
-            self.__parameter = bytearray(parameter, encoding='utf8', errors='ignore')
+            self.__param = bytearray(parameter, encoding='utf8', errors='ignore')
         else:
-            self.__parameter = parameter
+            self.__param = parameter
 
     def __str__(self):
         """
@@ -289,7 +289,7 @@ class ATCommand:
             String: representation of this ATCommand.
         """
         return "Command: %s - Parameter: %s" \
-               % (self.__command, utils.hex_to_string(self.__parameter))
+               % (self.__cmd, utils.hex_to_string(self.__param))
 
     def __len__(self):
         """
@@ -298,10 +298,10 @@ class ATCommand:
         Returns:
             Integer: length of command + length of parameter.
         """
-        if self.__parameter:
-            return len(self.__command) + len(self.__parameter)
+        if self.__param:
+            return len(self.__cmd) + len(self.__param)
 
-        return len(self.__command)
+        return len(self.__cmd)
 
     @property
     def command(self):
@@ -311,7 +311,7 @@ class ATCommand:
         Returns:
             String: the AT command.
         """
-        return self.__command
+        return self.__cmd
 
     @property
     def parameter(self):
@@ -322,7 +322,7 @@ class ATCommand:
             Bytearray: the AT command parameter.
                 `None` if there is no parameter.
         """
-        return self.__parameter
+        return self.__param
 
     def get_parameter_string(self):
         """
@@ -331,9 +331,9 @@ class ATCommand:
         Returns:
             String: this ATCommand parameter. `None` if there is no parameter.
         """
-        if not self.__parameter:
+        if not self.__param:
             return None
-        return str(self.__parameter, encoding='utf8', errors='ignore')
+        return str(self.__param, encoding='utf8', errors='ignore')
 
     @parameter.setter
     def parameter(self, parameter):
@@ -344,9 +344,9 @@ class ATCommand:
             parameter (Bytearray or String): the parameter to be set.
         """
         if isinstance(parameter, str):
-            self.__parameter = bytearray(parameter, encoding='utf8', errors='ignore')
+            self.__param = bytearray(parameter, encoding='utf8', errors='ignore')
         else:
-            self.__parameter = parameter
+            self.__param = parameter
 
 
 class ATCommandResponse:
@@ -367,8 +367,8 @@ class ATCommandResponse:
             status (:class:`.ATCommandStatus`, optional): The AT command
                 status. Default to ATCommandStatus.OK
         """
-        self.__at_command = command
-        self.__response = response
+        self.__at_cmd = command
+        self.__resp = response
         self.__comm_status = status
 
     @property
@@ -379,7 +379,7 @@ class ATCommandResponse:
         Returns:
             :class:`.ATCommand`: the AT command.
         """
-        return self.__at_command
+        return self.__at_cmd
 
     @property
     def response(self):
@@ -389,7 +389,7 @@ class ATCommandResponse:
         Returns:
             Bytearray: the AT command response.
         """
-        return self.__response
+        return self.__resp
 
     @property
     def status(self):

@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -40,7 +40,7 @@ class ATCommandStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -60,7 +60,7 @@ class ATCommandStatus(Enum):
         Returns:
             String: the description of the ATCommandStatus element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -102,7 +102,7 @@ class DiscoveryStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -123,7 +123,7 @@ class DiscoveryStatus(Enum):
             String: The description of the DiscoveryStatus element.
 
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -219,7 +219,7 @@ class TransmitStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -239,7 +239,7 @@ class TransmitStatus(Enum):
         Returns:
             String: the description of the TransmitStatus element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -321,7 +321,7 @@ class ModemStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -341,7 +341,7 @@ class ModemStatus(Enum):
         Returns:
             String: the description of the ModemStatus element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -378,7 +378,7 @@ class PowerLevel(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -398,7 +398,7 @@ class PowerLevel(Enum):
         Returns:
             String: the description of the PowerLevel element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -494,7 +494,7 @@ class AssociationIndicationStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -515,7 +515,7 @@ class AssociationIndicationStatus(Enum):
             String: the description of the `AssociationIndicationStatus`
                 element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -559,7 +559,7 @@ class CellularAssociationIndicationStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -582,7 +582,7 @@ class CellularAssociationIndicationStatus(Enum):
             String: the description of the `CellularAssociationIndicationStatus`
                 element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -620,7 +620,7 @@ class DeviceCloudStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -640,7 +640,7 @@ class DeviceCloudStatus(Enum):
         Returns:
             String: the description of the `DeviceCloudStatus` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -682,7 +682,7 @@ class FrameError(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -702,7 +702,7 @@ class FrameError(Enum):
         Returns:
             String: the description of the `FrameError` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -746,7 +746,7 @@ class WiFiAssociationIndicationStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -766,7 +766,7 @@ class WiFiAssociationIndicationStatus(Enum):
         Returns:
             String: the description of the `WiFiAssociationIndicationStatus` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -804,7 +804,7 @@ class NetworkDiscoveryStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -824,7 +824,7 @@ class NetworkDiscoveryStatus(Enum):
         Returns:
             String: the description of the `NetworkDiscoveryStatus` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -863,7 +863,7 @@ class ZigbeeRegisterStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -883,7 +883,7 @@ class ZigbeeRegisterStatus(Enum):
         Returns:
             String: the description of the `ZigbeeRegisterStatus` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -920,7 +920,7 @@ class EmberBootloaderMessageType(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -940,7 +940,7 @@ class EmberBootloaderMessageType(Enum):
         Returns:
             String: the description of the `EmberBootloaderMessageType` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -983,7 +983,7 @@ class SocketStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -1003,7 +1003,7 @@ class SocketStatus(Enum):
         Returns:
             String: the description of the `SocketStatus` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -1047,7 +1047,7 @@ class SocketState(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -1067,7 +1067,7 @@ class SocketState(Enum):
         Returns:
             String: the description of the `SocketState` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -1105,7 +1105,7 @@ class SocketInfoState(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -1125,7 +1125,7 @@ class SocketInfoState(Enum):
         Returns:
             String: the description of the `SocketInfoState` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -1196,7 +1196,7 @@ class FSCommandStatus(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -1216,7 +1216,7 @@ class FSCommandStatus(Enum):
         Returns:
             String: Description of the FSCommandStatus element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -1236,10 +1236,10 @@ class FSCommandStatus(Enum):
         return None
 
     def __repr__(self):
-        return "%s (0x%0.2X)" % (self.__description, self.__code)
+        return "%s (0x%0.2X)" % (self.__desc, self.__code)
 
     def __str__(self):
-        return "%s (0x%0.2X)" % (self.__description, self.__code)
+        return "%s (0x%0.2X)" % (self.__desc, self.__code)
 
 
 FSCommandStatus.__doc__ += utils.doc_enum(FSCommandStatus)

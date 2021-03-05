@@ -1,4 +1,4 @@
-# Copyright 2019-2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -65,7 +65,7 @@ class socket:
         self.__ip_protocol = ip_protocol
         self.__socket_id = None
         self.__connected = False
-        self.__source_port = None
+        self.__src_port = None
         self.__is_listening = False
         self.__backlog = None
         self.__timeout = self.__DEFAULT_TIMEOUT
@@ -74,9 +74,9 @@ class socket:
         self.__data_received_from_dict = OrderedDict()
         self.__data_received_from_dict_lock = threading.Lock()
         # Initialize socket callbacks.
-        self.__socket_state_callback = None
-        self.__data_received_callback = None
-        self.__data_received_from_callback = None
+        self.__socket_state_cb = None
+        self.__data_received_cb = None
+        self.__data_received_from_cb = None
 
     def __enter__(self):
         return self
@@ -192,7 +192,7 @@ class socket:
         port = address[1]
         if port < 1 or port > 65535:
             raise ValueError("Port number must be between 1 and 65535")
-        if self.__source_port:
+        if self.__src_port:
             raise XBeeSocketException(status=SocketStatus.ALREADY_CONNECTED)
 
         # If the socket is not created, create it first.
@@ -210,7 +210,7 @@ class socket:
         self.__register_data_received_from_callback()
 
         # Store the source port.
-        self.__source_port = port
+        self.__src_port = port
 
     def listen(self, backlog=1):
         """
@@ -224,7 +224,7 @@ class socket:
         Raises:
             XBeeSocketException: If the socket is not bound.
         """
-        if self.__source_port is None:
+        if self.__src_port is None:
             raise XBeeSocketException(message="Socket must be bound")
 
         self.__is_listening = True
@@ -245,7 +245,7 @@ class socket:
             XBeeException: If the connection with the XBee device is not open.
             XBeeSocketException: If the socket is not bound or not listening.
         """
-        if self.__source_port is None:
+        if self.__src_port is None:
             raise XBeeSocketException(message="Socket must be bound")
         if not self.__is_listening:
             raise XBeeSocketException(message="Socket must be listening")
@@ -380,7 +380,7 @@ class socket:
             raise ValueError("Number of bytes to receive must be grater than 0")
 
         data_received = bytearray()
-        address = None
+        addr = None
 
         # Wait until data is received from any address or the timeout
         # configured in the socket expires.
@@ -395,16 +395,16 @@ class socket:
         if len(self.__data_received_from_dict) > 0:
             self.__data_received_from_dict_lock.acquire()
             # Get 'bufsize' bytes from the first stored address in the internal dict.
-            address = list(self.__data_received_from_dict)[0]
-            data_received = self.__data_received_from_dict[address][0:bufsize].copy()
+            addr = list(self.__data_received_from_dict)[0]
+            data_received = self.__data_received_from_dict[addr][0:bufsize].copy()
             # Update the number of bytes left for 'address' in the dictionary.
-            self.__data_received_from_dict[address] = self.__data_received_from_dict[address][bufsize:]
+            self.__data_received_from_dict[addr] = self.__data_received_from_dict[addr][bufsize:]
             # If the number of bytes left for 'address' is 0, remove it from the dictionary.
-            if len(self.__data_received_from_dict[address]) == 0:
-                self.__data_received_from_dict.pop(address)
+            if len(self.__data_received_from_dict[addr]) == 0:
+                self.__data_received_from_dict.pop(addr)
             self.__data_received_from_dict_lock.release()
         # Return the data received for 'address'.
-        return data_received, address
+        return data_received, addr
 
     def send(self, data):
         """
@@ -511,7 +511,7 @@ class socket:
             XBeeException: If the connection with the XBee device is not open.
             XBeeSocketException: If the close status is not `SUCCESS`.
         """
-        if self.__socket_id is None or (not self.__connected and not self.__source_port):
+        if self.__socket_id is None or (not self.__connected and not self.__src_port):
             return
         if not self.__xbee.is_open():
             raise XBeeException("XBee device must be open")
@@ -523,7 +523,7 @@ class socket:
 
         self.__connected = False
         self.__socket_id = None
-        self.__source_port = None
+        self.__src_port = None
         self.__data_received = bytearray()
         self.__data_received_from_dict = OrderedDict()
         self.__unregister_state_callback()
@@ -668,7 +668,7 @@ class socket:
         """
         Registers the socket state callback to be notified when an error occurs.
         """
-        if self.__socket_state_callback is not None:
+        if self.__socket_state_cb is not None:
             return
 
         def socket_state_callback(socket_id, state):
@@ -677,32 +677,32 @@ class socket:
             if state != SocketState.CONNECTED:
                 self.__connected = False
                 self.__socket_id = None
-                self.__source_port = None
+                self.__src_port = None
                 self.__data_received = bytearray()
                 self.__data_received_from_dict = OrderedDict()
                 self.__unregister_state_callback()
                 self.__unregister_data_received_callback()
                 self.__unregister_data_received_from_callback()
 
-        self.__socket_state_callback = socket_state_callback
+        self.__socket_state_cb = socket_state_callback
         self.__xbee.add_socket_state_received_callback(socket_state_callback)
 
     def __unregister_state_callback(self):
         """
         Unregisters the socket state callback.
         """
-        if self.__socket_state_callback is None:
+        if self.__socket_state_cb is None:
             return
 
-        self.__xbee.del_socket_state_received_callback(self.__socket_state_callback)
-        self.__socket_state_callback = None
+        self.__xbee.del_socket_state_received_callback(self.__socket_state_cb)
+        self.__socket_state_cb = None
 
     def __register_data_received_callback(self):
         """
         Registers the data received callback to be notified when data is
         received in the socket.
         """
-        if self.__data_received_callback is not None:
+        if self.__data_received_cb is not None:
             return
 
         def data_received_callback(socket_id, payload):
@@ -713,25 +713,25 @@ class socket:
             self.__data_received += payload
             self.__data_received_lock.release()
 
-        self.__data_received_callback = data_received_callback
+        self.__data_received_cb = data_received_callback
         self.__xbee.add_socket_data_received_callback(data_received_callback)
 
     def __unregister_data_received_callback(self):
         """
         Unregisters the data received callback.
         """
-        if self.__data_received_callback is None:
+        if self.__data_received_cb is None:
             return
 
-        self.__xbee.del_socket_data_received_callback(self.__data_received_callback)
-        self.__data_received_callback = None
+        self.__xbee.del_socket_data_received_callback(self.__data_received_cb)
+        self.__data_received_cb = None
 
     def __register_data_received_from_callback(self):
         """
         Registers the data received from callback to be notified when data from
         a specific address is received in the socket.
         """
-        if self.__data_received_from_callback is not None:
+        if self.__data_received_from_cb is not None:
             return
 
         def data_received_from_callback(socket_id, address, payload):
@@ -751,18 +751,18 @@ class socket:
                 self.__data_received_from_dict[address] = payload
             self.__data_received_from_dict_lock.release()
 
-        self.__data_received_from_callback = data_received_from_callback
+        self.__data_received_from_cb = data_received_from_callback
         self.__xbee.add_socket_data_received_from_callback(data_received_from_callback)
 
     def __unregister_data_received_from_callback(self):
         """
         Unregisters the data received from callback.
         """
-        if self.__data_received_from_callback is None:
+        if self.__data_received_from_cb is None:
             return
 
-        self.__xbee.del_socket_data_received_from_callback(self.__data_received_from_callback)
-        self.__data_received_from_callback = None
+        self.__xbee.del_socket_data_received_from_callback(self.__data_received_from_cb)
+        self.__data_received_from_cb = None
 
     def __send(self, data, send_all=True):
         """

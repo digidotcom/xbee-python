@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,19 +21,19 @@ class XBeeMessage:
     (the sender) and some data (the data sent) as a bytearray.
     """
 
-    def __init__(self, data, remote_device, timestamp, broadcast=False):
+    def __init__(self, data, remote_node, timestamp, broadcast=False):
         """
         Class  constructor.
 
         Args:
             data (Bytearray): the data sent.
-            remote_device (:class:`.RemoteXBeeDevice`): the sender.
+            remote_node (:class:`.RemoteXBeeDevice`): the sender.
             broadcast (Boolean, optional, default=`False`): flag indicating whether the  message is
                 broadcast (`True`) or not (`False`). Optional.
             timestamp: instant of time when the message was received.
         """
         self.__data = data
-        self.__remote_device = remote_device
+        self.__remote_node = remote_node
         self.__is_broadcast = broadcast
         self.__timestamp = timestamp
 
@@ -55,7 +55,7 @@ class XBeeMessage:
         Returns:
             :class:`.RemoteXBeeDevice`: the device which has sent the message.
         """
-        return self.__remote_device
+        return self.__remote_node
 
     @property
     def is_broadcast(self):
@@ -74,7 +74,8 @@ class XBeeMessage:
         function returned value.
 
         Returns:
-            Float: the returned value of using :meth:`time.time()` function when the message was received.
+            Float: the returned value of using :meth:`time.time()` function
+                when the message was received.
         """
         return self.__timestamp
 
@@ -83,7 +84,7 @@ class XBeeMessage:
         Returns the message information as a dictionary.
         """
         return {"Data: ":        self.__data,
-                "Sender: ":      str(self.__remote_device.get_64bit_addr()),
+                "Sender: ":      str(self.__remote_node.get_64bit_addr()),
                 "Broadcast: ":   self.__is_broadcast,
                 "Received at: ": self.__timestamp}
 
@@ -95,25 +96,25 @@ class ExplicitXBeeMessage(XBeeMessage):
     endpoint, cluster ID, profile ID.
     """
 
-    def __init__(self, data, remote_device, timestamp, source_endpoint,
+    def __init__(self, data, remote_node, timestamp, src_endpoint,
                  dest_endpoint, cluster_id, profile_id, broadcast=False):
         """
         Class constructor.
 
         Args:
             data (Bytearray): the data sent.
-            remote_device (:class:`.RemoteXBeeDevice`): the sender device.
+            remote_node (:class:`.RemoteXBeeDevice`): the sender device.
             timestamp: instant of time when the message was received.
-            source_endpoint (Integer): source endpoint of the message. 1 byte.
+            src_endpoint (Integer): source endpoint of the message. 1 byte.
             dest_endpoint (Integer): destination endpoint of the message. 1 byte.
             cluster_id (Integer): cluster id of the message. 2 bytes.
             profile_id (Integer): profile id of the message. 2 bytes.
             broadcast (Boolean, optional, default=`False`): flag indicating whether the message is
                 broadcast (`True`) or not (`False`). Optional.
         """
-        XBeeMessage.__init__(self, data, remote_device, timestamp, broadcast)
-        self.__source_endpoint = source_endpoint
-        self.__dest_endpoint = dest_endpoint
+        XBeeMessage.__init__(self, data, remote_node, timestamp, broadcast)
+        self.__src_ed = src_endpoint
+        self.__dest_ed = dest_endpoint
         self.__cluster_id = cluster_id
         self.__profile_id = profile_id
 
@@ -125,7 +126,7 @@ class ExplicitXBeeMessage(XBeeMessage):
         Returns:
             Integer: the source endpoint of the message. 1 byte.
         """
-        return self.__source_endpoint
+        return self.__src_ed
 
     @property
     def dest_endpoint(self):
@@ -135,7 +136,7 @@ class ExplicitXBeeMessage(XBeeMessage):
         Returns:
             Integer: the destination endpoint of the message. 1 byte.
         """
-        return self.__dest_endpoint
+        return self.__dest_ed
 
     @property
     def cluster_id(self):
@@ -165,7 +166,7 @@ class ExplicitXBeeMessage(XBeeMessage):
         Args:
             source_endpoint (Integer): the new source endpoint of the message.
         """
-        self.__source_endpoint = source_endpoint
+        self.__src_ed = source_endpoint
 
     @dest_endpoint.setter
     def dest_endpoint(self, dest_endpoint):
@@ -175,7 +176,7 @@ class ExplicitXBeeMessage(XBeeMessage):
          Args:
              dest_endpoint (Integer): the new destination endpoint of the message.
          """
-        self.__dest_endpoint = dest_endpoint
+        self.__dest_ed = dest_endpoint
 
     @cluster_id.setter
     def cluster_id(self, cluster_id):
@@ -199,8 +200,8 @@ class ExplicitXBeeMessage(XBeeMessage):
 
     def to_dict(self):
         msg_dict = XBeeMessage.to_dict(self)
-        msg_dict.update({"Src_endpoint":  self.__source_endpoint,
-                         "Dest_endpoint": self.__dest_endpoint,
+        msg_dict.update({"Src_endpoint":  self.__src_ed,
+                         "Dest_endpoint": self.__dest_ed,
                          "Cluster_id":    self.__cluster_id,
                          "Profile_id":    self.__profile_id})
         return msg_dict
@@ -213,13 +214,13 @@ class IPMessage:
     content (data) of the message.
     """
 
-    def __init__(self, ip_addr, source_port, dest_port, protocol, data):
+    def __init__(self, ip_addr, src_port, dest_port, protocol, data):
         """
         Class  constructor.
 
         Args:
             ip_addr (:class:`ipaddress.IPv4Address`): The IP address the message comes from.
-            source_port (Integer): TCP or UDP source port of the transmission.
+            src_port (Integer): TCP or UDP source port of the transmission.
             dest_port (Integer): TCP or UDP destination port of the transmission.
             protocol (:class:`.IPProtocol`): IP protocol used in the transmission.
             data (Bytearray): the data sent.
@@ -238,13 +239,13 @@ class IPMessage:
         if data is None:
             raise ValueError("Data cannot be None")
 
-        if not 0 <= source_port <= 65535:
+        if not 0 <= src_port <= 65535:
             raise ValueError("Source port must be between 0 and 65535")
         if not 0 <= dest_port <= 65535:
             raise ValueError("Destination port must be between 0 and 65535")
 
         self.__ip_addr = ip_addr
-        self.__source_port = source_port
+        self.__src_port = src_port
         self.__dest_port = dest_port
         self.__protocol = protocol
         self.__data = data
@@ -267,7 +268,7 @@ class IPMessage:
         Returns:
             Integer: The source port of the transmission.
         """
-        return self.__source_port
+        return self.__src_port
 
     @property
     def dest_port(self):
@@ -304,7 +305,7 @@ class IPMessage:
         Returns the message information as a dictionary.
         """
         return {"IP address: ":       self.__ip_addr,
-                "Source port: ":      self.__source_port,
+                "Source port: ":      self.__src_port,
                 "Destination port: ": self.__dest_port,
                 "Protocol: ":         self.__protocol,
                 "Data: ":             self.__data}
@@ -381,13 +382,13 @@ class UserDataRelayMessage:
        | :class:`.XBeeLocalInterface`
     """
 
-    def __init__(self, local_interface, data):
+    def __init__(self, local_iface, data):
         """
         Class constructor. Instantiates a new :class:`.UserDataRelayMessage`
         object with the provided parameters.
 
         Args:
-            local_interface (:class:`.XBeeLocalInterface`): The source XBee local interface.
+            local_iface (:class:`.XBeeLocalInterface`): The source XBee local interface.
             data (Bytearray): Byte array containing the data of the message.
 
         Raises:
@@ -396,10 +397,10 @@ class UserDataRelayMessage:
         .. seealso::
             | :class:`.XBeeLocalInterface`
         """
-        if local_interface is None:
+        if local_iface is None:
             raise ValueError("XBee local interface cannot be None")
 
-        self.__local_interface = local_interface
+        self.__local_iface = local_iface
         self.__data = data
 
     @property
@@ -410,7 +411,7 @@ class UserDataRelayMessage:
         Returns:
             :class:`.XBeeLocalInterface`: The source interface that sent the message.
         """
-        return self.__local_interface
+        return self.__local_iface
 
     @property
     def data(self):
@@ -426,5 +427,5 @@ class UserDataRelayMessage:
         """
         Returns the message information as a dictionary.
         """
-        return {"XBee local interface: ": self.__local_interface,
+        return {"XBee local interface: ": self.__local_iface,
                 "Data: ":                 self.__data}

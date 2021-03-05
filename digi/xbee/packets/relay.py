@@ -38,14 +38,14 @@ class UserDataRelayPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 7
 
-    def __init__(self, frame_id, local_interface, data=None, op_mode=OperatingMode.API_MODE):
+    def __init__(self, frame_id, local_iface, data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.UserDataRelayPacket`
         object with the provided parameters.
 
         Args:
             frame_id (integer): the frame ID of the packet.
-            local_interface (:class:`.XBeeLocalInterface`): the destination interface.
+            local_iface (:class:`.XBeeLocalInterface`): the destination interface.
             data (Bytearray, optional): Data to send to the destination interface.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -58,14 +58,14 @@ class UserDataRelayPacket(XBeeAPIPacket):
             ValueError: if `local_interface` is `None`.
             ValueError: if `frame_id` is less than 0 or greater than 255.
         """
-        if local_interface is None:
+        if local_iface is None:
             raise ValueError("Destination interface cannot be None")
         if frame_id > 255 or frame_id < 0:
             raise ValueError("frame_id must be between 0 and 255.")
 
         super().__init__(ApiFrameType.USER_DATA_RELAY_REQUEST, op_mode=op_mode)
         self._frame_id = frame_id
-        self.__local_interface = local_interface
+        self.__local_iface = local_iface
         self.__data = data
 
     @staticmethod
@@ -125,7 +125,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         ret = bytearray()
-        ret.append(self.__local_interface.code)
+        ret.append(self.__local_iface.code)
         if self.__data is not None:
             return ret + self.__data
         return ret
@@ -137,7 +137,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.DEST_INTERFACE: self.__local_interface.description,
+        return {DictKeys.DEST_INTERFACE: self.__local_iface.description,
                 DictKeys.DATA:           list(self.__data) if self.__data is not None else None}
 
     @property
@@ -176,7 +176,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBeeLocalInterface`
         """
-        return self.__local_interface
+        return self.__local_iface
 
     @dest_interface.setter
     def dest_interface(self, local_interface):
@@ -189,7 +189,7 @@ class UserDataRelayPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBeeLocalInterface`
         """
-        self.__local_interface = local_interface
+        self.__local_iface = local_interface
 
 
 class UserDataRelayOutputPacket(XBeeAPIPacket):
@@ -210,14 +210,14 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 6
 
-    def __init__(self, local_interface, data=None, op_mode=OperatingMode.API_MODE):
+    def __init__(self, local_iface, data=None, op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new
         :class:`.UserDataRelayOutputPacket` object with the provided
         parameters.
 
         Args:
-            local_interface (:class:`.XBeeLocalInterface`): the source interface.
+            local_iface (:class:`.XBeeLocalInterface`): the source interface.
             data (Bytearray, optional): Data received from the source interface.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -229,11 +229,11 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
            | :class:`.XBeeAPIPacket`
            | :class:`.XBeeLocalInterface`
         """
-        if local_interface is None:
+        if local_iface is None:
             raise ValueError("Source interface cannot be None")
 
         super().__init__(ApiFrameType.USER_DATA_RELAY_OUTPUT, op_mode=op_mode)
-        self.__local_interface = local_interface
+        self.__local_iface = local_iface
         self.__data = data
 
     @staticmethod
@@ -295,7 +295,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         ret = bytearray()
-        ret.append(self.__local_interface.code)
+        ret.append(self.__local_iface.code)
         if self.__data is not None:
             return ret + self.__data
         return ret
@@ -307,7 +307,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         .. seealso::
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
-        return {DictKeys.SOURCE_INTERFACE: self.__local_interface.description,
+        return {DictKeys.SOURCE_INTERFACE: self.__local_iface.description,
                 DictKeys.DATA:             list(self.__data) if self.__data is not None else None}
 
     @property
@@ -346,7 +346,7 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBeeLocalInterface`
         """
-        return self.__local_interface
+        return self.__local_iface
 
     @src_interface.setter
     def src_interface(self, local_interface):
@@ -359,4 +359,4 @@ class UserDataRelayOutputPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.XBeeLocalInterface`
         """
-        self.__local_interface = local_interface
+        self.__local_iface = local_interface

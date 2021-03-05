@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -34,13 +34,16 @@ class AccessPoint:
 
     def __init__(self, ssid, encryption_type, channel=0, signal_quality=0):
         """
-        Class constructor. Instantiates a new :class:`.AccessPoint` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.AccessPoint` object
+        with the provided parameters.
 
         Args:
             ssid (String): the SSID of the access point.
-            encryption_type (:class:`.WiFiEncryptionType`): the encryption type configured in the access point.
-            channel (Integer, optional): operating channel of the access point. Optional.
-            signal_quality (Integer, optional): signal quality with the access point in %. Optional.
+            encryption_type (:class:`.WiFiEncryptionType`): the encryption type
+                configured in the access point.
+            channel (Integer, optional): operating channel of the access point.
+            signal_quality (Integer, optional): signal quality with the access
+                point in %.
 
         Raises:
             ValueError: if length of `ssid` is 0.
@@ -58,7 +61,7 @@ class AccessPoint:
             raise ValueError(self.__ERROR_SIGNAL_QUALITY)
 
         self.__ssid = ssid
-        self.__encryption_type = encryption_type
+        self.__enc_type = encryption_type
         self.__channel = channel
         self.__signal_quality = signal_quality
 
@@ -69,7 +72,7 @@ class AccessPoint:
         Returns:
             String: representation of the access point.
         """
-        return "%s (%s) - CH: %s - Signal: %s%%" % (self.__ssid, self.__encryption_type.description,
+        return "%s (%s) - CH: %s - Signal: %s%%" % (self.__ssid, self.__enc_type.description,
                                                     self.__channel, self.__signal_quality)
 
     @property
@@ -93,7 +96,7 @@ class AccessPoint:
         .. seealso::
            | :class:`.WiFiEncryptionType`
         """
-        return self.__encryption_type
+        return self.__enc_type
 
     @property
     def channel(self):
@@ -170,7 +173,7 @@ class WiFiEncryptionType(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -190,7 +193,7 @@ class WiFiEncryptionType(Enum):
         Returns:
             String: the description of the WiFiEncryptionType element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):

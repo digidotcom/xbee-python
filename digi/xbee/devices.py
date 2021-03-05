@@ -7291,8 +7291,10 @@ class WiFiDevice(IPDevice):
     This class represents a local Wi-Fi XBee.
     """
 
-    __DEFAULT_ACCESS_POINT_TIMEOUT = 15  # 15 s of timeout to connect, disconnect and scan access points.
-    __DISCOVER_TIMEOUT = 30  # 30 s of access points discovery timeout.
+    # Timeout to connect, disconnect, and scan access points
+    __DEFAULT_ACCESS_POINT_TIMEOUT = 15
+    # Access points discovery timeout
+    __DISCOVER_TIMEOUT = 30
 
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
                  stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
@@ -8749,8 +8751,9 @@ class XBeeNetwork:
         if deep:
             self.__stop_scan = n_deep_scans
 
-        self.__discovery_thread = threading.Thread(target=self.__discover_devices_and_notify_callbacks,
-                                                   kwargs={'discover_network': deep}, daemon=True)
+        self.__discovery_thread = threading.Thread(
+            target=self.__discover_devices_and_notify_callbacks,
+            kwargs={'discover_network': deep}, daemon=True)
         self.__discovery_thread.start()
 
     def stop_discovery_process(self):
@@ -9803,8 +9806,9 @@ class XBeeNetwork:
                                                XBeeProtocol.SMART_ENERGY)
                     and remote_xbee.get_role() == Role.END_DEVICE):
                 for conn in node_b_connections:
-                    # End devices do not have connections from them (not asking for their routing
-                    # and neighbor tables), but if their parent is not reachable, they are not either
+                    # End devices do not have connections from them (not asking
+                    # for their routing and neighbor tables), but if their
+                    # parent is not reachable, they are not either
                     if not conn.node_a.reachable:
                         self._set_node_reachable(remote_xbee, False)
                         break
@@ -10295,7 +10299,8 @@ class XBeeNetwork:
         self.__active_processes.append(str(self._local_xbee.get_64bit_addr()))
 
         try:
-            timeout = self._calculate_timeout(default_timeout=XBeeNetwork._DEFAULT_DISCOVERY_TIMEOUT)
+            timeout = self._calculate_timeout(
+                default_timeout=XBeeNetwork._DEFAULT_DISCOVERY_TIMEOUT)
             # send "ND" async
             self._local_xbee.send_packet(
                 ATCommPacket(self._local_xbee.get_next_frame_id(),
@@ -10310,7 +10315,8 @@ class XBeeNetwork:
 
             self.__nd_processes.pop(str(self._local_xbee), None)
 
-            if op_times_out or not self.__discover_result or self.__discover_result == ATCommandStatus.OK:
+            if (op_times_out or not self.__discover_result
+                    or self.__discover_result == ATCommandStatus.OK):
                 err_code = None
             elif self.__discover_result and self.__discover_result != ATCommandStatus.OK:
                 err_code = NetworkDiscoveryStatus.ERROR_NET_DISCOVER

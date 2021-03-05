@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -319,7 +319,7 @@ class SendDataRequestOptions(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -339,7 +339,7 @@ class SendDataRequestOptions(Enum):
         Returns:
             String: the description of the SendDataRequestOptions element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -400,7 +400,7 @@ class DiscoveryOptions(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -420,7 +420,7 @@ class DiscoveryOptions(Enum):
         Returns:
             String: the description of the `DiscoveryOptions` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -490,7 +490,7 @@ class XBeeLocalInterface(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -510,7 +510,7 @@ class XBeeLocalInterface(Enum):
         Returns:
             String: the description of the `XBeeLocalInterface` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -549,7 +549,7 @@ class RegisterKeyOptions(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -569,7 +569,7 @@ class RegisterKeyOptions(Enum):
         Returns:
             String: the description of the `RegisterKeyOptions` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):
@@ -602,7 +602,7 @@ class SocketOption(Enum):
 
     def __init__(self, code, description):
         self.__code = code
-        self.__description = description
+        self.__desc = description
 
     @property
     def code(self):
@@ -622,7 +622,7 @@ class SocketOption(Enum):
         Returns:
             String: the description of the `SocketOption` element.
         """
-        return self.__description
+        return self.__desc
 
     @classmethod
     def get(cls, code):

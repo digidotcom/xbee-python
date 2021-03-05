@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -65,7 +65,8 @@ class XBee16BitAddress:
 
     def __init__(self, address):
         """
-        Class constructor. Instantiates a new :class:`.XBee16BitAddress` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.XBee16BitAddress`
+        object with the provided parameters.
 
         Args:
             address (Bytearray): address as byte array. Must be 1-2 digits.
@@ -86,7 +87,8 @@ class XBee16BitAddress:
     @classmethod
     def from_hex_string(cls, address):
         """
-        Class constructor.  Instantiates a new :`.XBee16BitAddress` object from the provided hex string.
+        Class constructor.  Instantiates a new :`.XBee16BitAddress` object from
+        the provided hex string.
 
         Args:
             address (String): String containing the address. Must be made by
@@ -106,8 +108,8 @@ class XBee16BitAddress:
     @classmethod
     def from_bytes(cls, hsb, lsb):
         """
-        Class constructor.  Instantiates a new :`.XBee16BitAddress` object from the provided high significant byte and
-        low significant byte.
+        Class constructor.  Instantiates a new :`.XBee16BitAddress` object from
+        the provided high significant byte and low significant byte.
 
         Args:
             hsb (Integer): high significant byte of the address.
@@ -188,8 +190,9 @@ class XBee16BitAddress:
 
     def __str__(self):
         """
-        Called by the str() built-in function and by the print statement to compute the "informal" string
-        representation of an object. This differs from __repr__() in that it does not have to be a valid Python
+        Called by the str() built-in function and by the print statement to
+        compute the "informal" string representation of an object. This differs
+        from __repr__() in that it does not have to be a valid Python
         expression: a more convenient or concise representation may be used instead.
 
         Returns:
@@ -301,7 +304,8 @@ class XBee64BitAddress:
 
     def __init__(self, address):
         """
-        Class constructor. Instantiates a new :class:`.XBee64BitAddress` object with the provided parameters.
+        Class constructor. Instantiates a new :class:`.XBee64BitAddress` object
+        with the provided parameters.
 
         Args:
             address (Bytearray): the XBee 64-bit address as byte array.
@@ -324,7 +328,8 @@ class XBee64BitAddress:
     @classmethod
     def from_hex_string(cls, address):
         """
-        Class constructor. Instantiates a new :class:`.XBee64BitAddress` object from the provided hex string.
+        Class constructor. Instantiates a new :class:`.XBee64BitAddress`
+        object from the provided hex string.
 
         Args:
             address (String): The XBee 64-bit address as a string.
@@ -343,13 +348,16 @@ class XBee64BitAddress:
     @classmethod
     def from_bytes(cls, *args):
         """
-        Class constructor. Instantiates a new :class:`.XBee64BitAddress` object from the provided bytes.
+        Class constructor. Instantiates a new :class:`.XBee64BitAddress`
+        object from the provided bytes.
 
         Args:
-            args (8 Integers): 8 integers that represent the bytes 1 to 8 of this XBee64BitAddress.
+            args (8 Integers): 8 integers that represent the bytes 1 to 8 of
+                this XBee64BitAddress.
 
         Raises:
-            ValueError: if the amount of arguments is not 8 or if any of the arguments is not between 0 and 255.
+            ValueError: if the amount of arguments is not 8 or if any of the
+                arguments is not between 0 and 255.
         """
         if len(args) != 8:
             raise ValueError("Number of bytes given as arguments must be 8.")
@@ -411,8 +419,9 @@ class XBee64BitAddress:
 
     def __str__(self):
         """
-        Called by the str() built-in function and by the print statement to compute the "informal" string
-        representation of an object. This differs from __repr__() in that it does not have to be a valid Python
+        Called by the str() built-in function and by the print statement to
+        compute the "informal" string representation of an object. This differs
+        from __repr__() in that it does not have to be a valid Python
         expression: a more convenient or concise representation may be used instead.
 
         Returns:
@@ -490,7 +499,8 @@ class XBeeIMEIAddress:
 
     def __init__(self, address):
         """
-        Class constructor. Instantiates a new :`.XBeeIMEIAddress` object with the provided parameters.
+        Class constructor. Instantiates a new :`.XBeeIMEIAddress` object with
+        the provided parameters.
 
         Args:
             address (Bytearray): The XBee IMEI address as byte array.
@@ -550,12 +560,14 @@ class XBeeIMEIAddress:
         Generates the IMEI byte address based on the given byte array.
 
         Args:
-            byte_address (Bytearray): the byte array used to generate the final IMEI byte address.
+            byte_address (Bytearray): the byte array used to generate the final
+                IMEI byte address.
 
         Returns:
             Bytearray: the IMEI in byte array format.
         """
-        return bytearray(8 - len(byte_address)) + byte_address  # Pad zeros in the MSB of the address
+        # Pad zeros in the MSB of the address
+        return bytearray(8 - len(byte_address)) + byte_address
 
     @property
     def address(self):
@@ -569,8 +581,9 @@ class XBeeIMEIAddress:
 
     def __str__(self):
         """
-        Called by the str() built-in function and by the print statement to compute the "informal" string
-        representation of an object. This differs from __repr__() in that it does not have to be a valid Python
+        Called by the str() built-in function and by the print statement to
+        compute the "informal" string representation of an object. This differs
+        from __repr__() in that it does not have to be a valid Python
         expression: a more convenient or concise representation may be used instead.
 
         Returns:

@@ -389,7 +389,7 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
         self._frame_id = frame_id
 
         self.__x64bit_addr = x64bit_addr
-        self.__options = transmit_options
+        self.__tx_opts = transmit_options
 
         self.__cmd = command
         if isinstance(command, bytearray):
@@ -454,7 +454,7 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
         """
         ret = self.__x64bit_addr.address
-        ret.append(self.__options)
+        ret.append(self.__tx_opts)
         ret += self.__cmd.output()
 
         return ret
@@ -467,7 +467,7 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
         ret_dict = {DictKeys.X64BIT_ADDR: self.__x64bit_addr.address,
-                    DictKeys.TRANSMIT_OPTIONS: self.__options}
+                    DictKeys.TRANSMIT_OPTIONS: self.__tx_opts}
         ret_dict.update(self.__cmd.to_dict())
 
         return ret_dict
@@ -540,7 +540,7 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.TransmitOptions`
         """
-        return self.__options
+        return self.__tx_opts
 
     @transmit_options.setter
     def transmit_options(self, options):
@@ -553,7 +553,7 @@ class RemoteFSRequestPacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.TransmitOptions`
         """
-        self.__options = options
+        self.__tx_opts = options
 
 
 class RemoteFSResponsePacket(XBeeAPIPacket):
@@ -570,7 +570,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
 
     __MIN_PACKET_LENGTH = 17
 
-    def __init__(self, frame_id, x64bit_addr, command, receive_options,
+    def __init__(self, frame_id, x64bit_addr, command, rx_options,
                  op_mode=OperatingMode.API_MODE):
         """
         Class constructor. Instantiates a new :class:`.RemoteFSResponsePacket`
@@ -581,7 +581,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
             x64bit_addr (:class:`.XBee64BitAddress`): 64-bit source address.
             command (:class:`.FSCmd` or bytearray): File system command to
                 execute.
-            receive_options (Integer): Bitfield indicating the receive options.
+            rx_options (Integer): Bitfield indicating the receive options.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
 
@@ -610,7 +610,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
         self._frame_id = frame_id
 
         self.__x64bit_addr = x64bit_addr
-        self.__options = receive_options
+        self.__rx_opts = rx_options
 
         self.__cmd = command
         if isinstance(command, bytearray):
@@ -677,7 +677,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
         cmd_array = self.__cmd.output()
 
         ret = self.__x64bit_addr.address
-        ret.append(self.__options)
+        ret.append(self.__rx_opts)
         ret.append(cmd_array[0])
         ret += cmd_array[1:]
 
@@ -691,7 +691,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
            | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
         """
         ret_dict = {DictKeys.X64BIT_ADDR: self.__x64bit_addr.address,
-                    DictKeys.RECEIVE_OPTIONS: self.__options}
+                    DictKeys.RECEIVE_OPTIONS: self.__rx_opts}
         ret_dict.update(self.__cmd.to_dict())
 
         return ret_dict
@@ -764,7 +764,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        return self.__options
+        return self.__rx_opts
 
     @receive_options.setter
     def receive_options(self, options):
@@ -777,7 +777,7 @@ class RemoteFSResponsePacket(XBeeAPIPacket):
         .. seealso::
            | :class:`.ReceiveOptions`
         """
-        self.__options = options
+        self.__rx_opts = options
 
 
 def build_fs_command(cmd_bytearray, direction=FSCmd.REQUEST):
