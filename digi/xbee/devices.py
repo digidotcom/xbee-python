@@ -2426,7 +2426,12 @@ class XBeeDevice(AbstractXBeeDevice):
 
         self._comm_iface.open()
         self._log.info("%s port opened", self._comm_iface)
-        self._operating_mode = OperatingMode.API_MODE
+        xbee_info = self._comm_iface.get_local_xbee_info()
+        if xbee_info:
+            self._operating_mode = OperatingMode.get(xbee_info[0])
+        elif self._operating_mode not in (OperatingMode.API_MODE,
+                                          OperatingMode.ESCAPED_API_MODE):
+            self._operating_mode = OperatingMode.API_MODE
         if not self._packet_sender:
             self._packet_sender = PacketSender(self)
         self._restart_packet_listener()
