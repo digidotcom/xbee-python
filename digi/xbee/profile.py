@@ -1395,14 +1395,7 @@ class _UpdateConfigurer:
                       and (ap_val[0] in (OperatingMode.API_MODE.code,
                                          OperatingMode.ESCAPED_API_MODE.code)))
         if restore_ap:
-            cmd = ATStringCommand.AP
-            try:
-                self._configurer.exec_at_cmd(
-                    XBeeDevice.set_parameter, self._xbee, cmd, value=ap_val,
-                    retries=_PARAM_WRITE_RETRIES, apply=False)
-            except XBeeException as exc:
-                _log.info("'%s' - %s: Unable to restore operating mode (%s)",
-                          self._xbee, self._configurer.TASK_RESTORE, str(exc))
+            self._configurer.cmd_dict.get(self._xbee, {}).update({ATStringCommand.AP: ap_val})
 
         self._configurer.progress_cb(self._configurer.TASK_RESTORE)
 
