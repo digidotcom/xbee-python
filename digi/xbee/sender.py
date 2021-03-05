@@ -88,8 +88,9 @@ class PacketSender:
                                                  content=utils.hex_to_string(out)))
 
         # Refresh cached parameters if this method modifies some of them.
-        if f_type in (ApiFrameType.AT_COMMAND, ApiFrameType.AT_COMMAND_QUEUE,
-                      ApiFrameType.REMOTE_AT_COMMAND_REQUEST):
+        if self.__xbee.serial_port and f_type in (ApiFrameType.AT_COMMAND,
+                                                  ApiFrameType.AT_COMMAND_QUEUE,
+                                                  ApiFrameType.REMOTE_AT_COMMAND_REQUEST):
             node = self.__xbee
             # Get remote node in case of a remote at command
             if (f_type == ApiFrameType.REMOTE_AT_COMMAND_REQUEST
@@ -98,6 +99,8 @@ class PacketSender:
 
             # Store the sent AT command packet
             if node:
+                if not node.get_64bit_addr():
+                    return
                 key = str(node.get_64bit_addr())
                 if key not in self._at_cmds_sent:
                     self._at_cmds_sent[key] = {}
