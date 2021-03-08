@@ -3225,7 +3225,7 @@ class XBeeDevice(AbstractXBeeDevice):
         Adds a callback for the event :class:`.IOSampleReceived`.
 
         Args:
-            callback (Function):Tthe callback. Receives three arguments.
+            callback (Function): The callback. Receives three arguments.
 
                 * The received IO sample as an :class:`.IOSample`.
                 * The remote XBee which sent the packet as a :class:`.RemoteXBeeDevice`.
@@ -9724,7 +9724,7 @@ class XBeeNetwork:
                 operating mode, useful to update the local XBee.
 
         Returns:
-            :class:`.RemoteXBeeDevice`: Rremote XBee generated from the provided
+            :class:`.RemoteXBeeDevice`: Remote XBee generated from the provided
                 data if the data provided is correct and the XBee protocol is
                 valid, `None` otherwise.
 

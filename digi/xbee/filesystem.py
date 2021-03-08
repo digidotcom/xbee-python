@@ -1180,7 +1180,7 @@ class FileSystemManager:
 
         All files in a directory must be deleted before removing the directory.
         On XBee 3 802.15.4, DigiMesh, and Zigbee, deleted files are marked as
-        as unusable space unless they are at the "end" of the file system
+        unusable space unless they are at the "end" of the file system
         (most-recently created). On these products, deleting a file triggers
         recovery of any deleted file space at the end of the file system, and
         can lead to a delayed response.
@@ -1263,7 +1263,7 @@ class FileSystemManager:
             offset (Integer, optional, default=0): File offset to start
                 reading.
             progress_cb (Function, optional, default=`None`): Function called
-                when new data is read. Receives three arguments:
+                when new data is read. Receives four arguments:
 
                     * The chunk of data read as byte array.
                     * The progress percentage as float.
@@ -1293,8 +1293,8 @@ class FileSystemManager:
             file (:class:`.FileSystemElement` or String): File to write or its
                 absolute path.
             offset (Integer, optional, default=0): File offset to start writing.
-            secure (Boolean, optional, default=`False`):`True` to store the file
-                securely (no read access), `False` otherwise.
+            secure (Boolean, optional, default=`False`): `True` to store the
+                file securely (no read access), `False` otherwise.
             options (Dictionary, optional): Other write options as list:
                 `exclusive`, `truncate`, `append`.
             progress_cb (Function, optional, default=`None`): Function call
@@ -1339,7 +1339,7 @@ class FileSystemManager:
                 its absolute path.
             dest (String): The absolute path of the destination file.
             progress_cb (Function, optional): Function call when data is being
-                downloaded. Receives one argument:
+                downloaded. Receives three arguments:
 
                     * The progress percentage as float.
                     * Destination file path.
@@ -1387,7 +1387,7 @@ class FileSystemManager:
         Uploads the given file to the specified destination path of the XBee.
 
         Args:
-            src (String): Absolute path of the File to upload.
+            src (String): Absolute path of the file to upload.
             dest (:class:`.FileSystemElement` or String): The file in the XBee
                 or its absolute path.
             secure (Boolean, optional, default=`False`): `True` if the file
@@ -1397,7 +1397,7 @@ class FileSystemManager:
             mk_parents (Boolean, optional, default=`True`): `True` to make
                 parent directories as needed, `False` otherwise.
             progress_cb (Function, optional): Function call when data is being
-                uploaded. Receives one argument:
+                uploaded. Receives two arguments:
 
                     * The progress percentage as float.
                     * Destination file path.
@@ -1477,7 +1477,7 @@ class FileSystemManager:
             verify (Boolean, optional, default=`True`): `True` to check the
                 hash of the uploaded content.
             progress_cb (Function, optional): Function call when data is being
-                uploaded. Receives two argument:
+                uploaded. Receives three argument:
 
                     * The progress percentage as float.
                     * Destination file path.
@@ -3295,7 +3295,7 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file,
         ota_filesystem_file (String): Path of the OTA filesystem file to upload.
         max_block_size (Integer, optional): Maximum size of the ota block to send.
         timeout (Integer, optional): Timeout to wait for remote frame requests.
-        progress_callback (Function, optional): Function to execute to receiveç
+        progress_callback (Function, optional): Function to execute to receive
              progress information. Receives two arguments:
 
                 * The current update task as a String

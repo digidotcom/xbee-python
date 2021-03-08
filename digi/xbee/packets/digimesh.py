@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2021, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -110,7 +110,7 @@ class RouteInformationPacket(XBeeAPIPacket):
                 + length + timestamp (4 bytes) + ack timeout count
                 + tx blocked count + reserved + dest addr (8 bytes)
                 + src addr (8 bytes) + responder addr (8 bytes)
-                + succesor addr (8 bytes) + checksum = 46 bytes).
+                + successor addr (8 bytes) + checksum = 46 bytes).
             InvalidPacketException: If the length field of `raw` is different
                 from its real length. (length field: bytes 1 and 3)
             InvalidPacketException: If the first byte of 'raw' is not the

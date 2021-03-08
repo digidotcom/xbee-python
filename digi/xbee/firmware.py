@@ -248,7 +248,7 @@ _UPGRADE_END_REQUEST_PACKET_PAYLOAD_SIZE = 12
 _VALUE_API_OUTPUT_MODE_EXPLICIT = 0x01
 _VALUE_END_OF_FILE_DATA = bytearray([0x01, 0x04])
 _VALUE_INITIALIZATION_DATA = bytearray([0x01, 0x51])
-_VALUE_PRESERVE_NEWTWORK_SETTINGS = bytearray([0x54, 0x41])
+_VALUE_PRESERVE_NETWORK_SETTINGS = bytearray([0x54, 0x41])
 _VALUE_UNICAST_RETRIES_MEDIUM = 0x06
 
 _XML_BOOTLOADER_VERSION = "firmware/bootloader_version"
@@ -486,7 +486,7 @@ class _OTAFile:
         given parameters.
 
         Args:
-            file_path (String): Ppath of the OTA file.
+            file_path (String): Path of the OTA file.
         """
         self._file_path = file_path
         self._header_version = None
@@ -1113,7 +1113,7 @@ class _GPMCmd(Enum):
         Returns the _GPMCommand for the given identifier.
 
         Args:
-            identifier (Integer): Iidentifier of the _GPMCommand to get.
+            identifier (Integer): Identifier of the _GPMCommand to get.
 
         Returns:
             :class:`._GPMCommand`: _GPMCommand with the given identifier,
@@ -1591,7 +1591,7 @@ class UpdateConfigurer:
 
         Args:
             restore_settings(Boolean, optional, default=`True`): `True` to
-                restore stored settngs, `False` otherwise.
+                restore stored settings, `False` otherwise.
             port_settings(Dictionary, optional, default=`None`): Dictionary
                 with the new serial port configuration, `None` for remote node
                 or if the serial config has not changed.
@@ -1696,7 +1696,7 @@ class UpdateConfigurer:
 
     def _is_sync_sleep(self):
         """
-        Checks if the network is a DigiMesh sychronous sleeping network.
+        Checks if the network is a DigiMesh synchronous sleeping network.
 
         Returns:
              Boolean: `True` if is a sync sleeping network, `False` otherwise.
@@ -4138,7 +4138,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             payload (Bytearray): Payload for the explicit addressing frame.
 
         Returns:
-            :class:`.ExplicitAddressingPacket`: Rxplicit addressing frame with
+            :class:`.ExplicitAddressingPacket`: Explicit addressing frame with
                 the given payload.
         """
         return ExplicitAddressingPacket(
@@ -6092,7 +6092,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         packet = RemoteATCommandPacket(
             3, self._remote.get_64bit_addr(), self._remote.get_16bit_addr(),
             RemoteATCmdOptions.NONE.value, ATStringCommand.PERCENT_P.command,
-            _VALUE_PRESERVE_NEWTWORK_SETTINGS)
+            _VALUE_PRESERVE_NETWORK_SETTINGS)
         try:
             response = self._local.send_packet_sync_and_get_response(packet)
             if (not response

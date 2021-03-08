@@ -1469,7 +1469,7 @@ class TransmitPacket(XBeeAPIPacket):
         Raises:
             InvalidPacketException: if the bytearray length is less than 18.
                 (start delim. + length (2 bytes) + frame type + frame id
-                + 64bit addr. + 16bit addr. + broadcast radious
+                + 64bit addr. + 16bit addr. + broadcast radius
                 + Transmit options + checksum = 18 bytes).
             InvalidPacketException: if the length field of 'raw' is different
                 from its real length. (length field: bytes 2 and 3)
