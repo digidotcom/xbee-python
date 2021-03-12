@@ -11949,7 +11949,7 @@ class LinkQuality:
         Returns:
              Boolean: `True` if this is an RSSI value, `False` for LQI.
         """
-        return self.__lq
+        return self.__is_rssi
 
 
 LinkQuality.UNKNOWN = LinkQuality(lq=LinkQuality.UNKNOWN_VALUE)
