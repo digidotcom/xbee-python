@@ -2235,13 +2235,18 @@ class AbstractXBeeDevice:
         network = self.get_local_xbee_device().get_network() if self.is_remote() \
             else self.get_network()
         for neighbor in neighbors:
+            n_node = neighbor.node
             is_local = bool(
-                neighbor.node.get_64bit_addr() == (self.get_local_xbee_device().get_64bit_addr() if self.is_remote() else self.get_64bit_addr()))
-            network._add_remote_from_attr(
+                n_node.get_64bit_addr() == (self.get_local_xbee_device().get_64bit_addr() if self.is_remote() else self.get_64bit_addr()))
+            node = network._add_remote_from_attr(
                 NetworkEventReason.NEIGHBOR,
-                x64bit_addr="local" if is_local else neighbor.node.get_64bit_addr(),
-                x16bit_addr=neighbor.node.get_16bit_addr(), node_id=neighbor.node.get_node_id())
-            neighbor._node = network.get_device_by_64(neighbor.node.get_64bit_addr())
+                x64bit_addr="local" if is_local else n_node.get_64bit_addr(),
+                x16bit_addr=n_node.get_16bit_addr(), node_id=n_node.get_node_id())
+            node_from_network = network.get_device_by_64(n_node.get_64bit_addr())
+            if not node_from_network:
+                node_from_network = network.add_remote(node)
+
+            neighbor._node = node_from_network
 
         return neighbors
 
