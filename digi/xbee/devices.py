@@ -242,6 +242,12 @@ class AbstractXBeeDevice:
         if new_hw:
             self._hardware_version = new_hw
 
+        if isinstance(self, (ZigBeeDevice, RemoteZigBeeDevice)):
+            new_parent = device.parent
+            if new_parent:
+                self.parent = new_parent
+                updated = True
+
         return updated
 
     def get_parameter(self, parameter, parameter_value=None, apply=None):
