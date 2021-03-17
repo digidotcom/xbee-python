@@ -846,6 +846,8 @@ class RouteTableReader(_ZDOCommand):
             route = self.__parse_route(
                 data[byte_index:byte_index + self.ROUTE_BYTES_LEN])
             if route:
+                self._logger.debug("Route of %s: %s - %s -> %s", self._xbee,
+                                   route.destination, route.next_hop, route.status)
                 self.__routes.append(route)
                 if self.__cb:
                     self.__cb(self._xbee, route)
@@ -1236,6 +1238,9 @@ class NeighborTableReader(_ZDOCommand):
             # Do not add the node with Zigbee coordinator address "0000000000000000"
             # The coordinator is already received with its real 64-bit address
             if neighbor and neighbor.node.get_64bit_addr() != XBee64BitAddress.COORDINATOR_ADDRESS:
+                self._logger.debug("Neighbor of '%s': %s (relation: %s, depth: %s, lqi: %s)",
+                                   self._xbee, neighbor.node, neighbor.relationship.name,
+                                   neighbor.depth, neighbor.lq)
                 self.__neighbors.append(neighbor)
                 if self.__cb:
                     self.__cb(self._xbee, neighbor)
@@ -1723,6 +1728,8 @@ class NeighborFinder:
 
         neighbor = Neighbor(n_xb, NeighborRelationship.SIBLING, -1, rssi)
         self.__neighbors.append(neighbor)
+        self._logger.debug("Neighbor of '%s': %s (relation: %s, rssi: -%s)", self._xbee,
+                           neighbor.node, neighbor.relationship.name, neighbor.lq)
 
         if self.__cb:
             self.__cb(self.__xbee, neighbor)
