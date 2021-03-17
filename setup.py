@@ -35,7 +35,7 @@ with open(os.path.join(here, 'digi', 'xbee', '__init__.py'), 'r', 'utf-8') as f:
 
 with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
- 
+
 setup(
     name=about['__title__'],
     namespace_packages=['digi'],
