@@ -9868,11 +9868,6 @@ class XBeeNetwork:
                 if remote is not None:
                     # If remote was successfully created and it is not in the
                     # XBee list, add it and notify callbacks.
-
-                    # Do not add a connection to the same node (the local one)
-                    if remote == self._local_xbee:
-                        return
-
                     self._log.debug("     o Discovered neighbor of %s: %s",
                                     self._local_xbee, remote)
 
@@ -9888,17 +9883,19 @@ class XBeeNetwork:
                         # only the local device performs an 'ND'
                         self._log.debug("       - Added to network (scan: %d)", node.scan_counter)
 
-                    # Add connection (there is not RSSI info for a 'ND')
-                    from digi.xbee.models.zdo import RouteStatus
-                    if self._add_connection(Connection(
-                            self._local_xbee, node, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
-                            RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
-                        self._log.debug("       - Added connection: %s >>> %s",
-                                        self._local_xbee, node)
-                    else:
-                        self._log.debug(
-                            "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s",
-                            self.__scan_counter, self._local_xbee, node)
+                    # Do not add a connection to the same node (the local one)
+                    if node != self._local_xbee:
+                        # Add connection (there is not RSSI info for a 'ND')
+                        from digi.xbee.models.zdo import RouteStatus
+                        if self._add_connection(Connection(
+                                self._local_xbee, node, LinkQuality.UNKNOWN, LinkQuality.UNKNOWN,
+                                RouteStatus.ACTIVE, RouteStatus.ACTIVE)):
+                            self._log.debug("       - Added connection: %s >>> %s",
+                                            self._local_xbee, node)
+                        else:
+                            self._log.debug(
+                                "       - CONNECTION already in network in this scan (scan: %d) %s >>> %s",
+                                self.__scan_counter, self._local_xbee, node)
 
                     # Always add the XBee device to the last discovered devices list:
                     self.__last_search_dev_list.append(node)
