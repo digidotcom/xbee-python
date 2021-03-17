@@ -11232,6 +11232,15 @@ class ZigBeeNetwork(XBeeNetwork):
             # Add the new route
             if str(route.next_hop) not in routes_list:
                 routes_list.update({str(route.next_hop): route})
+            else:
+                r_in_list = routes_list.get(str(route.next_hop))
+                self._log.debug("       - ROUTE already found %s - %s -> %s",
+                                r_in_list.destination, r_in_list.next_hop, r_in_list.status)
+                from digi.xbee.models.zdo import RouteStatus
+                if r_in_list.status != RouteStatus.ACTIVE and route.status == RouteStatus.ACTIVE:
+                    self._log.debug("       - Updating route %s - %s -> %s",
+                                    route.destination, route.next_hop, route.status)
+                    routes_list.update({str(route.next_hop): route})
 
             # Check for cancel
             if self._stop_event.is_set():
