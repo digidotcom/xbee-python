@@ -1,6 +1,89 @@
 Changelog
 =========
 
+v1.4.0 - 03/18/2021
+-------------------
+
+* Deep node discovery for Zigbee, DigiMesh, and 802.15.4.
+* Get route from local XBee to a remote XBee:
+
+  * New method to register a callback to listen for new received routes
+    (``add_route_received_callback()``)
+  * New blocking method to ask for the route to the remote node
+    (``get_route_to_node()``)
+* Allow to recover a local node from a profile not only from firmware.
+* Support to be notified when new frames are received from a specific node
+  (``add_packet_received_from_callback()``).
+* Update network information from sent/received AT Command frames.
+* New optional argument for parameter value in ``execute_command()``.
+* New optional argument to apply pending settings in ``get_parameter()``,
+  ``set_parameter()``, and ``execute_command()``.
+* XBee 3:
+
+  * Support to update remote file system OTA images.
+* XBee SX 900/868:
+
+  * Firmware update for local and remote XBee devices.
+  * Profile update for local and remote XBee devices.
+* XBee S2C:
+
+  * OTA firmware/profile update support for remote nodes.
+* Zigbee:
+
+  * Methods to get nodes routing and neighbor tables: ``get_routes()`` and
+    ``get_neighbors()``.
+  * Methods to get/set many-to-one broadcasting time:
+    ``get_many_to_one_broadcasting_time()`` and
+    ``set_many_to_one_broadcasting_time()``.
+  * Support for source route creation: ``create_source_route()``.
+  * New frames:
+    * 'Route Record Indicator' (0xA1)
+    * 'Create Source Route Packet' (0x21)
+* DigiMesh:
+
+  * Method to get node neighbors: ``get_neighbors()``.
+  * Method to build aggregate route: ``build_aggregate_routes()``.
+  * New frames:
+    * 'Route Information Packet' (0x8D)
+* Documentation update
+* Bug fixing:
+
+  * Captured possible exception while determining the XBee role (#103)
+  * Memory leak: empty list of last discovered nodes using ND (#172)
+  * Fix Python 3.9 syntax error (#204)
+  * Use least significant nibble of status field in local/remote AT Command
+    Responses (XCTUNG-376)
+  * Do not lose already registered socket callbacks when closing a local XBee.
+  * Reload node information after firmware/profile update (XBPL-348)
+  * OTA firmware update:
+
+    * Fix sequence number in ZCL responses during fw update (XCTUNG-1975)
+    * Immediate update after transferring the OTA file (XBPL-350)
+    * Use requested file offset and size instead of fixed chunks (XBPL-344)
+    * Mechanism to calculate the proper block size based on the maximum size
+      received by the client and the maximum payload size (XBPL-346)
+    * For asyncronous sleeping nodes (Zigbee, DigiMesh, 802.15.4) and
+      synchronous sleeping networks (DigiMesh), configure a minimum sleep time
+      before update and restore settings at the end.
+      For DigiMesh synchronous sleeping network, the local XBee must be a
+      non-sleeping node but synchronized with the network (SM=7)
+  * Profile application:
+
+    * Do not uncompress profile when reading its information. This change avoids
+      extra processing time and required space when retrieving profile info.
+    * Remove profile extracted files. A profile is opened to access to its
+      contents, and must be closed when done with it.
+    * Fixed the application of XBee profiles with 'AP' setting changes
+      (XBPL-340)
+    * Fixed bootloader update from profile due to bootloader image path
+      mismatch (XBPL-338)
+    * Fix bootloader update operation by waiting some time until the new
+      bootloader is running (XBPL-339)
+    * Fixed application of profile with filesystem from Windows(XBPL-341)
+    * Read firmware version as an hexadecimal value (#177)
+  * Several minor bug fixes.
+
+
 v1.3.0 - 11/05/2019
 -------------------
 

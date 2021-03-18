@@ -12,7 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-__version__ = '1.3.0'
+__version__ = '1.4.0'
 __title__ = 'digi-xbee'
 __description__ = 'Digi XBee Python library'
 __url__ = 'https://github.com/digidotcom/xbee-python'
