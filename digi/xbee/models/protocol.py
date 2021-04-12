@@ -80,12 +80,26 @@ class XBeeProtocol(Enum):
             code (Integer): code of the XBeeProtocol to get.
 
         Returns:
-            XBeeProtocol: XBeeProtocol for the given code.
+            :class: `.XBeeProtocol`: XBeeProtocol for the given code.
         """
         for protocol in cls:
             if protocol.code == code:
                 return protocol
         return XBeeProtocol.UNKNOWN
+
+    @staticmethod
+    def is_ip_protocol(protocol):
+        """
+        Checks if the provided protocol is an IP protocol.
+
+        Args:
+            protocol (:class: `.XBeeProtocol`): The protocol to check.
+
+        Returns:
+            Boolean: `True` if it is an IP protocol, `False` otherwise.
+        """
+        return protocol in (XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT,
+                            XBeeProtocol.XBEE_WIFI)
 
     @staticmethod
     def determine_protocol(hw_version, fw_version, br_value=None):
@@ -100,7 +114,8 @@ class XBeeProtocol(Enum):
                 for XBee SX 900/868.
 
         Returns:
-            The XBee protocol corresponding to the given hardware and firmware versions.
+            :class: `.XBeeProtocol`: The XBee protocol corresponding to the
+                given hardware and firmware versions.
         """
         fw_version = "".join(["%02X" % i for i in fw_version])
 

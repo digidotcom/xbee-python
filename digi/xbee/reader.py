@@ -1527,7 +1527,7 @@ class PacketListener(threading.Thread):
                                                    rcv_opts)))
 
     @staticmethod
-    def __get_remote_device_data_from_packet(packet):
+    def __get_remote_device_data_from_packet(packet, uses_16bit_addr):
         """
         Extracts the 64 bit-address, the 16 bit-address, node identifier,
         hardware version, and firmware version from `packet` if is possible.
@@ -1572,7 +1572,9 @@ class PacketListener(threading.Thread):
                 fw_version = val
             elif cmd == ATStringCommand.MY.command:
                 if not x16bit_addr:
-                    x16bit_addr = XBee16BitAddress(val)
+                    x16bit_addr = None
+                    if uses_16bit_addr and XBee16BitAddress.is_valid(val):
+                        x16bit_addr = XBee16BitAddress(val)
             elif (cmd == ATStringCommand.AP.command
                   and f_type == ApiFrameType.AT_COMMAND_RESPONSE):
                 op_mode = OperatingMode.get(val[0])
@@ -1617,13 +1619,24 @@ class PacketListener(threading.Thread):
         """
         remote = None
         x64, x16, n_id, hw_ver, fw_ver, op_mode = \
-            self.__get_remote_device_data_from_packet(packet)
+            self.__get_remote_device_data_from_packet(
+                packet, not XBeeProtocol.is_ip_protocol(self.__xbee.get_protocol()))
         if (x64 == "local" or XBee64BitAddress.is_known_node_addr(x64)
                 or XBee16BitAddress.is_known_node_addr(x16)):
-            remote = self.__xbee.get_network()._add_remote_from_attr(
+            network = self.__xbee.get_network()
+
+            # Not all XBee supports network functionality
+            if not network:
+                if x64 == "local" or x64 == self.__xbee.get_64bit_addr():
+                    return self.__xbee
+
+                return None
+
+            remote = network._add_remote_from_attr(
                 digi.xbee.devices.NetworkEventReason.RECEIVED_MSG,
                 x64bit_addr=x64, x16bit_addr=x16, node_id=n_id,
                 hw_version=hw_ver, fw_version=fw_ver, op_mode=op_mode)
+
         return remote
 
     @staticmethod

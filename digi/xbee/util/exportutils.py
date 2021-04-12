@@ -81,8 +81,9 @@ def _generate_nodes_xml(xbee, level=0):
     devices_node.text = "\n" + '\t' * level
     devices_node.tail = "\n"
     level += 1
-    for node in [xbee] + network.get_devices():
-        devices_node.append(_generate_node_xml(node, level))
+    if network:
+        for node in [xbee] + network.get_devices():
+            devices_node.append(_generate_node_xml(node, level))
 
     last_device = devices_node.find("./device[last()]")
     if last_device:

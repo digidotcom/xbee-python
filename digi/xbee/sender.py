@@ -14,11 +14,14 @@
 import logging
 import threading
 
+from ipaddress import IPv4Address
+
 from digi.xbee.exception import TimeoutException
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.options import RemoteATCmdOptions
+from digi.xbee.models.protocol import XBeeProtocol
 from digi.xbee.models.status import ATCommandStatus
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.base import XBeeAPIPacket
@@ -223,16 +226,26 @@ class PacketSender:
                 node_fut_apply.pop(param, None)
             elif changed:
                 node_fut_apply.update({param: value})
-        # 16-bit address
+        # 16-bit address / IP address
         elif param == ATStringCommand.MY.command:
-            x16bit_addr = XBee16BitAddress(value)
-            changed = node.get_16bit_addr() != x16bit_addr
-            updated = changed and apply
-            if updated:
-                node._16bit_addr = x16bit_addr
-                node_fut_apply.pop(param, None)
-            elif changed:
-                node_fut_apply.update({param: value})
+            if XBeeProtocol.is_ip_protocol(node.get_protocol()):
+                ip_addr = IPv4Address(utils.bytes_to_int(value))
+                changed = node.get_ip_addr() != ip_addr
+                updated = changed and apply
+                if updated:
+                    node._ip_addr = ip_addr
+                    node_fut_apply.pop(param, None)
+                elif changed:
+                    node_fut_apply.update({param: value})
+            elif XBee16BitAddress.is_valid(value):
+                x16bit_addr = XBee16BitAddress(value)
+                changed = node.get_16bit_addr() != x16bit_addr
+                updated = changed and apply
+                if updated:
+                    node._16bit_addr = x16bit_addr
+                    node_fut_apply.pop(param, None)
+                elif changed:
+                    node_fut_apply.update({param: value})
         elif not node.is_remote():
             updated = self._refresh_serial_params(node, param, value, apply=apply)
 
