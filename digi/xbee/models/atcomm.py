@@ -77,6 +77,7 @@ class ATStringCommand(Enum):
     HP = ("HP", "Preamble ID")
     IC = ("IC", "Digital change detection")
     ID = ("ID", "Network PAN ID/Network ID/SSID")
+    IM = ("IM", "IMEI")
     IR = ("IR", "I/O sample rate")
     IS = ("IS", "Force sample")
     JN = ("JN", "Join notification")

@@ -6827,7 +6827,9 @@ class CellularDevice(IPDevice):
 
         # Generate the IMEI address.
         if init or self._imei_addr is None:
-            imei_addr = XBeeIMEIAddress(self._64bit_addr.address)
+            imei_val = str(self.get_parameter(ATStringCommand.IM, apply=False),
+                           encoding='utf8', errors='ignore')
+            imei_addr = XBeeIMEIAddress.from_string(imei_val)
             if self._imei_addr != imei_addr:
                 updated = True
                 self._imei_addr = imei_addr
