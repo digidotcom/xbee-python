@@ -6435,8 +6435,8 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
         _log.error("ERROR: %s", _ERROR_FILE_XBEE_FW_NOT_FOUND % xbee_firmware_file)
         raise FirmwareUpdateException(_ERROR_FILE_XBEE_FW_NOT_FOUND % xbee_firmware_file)
     if bootloader_firmware_file is not None and not _file_exists(bootloader_firmware_file):
-        _log.error("ERROR: %s", _ERROR_FILE_BOOTLOADER_FW_NOT_FOUND)
-        raise FirmwareUpdateException(_ERROR_FILE_BOOTLOADER_FW_NOT_FOUND)
+        _log.error("ERROR: %s", _ERROR_FILE_BOOTLOADER_FW_NOT_FOUND % bootloader_firmware_file)
+        raise FirmwareUpdateException(_ERROR_FILE_BOOTLOADER_FW_NOT_FOUND % bootloader_firmware_file)
 
     if isinstance(target, XBeeDevice):
         hw_version = target.get_hardware_version()
