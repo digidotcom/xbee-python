@@ -162,6 +162,7 @@ _ERROR_READ_OTA_FILE = "Error reading OTA file: %s"
 _ERROR_REGION_LOCK = "Device region (%d) differs from the firmware one (%d)"
 _ERROR_REMOTE_DEVICE_INVALID = "Invalid remote XBee device"
 _ERROR_RESTORE_TARGET_CONNECTION = "Could not restore target connection: %s"
+_ERROR_RESTORE_LOCAL_CONNECTION = "Could not restore local connection: %s"
 _ERROR_RESTORE_UPDATER_DEVICE = "Error restoring updater device: %s"
 _ERROR_SEND_FRAME = "Error sending frame: transmit status not received or invalid"
 _ERROR_SEND_FRAME_RESPONSE = "Error sending '%s' frame: %s"
@@ -219,6 +220,7 @@ _NOTIFY_PACKET_DEFAULT_QUERY_JITTER = 0x64
 
 _OTA_FILE_IDENTIFIER = 0x0BEEF11E
 _OTA_DEFAULT_BLOCK_SIZE = 64
+_OTA_DEFAULT_BLOCK_SIZE_ENC = 44
 _OTA_GBL_SIZE_BYTE_COUNT = 6
 
 _PACKET_DEFAULT_SEQ_NUMBER = 0x01
@@ -235,9 +237,7 @@ _PROGRESS_TASK_UPDATE_XBEE = "Updating XBee firmware"
 
 _REGION_ALL = 0
 
-_REMOTE_FW_UPDATE_DEFAULT_TIMEOUT = 20  # Seconds
-
-_SEND_BLOCK_RETRIES = 5
+_REMOTE_FW_UPDATE_DEFAULT_TIMEOUT = 30  # Seconds
 
 _TIME_DAYS_1970TO_2000 = 10957
 _TIME_SECONDS_1970_TO_2000 = _TIME_DAYS_1970TO_2000 * 24 * 60 * 60
@@ -273,29 +273,6 @@ _ZCL_CMD_ID_UPGRADE_END_RESP = 0x07
 _ZCL_CMD_ID_DEFAULT_RESP = 0x0B
 
 _ZCL_FRAME_CONTROL_CLIENT_TO_SERVER = 0x01
-
-# Since the following versions (they included), the XBee firmware includes
-# client retries for the same block offset if, for any reason, the block is not
-# received (or it is corrupted)
-_XB3_FW_VERSION_LIMIT_FOR_CLIENT_RETRIES = {
-    XBeeProtocol.ZIGBEE: 0x1009,
-    XBeeProtocol.DIGI_MESH: 0x300A,
-    XBeeProtocol.RAW_802_15_4: 0x200A
-}
-
-# Since the following versions (they included) the complete OTA file (including
-# the header) must be sent to the client when blocks are requested.
-_XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER = {
-    XBeeProtocol.ZIGBEE: 0x100A,
-    XBeeProtocol.DIGI_MESH: 0x300A,
-    XBeeProtocol.RAW_802_15_4: 0x200A
-}
-
-_XB3_PROTOCOL_FROM_FW_VERSION = {
-    0x1: XBeeProtocol.ZIGBEE,
-    0x2: XBeeProtocol.RAW_802_15_4,
-    0x3: XBeeProtocol.DIGI_MESH
-}
 
 _POLYNOMINAL_DIGI_BL = 0x8005
 
@@ -555,13 +532,13 @@ class _OTAFile:
                 self._zb_stack_version = utils.bytes_to_int(
                     _reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
                 _log.debug(" - Zigbee stack version: %d", self._zb_stack_version)
-                if (utils.bytes_to_int(f_version[1:])
-                        < _XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER[_XB3_PROTOCOL_FROM_FW_VERSION[f_version[2] >> 4]]):
-                    self._header_str = str(_reverse_bytearray(
-                        file.read(_BUFFER_SIZE_STR)), encoding="utf8", errors="ignore")
-                else:
+                desc = _XBee3OTAClientDescription(utils.bytes_to_int(f_version[1:]))
+                if desc.must_send_complete_ota():
                     self._header_str = str(file.read(_BUFFER_SIZE_STR),
                                            encoding="utf8", errors="ignore")
+                else:
+                    self._header_str = str(_reverse_bytearray(
+                        file.read(_BUFFER_SIZE_STR)), encoding="utf8", errors="ignore")
                 _log.debug(" - Header string: %s", self._header_str)
                 bad_ota_size = utils.bytes_to_int(
                     _reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
@@ -762,6 +739,218 @@ class _OTAFile:
              Integer: The maximum firmware version.
         """
         return self._max_hw_version
+
+
+class _XBee3OTAClientDescription:
+    """
+    Helper class used to get OTA client capabilities depending on its firmware version.
+    OTA considerations at:
+       * Zigbee (1009 an prior)
+         https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+       * DigiMesh (older than 300A)
+         https://www.digi.com/resources/documentation/Digidocs/90002277/#Reference/r_considerations.htm
+       * 802.15.4 (older than 200A)
+         https://www.digi.com/resources/documentation/digidocs/90002273/#reference/r_considerations.htm
+    """
+
+    # Since the following versions (they included) the complete OTA file
+    # (including the header) must be sent to the client when blocks are
+    # requested. OTA header must be escaped for prior versions (only the GBL
+    # must be sent)
+    _XB3_FW_MIN_VERSION_COMPLETE_OTA = {
+        XBeeProtocol.ZIGBEE: 0x100A,
+        XBeeProtocol.DIGI_MESH: 0x300A,
+        XBeeProtocol.RAW_802_15_4: 0x200A
+    }
+
+    # Since the following versions (they included), network ACK for the
+    # transmission is sent once it is received.
+    # In prior versions, the network ACK is not sent until after the operation
+    # completes. This may result in a timeout, since 'Query Next Image Response'
+    # and the final 'Image Block Response' both cause the client to perform a
+    # long operation (erasing/verifying OTA update data in the storage slot)
+    _XB3_FW_MIN_VERSION_IMMEDIATE_ACK = {
+        XBeeProtocol.ZIGBEE: 0x100A,
+        XBeeProtocol.DIGI_MESH: 0,
+        XBeeProtocol.RAW_802_15_4: 0
+    }
+
+    # Since the following versions (they included), the XBee firmware includes
+    # client retries for the same block offset if, for any reason, the block is
+    # not received (or it is corrupted)
+    # For previous versions:
+    # Do not retry the same packet if the next request does not arrive, just
+    # send the following response as if the corresponding request arrived.
+    _XB3_FW_MIN_VERSION_WITH_CLIENT_RETRIES = {
+        XBeeProtocol.ZIGBEE: 0x1009,
+        XBeeProtocol.DIGI_MESH: 0x300A,
+        XBeeProtocol.RAW_802_15_4: 0x200A
+    }
+
+    # Maximum number of packets that can be lost in a row for firmware without
+    # client retries feature (_XB3_FW_MIN_VERSION_WITH_CLIENT_RETRIES)
+    _XB3_FW_MAX_OTA_LOST_CLIENT_REQUESTS = {
+        XBeeProtocol.ZIGBEE: 3,
+        XBeeProtocol.DIGI_MESH: 1,
+        XBeeProtocol.RAW_802_15_4: 1
+    }
+
+    # Zigbee firmwares 0x1007 and prior do not support fragmentation during an
+    # OTA update. Fragmentation is not supported in DigiMesh nor in 802.15.4
+    _XB3_FW_MIN_VERSION_WITH_FRAGMENTATION = {
+        XBeeProtocol.ZIGBEE: 0x1008,
+        XBeeProtocol.DIGI_MESH: 0xFFFF,
+        XBeeProtocol.RAW_802_15_4: 0xFFFF
+    }
+
+    # Prior firmwares only support default ota block size (sent in Image requests)
+    _XB3_FW_MIN_VERSION_DIFF_OTA_BLOCK = {
+        XBeeProtocol.ZIGBEE: 0x1009,
+        XBeeProtocol.DIGI_MESH: 0x300A,
+        XBeeProtocol.RAW_802_15_4: 0x200A
+    }
+
+    _XB3_PROTOCOL_FROM_FW_VERSION = {
+        0x1: XBeeProtocol.ZIGBEE,
+        0x2: XBeeProtocol.RAW_802_15_4,
+        0x3: XBeeProtocol.DIGI_MESH
+    }
+
+    _SEND_BLOCK_RETRIES = 1
+
+    def __init__(self, fw_version):
+        """
+        Class constructor. Instantiates a new :class:`._XBee3OTAClientDescription`
+        with the given parameters.
+
+        Args:
+            fw_version (Integer): Firmware version of the OTA client (remote to be updated)
+        """
+        self._fw_version = fw_version
+        self._protocol = _XBee3OTAClientDescription.get_protocol_from_fw(fw_version)
+        self._extended_timeout = 0
+
+    @classmethod
+    def get_protocol_from_fw(cls, fw_version):
+        """
+        Get protocol from firmware version.
+
+        Args:
+            fw_version (Integer): Firmware version.
+
+        Returns:
+            :class:`.XBeeProtocol`: The protocol of the firmware version.
+        """
+        return cls._XB3_PROTOCOL_FROM_FW_VERSION[fw_version >> 12]
+
+    @property
+    def extended_timeout(self):
+        """
+        Returns the extended timeout in seconds.
+
+        Returns:
+             Float: Extended timeout in seconds.
+        """
+        return self._extended_timeout
+
+    @extended_timeout.setter
+    def extended_timeout(self, value):
+        """
+        Configures the extended timeout in seconds.
+
+        Args:
+            value (Float): The extended timeout in seconds.
+        """
+        self._extended_timeout = value
+
+    def must_send_complete_ota(self):
+        """
+        Returns `True` if the complete OTA file must be sent in a remote update.
+        Without skipping the OTA header (that results in the GBL)
+
+        Returns:
+            Boolean: `True` if OTA must be completely sent, `False` otherwise.
+        """
+        return self._get_fw_to_check() >= self._XB3_FW_MIN_VERSION_COMPLETE_OTA[self._protocol]
+
+    def is_ack_immediate(self):
+        """
+        Returns `True` if all network ACK are sent once a transmission is
+        received and not after a long operation finishes.
+
+        Returns:
+            Boolean: `True` if network ACK is immediately sent, `False` otherwise.
+        """
+        return self._get_fw_to_check() >= self._XB3_FW_MIN_VERSION_IMMEDIATE_ACK[self._protocol]
+
+    def wait_for_client_retry(self):
+        """
+        Returns `True` if the client firmware has the client retries feature
+        implemented.
+
+        Returns:
+            Boolean: `True` if the client firmware has the client retries
+                feature implemented, `False` otherwise.
+        """
+        return self._get_fw_to_check() >= self._XB3_FW_MIN_VERSION_WITH_CLIENT_RETRIES[self._protocol]
+
+    def get_block_response_max_retries(self):
+        """
+        Returns the maximum number of retries for a block response.
+
+        Returns:
+            Integer: The maximum number of retries for a block response.
+        """
+        if self.wait_for_client_retry():
+            return 1
+
+        return self._SEND_BLOCK_RETRIES
+
+    def get_max_ota_lost_client_requests_in_a_row(self):
+        """
+        Returns the maximum number of client requests lost in a row.
+        This is only valid if client retry feature is not implemented, if
+        wait_for_client_retry return `False`.
+
+        Returns:
+            Integer: Maximum number of client requests lost in a row.
+        """
+        if self.wait_for_client_retry():
+            return 0
+
+        return self._XB3_FW_MAX_OTA_LOST_CLIENT_REQUESTS[self._protocol]
+
+    def support_ota_fragmentation(self):
+        """
+        Returns `True` if the client firmware supports fragmentation of OTA commands.
+
+        Returns:
+            Boolean: `True` if the client firmware supports fragmentation of
+                OTA commands, `False` otherwise.
+        """
+        return self._get_fw_to_check() >= self._XB3_FW_MIN_VERSION_WITH_FRAGMENTATION[self._protocol]
+
+    def support_different_ota_block_size(self):
+        """
+        Returns `True` if the client firmware supports different ota block sizes.
+
+        Returns:
+            Boolean: `True` if the client firmware supports different ota block
+                sizes, `False` otherwise.
+        """
+        return self._get_fw_to_check() >= self._XB3_FW_MIN_VERSION_DIFF_OTA_BLOCK[self._protocol]
+
+    def _get_fw_to_check(self):
+        """
+        Returns the firmware version to check.
+
+        Returns:
+             Integer: The firmware version to check.
+        """
+        # Consider intermediate 1B04 firmware as a 1009 in terms of behavior.
+        # Firmware 1B04 is an intermediate firmware to be able to remotely update
+        # remote nodes with 1003 version.
+        return self._fw_version if self._fw_version != 0x1B04 else 0x1009
 
 
 class _ParsingOTAException(Exception):
@@ -1739,7 +1928,6 @@ class UpdateConfigurer:
                 return
         elif self._xbee.get_protocol() == XBeeProtocol.RAW_802_15_4:
             # Read SM value, if not enabled is not a sleeping device
-            sm_val = None
             try:
                 sm_val = self.exec_at_cmd(AbstractXBeeDevice.get_parameter,
                                           self._xbee, ATStringCommand.SM)
@@ -2244,6 +2432,12 @@ class _XBeeFirmwareUpdater(ABC):
                 self._restore_updater()
             except (SerialException, XBeeException) as exc:
                 _log.error("ERROR: %s", _ERROR_RESTORE_TARGET_CONNECTION % str(exc))
+
+        try:
+            self._restore_local_connection()
+        except Exception as exc:
+            _log.error("ERROR: %s", _ERROR_RESTORE_LOCAL_CONNECTION % str(exc))
+
         _log.error("ERROR: %s", msg)
         raise FirmwareUpdateException(msg)
 
@@ -2284,18 +2478,21 @@ class _XBeeFirmwareUpdater(ABC):
         # Check if the hardware version is compatible with the firmware update process.
         if (self._target_hw_version
                 and self._target_hw_version not in LOCAL_SUPPORTED_HW_VERSIONS + REMOTE_SUPPORTED_HW_VERSIONS):
-            self._exit_with_error(_ERROR_HW_VERSION_NOT_SUPPORTED % self._target_hw_version)
+            self._exit_with_error(_ERROR_HW_VERSION_NOT_SUPPORTED % self._target_hw_version,
+                                  restore_updater=False)
 
         # Check if device hardware version is compatible with the firmware.
         if self._target_hw_version and self._target_hw_version != self._xml_hw_version:
             self._exit_with_error(_ERROR_HW_VERSION_DIFFER %
-                                  (self._target_hw_version, self._xml_hw_version))
+                                  (self._target_hw_version, self._xml_hw_version),
+                                  restore_updater=False)
 
         # Check compatibility number.
         if self._target_compat_number and self._target_compat_number > \
                 self._xml_compat_number:
             self._exit_with_error(_ERROR_COMPATIBILITY_NUMBER %
-                                  (self._target_compat_number, self._xml_compat_number))
+                                  (self._target_compat_number, self._xml_compat_number),
+                                  restore_updater=False)
 
         # Check region lock for compatibility numbers greater than 1.
         if self._target_compat_number and self._target_compat_number > 1 and \
@@ -2303,7 +2500,8 @@ class _XBeeFirmwareUpdater(ABC):
             if (self._target_region_lock != _REGION_ALL
                     and self._target_region_lock != self._xml_region_lock):
                 self._exit_with_error(
-                    _ERROR_REGION_LOCK % (self._target_region_lock, self._xml_region_lock))
+                    _ERROR_REGION_LOCK % (self._target_region_lock, self._xml_region_lock),
+                    restore_updater=False)
 
         # Check whether bootloader update is required.
         self._bootloader_update_required = self._check_bootloader_update_required()
@@ -2375,8 +2573,8 @@ class _XBeeFirmwareUpdater(ABC):
         # Check whether protocol will change or not.
         self._protocol_changed = self._will_protocol_change()
 
-        # Configure the updater device.
-        self._configure_updater()
+        # Connect local XBee
+        self._connect_local()
 
         # Check if updater is able to perform firmware updates.
         self._check_updater_compatibility()
@@ -2388,6 +2586,9 @@ class _XBeeFirmwareUpdater(ABC):
         _log.debug("Bootloader update required? %s", self._bootloader_update_required)
         if self._bootloader_update_required:
             self._check_bootloader_binary_file()
+
+        # Configure the updater device.
+        self._configure_updater()
 
         # Start the firmware update process.
         self._start_firmware_update()
@@ -2409,6 +2610,12 @@ class _XBeeFirmwareUpdater(ABC):
             self._restore_updater()
         except Exception as exc:
             raise FirmwareUpdateException(_ERROR_RESTORE_TARGET_CONNECTION % str(exc))
+
+        # Leave local connection in its original state.
+        try:
+            self._restore_local_connection()
+        except Exception as exc:
+            raise FirmwareUpdateException(_ERROR_RESTORE_LOCAL_CONNECTION % str(exc))
 
         # Update target information.
         self._update_target_information()
@@ -2509,6 +2716,16 @@ class _XBeeFirmwareUpdater(ABC):
         """
 
     @abstractmethod
+    def _connect_local(self):
+        """
+        Connects the local XBee.
+
+        Raises:
+            FirmwareUpdateException: If there is any error connecting the
+                local device.
+        """
+
+    @abstractmethod
     def _configure_updater(self):
         """
         Configures the updater device before performing the firmware update
@@ -2527,6 +2744,15 @@ class _XBeeFirmwareUpdater(ABC):
         Raises:
             SerialException: If there is any error restoring the serial port connection.
             XBeeException: If there is any error restoring the device connection.
+        """
+
+    @abstractmethod
+    def _restore_local_connection(self):
+        """
+        Leaves the local connection to its original state before the update operation.
+
+        Raises:
+            SerialException: If there is any error restoring the serial port connection.
         """
 
     @abstractmethod
@@ -2735,12 +2961,12 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         # In local firmware updates, the updater device and target device are
         # the same. Just return and use the target function check instead.
 
-    def _configure_updater(self):
+    def _connect_local(self):
         """
         Override.
 
         .. seealso::
-           | :meth:`._XBeeFirmwareUpdater._configure_updater`
+           | :meth:`._XBeeFirmwareUpdater._connect_local`
         """
         # For local updates, target and update device is the same.
         # Depending on the given target, process has a different flow
@@ -2761,13 +2987,23 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             if not self._is_bootloader_active():
                 # If the bootloader is not active, enter in bootloader mode.
                 if not self._enter_bootloader_mode_with_break():
-                    self._exit_with_error(_ERROR_BOOTLOADER_MODE)
+                    self._exit_with_error(_ERROR_BOOTLOADER_MODE, restore_updater=False)
         else:
             self._updater_was_connected = self._xbee.is_open()
             _log.debug("Connecting device '%s'", self._xbee)
             if not _connect_device_with_retries(self._xbee, _DEVICE_CONNECTION_RETRIES):
                 if not self._set_device_in_programming_mode():
-                    self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
+                    self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES,
+                                          restore_updater=False)
+
+    def _configure_updater(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._configure_updater`
+        """
+        # In local firmware updates, the updater and target device are the same.
 
     def _restore_updater(self):
         """
@@ -2775,6 +3011,15 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
 
         .. seealso::
            | :meth:`._XBeeFirmwareUpdater._restore_updater`
+        """
+        # For local updates, target and update device is the same.
+
+    def _restore_local_connection(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._restore_local_connection`
         """
         # For local updates, target and update device is the same.
         if self._xbee is not None:
@@ -3057,12 +3302,12 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         """
         return _get_fw_version(self._remote)
 
-    def _configure_updater(self):
+    def _connect_local(self):
         """
         Override.
 
         .. seealso::
-           | :meth:`._XBeeFirmwareUpdater._configure_updater`
+           | :meth:`._XBeeFirmwareUpdater._connect_local`
         """
         # Change sync ops timeout.
         self._old_sync_ops_timeout = self._local.get_sync_ops_timeout()
@@ -3071,7 +3316,16 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._updater_was_connected = self._local.is_open()
         _log.debug("Connecting device '%s'", self._local)
         if not _connect_device_with_retries(self._local, _DEVICE_CONNECTION_RETRIES):
-            self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES)
+            self._exit_with_error(_ERROR_CONNECT_DEVICE % _DEVICE_CONNECTION_RETRIES,
+                                  restore_updater=False)
+
+    def _configure_updater(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._configure_updater`
+        """
         if self._configure_ao_parameter():
             # Store AO value.
             success, self._updater_ao_val = _enable_explicit_mode(self._local)
@@ -3092,9 +3346,6 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         Raises:
             XBeeException: If there is any error restoring the device connection.
         """
-        # Restore sync ops timeout.
-        if self._old_sync_ops_timeout is not None:
-            self._local.set_sync_ops_timeout(self._old_sync_ops_timeout)
         # Restore updater params.
         try:
             if not self._local.is_open():
@@ -3108,6 +3359,17 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         except XBeeException as exc:
             if raise_exception:
                 raise exc
+
+    def _restore_local_connection(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._restore_local_connection`
+        """
+        # Restore sync ops timeout.
+        if self._old_sync_ops_timeout is not None:
+            self._local.set_sync_ops_timeout(self._old_sync_ops_timeout)
         if self._updater_was_connected and not self._local.is_open():
             self._local.open()
         elif not self._updater_was_connected and self._local.is_open():
@@ -3121,7 +3383,8 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
            | :meth:`._XBeeFirmwareUpdater._check_updater_compatibility`
         """
         if self._local.get_hardware_version().code not in REMOTE_SUPPORTED_HW_VERSIONS:
-            self._exit_with_error(_ERROR_HW_VERSION_NOT_SUPPORTED % self._target_hw_version)
+            self._exit_with_error(_ERROR_HW_VERSION_NOT_SUPPORTED % self._target_hw_version,
+                                  restore_updater=False)
 
     def _update_target_information(self):
         """
@@ -3160,7 +3423,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
                     _log.warning("Could not initialize remote device: %s", str(exc))
                     time.sleep(1)
             if not initialized:
-                self._exit_with_error(_ERROR_UPDATE_TARGET_TIMEOUT)
+                self._exit_with_error(_ERROR_UPDATE_TARGET_TIMEOUT, restore_updater=False)
         except XBeeException as exc:
             raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFO % str(exc))
         finally:
@@ -3366,7 +3629,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
 
         if not _file_exists(self._bootloader_fw_file):
             self._exit_with_error(_ERROR_FILE_BOOTLOADER_FW_NOT_FOUND %
-                                  self._bootloader_fw_file)
+                                  self._bootloader_fw_file, restore_updater=False)
 
     def _transfer_firmware(self):
         """
@@ -3974,6 +4237,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
     __DEVICE_RESET_TIMEOUT_DM = 20  # seconds
     __DEVICE_RESET_TIMEOUT_802 = 28  # seconds
 
+    __REC_TRANSMIT_STATUS_RETRIES = 5
+
     def __init__(self, remote, xml_fw_file, ota_fw_file=None, otb_fw_file=None,
                  timeout=_READ_DATA_TIMEOUT, max_block_size=0, progress_cb=None):
         """
@@ -4005,14 +4270,18 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         self._otb_fw_file = otb_fw_file
         self._updater_my_val = None
         self._updater_rr_val = None
+        self._updater_ar_val = None
         self._ota_file = None
+        self._remote_fw_desc = None
         self._transfer_lock = Event()
         self._img_req_received = False
         self._img_notify_sent = False
         self._transfer_status = None
         self._response_str = None
         self._requested_offset = -1
-        self._max_chunk_size = _OTA_DEFAULT_BLOCK_SIZE
+        self._max_chunk_size = max_block_size
+        if not self._max_chunk_size:
+            self._max_chunk_size = _OTA_DEFAULT_BLOCK_SIZE
         self._seq_number = 1
         self._cfg_max_block_size = max_block_size
         self._update_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
@@ -4040,7 +4309,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         try:
             self._ota_file.parse_file()
         except _ParsingOTAException as exc:
-            self._exit_with_error(str(exc))
+            self._exit_with_error(str(exc), restore_updater=False)
 
     def _check_bootloader_binary_file(self):
         """
@@ -4054,7 +4323,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             self._otb_fw_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_OTB))
 
         if not _file_exists(self._otb_fw_file):
-            self._exit_with_error(_ERROR_FILE_XBEE_FW_NOT_FOUND % self._otb_fw_file)
+            self._exit_with_error(_ERROR_FILE_XBEE_FW_NOT_FOUND % self._otb_fw_file,
+                                  restore_updater=False)
 
         # If asked to check the bootloader file, replace the OTA file with the
         # .otb one.
@@ -4064,7 +4334,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         try:
             self._ota_file.parse_file()
         except _ParsingOTAException as exc:
-            self._exit_with_error(str(exc))
+            self._exit_with_error(str(exc), restore_updater=False)
 
     def _configure_ao_parameter(self):
         """
@@ -4082,8 +4352,46 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         .. seealso::
            | :meth:`._RemoteFirmwareUpdater._configure_updater_extra`
         """
+        self._remote_fw_desc = _XBee3OTAClientDescription(self._target_fw_version)
+
+        if not self._remote_fw_desc.support_different_ota_block_size():
+            self._max_chunk_size = _OTA_DEFAULT_BLOCK_SIZE
+
         # Specific settings per protocol.
-        if self._local.get_protocol() == XBeeProtocol.DIGI_MESH:
+        if self._local.get_protocol() == XBeeProtocol.ZIGBEE:
+            enc_value = _get_parameter_with_retries(self._local, ATStringCommand.EE)
+            if enc_value and utils.bytes_to_int(enc_value) == 1:
+                # Set maximum chunk size to encrypted Zigbee network max chuck
+                # size without fragmentation
+                # Workaround for client (remote) fw version 1008 and prior, see
+                # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+                self._max_chunk_size = min(_OTA_DEFAULT_BLOCK_SIZE_ENC, self._max_chunk_size)
+
+            # Disable many-to-one on the local XBee.
+            # Workaround for client (remote) fw version 1007 and prior, see
+            # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+            if not self._remote_fw_desc.support_ota_fragmentation():
+                # Store AR value.
+                ar_val = _get_parameter_with_retries(self._local, ATStringCommand.AR)
+                if ar_val and utils.bytes_to_int(ar_val) != 0xFF:
+                    self._updater_ar_val = ar_val
+                    _set_parameter_with_retries(self._local, ATStringCommand.AR,
+                                                bytearray([0xFF]), apply=True)
+
+            # Delayed ACK for some packets.
+            # Workaround for client (remote) fw version 1009 and prior, see
+            # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+            sp_val = 1000  # minimum value in milliseconds
+            if self._remote.get_role() in (Role.END_DEVICE, Role.UNKNOWN):
+                sp_val = _get_parameter_with_retries(self._local, ATStringCommand.SP)
+                # Value of SP in seconds
+                sp_val = utils.bytes_to_int(sp_val) / 100 if sp_val else 28  # 28=Max SP value
+
+            nh_val = _get_parameter_with_retries(self._local, ATStringCommand.NH)
+            # Value of NH
+            nh_val = utils.bytes_to_int(nh_val) if nh_val else 255  # 255=Max NH value
+            self._remote_fw_desc.extended_timeout = 3 * (50 * nh_val + 1.2 * sp_val) / 1000
+        elif self._local.get_protocol() == XBeeProtocol.DIGI_MESH:
             # Store RR value.
             self._updater_rr_val = _get_parameter_with_retries(
                 self._local, ATStringCommand.RR)
@@ -4120,8 +4428,15 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         # Close OTA file.
         if self._ota_file:
             self._ota_file.close_file()
+        # Restore many-to-one on the local XBee.
+        # Workaround for client (remote) fw version 1007 and prior, see
+        # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+        if self._updater_ar_val and self._remote_fw_desc.support_ota_fragmentation():
+            # Store AR value.
+            _set_parameter_with_retries(self._local, ATStringCommand.AR,
+                                        self._updater_ar_val, apply=True)
         # Specific settings per protocol.
-        if self._local.get_protocol() == XBeeProtocol.DIGI_MESH:
+        if self._updater_rr_val and self._local.get_protocol() == XBeeProtocol.DIGI_MESH:
             # Restore RR value.
             _set_parameter_with_retries(self._local, ATStringCommand.RR,
                                         self._updater_rr_val, apply=True)
@@ -4145,9 +4460,9 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             self._local.get_next_frame_id(), self._remote.get_64bit_addr(),
             self._remote.get_16bit_addr(), _EXPL_PACKET_ENDPOINT_DATA,
             _EXPL_PACKET_ENDPOINT_DATA, _EXPL_PACKET_CLUSTER_ID,
-            _EXPL_PACKET_PROFILE_DIGI, _EXPL_PACKET_BROADCAST_RADIUS_MAX,
-            _EXPL_PACKET_EXTENDED_TIMEOUT if self._local.get_protocol() == XBeeProtocol.ZIGBEE else 0x00,
-            payload)
+            _EXPL_PACKET_PROFILE_DIGI, broadcast_radius=_EXPL_PACKET_BROADCAST_RADIUS_MAX,
+            transmit_options=_EXPL_PACKET_EXTENDED_TIMEOUT if self._local.get_protocol() == XBeeProtocol.ZIGBEE else 0x00,
+            rf_data=payload)
 
     def _create_zcl_frame(self, frame_control, seq_number, cmd_id, payload):
         """
@@ -4387,7 +4702,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         the target device and it is ready to start receiving image frames.
 
         Args:
-            frame (:class:`.XBeeAPIPacket`): Received packet
+            frame (:class:`.XBeeAPIPacket`): Received packet.
         """
         f_type = frame.get_frame_type()
         if f_type == ApiFrameType.TRANSMIT_STATUS:
@@ -4461,9 +4776,11 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             if server_status == _XBee3OTAStatus.SUCCESS:
                 # Check if OTA file chunk size must be updated.
                 if max_data_size != self._max_chunk_size:
-                    self._max_chunk_size = min(max_data_size, self._cfg_max_block_size)
+                    self._max_chunk_size = max_data_size
+                    if self._remote_fw_desc.support_different_ota_block_size():
+                        self._max_chunk_size = min(max_data_size, self._cfg_max_block_size)
                 self._requested_offset = f_offset
-                _log.debug("Received '%s' frame for file offset %s", name, f_offset)
+                _log.debug("Received '%s' frame for file offset %d", name, f_offset)
             else:
                 _log.debug("Received bad '%s' frame, status to send: %s (%d)", name,
                            server_status.description, server_status.identifier)
@@ -4736,12 +5053,18 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 image response frame.
         """
         name = "Query next image response"
-        retries = _SEND_BLOCK_RETRIES
+        retries = self.__REC_TRANSMIT_STATUS_RETRIES
         resp_frame = self._create_query_next_image_response_frame(status=status)
         while retries > 0:
             try:
                 _log.debug("Sending '%s' frame", name)
-                st_frame = self._local.send_packet_sync_and_get_response(resp_frame)
+                # Delayed ACK for some packets.
+                # Workaround for client (remote) fw version 1009 and prior, see
+                # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+                timeout = self._timeout
+                if not self._remote_fw_desc.is_ack_immediate():
+                    timeout = max(self._timeout, self._remote_fw_desc.extended_timeout)
+                st_frame = self._local.send_packet_sync_and_get_response(resp_frame, timeout=timeout)
                 if not isinstance(st_frame, TransmitStatusPacket):
                     retries -= 1
                     continue
@@ -4766,7 +5089,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         raise FirmwareUpdateException(
             _ERROR_SEND_FRAME_RESPONSE % (name, "Timeout sending frame"))
 
-    def _send_ota_block(self, file_offset, size, seq_number):
+    def _send_ota_block(self, file_offset, size, seq_number, timeout=None):
         """
         Sends the next OTA block frame.
 
@@ -4774,6 +5097,9 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             file_offset (Integer): File offset to send.
             size (Integer): Number of bytes to send.
             seq_number (Integer): Protocol sequence number.
+            timeout (Integer): Timeout to wait for the transmit status, if not
+                specified or is 0, the minimum value between 15s and configured
+                timeout for the update operation (`self._timeout`) is used.
 
         Returns:
             Integer: Number of bytes sent.
@@ -4783,59 +5109,86 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 block frame.
         """
         name = "Image block response"
-        retries = _SEND_BLOCK_RETRIES
+        total_retries = self.__REC_TRANSMIT_STATUS_RETRIES
+        retries = total_retries
         while retries > 0:
             next_ota_block_frame = self._create_image_block_response_frame(
                 file_offset, size, seq_number)
             # Use 15s as a maximum value to wait for transmit status frames
             # If 'self._timeout' is too big we can lose any optimization waiting
             # waiting for a transmit status, that could be received but
-            self._local.set_sync_ops_timeout(min(self._timeout, 15))
+            if not timeout:
+                timeout = min(self._timeout, 15)
             try:
                 status_frame = self._local.send_packet_sync_and_get_response(
-                    next_ota_block_frame)
+                    next_ota_block_frame, timeout=timeout)
                 if not isinstance(status_frame, TransmitStatusPacket):
                     retries -= 1
-                    continue
-                if status_frame.transmit_status == TransmitStatus.PAYLOAD_TOO_LARGE:
+                elif status_frame.transmit_status == TransmitStatus.PAYLOAD_TOO_LARGE:
                     # Do not decrease 'retries' here, as we are calculating the
                     # maximum payload
                     size -= _IMAGE_BLOCK_RESPONSE_PAYLOAD_DECREMENT
                     _log.debug(
-                        "'%s' status for offset %s: size too large, retrying with size %d",
+                        "'%s' status for offset %d: size too large, retrying with size %d",
                         name, file_offset, size)
-                    continue
-                if status_frame.transmit_status not in [TransmitStatus.SUCCESS,
-                                                        TransmitStatus.SELF_ADDRESSED]:
+                elif status_frame.transmit_status not in (TransmitStatus.SUCCESS,
+                                                          TransmitStatus.SELF_ADDRESSED):
                     retries -= 1
                     _log.debug(
-                        "Received '%s' status frame for offset %s: %s, retrying (%d/%d)",
+                        "Received '%s' status frame for offset %d: %s, retrying (%d/%d)",
                         name, file_offset, status_frame.transmit_status.description,
-                        _SEND_BLOCK_RETRIES - retries + 1, _SEND_BLOCK_RETRIES)
-                    continue
-                _log.debug("Received '%s' status frame for offset %s: %s",
-                           name, file_offset, status_frame.transmit_status.description)
-                return size
+                        total_retries - retries + 1, total_retries)
+                else:
+                    _log.debug("Received '%s' status frame for offset %d: %s",
+                               name, file_offset, status_frame.transmit_status.description)
+                    return size
+                if self._check_received_request(file_offset):
+                    return size
+                continue
             except TimeoutException:
+                if self._check_received_request(file_offset):
+                    return size
                 # If the transmit status is not received, let's try again
                 retries -= 1
-                _log.debug("Not received '%s' status frame for offset %s, %s",
+                _log.debug("Not received '%s' status frame for offset %d, %s",
                            name, file_offset, "aborting" if retries == 0 else
-                           "retrying (%d/%d)" % (_SEND_BLOCK_RETRIES - retries + 1,
-                                                 _SEND_BLOCK_RETRIES))
+                           "retrying (%d/%d)" % (total_retries - retries + 1,
+                                                 total_retries))
                 if not retries:
                     return size
             except XBeeException as exc:
+                if self._check_received_request(file_offset):
+                    return size
                 retries -= 1
                 if not retries:
                     raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK
                                                   % (file_offset, str(exc)))
-            finally:
-                # Restore the configured timeout
-                self._local.set_sync_ops_timeout(self._timeout)
 
         raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK
                                       % (file_offset, "Timeout sending frame"))
+
+    def _check_received_request(self, offset):
+        """
+        Check if a new ota block request or an 'Upgrade end request' was received.
+
+        Args:
+            offset (Integer): Last offset sent to the client.
+
+        Returns:
+            Boolean: `True` if a new request from client was received, `False`
+                otherwise.
+        """
+        # A new block offset or an 'Upgrade end request' was received
+        if ((self._transfer_lock.is_set() and offset != self._requested_offset)
+                or self._transfer_status):
+            msg = "Received new offset to transfer (current: %d, new: %d)" \
+                  % (offset, self._requested_offset)
+            if self._transfer_status:
+                msg = "Received 'Upgrade end request'"
+            _log.debug(msg)
+            return True
+
+        return False
 
     def _start_firmware_update(self):
         """
@@ -4844,11 +5197,13 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         .. seealso::
            | :meth:`._XBeeFirmwareUpdater._start_firmware_update`
         """
+        retries = self.__REC_TRANSMIT_STATUS_RETRIES
         name = "Image notify"
+        error = None
+
         image_notify_request_frame = self._create_image_notify_request_frame()
         self._local.add_packet_received_callback(self._image_request_frame_cb)
-        retries = _SEND_BLOCK_RETRIES
-        error = None
+
         while retries > 0:
             _log.debug("Sending '%s' frame", name)
             try:
@@ -4872,7 +5227,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             elif not self._img_req_received:
                 retries -= 1
                 if not retries:
-                    error = _ERROR_SEND_FRAME_RESPONSE\
+                    error = _ERROR_SEND_FRAME_RESPONSE \
                             % (name, "Timeout waiting for 'Query next image request'")
             else:
                 break
@@ -4897,7 +5252,14 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         # Dictionary to store block size used for each provided maximum size
         last_size_sent = {self._max_chunk_size: self._max_chunk_size}
         previous_percent = None
-        retries = self._get_block_response_max_retries()
+        timeout_for_request = max(45, self._remote_fw_desc.extended_timeout)
+        max_retries = self._remote_fw_desc.get_block_response_max_retries()
+        retries = max_retries
+        # Count the number of missing requests, if there are more than 3 in a row, update failed.
+        # Workaround for client (remote) fw version 1008 and prior, see
+        # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+        max_lost_requests = self._remote_fw_desc.get_max_ota_lost_client_requests_in_a_row()
+        lost_requests = 0
 
         self._transfer_lock.clear()
 
@@ -4911,7 +5273,27 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         # Wait for answer.
         if self._requested_offset == -1:
             # If offset is different from -1 it means callback was executed.
-            self._transfer_lock.wait(self._timeout)
+
+            # Ensure to wait at least 30 seconds for the first Image Block Request.
+            # Workaround for client (remote) fw version 1008 and prior, see
+            # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+            _log.debug("Waiting for first 'Image Block Request' request (%f s)"
+                       % max(self._timeout, timeout_for_request))
+            if (not self._transfer_lock.wait(max(self._timeout, timeout_for_request))
+                    and not self._remote_fw_desc.wait_for_client_retry()):
+                # Send the first chunk of the ota file.
+                # Workaround for client (remote) fw version 1008 and prior, see
+                # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+                lost_requests += 1
+                # If there are too many lost client request in a row, consider as a failure
+                if lost_requests > max_lost_requests:
+                    _log.warning("Lost %d/%d requests from client (in a row), update failed",
+                                 lost_requests, max_lost_requests)
+                else:
+                    self._requested_offset = 0
+                    if self._remote_fw_desc.support_different_ota_block_size():
+                        self._max_chunk_size = min(self._max_chunk_size, self._cfg_max_block_size)
+                    self._seq_number += 1
 
         while (self._requested_offset != -1 and self._transfer_status is None
                and self._response_str is None and retries > 0):
@@ -4929,26 +5311,64 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 self._progress_callback(self._progress_task, percent)
                 previous_percent = percent
 
+            # Delayed ACK for some packets. Only for the last block.
+            # Workaround for client (remote) fw version 1009 and prior, see
+            # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+            timeout = None
+            stored_last_size_sent = last_size_sent.get(self._max_chunk_size, self._max_chunk_size)
+            if (not self._remote_fw_desc.is_ack_immediate()
+                    and self._requested_offset + stored_last_size_sent < self._get_ota_size()):
+                timeout = max(self._timeout, self._remote_fw_desc.extended_timeout)
+
             # Send the data block.
             try:
                 size_sent = self._send_ota_block(
                     self._requested_offset,
-                    min(last_size_sent.get(self._max_chunk_size, self._max_chunk_size),
-                        self._max_chunk_size),
-                    previous_seq_number)
+                    min(stored_last_size_sent, self._max_chunk_size),
+                    previous_seq_number, timeout=timeout)
                 last_size_sent[self._max_chunk_size] = size_sent
             except FirmwareUpdateException as exc:
                 self._local.del_packet_received_callback(self._fw_receive_frame_cb)
                 self._exit_with_error(str(exc))
+
             # Wait for next request.
-            if not self._transfer_lock.wait(max(self._timeout, 120)):
+            # Ensure to wait for the Image Block Request
+            # Workaround for client (remote) fw version 1008 and prior, see
+            # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+            _log.debug("Waiting for next request (%f s)" % max(self._timeout, timeout_for_request))
+            if not self._transfer_lock.wait(max(self._timeout, timeout_for_request)):
                 retries -= 1
                 if retries > 0:
-                    _log.debug("Chunk %s not sent, retrying... (%d/%d)",
-                               self._requested_offset, _SEND_BLOCK_RETRIES - retries + 1,
-                               _SEND_BLOCK_RETRIES)
+                    _log.info("Last chunk %d not sent, retrying... (%d/%d)",
+                              self._requested_offset, max_retries - retries + 1,
+                              max_retries)
+                    continue
+                # Send the next chunk of the ota file, or send the Upgrade End Response
+                # Workaround for client (remote) fw version 1008 and prior, see
+                # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
+                if not self._remote_fw_desc.wait_for_client_retry():
+                    lost_requests += 1
+                    # Fail if there are too many lost client requests in a row.
+                    if lost_requests > max_lost_requests:
+                        _log.warning("Lost %d/%d requests from client (in a row), update failed",
+                                     lost_requests, max_lost_requests)
+                        continue
+                    self._seq_number += 1
+                    # Calculate next offset to send or break to send the 'Upgrade end response'
+                    last_offset = self._requested_offset
+                    self._requested_offset += last_size_sent.get(self._max_chunk_size, self._max_chunk_size)
+                    if self._requested_offset < self._get_ota_size():
+                        _log.info("Chunk request %d not received, sending next chunk %d "
+                                  "(lost in a row %d/%d)", last_offset,
+                                  self._requested_offset, lost_requests, max_lost_requests)
+                        retries = max_retries
+                        continue
+                    self._transfer_status = _XBee3OTAStatus.SUCCESS
+                    _log.info("'Upgrade end request' not received, sending 'Upgrade end response'"
+                              "(lost in a row %d/%d)", lost_requests, max_lost_requests)
             else:
-                retries = self._get_block_response_max_retries()
+                retries = max_retries
+                lost_requests = 0
 
         # Transfer finished, remove callback.
         self._local.del_packet_received_callback(self._fw_receive_frame_cb)
@@ -4956,7 +5376,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         self._ota_file.close_file()
         # Check if there was a transfer timeout.
         if self._transfer_status is None and self._response_str is None:
-            if last_offset_sent + last_size_sent[self._max_chunk_size] == self._get_ota_size():
+            if last_offset_sent + last_size_sent.get(self._max_chunk_size, self._max_chunk_size) == self._get_ota_size():
                 self._exit_with_error(_ERROR_TRANSFER_OTA_FILE
                                       % "Timeout waiting for 'Upgrade end request' frame")
             else:
@@ -4980,15 +5400,20 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
            | :meth:`._XBeeFirmwareUpdater._finish_firmware_update`
         """
         name = "Upgrade end response"
-        retries = _SEND_BLOCK_RETRIES
+        total_retries = self.__REC_TRANSMIT_STATUS_RETRIES
+        retries = total_retries
         error_msg = None
         upgrade_end_response_frame = self._create_upgrade_end_response_frame()
+        timeout = self._timeout
+        if not self._remote_fw_desc.is_ack_immediate():
+            timeout = max(self._timeout, self._remote_fw_desc.extended_timeout)
         while retries > 0:
             try:
                 _log.debug("Sending '%s' frame (%d/%d)", name,
-                           _SEND_BLOCK_RETRIES - retries + 1, _SEND_BLOCK_RETRIES)
+                           total_retries - retries + 1, total_retries)
                 error_msg = None
-                st_frame = self._local.send_packet_sync_and_get_response(upgrade_end_response_frame)
+                st_frame = self._local.send_packet_sync_and_get_response(
+                    upgrade_end_response_frame, timeout=timeout)
                 if not isinstance(st_frame, TransmitStatusPacket):
                     retries -= 1
                     continue
@@ -5002,6 +5427,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 #   - 'Route not found' error on XBee 3 DigiMesh remote firmware
                 #     update from 3004 to 300A/300B
                 #   - 'Address not found' on XBee 3 ZB remote firmware update
+                #   - 'No ack' error on XBee 3 802.15.4 remote firmware update
                 #
                 # The workaround considers those TX status as valid.
                 #
@@ -5011,12 +5437,15 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                                                              TransmitStatus.ROUTE_NOT_FOUND)
                                 and self._remote.get_protocol() == XBeeProtocol.DIGI_MESH
                                 and self._target_fw_version <= 0x3004)
+                raw_802_error = (st_frame.transmit_status == TransmitStatus.NO_ACK
+                                and self._remote.get_protocol() == XBeeProtocol.RAW_802_15_4
+                                and self._target_fw_version <= 0x2002)
                 zb_addr_error = (st_frame.transmit_status == TransmitStatus.ADDRESS_NOT_FOUND
                                  and self._remote.get_protocol() == XBeeProtocol.ZIGBEE
                                  and self._target_fw_version <= 0x1009)
 
                 if (st_frame.transmit_status == TransmitStatus.SUCCESS
-                        or dm_ack_error or zb_addr_error):
+                        or dm_ack_error or zb_addr_error or raw_802_error):
                     try:
                         self._restore_updater(raise_exception=True)
                         return
@@ -5051,19 +5480,6 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                     self.__DEVICE_RESET_TIMEOUT_DM,
                     self.__DEVICE_RESET_TIMEOUT_802])
 
-    def _get_block_response_max_retries(self):
-        """
-        Returns the maximum number of retries for a block response.
-
-        Returns:
-            Integer: The maximum number of retries for a block response.
-        """
-        protocol = self._remote.get_protocol()
-        if self._target_fw_version < _XB3_FW_VERSION_LIMIT_FOR_CLIENT_RETRIES[protocol]:
-            return _SEND_BLOCK_RETRIES
-
-        return 1
-
     def _get_ota_size(self):
         """
         Returns the ota file size to transmit. This value depends on the remote
@@ -5075,10 +5491,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         # For firmware version x00A or higher, OTA header must be also sent for
         # the firmware/file system update, not just the image in the OTA file.
         # (although firmware update is compatible backwards)
-        return (self._ota_file.ota_size
-                if (self._target_fw_version <
-                    _XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER[self._remote.get_protocol()])
-                else self._ota_file.total_size)
+        return (self._ota_file.total_size
+                if self._remote_fw_desc.must_send_complete_ota() else self._ota_file.ota_size)
 
     def _get_ota_offset(self, offset):
         """
@@ -5095,10 +5509,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         # For firmware version x00A or higher, OTA header must be also sent for
         # the firmware/file system update, not just the image in the OTA file.
         # (although firmware update is compatible backwards)
-        return (offset + self._ota_file.discard_size
-                if (self._target_fw_version <
-                    _XB3_FW_VERSION_LIMIT_SKIP_OTA_HEADER[self._remote.get_protocol()])
-                else offset)
+        return (offset
+                if self._remote_fw_desc.must_send_complete_ota() else offset + self._ota_file.discard_size)
 
 
 class _RemoteFilesystemUpdater(_RemoteXBee3FirmwareUpdater):
@@ -5155,7 +5567,7 @@ class _RemoteFilesystemUpdater(_RemoteXBee3FirmwareUpdater):
         try:
             self._ota_file.parse_file()
         except _ParsingOTAException as exc:
-            self._exit_with_error(str(exc))
+            self._exit_with_error(str(exc), restore_updater=False)
 
     def _will_protocol_change(self):
         """
@@ -5187,7 +5599,8 @@ class _RemoteFilesystemUpdater(_RemoteXBee3FirmwareUpdater):
 
         # Check if the hardware version is compatible with the filesystem update process.
         if self._target_hw_version and self._target_hw_version not in XBEE3_HW_VERSIONS:
-            self._exit_with_error(_ERROR_HW_VERSION_NOT_SUPPORTED % self._target_hw_version)
+            self._exit_with_error(_ERROR_HW_VERSION_NOT_SUPPORTED % self._target_hw_version,
+                                  restore_updater=False)
 
     def _update_target_information(self):
         """
@@ -5703,7 +6116,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         else:
             self._updater = self._local
         if not self._updater:
-            self._exit_with_error(_ERROR_NO_UPDATER_AVAILABLE, restore_updater=True)
+            self._exit_with_error(_ERROR_NO_UPDATER_AVAILABLE)
         _log.debug("Updater device: %s", self._updater)
         # For async sleep devices: reconfigure updater to stay awake the maximum time
         self._updater_configurer = UpdateConfigurer(self._updater, timeout=self._timeout)
@@ -5775,7 +6188,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                 xnet = self._local.get_network()
                 if not parent_16bit:
                     # The end device node is orphan, we cannot update it.
-                    self._exit_with_error(_ERROR_END_DEVICE_ORPHAN, restore_updater=True)
+                    self._exit_with_error(_ERROR_END_DEVICE_ORPHAN)
                 updater = xnet.get_device_by_16(XBee16BitAddress(parent_16bit))
                 if not updater:
                     xnet.start_discovery_process()
@@ -5784,14 +6197,14 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                     updater = xnet.get_device_by_16(XBee16BitAddress(parent_16bit))
                 if not updater:
                     # The end device node is orphan, we cannot update it.
-                    self._exit_with_error(_ERROR_END_DEVICE_ORPHAN, restore_updater=True)
+                    self._exit_with_error(_ERROR_END_DEVICE_ORPHAN)
             # Verify the updater hardware version.
             if not updater.get_hardware_version():
                 updater_hw_version = _get_parameter_with_retries(updater, ATStringCommand.HV)
             else:
                 updater_hw_version = [updater.get_hardware_version().code]
             if not updater_hw_version or updater_hw_version[0] not in S2C_HW_VERSIONS:
-                self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
+                self._exit_with_error(_ERROR_UPDATE_FROM_S2C)
             return updater
         # Look for updater using the current network connections.
         candidates = self._get_updater_candidates(net_discover=False)
@@ -5845,7 +6258,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         if self._local.get_hardware_version().code in S2C_HW_VERSIONS and \
                 self._get_target_hw_version() in S2C_HW_VERSIONS:
             return self._local
-        self._exit_with_error(_ERROR_UPDATE_FROM_S2C, restore_updater=True)
+        self._exit_with_error(_ERROR_UPDATE_FROM_S2C)
 
     def _get_updater_candidates(self, net_discover=False):
         """
@@ -6321,7 +6734,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             connectivity_test_success = loopback_test.execute_test()
         if not connectivity_test_success:
             if not self._force_update:
-                self._exit_with_error(_ERROR_COMMUNICATION_TEST, restore_updater=True)
+                self._exit_with_error(_ERROR_COMMUNICATION_TEST)
             else:
                 _log.warning("Communication test with remote device failed, forcing update...")
         # Clear recovery mode in updater device, ignore answer.
@@ -6348,7 +6761,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             self._any_data_sent = False
             # Initialize transfer.
             if not self._send_initialization_cmd():
-                self._exit_with_error(_ERROR_INITIALIZE_PROCESS, restore_updater=True)
+                self._exit_with_error(_ERROR_INITIALIZE_PROCESS)
             # Send the firmware.
             if not self._send_firmware():
                 # Recover the module.
@@ -6357,13 +6770,12 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
                     time.sleep(6)
                 if not self._set_updater_recovery_mode():
                     self._clear_updater_recovery_mode()
-                    self._exit_with_error(_ERROR_RECOVERY_MODE, restore_updater=True)
+                    self._exit_with_error(_ERROR_RECOVERY_MODE)
                 retries -= 1
             else:
                 firmware_updated = True
         if not firmware_updated:
-            self._exit_with_error(_ERROR_FW_UPDATE_RETRIES % self.__FW_UPDATE_RETRIES,
-                                  restore_updater=True)
+            self._exit_with_error(_ERROR_FW_UPDATE_RETRIES % self.__FW_UPDATE_RETRIES)
 
     def _finish_firmware_update(self):
         """
@@ -6394,7 +6806,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             _log.warning("Could not send second finalize update frame: %s", str(exc))
             both_frames_sent = False
         if not both_frames_sent:
-            self._exit_with_error(_ERROR_FINISH_PROCESS, restore_updater=True)
+            self._exit_with_error(_ERROR_FINISH_PROCESS)
 
 
 def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
@@ -6533,7 +6945,10 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
             progress_callback=progress_callback)
         return
 
+    orig_op_timeout = remote.get_sync_ops_timeout()
+    remote.set_sync_ops_timeout(max(orig_op_timeout, timeout))
     bootloader_type = _determine_bootloader_type(remote)
+    remote.set_sync_ops_timeout(orig_op_timeout)
     if bootloader_type == _BootloaderType.GECKO_BOOTLOADER:
         update_process = _RemoteXBee3FirmwareUpdater(
             remote, xml_fw_file, ota_fw_file=firmware_file,

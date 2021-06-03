@@ -90,6 +90,7 @@ class ATStringCommand(Enum):
     M0 = ("M0", "PWM0 configuration")
     M1 = ("M1", "PWM1 configuration")
     NB = ("NB", "Parity")
+    NH = ("NH", "Maximum hops")
     NI = ("NI", "Node identifier")
     ND = ("ND", "Node discover")
     NJ = ("NJ", "Join time")
