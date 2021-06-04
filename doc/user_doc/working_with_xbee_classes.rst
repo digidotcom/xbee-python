@@ -206,6 +206,9 @@ Use ``force_settings=True`` as ``open()`` method parameter, to reconfigure
 the XBee serial settings (baud rate, data bits, stop bits, etc.) to those
 specified in the XBee object constructor.
 
+This method also configures the operating mode of the local XBee to API mode
+without escapes (AP=1) if its not using an API mode (AP=1 or AP=2)
+
 .. code:: python
 
   [...]
