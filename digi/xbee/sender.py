@@ -469,9 +469,9 @@ class SyncRequestSender:
             # This means successful user data relay requests throw a
             # TimeoutException using this method
             received_response = (r_f_type == ApiFrameType.TX_STATUS)
-        elif s_f_type in ApiFrameType.FILE_SYSTEM_REQUEST:
+        elif s_f_type == ApiFrameType.FILE_SYSTEM_REQUEST:
             received_response = self._is_valid_fs_response(rcv_packet)
-        elif s_f_type in ApiFrameType.REMOTE_FILE_SYSTEM_REQUEST:
+        elif s_f_type == ApiFrameType.REMOTE_FILE_SYSTEM_REQUEST:
             # A remote file system request may receive 2 frames: the remote file
             # system response and a transmit status
             received_response = self._is_valid_remote_fs_response(rcv_packet)
