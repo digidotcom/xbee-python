@@ -15,7 +15,7 @@
 import logging
 
 from digi.xbee.devices import XBeeDevice
-from digi.xbee.exception import OperationNotSupportedException, XBeeException, RecoveryException
+from digi.xbee.exception import XBeeException
 
 # TODO: Replace with the serial port where your local module is connected to.
 PORT = "COM1"

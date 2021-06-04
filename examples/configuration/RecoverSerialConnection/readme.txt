@@ -11,8 +11,8 @@
   ------------
   To run this example you will need:
 
-    * One XBee radio in API mode and its corresponding carrier board (XBIB
-      or XBee Development Board).
+    * One XBee radio and its corresponding carrier board (XBIB or XBee
+      Development Board).
 
 
   Compatible hardware
