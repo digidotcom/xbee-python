@@ -1728,7 +1728,7 @@ class NeighborFinder:
 
         neighbor = Neighbor(n_xb, NeighborRelationship.SIBLING, -1, rssi)
         self.__neighbors.append(neighbor)
-        self._logger.debug("Neighbor of '%s': %s (relation: %s, rssi: -%s)", self._xbee,
+        self._logger.debug("Neighbor of '%s': %s (relation: %s, rssi: -%s)", self.__xbee,
                            neighbor.node, neighbor.relationship.name, neighbor.lq)
 
         if self.__cb:
