@@ -86,16 +86,18 @@ SUPPORTED_HW_VERSIONS = (HardwareVersion.XBEE3.code,
                          HardwareVersion.XBEE3_SMT.code,
                          HardwareVersion.XBEE3_TH.code)
 
+# Update this value when File System API frames are supported
 XB3_MIN_FW_VERSION_FS_API_SUPPORT = {
-    XBeeProtocol.ZIGBEE: 0x100C,
-    XBeeProtocol.DIGI_MESH: 0x300C,
-    XBeeProtocol.RAW_802_15_4: 0x200D
+    XBeeProtocol.ZIGBEE: 0x10FF,
+    XBeeProtocol.DIGI_MESH: 0x30FF,
+    XBeeProtocol.RAW_802_15_4: 0x20FF
 }
 
+# Update this values when the File System OTA support is deprecated
 XB3_MAX_FW_VERSION_FS_OTA_SUPPORT = {
-    XBeeProtocol.ZIGBEE: 0x100B,
-    XBeeProtocol.DIGI_MESH: 0x300B,
-    XBeeProtocol.RAW_802_15_4: 0x200C
+    XBeeProtocol.ZIGBEE: 0x10FF,
+    XBeeProtocol.DIGI_MESH: 0x30FF,
+    XBeeProtocol.RAW_802_15_4: 0x20FF
 }
 
 _DEFAULT_BLOCK_SIZE = 64
