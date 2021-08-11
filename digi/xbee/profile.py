@@ -855,7 +855,8 @@ class XBeeProfile:
 
         try:
             with zipfile.ZipFile(self._profile_file, "r") as zip_file:
-                xml_file = zip_file.open(os.path.join(_FW_DIR_NAME, self._fw_xml_filename))
+                # Do not use os.path.join for a path inside a zip file
+                xml_file = zip_file.open(_FW_DIR_NAME + "/" + self._fw_xml_filename)
                 fw_root = ElementTree.parse(xml_file).getroot()
                 for fw_setting_element in fw_root.findall(_XML_FW_SETTING):
                     if fw_setting_element.get(_XML_COMMAND) != setting_name:
