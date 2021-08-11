@@ -1495,7 +1495,7 @@ class _ProfileUpdater:
                         _ERROR_UPDATE_FW % "Profile does not contain remote firmware")
                 update_remote_firmware(
                     self._xbee, self._profile.firmware_description_file,
-                    bootloader_file=self._profile.bootloader_file, timeout=self._timeout,
+                    timeout=self._timeout,
                     max_block_size=self._xbee.get_ota_max_block_size(),
                     progress_callback=self._progress_callback, _prepare=False)
             else:
