@@ -242,7 +242,8 @@ class AbstractXBeeDevice:
         if new_hw:
             self._hardware_version = new_hw
 
-        if isinstance(self, (ZigBeeDevice, RemoteZigBeeDevice)):
+        if (isinstance(self, (ZigBeeDevice, RemoteZigBeeDevice))
+                and isinstance(device, (ZigBeeDevice, RemoteZigBeeDevice))):
             new_parent = device.parent
             if new_parent:
                 self.parent = new_parent
