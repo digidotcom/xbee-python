@@ -1,6 +1,33 @@
 Changelog
 =========
 
+v1.4.1 - XX/XX/2021
+-------------------
+
+* OTA firmware update:
+
+  * Implementation of considerations for versions 1009, 300A, 200A or prior
+    (XBPL-375)
+    See:
+
+      * `Zigbee (1009 an prior) considerations <https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm>`_
+      * `DigiMesh (older than 300A) considerations <https://www.digi.com/resources/documentation/Digidocs/90002277/#Reference/r_considerations.htm>`_
+      * `802.15.4 (older than 200A) considerations <https://www.digi.com/resources/documentation/digidocs/90002273/#reference/r_considerations.htm>`_
+  * When updating a remote profile, let the library calculate the `*.otb`
+    file path based on the `*.xml` firmware file, as it does for the `*.ota`.
+* XBee Cellular:
+
+  * Do not work with network if the XBee does not support it (XBPL-374)
+  * Fix creation of IMEI when reading cellular information.
+* Documentation:
+
+  * Add info about the ``force_settings`` parameter of ``open`` method (#241)
+  * Add missing ``exportutils`` module to documentation.
+* Do not use 'os.path.join()' for relative paths of zip entries (#247)
+* Fix bad conditions when checking for a received packet (#242)
+* Fix attribute name in find neighbors debug message (#122)
+* Several minor bug fixes.
+
 v1.4.0 - 03/18/2021
 -------------------
 
