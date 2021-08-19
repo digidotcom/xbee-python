@@ -19,6 +19,8 @@ import logging
 import threading
 import time
 
+from serial import SerialException
+
 import digi.xbee.devices
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.atcomm import ATStringCommand
@@ -567,12 +569,21 @@ class PacketListener(threading.Thread):
             self.__stop = False
             self.__started.set()
             while not self.__stop:
-                # Try to read a packet. Read packet is unescaped.
-                raw_packet = self.__comm_iface.wait_for_frame(
-                    self.__xbee.operating_mode)
+                try:
+                    # Try to read a packet. Read packet is unescaped.
+                    raw_packet = self.__comm_iface.wait_for_frame(
+                        self.__xbee.operating_mode)
+                except SerialException as exc:
+                    # SerialException: device reports readiness to read but
+                    # returned no data (device disconnected or multiple access on port?)
+                    if "device reports readiness to read but returned no data" in str(exc):
+                        self._log.warning("Serial exception while reading: %s", exc)
+                        continue
+                    else:
+                        raise exc
 
                 if raw_packet is not None:
-                    # If the current protocol is 802.15.4, the packet may hav
+                    # If the current protocol is 802.15.4, the packet may have
                     # to be discarded.
                     if (self.__xbee.get_protocol() == XBeeProtocol.RAW_802_15_4
                             and not self.__check_packet_802_15_4(raw_packet)):
