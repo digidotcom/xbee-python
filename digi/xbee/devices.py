@@ -2337,7 +2337,7 @@ class XBeeDevice(AbstractXBeeDevice):
                  stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
                  flow_control=FlowControl.NONE,
                  _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
-                 comm_iface=None):
+                 exclusive=True, comm_iface=None):
         """
         Class constructor. Instantiates a new :class:`.XBeeDevice` with the
         provided parameters.
@@ -2351,6 +2351,8 @@ class XBeeDevice(AbstractXBeeDevice):
             parity (Character, default: :attr:`.serial.PARITY_NONE`): Port parity.
             flow_control (Integer, default: :attr:`.FlowControl.NONE`): Port flow control.
             _sync_ops_timeout (Integer, default: 4): Read timeout (in seconds).
+            exclusive (Boolean, optional, default=`True`): Set serial port
+                exclusive access mode (POSIX only).
             comm_iface (:class:`.XBeeCommunicationInterface`): Communication interface.
 
         Raises:
@@ -2363,7 +2365,8 @@ class XBeeDevice(AbstractXBeeDevice):
             serial_port=XBeeSerialPort(baud_rate=baud_rate, port=port,
                                        data_bits=data_bits, stop_bits=stop_bits,
                                        parity=parity, flow_control=flow_control,
-                                       timeout=_sync_ops_timeout) if comm_iface is None else None,
+                                       timeout=_sync_ops_timeout,
+                                       exclusive=exclusive) if comm_iface is None else None,
             sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
         # If there is no XBeeNetwork object provided by comm_iface,
         # initialize a default XBeeNetwork
