@@ -8423,8 +8423,11 @@ class RemoteZigBeeDevice(RemoteXBeeDevice):
         .. seealso::
            | :meth:`.AbstractXBeeDevice.is_device_info_complete`
         """
-        return (super().is_device_info_complete()
-                and self._role == Role.END_DEVICE and self.__parent is not None)
+        complete = super().is_device_info_complete()
+        if self._role == Role.END_DEVICE:
+            return complete and self.__parent is not None
+
+        return complete
 
     def get_ai_status(self):
         """
