@@ -41,7 +41,7 @@ from digi.xbee.models.mode import APIOutputModeBit
 from digi.xbee.models.options import RemoteATCmdOptions
 from digi.xbee.models.protocol import XBeeProtocol, Role
 from digi.xbee.models.status import TransmitStatus, ATCommandStatus, \
-    EmberBootloaderMessageType, ModemStatus
+    EmberBootloaderMessageType, ModemStatus, UpdateProgressStatus, NodeUpdateType
 from digi.xbee.packets.aft import ApiFrameType
 from digi.xbee.packets.common import ExplicitAddressingPacket, \
     TransmitStatusPacket, RemoteATCommandPacket, RemoteATCommandResponsePacket
@@ -2648,16 +2648,20 @@ class _XBeeFirmwareUpdater(ABC):
         try:
             self._restore_updater()
         except Exception as exc:
-            raise FirmwareUpdateException(_ERROR_RESTORE_TARGET_CONNECTION % str(exc)) from None
+            self._exit_with_error(str(exc), restore_updater=False)
 
         # Leave local connection in its original state.
         try:
             self._restore_local_connection()
         except Exception as exc:
+            _log.error("ERROR: %s", str(exc))
             raise FirmwareUpdateException(_ERROR_RESTORE_LOCAL_CONNECTION % str(exc)) from None
 
         # Update target information.
-        self._update_target_information()
+        try:
+            self._update_target_information()
+        except FirmwareUpdateException as exc:
+            raise exc
 
         _log.info("Update process finished successfully")
 
@@ -2829,6 +2833,9 @@ class _XBeeFirmwareUpdater(ABC):
     def _update_target_information(self):
         """
         Updates the target information after the firmware update.
+
+        Raises:
+            FirmwareUpdateException: If there is any error getting info.
         """
 
     @abstractmethod
@@ -2880,6 +2887,30 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         else:
             self._port = None
             self._xbee = target
+
+    def _notify_progress(self, task_str, percent, finished=False):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._notify_progress`
+        """
+        super()._notify_progress(task_str, percent, finished=finished)
+
+        if not self._xbee:
+            return
+
+        update_type = self._xbee._active_update_type
+
+        xnet = self._xbee.get_network()
+        if xnet:
+            progress_cbs = xnet.get_update_progress_callbacks()
+            if progress_cbs:
+                progress_cbs(self._xbee,
+                             UpdateProgressStatus(update_type, task_str, percent, finished))
+
+        if finished and update_type == NodeUpdateType.FIRMWARE:
+            self._xbee._active_update_type = None
 
     def _check_fw_binary_file(self):
         """
@@ -3114,7 +3145,9 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             self._xbee._read_device_info(NetworkEventReason.FIRMWARE_UPDATE,
                                          init=True, fire_event=True)
         except XBeeException as exc:
-            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFO % str(exc)) from None
+            msg = _ERROR_UPDATE_TARGET_INFO % str(exc)
+            _log.error(msg)
+            raise FirmwareUpdateException(msg) from None
         finally:
             if not was_open:
                 self._xbee.close()
@@ -3296,6 +3329,27 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
         self._updater_was_connected = False
         self._updater_ao_val = None
 
+    def _notify_progress(self, task_str, percent, finished=False):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._XBeeFirmwareUpdater._notify_progress`
+        """
+        super()._notify_progress(task_str, percent, finished=finished)
+
+        update_type = self._remote._active_update_type
+
+        xnet = self._local.get_network()
+        if xnet:
+            progress_cbs = xnet.get_update_progress_callbacks()
+            if progress_cbs:
+                progress_cbs(self._remote,
+                             UpdateProgressStatus(update_type, task_str, percent, finished))
+
+        if finished and update_type in (NodeUpdateType.FIRMWARE, NodeUpdateType.FILESYSTEM):
+            self._remote._active_update_type = None
+
     def _get_target_bootloader_version(self):
         """
         Override.
@@ -3464,7 +3518,9 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             if not initialized:
                 self._exit_with_error(_ERROR_UPDATE_TARGET_TIMEOUT, restore_updater=False)
         except XBeeException as exc:
-            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFO % str(exc)) from None
+            msg = _ERROR_UPDATE_TARGET_INFO % str(exc)
+            _log.error(msg)
+            raise FirmwareUpdateException(msg) from None
         finally:
             if self._old_sync_ops_timeout is not None:
                 self._local.set_sync_ops_timeout(self._old_sync_ops_timeout)
@@ -3833,8 +3889,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
         Args:
             percent (Integer): XModem transfer percentage.
         """
-        if self._progress_callback is not None:
-            self._progress_callback(self._progress_task, percent)
+        self._notify_progress(self._progress_task, percent)
 
     def _transfer_firmware_file_xmodem(self, fw_file_path):
         """
@@ -4151,7 +4206,10 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         _log.debug("Bootloader protocol version: %s", self._protocol_version)
 
         self._send_change_baudrate_cmd()
-        self._send_initialize_cmd()
+        try:
+            self._send_initialize_cmd()
+        except FirmwareUpdateException as exc:
+            self._exit_with_error(str(exc))
         _log.info("%s - %s",
                   self._xbee if self._xbee is not None else self._port,
                   _PROGRESS_TASK_UPDATE_XBEE)
@@ -4160,10 +4218,13 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         ebin_file = _EbinFile(self._fw_file, self._xml_flash_page_size)
         previous_percent = None
         for page in ebin_file.get_next_mem_page():
-            if self._progress_callback is not None and ebin_file.percent != previous_percent:
-                self._progress_callback(self._progress_task, ebin_file.percent)
+            if ebin_file.percent != previous_percent:
+                self._notify_progress(self._progress_task, ebin_file.percent)
                 previous_percent = ebin_file.percent
-            self._send_memory_page(page, ebin_file)
+            try:
+                self._send_memory_page(page, ebin_file)
+            except FirmwareUpdateException as exc:
+                self._exit_with_error(str(exc))
 
     def _send_memory_page(self, page, ebin_file):
         """
@@ -4262,8 +4323,11 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         .. seealso::
            | :meth:`._XBeeFirmwareUpdater._finish_firmware_update`
         """
-        self._send_finish_cmd()
-        self._send_verify_cmd()
+        try:
+            self._send_finish_cmd()
+            self._send_verify_cmd()
+        except FirmwareUpdateException as exc:
+            self._exit_with_error(str(exc))
 
 
 class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
@@ -5361,8 +5425,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 self._exit_with_error(_ERROR_INVALID_BLOCK % self._requested_offset)
             # Calculate percentage and notify.
             percent = (self._requested_offset * 100) // self._get_ota_size()
-            if percent != previous_percent and self._progress_callback:
-                self._progress_callback(self._progress_task, percent)
+            if percent != previous_percent:
+                self._notify_progress(self._progress_task, percent)
                 previous_percent = percent
 
             # Delayed ACK for some packets. Only for the last block.
@@ -5443,8 +5507,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         if self._response_str:
             self._exit_with_error(_ERROR_TRANSFER_OTA_FILE % self._response_str)
         # Reaching this point means the transfer was successful, notify 100% progress.
-        if self._progress_callback:
-            self._progress_callback(self._progress_task, 100)
+        self._notify_progress(self._progress_task, 100)
 
     def _finish_firmware_update(self):
         """
@@ -6030,8 +6093,8 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         block_index = 0
         byte_index = 0
         for data_chunk in ebin_file.get_next_mem_page():
-            if self._progress_callback is not None and ebin_file.percent != previous_percent:
-                self._progress_callback(self._progress_task, ebin_file.percent)
+            if ebin_file.percent != previous_percent:
+                self._notify_progress(self._progress_task, ebin_file.percent)
                 previous_percent = ebin_file.percent
             _log.debug("Sending chunk %d/%d %d%%", ebin_file.page_index + 1,
                        ebin_file.num_pages, ebin_file.percent)
@@ -6174,8 +6237,11 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         _log.debug("Updater device: %s", self._updater)
         # For async sleep devices: reconfigure updater to stay awake the maximum time
         self._updater_configurer = UpdateConfigurer(self._updater, timeout=self._timeout)
-        self._updater_configurer.prepare_for_update(
-            prepare_node=True, prepare_net=False, restore_later=True)
+        try:
+            self._updater_configurer.prepare_for_update(
+                prepare_node=True, prepare_net=False, restore_later=True)
+        except XBeeException as exc:
+            self._exit_with_error(str(exc))
 
         # Save DH parameter.
         self._updater_dh_val = _get_parameter_with_retries(self._updater,
@@ -6697,8 +6763,8 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         ebl_file = _EBLFile(self._fw_file, self.__DEFAULT_PAGE_SIZE)
         # Send firmware in chunks.
         for data_chunk in ebl_file.get_next_mem_page():
-            if self._progress_callback is not None and ebl_file.percent != previous_percent:
-                self._progress_callback(self._progress_task, ebl_file.percent)
+            if ebl_file.percent != previous_percent:
+                self._notify_progress(self._progress_task, ebl_file.percent)
                 previous_percent = ebl_file.percent
             _log.debug("Sending chunk %d/%d %d%%", ebl_file.page_index + 1,
                        ebl_file.num_pages, ebl_file.percent)
@@ -6863,6 +6929,115 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             self._exit_with_error(_ERROR_FINISH_PROCESS)
 
 
+class FwUpdateTask:
+    """
+    This class represents a firmware update process for a given XBee.
+    """
+
+    def __init__(self, xbee, xml_fw_path, fw_path=None, bl_fw_path=None,
+                 timeout=None, progress_cb=None):
+        """
+        Class constructor. Instantiates a new :class:`.FwUpdateTask` object.
+
+        Args:
+            xbee (:class:`.AbstractXBeeDevice`): XBee to update.
+            xml_fw_path (String): Path of the XML file that describes the firmware.
+            fw_path (String, optional): Location of the XBee binary firmware file.
+            bl_fw_path (String, optional): Location of the bootloader binary
+                firmware file.
+            timeout (Integer, optional): Serial port read data timeout.
+            progress_cb (Function, optional): Function to receive progress
+               information. Receives two arguments:
+
+                  * The current update task as a String
+                  * The current update task percentage as an Integer
+
+        Raises:
+            ValueError: If the XBee device or the XML firmware file path are
+                `None` or invalid. Also if the firmware binary file path or the
+                bootloader file path are specified and does not exist.
+        """
+        # Sanity checks.
+        if not isinstance(xbee, (XBeeDevice, RemoteXBeeDevice)):
+            raise ValueError("Invalid XBee")
+        if xml_fw_path is None:
+            raise ValueError(_ERROR_FILE_XML_FW_NOT_SPECIFIED)
+        if not _file_exists(xml_fw_path):
+            raise ValueError(_ERROR_FILE_XML_FW_NOT_FOUND)
+        if fw_path is not None and not _file_exists(fw_path):
+            raise ValueError(_ERROR_FILE_XBEE_FW_NOT_FOUND % fw_path)
+        if bl_fw_path is not None and not _file_exists(bl_fw_path):
+            raise ValueError(_ERROR_FILE_BOOTLOADER_FW_NOT_FOUND % bl_fw_path)
+
+        self.__xbee = xbee
+        self.__xml_path = xml_fw_path
+        self.__fw_path = fw_path
+        self.__bl_path = bl_fw_path
+        self.__timeout = timeout
+        self.__cb = progress_cb
+
+    @property
+    def xbee(self):
+        """
+        Gets the XBee for this task.
+
+        Returns:
+            :class:`.AbstractXBeeDevice`: The XBee to update.
+        """
+        return self.__xbee
+
+    @property
+    def xml_path(self):
+        """
+        Gets the XML firmware file path.
+
+        Returns:
+            String: The XML file path for the update task.
+        """
+        return self.__xml_path
+
+    @property
+    def fw_path(self):
+        """
+        Gets the binary firmware file path.
+
+        Returns:
+            String: The binary file path for the update task.
+        """
+        return self.__fw_path
+
+    @property
+    def bl_path(self):
+        """
+        Gets the bootloader file path.
+
+        Returns:
+            String: The bootloader file path for the update task.
+        """
+        return self.__bl_path
+
+    @property
+    def timeout(self):
+        """
+        Gets the maximum time to wait for read operations.
+
+        Returns:
+            Integer: The maximum time to wait for read operations.
+        """
+        return self.__timeout
+
+    @property
+    def callback(self):
+        """
+        Returns the function to receive progress status information.
+
+        Returns:
+             Function: The callback method to received progress information.
+                `None` if not registered.
+        """
+        return self.__cb
+
+
 def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
                           bootloader_firmware_file=None, timeout=None,
                           progress_callback=None):
@@ -6922,6 +7097,8 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
             progress_callback=progress_callback)
         return
 
+    if isinstance(target, XBeeDevice) and not target._active_update_type:
+        target._active_update_type = NodeUpdateType.FIRMWARE
     bootloader_type = _determine_bootloader_type(target)
     if bootloader_type == _BootloaderType.GECKO_BOOTLOADER:
         update_process = _LocalXBee3FirmwareUpdater(
@@ -6934,13 +7111,25 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
             timeout=timeout, progress_cb=progress_callback)
     else:
         # Bootloader not supported.
+        if target._active_update_type == NodeUpdateType.FIRMWARE:
+            target._active_update_type = None
         _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
         raise FirmwareUpdateException(_ERROR_BOOTLOADER_NOT_SUPPORTED)
-    update_process.update_firmware()
+
+    msg = "Success"
+    try:
+        update_process.update_firmware()
+    except FirmwareUpdateException as exc:
+        msg = "Error: %s" % exc
+        raise exc
+    finally:
+        finished = (target._active_update_type == NodeUpdateType.FIRMWARE)
+        if finished or msg != "Success":
+            update_process._notify_progress(msg, 100, finished=finished)
 
 
 def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_file=None,
-                           max_block_size=0, timeout=None, progress_callback=None, _prepare=True):
+                           max_block_size=0, timeout=None, progress_callback=None):
     """
     Performs a remote firmware update operation in the given target.
 
@@ -6999,6 +7188,9 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
             progress_callback=progress_callback)
         return
 
+    if not remote._active_update_type:
+        remote._active_update_type = NodeUpdateType.FIRMWARE
+
     orig_op_timeout = remote.get_sync_ops_timeout()
     remote.set_sync_ops_timeout(max(orig_op_timeout, timeout))
     bootloader_type = _determine_bootloader_type(remote)
@@ -7018,23 +7210,35 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
             timeout=timeout, force_update=True, progress_cb=progress_callback)
     else:
         # Bootloader not supported.
+        if remote._active_update_type == NodeUpdateType.FIRMWARE:
+            remote._active_update_type = None
         _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
         raise FirmwareUpdateException(_ERROR_BOOTLOADER_NOT_SUPPORTED)
 
     orig_protocol = remote.get_protocol()
     configurer = UpdateConfigurer(remote, timeout=timeout,
                                   callback=progress_callback)
-    if _prepare:
-        configurer.prepare_for_update(restore_later=False)
+    if remote._active_update_type != NodeUpdateType.PROFILE:
+        try:
+            configurer.prepare_for_update(restore_later=False)
+        except XBeeException as exc:
+            raise FirmwareUpdateException(str(exc)) from None
+    msg = "Success"
     try:
         update_process.update_firmware()
+    except FirmwareUpdateException as exc:
+        msg = "Error: %s" % exc
+        raise exc
     finally:
         configurer.restore_after_update(
             restore_settings=not update_process.check_protocol_changed_by_fw(orig_protocol))
+        finished = (remote._active_update_type == NodeUpdateType.FIRMWARE)
+        if finished or msg != "Success":
+            update_process._notify_progress(msg, 100, finished=finished)
 
 
 def update_remote_filesystem(remote, ota_fs_file, max_block_size=0, timeout=None,
-                             progress_callback=None, _prepare=True):
+                             progress_callback=None):
     """
     Performs a remote filesystem update operation in the given target.
 
@@ -7071,17 +7275,29 @@ def update_remote_filesystem(remote, ota_fs_file, max_block_size=0, timeout=None
     # Launch the update process.
     if not timeout:
         timeout = _REMOTE_FW_UPDATE_DEFAULT_TIMEOUT
+    if not remote._active_update_type:
+        remote._active_update_type = NodeUpdateType.FILESYSTEM
     update_process = _RemoteFilesystemUpdater(
         remote, ota_fs_file, timeout=timeout, max_block_size=max_block_size,
         progress_cb=progress_callback)
     configurer = UpdateConfigurer(remote, timeout=timeout,
                                   callback=progress_callback)
-    if _prepare:
-        configurer.prepare_for_update(restore_later=False)
+    if remote._active_update_type == NodeUpdateType.FILESYSTEM:
+        try:
+            configurer.prepare_for_update(restore_later=False)
+        except XBeeException as exc:
+            raise FirmwareUpdateException(str(exc)) from None
+    msg = "Success"
     try:
         update_process.update_firmware()
+    except FirmwareUpdateException as exc:
+        msg = "Error: %s" % exc
+        raise exc
     finally:
         configurer.restore_after_update()
+        finished = (remote._active_update_type == NodeUpdateType.FILESYSTEM)
+        if finished or msg != "Success":
+            update_process._notify_progress(msg, 100, finished=finished)
 
 
 def _file_exists(file):
@@ -7415,6 +7631,9 @@ def _determine_bootloader_type(target):
 
     Return:
         :class:`._BootloaderType`: Bootloader type of the connected target.
+
+    Raises:
+        FirmwareUpdateException: If it cannot determine the bootloader type.
     """
     if not isinstance(target, str):
         # An XBee was given. Bootloader type is determined using the device hardware version.
@@ -7428,6 +7647,8 @@ def _determine_bootloader_type(target):
                 target.close()
             return _BootloaderType.determine_bootloader_type(hardware_version)
         except XBeeException as exc:
+            if target._active_update_type == NodeUpdateType.FIRMWARE:
+                target._active_update_type = None
             raise FirmwareUpdateException(_ERROR_DETERMINE_BOOTLOADER_TYPE % str(exc)) from exc
     else:
         # A serial port was given, determine the bootloader by testing prompts and baud rates.

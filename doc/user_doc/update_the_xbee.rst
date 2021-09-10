@@ -8,6 +8,7 @@ profiles:
 * :ref:`updateFirmware`
 * :ref:`updateFilesystem`
 * :ref:`applyProfile`
+* :ref:`updateMultiple`
 
 .. warning::
   At the moment, update features are only supported in:
@@ -779,3 +780,180 @@ The ``apply_profile()`` method may fail for the following reasons:
 |                                                                                                                                                               |
 | **examples/profile/ApplyXBeeProfileRemoteSample/ApplyXBeeProfileRemoteSample.py**                                                                             |
 +---------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. _updateMultiple:
+
+Update multiple nodes
+---------------------
+
+The XBee Python Library provides a mechanism to update several nodes at once.
+For this, define the update tasks to perform. An update task includes:
+
+* The node to be updated, local or remote.
+* The required file(s) for the update.
+* Other parameters such as the timeout or a callback to notify the progress.
+
+There are two types of update task:
+
+* A ``FwUpdateTask`` defines a firmware update task for a local or remote node.
+  .. code:: python
+
+    from digi.xbee.firmware import FwUpdateTask
+
+    [...]
+
+    XML_FIRMWARE_FILE = "/home/user/my_firmware.xml"
+    XBEE_FIRMWARE_FILE = "/home/user/my_firmware.gbl"
+    BOOTLOADER_FIRMWARE_FILE = "/home/user/my_bootloader.gbl"
+
+    [...]
+
+    # Instantiate an XBee object.
+    xbee = XBeeDevice(...)
+
+    [...]
+
+    # Define an update progress callback for the firmware update task
+    def my_fw_update_cb(task_msg, percentage):
+        print("%s: %%d" %(task_msg, percentage))
+
+    # Define a firmware update task for the local node
+    fw_update_task = FwUpdateTask(xbee, XML_FIRMWARE_FILE,
+                                  fw_path=XBEE_FIRMWARE_FILE,
+                                  bl_fw_path=BOOTLOADER_FIRMWARE_FILE,
+                                  progress_cb=my_fw_update_cb)
+
+    [...]
+
+* A ``ProfileUpdateTask`` defines a profile update task for a local or remote
+  node.
+  .. code:: python
+
+    from digi.xbee.firmware import ProfileUpdateTask
+
+    [...]
+
+    PROFILE_PATH = "/home/user/my_profile.xpro"
+
+    [...]
+
+    # Get the remote node.
+    remote = ...
+
+    [...]
+
+    # Define an update progress callback for the profile update task
+    def my_profile_update_cb(task_msg, percentage):
+        print("%s: %%d" %(task_msg, percentage))
+
+    # Define a firmware update task
+    profile_update_task = ProfileUpdateTask(remote, PROFILE_PATH,
+                                            progress_cb=my_profile_update_cb)
+
+    [...]
+
+You can define as many update tasks as you need. Then use the ``update_nodes()``
+method of the ``XBeeNetwork`` to perform all of them.
+
++-------------------------+---------------------------------------------------------------------------------------+
+| Method                  | Description                                                                           |
++=========================+=======================================================================================+
+| **update_nodes(List)**  | Performs the provided update tasks. It blocks until all tasks finish.                 |
+|                         |                                                                                       |
+|                         | * **task_list (List)**: List of ``FwUpdateTask`` or ``ProfileUpdateTask`` to perform. |
+|                         |    The method returns a dictionary with the 64-bit address of the XBee as key and, as |
+|                         |    value, a ``Tuple`` with the XBee (``XBeeDevice`` or ``RemoteXBeeDevice``) and an   |
+|                         |    ``XBeeException`` if the process failed for that node (``None`` if it successes)   |
++-------------------------+---------------------------------------------------------------------------------------+
+
+**Update several nodes**
+
+.. code:: python
+
+  from digi.xbee.firmware import ProfileUpdateTask
+
+  [...]
+
+  ROUTER_PROFILE_PATH = "/home/user/my_routers_profile.xpro"
+
+  [...]
+
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice(...)
+
+  # Get the network.
+  xnet = xbee.get_network()
+
+  [...]
+
+  profile_tasks = []
+  for node in xnet.get_devices():
+      if node.get_role() != Role.ROUTER:
+          continue
+      profile_tasks.append(ProfileUpdateTask(remote, ROUTER_PROFILE_PATH))
+
+  update_result = xnet.update_nodes(profile_tasks)
+
+  for task in tasks:
+      res = update_result.get(str(task.xbee.get_64bit_addr()), None)
+      res_msg = "OK"
+      if res and res[1]:
+          res_msg = "ERROR: %s" % str(res[1])
+      print("%s: %s ---> %s" % (task.xbee, task.profile_path, res_msg))
+
+  [...]
+
+To receive the status of the update process per node, provide a callback using
+the ``add_update_progress_callback()`` method. This callback receives three
+arguments:
+
+* The XBee being updated, local or remote.
+* An ``UpdateProgressStatus`` with the current status.
+
+**Register an update progress callback**
+
+.. code:: python
+
+  [...]
+
+  xnet = xbee.get_network()
+
+  [...]
+
+  profile_tasks = ...
+
+  # Define the update progress callback.
+  def cb_update_progress(node, progress_status):
+      print("%s %s - %s: %d%%" % (progress_status.type, node,
+                                  progress_status.task, progress_status.percent))
+      if progress_status.finished:
+          print("---- %s finished for %s ----" % (progress_status.type, node))
+
+  # Add the update progress callback.
+  xnet.add_update_progress_callback(cb_network_modified)
+
+  update_result = xnet.update_nodes(profile_tasks)
+
+  [...]
+
+To stop listening to update progress events, use the
+``del_update_progress_callback()`` method to unsubscribe the already-registered
+callback.
+
+**Deregister an update progress callback**
+
+.. code:: python
+
+  [...]
+
+  def cb_update_progress(node, task_str, percentage):
+      [...]
+
+  xbee.add_update_progress_callback(cb_update_progress)
+
+  [...]
+
+  # Delete the callback.
+  xbee.del_update_progress_callback(cb_update_progress)
+
+  [...]

@@ -3287,7 +3287,7 @@ class LocalXBeeFileSystemManager:
 
 def update_remote_filesystem_image(remote_device, ota_filesystem_file,
                                    max_block_size=0, timeout=None,
-                                   progress_callback=None, _prepare=True):
+                                   progress_callback=None):
     """
     Performs a remote filesystem update operation in the given target.
 
@@ -3320,7 +3320,7 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file,
     try:
         update_remote_filesystem(
             remote_device, ota_filesystem_file, max_block_size=max_block_size,
-            timeout=timeout, progress_callback=progress_callback, _prepare=_prepare)
+            timeout=timeout, progress_callback=progress_callback)
     except FirmwareUpdateException as exc:
         _log.error("ERROR: %s", str(exc))
         raise FileSystemException(str(exc)) from None

@@ -451,6 +451,20 @@ class FileSystemFrameReceived(XBeeEvent):
     """
 
 
+class NetworkUpdateProgress(XBeeEvent):
+    """
+    This event is fired when the progress of a running firmware update changes.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. The XBee being updated.
+        2. The current update task as a String.
+        3. The current update task percentage as an Integer.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+
+
 class PacketListener(threading.Thread):
     """
     This class represents a packet listener, which is a thread that's always

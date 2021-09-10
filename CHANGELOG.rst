@@ -19,10 +19,13 @@ v1.4.1 - XX/XX/2021
 
   * Do not work with network if the XBee does not support it (XBPL-374)
   * Fix creation of IMEI when reading cellular information.
+* Support to update a bunch of nodes at the same time (DAL-5285)
 * Documentation:
 
   * Add info about the ``force_settings`` parameter of ``open`` method (#241)
   * Add missing ``exportutils`` module to documentation.
+* Set exclusive access mode to the XBee serial port (#222, #252)
+* Do not stop frames reader if a serial buffer empty exception occurs (#222, #252)
 * Do not use 'os.path.join()' for relative paths of zip entries (#247)
 * Fix bad conditions when checking for a received packet (#242)
 * Fix attribute name in find neighbors debug message (#122)

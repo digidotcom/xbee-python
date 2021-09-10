@@ -1243,3 +1243,111 @@ class FSCommandStatus(Enum):
 
 
 FSCommandStatus.__doc__ += utils.doc_enum(FSCommandStatus)
+
+
+class NodeUpdateType(Enum):
+    """
+    This class lists the update types.
+
+    | Inherited properties:
+    |     **name** (String): Name (id) of the NodeUpdateType.
+    |     **value** (String): Value of the NodeUpdateType.
+    """
+    FIRMWARE = (0x00, "Firmware update")
+    PROFILE = (0x01, "Profile update")
+    FILESYSTEM = (0x02, "File system update")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__desc = description
+
+    @property
+    def code(self):
+        """
+        Returns the code of the NodeUpdateType element.
+
+        Returns:
+            Integer: Code of the NodeUpdateType element.
+        """
+        return self.__code
+
+    @property
+    def desc(self):
+        """
+        Returns the description of the NodeUpdateType element.
+
+        Returns:
+            String: Description of the NodeUpdateType element.
+        """
+        return self.__desc
+
+    def __str__(self):
+        return self.__desc
+
+
+NodeUpdateType.__doc__ += utils.doc_enum(NodeUpdateType)
+
+
+class UpdateProgressStatus:
+    """
+    This class represents the state of a update process.
+    """
+
+    def __init__(self, update_type, task_str, percent, finished):
+        """
+        Class constructor. Instantiates a new :class:`.UpdateProgressState`
+        object.
+
+        Args:
+            update_type (:class:`.NodeUpdateType`): Type of update.
+            task_str (String): The current update task.
+            percent (Integer): The current update task percentage.
+            finished (Boolean): `True` if the update finished for the XBee,
+                `False` otherwise.
+        """
+        self.__type = update_type
+        self.__task = task_str
+        self.__percent = percent
+        self.__finished = finished
+
+    @property
+    def type(self):
+        """
+        Gets the update type: firmware or profile.
+
+        Returns:
+             :class:`.NodeUpdateType`: The update type
+        """
+        return self.__type
+
+    @property
+    def task(self):
+        """
+        Gets the update task.
+
+        Returns:
+             String: The current update task.
+        """
+        return self.__task
+
+    @property
+    def percent(self):
+        """
+        Gets the progress percentage.
+
+        Returns:
+             Integer: The update task percentage
+        """
+        return self.__percent
+
+    @property
+    def finished(self):
+        """
+        Gets a boolean value indicating if the update process finished for an
+        XBee.
+
+        Returns:
+             Boolean: `True` if the update process has finished for an XBee,
+                `False` otherwise.
+        """
+        return self.__finished

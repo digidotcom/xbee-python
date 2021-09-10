@@ -58,7 +58,7 @@ from digi.xbee.exception import XBeeException, TimeoutException, \
 from digi.xbee.io import IOSample, IOMode
 from digi.xbee.reader import PacketListener, PacketReceived, DeviceDiscovered, \
     DiscoveryProcessFinished, NetworkModified, RouteReceived, InitDiscoveryScan, \
-    EndDiscoveryScan, XBeeEvent
+    EndDiscoveryScan, XBeeEvent, NetworkUpdateProgress
 from digi.xbee.serial import FlowControl
 from digi.xbee.serial import XBeeSerialPort
 
@@ -146,6 +146,7 @@ class AbstractXBeeDevice:
         self._reachable = True
 
         self._initializing = False
+        self._active_update_type = None
 
         self.__generic_lock = threading.Lock()
 
@@ -8607,6 +8608,7 @@ class XBeeNetwork:
         self._network_modified = NetworkModified()
         self._device_discovered = DeviceDiscovered()
         self.__device_discovery_finished = DiscoveryProcessFinished()
+        self.__network_update_progress = NetworkUpdateProgress()
         self.__discovery_thread = None
         self.__sought_device_id = None
         self.__discovered_device = None
@@ -8908,6 +8910,44 @@ class XBeeNetwork:
 
         return 0, str(file)
 
+    def update_nodes(self, task_list):
+        """
+        Performs the provided update tasks. It blocks until all tasks finish.
+
+        Params:
+            task_list (List or tuple): List of update tasks
+                (:class:`.FwUpdateTask` or :class:`.ProfileUpdateTask`)
+
+        Returns:
+            Dictionary: Uses the 64-bit address of the XBee as key and, as
+                value, a Tuple with the XBee (:class:`.AbstractXBeeDevice`) and
+                an :class:`.XBeeException` if the process failed for that node
+                (`None` if it successes)
+        """
+        from digi.xbee.firmware import FwUpdateTask
+        from digi.xbee.profile import ProfileUpdateTask
+
+        if not task_list:
+            return {}
+
+        result = {}
+        for task in task_list:
+            try:
+                if isinstance(task, FwUpdateTask):
+                    task.xbee.update_firmware(task.xml_path,
+                                              xbee_firmware_file=task.fw_path,
+                                              bootloader_firmware_file=task.bl_path,
+                                              timeout=task.timeout,
+                                              progress_callback=task.callback)
+                elif isinstance(task, ProfileUpdateTask):
+                    task.xbee.apply_profile(task.profile_path, timeout=task.timeout,
+                                            progress_callback=task.callback)
+                result.update({str(task.xbee.get_64bit_addr()): (task.xbee, None)})
+            except XBeeException as exc:
+                result.update({str(task.xbee.get_64bit_addr()): (task.xbee, exc)})
+
+        return result
+
     def add_network_modified_callback(self, callback):
         """
         Adds a callback for the event :class:`.NetworkModified`.
@@ -9028,6 +9068,20 @@ class XBeeNetwork:
 
         cbs(packet, remote)
 
+    def add_update_progress_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.NetworkUpdateProgress`.
+
+        Args:
+            callback (Function): The callback. Receives three arguments.
+                * The XBee being updated.
+                * An :class:`.UpdateProgressStatus` with the current status.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.del_update_progress_callback`
+        """
+        self.__network_update_progress += callback
+
     def del_network_modified_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.NetworkModified`.
@@ -9127,6 +9181,29 @@ class XBeeNetwork:
                 self._local_xbee._packet_listener.get_packet_received_from_callbacks()):
             self._local_xbee._packet_listener.del_packet_received_from_callback(
                 self.__received_packet_from_cb)
+
+    def del_update_progress_callback(self, callback):
+        """
+        Deletes a callback for the callback list of :class:`.NetworkUpdateProgress`.
+
+        Args:
+            callback (Function): The callback to delete.
+
+        .. seealso::
+           | :meth:`.XBeeNetwork.add_update_progress_callback`
+        """
+        if callback in self.__network_update_progress:
+            self.__network_update_progress -= callback
+
+    def get_update_progress_callbacks(self):
+        """
+        Returns the list of registered callbacks for update progress.
+        This is only for internal use.
+
+        Returns:
+            List: List of :class:`.NetworkUpdateProgress` events.
+        """
+        return self.__network_update_progress
 
     def clear(self):
         """

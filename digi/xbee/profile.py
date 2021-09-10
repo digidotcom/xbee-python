@@ -40,6 +40,7 @@ from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion, LegacyHardwareVersion
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.protocol import XBeeProtocol
+from digi.xbee.models.status import UpdateProgressStatus, NodeUpdateType
 from digi.xbee.util import utils
 
 _ERROR_TARGET_INVALID = "Invalid update target"
@@ -1334,6 +1335,83 @@ class XBeeProfile:
         self._protocol = protocol
 
 
+class ProfileUpdateTask:
+    """
+    This class represents a profile update process for a given XBee.
+    """
+
+    def __init__(self, xbee, profile_path, timeout=None, progress_cb=None):
+        """
+        Class constructor. Instantiates a new :class:`.ProfileUpdateTask` object.
+
+        Args:
+            xbee (String or :class:`.AbstractXBeeDevice`): XBee to apply the profile.
+            profile_path (String): Path of the XBee profile file to apply.
+            timeout (Integer, optional): Maximum time to wait for read operations
+                while applying the profile.
+            progress_cb (Function, optional): Function to execute to receive
+                progress information. Receives two arguments:
+
+                * The current update task as a String
+                * The current update task percentage as an Integer
+
+        Raises:
+            ValueError: If the XBee device or the profile path are `None`
+                or invalid.
+        """
+        # Sanity checks.
+        if not isinstance(xbee, (XBeeDevice, RemoteXBeeDevice)):
+            raise ValueError("Invalid XBee")
+        if not isinstance(profile_path, str) or not os.path.isfile(profile_path):
+            raise ValueError(_ERROR_PROFILE_NOT_VALID)
+
+        self.__xbee = xbee
+        self.__profile_path = profile_path
+        self.__timeout = timeout
+        self.__cb = progress_cb
+
+    @property
+    def xbee(self):
+        """
+        Gets the XBee for this task.
+
+        Returns:
+            :class:`.AbstractXBeeDevice`: The XBee to update.
+        """
+        return self.__xbee
+
+    @property
+    def profile_path(self):
+        """
+        Gets the *.xpro file path.
+
+        Returns:
+            String: The profile path for the update task.
+        """
+        return self.__profile_path
+
+    @property
+    def timeout(self):
+        """
+        Gets the maximum time to wait for read operations.
+
+        Returns:
+            Integer: The maximum time to wait for read operations.
+        """
+        return self.__timeout
+
+    @property
+    def callback(self):
+        """
+        Returns the function to receive progress status information.
+
+        Returns:
+             Function: The callback method to received progress information.
+                `None` if not registered.
+        """
+        return self.__cb
+
+
 class _UpdateConfigurer:
     """
     Class to store and restore an XBee configuration for the update process.
@@ -1457,26 +1535,36 @@ class _ProfileUpdater:
         self._protocol_changed_by_fw = False
         self._is_local = bool(not isinstance(self._xbee, RemoteXBeeDevice))
 
-    @property
-    def progress_cb(self):
+    def _notify_progress(self, task_str, percent, finished=False):
         """
-        Retrieves the function to receive progress information.
-
-        Returns:
-            Function: The function to receive progress info.
-        """
-        return self._progress_callback
-
-    def _progress_callback(self, task, percent):
-        """
-        Receives update progress information.
+        Notifies update progress information.
 
         Args:
-            task (String): Current update task.
+            task_str (String): Current update task.
             percent (Integer): Current update progress percent.
+            finished (Boolean, optional, default=`False`): `True` if the update
+                process finished, `False` otherwise.
         """
-        if self._progress_callback is not None:
-            self._progress_callback(task, percent)
+        if self._progress_callback:
+            self._progress_callback(task_str, percent)
+        if isinstance(self._target, str):
+            return
+
+        update_type = self._xbee._active_update_type
+
+        if self._xbee.is_remote():
+            xnet = self._xbee.get_local_xbee_device().get_network()
+        else:
+            xnet = self._xbee.get_network()
+
+        if xnet:
+            progress_cbs = xnet.get_update_progress_callbacks()
+            if progress_cbs:
+                progress_cbs(self._xbee,
+                             UpdateProgressStatus(update_type, task_str, percent, finished))
+
+        if finished and update_type == NodeUpdateType.PROFILE:
+            self._xbee._active_update_type = None
 
     def _update_firmware(self):
         """
@@ -1497,7 +1585,7 @@ class _ProfileUpdater:
                     self._xbee, self._profile.firmware_description_file,
                     timeout=self._timeout,
                     max_block_size=self._xbee.get_ota_max_block_size(),
-                    progress_callback=self._progress_callback, _prepare=False)
+                    progress_callback=self._progress_callback)
             else:
                 if not self._profile.has_local_firmware_files:
                     raise UpdateProfileException(
@@ -1645,8 +1733,7 @@ class _ProfileUpdater:
             # 1 more setting for 'WR'
             num_settings = len(self._profile.profile_settings) + 1
 
-            if self._progress_callback is not None:
-                self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
+            self._notify_progress(_TASK_UPDATE_SETTINGS, percent)
             # Check if reset settings is required or if we are applying to a
             # serial port (recovery).
             cmd_dict = self._configurer.cmd_dict.get(self._xbee, None)
@@ -1656,8 +1743,8 @@ class _ProfileUpdater:
             if self._profile.reset_settings or isinstance(self._target, str):
                 num_settings += 1  # One more setting for 'RE'
                 percent = setting_index * 100 // num_settings
-                if self._progress_callback is not None and percent != previous_percent:
-                    self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
+                if percent != previous_percent:
+                    self._notify_progress(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
                 self.set_parameter_with_retries(ATStringCommand.RE, bytearray(0),
                                                 _PARAM_WRITE_RETRIES, apply=False)
@@ -1689,8 +1776,8 @@ class _ProfileUpdater:
             # Set settings.
             for setting in self._profile.profile_settings.values():
                 percent = setting_index * 100 // num_settings
-                if self._progress_callback is not None and percent != previous_percent:
-                    self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
+                if percent != previous_percent:
+                    self._notify_progress(_TASK_UPDATE_SETTINGS, percent)
                     previous_percent = percent
                 name = setting.name.upper()
                 # Do not apply wake up period until the end of the process
@@ -1728,8 +1815,8 @@ class _ProfileUpdater:
 
             # Write settings.
             percent = setting_index * 100 // num_settings
-            if self._progress_callback is not None and percent != previous_percent:
-                self._progress_callback(_TASK_UPDATE_SETTINGS, percent)
+            if percent != previous_percent:
+                self._notify_progress(_TASK_UPDATE_SETTINGS, percent)
             self.set_parameter_with_retries(ATStringCommand.WR, bytearray(0),
                                             _PARAM_WRITE_RETRIES, apply=bool(not cmd_dict))
         except XBeeException as exc:
@@ -1768,17 +1855,14 @@ class _ProfileUpdater:
                 fs_mng = self._xbee.get_file_manager()
                 # Format file system to ensure resulting file system is exactly
                 # the same as the profile one.
-                if self._progress_callback is not None:
-                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, 0)
+                self._notify_progress(_TASK_FORMAT_FILESYSTEM, 0)
                 fs_mng.format()
-                if self._progress_callback is not None:
-                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, 100)
+                self._notify_progress(_TASK_FORMAT_FILESYSTEM, 100)
                 # Transfer the file system folder.
                 fs_mng.put_dir(
                     self._profile.file_system_path, dest=None, verify=True,
                     progress_cb=lambda percent, src, _:
-                    self._progress_callback(_TASK_UPDATE_FILE % src, percent)
-                    if self._progress_callback is not None else None)
+                    self._notify_progress(_TASK_UPDATE_FILE % src, percent))
             except FileSystemNotSupportedException:
                 raise UpdateProfileException(_ERROR_FS_NOT_SUPPORTED) from None
             except FileSystemException as exc:
@@ -1799,25 +1883,20 @@ class _ProfileUpdater:
             fs_manager = None
             try:
                 fs_manager = LocalXBeeFileSystemManager(self._xbee)
-                if self._progress_callback is not None:
-                    self._progress_callback(_TASK_CONNECT_FILESYSTEM, 0)
+                self._notify_progress(_TASK_CONNECT_FILESYSTEM, 0)
                 time.sleep(0.2)
                 fs_manager.connect()
-                if self._progress_callback is not None:
-                    self._progress_callback(_TASK_CONNECT_FILESYSTEM, 100)
+                self._notify_progress(_TASK_CONNECT_FILESYSTEM, 100)
                 # Format file system to ensure resulting file system is exactly
                 # the same as the profile one.
-                if self._progress_callback is not None:
-                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, 0)
+                self._notify_progress(_TASK_FORMAT_FILESYSTEM, 0)
                 fs_manager.format_filesystem()
-                if self._progress_callback is not None:
-                    self._progress_callback(_TASK_FORMAT_FILESYSTEM, 100)
+                self._notify_progress(_TASK_FORMAT_FILESYSTEM, 100)
                 # Transfer the file system folder.
                 fs_manager.put_dir(
                     self._profile.file_system_path, dest_dir=None,
                     progress_callback=lambda file, percent:
-                    self._progress_callback(_TASK_UPDATE_FILE % file, percent)
-                    if self._progress_callback is not None else None)
+                    self._notify_progress(_TASK_UPDATE_FILE % file, percent))
             except FileSystemNotSupportedException:
                 raise UpdateProfileException(_ERROR_FS_NOT_SUPPORTED) from None
             except FileSystemException as exc:
@@ -1979,6 +2058,7 @@ class _ProfileUpdater:
         net_changed = False
         protocol_changed_by_settings = False
         port_settings = None
+        update_result = "Success"
         try:
             if self._xbee:
                 # Retrieve device parameters.
@@ -2018,6 +2098,9 @@ class _ProfileUpdater:
                 self._update_file_system()
             # Update the settings.
             net_changed, _info_changed, port_settings = self._update_device_settings()
+        except UpdateProfileException as exc:
+            update_result = "Error: %s" % str(exc)
+            raise exc
         finally:
             if self._configurer:
                 self._configurer.restore_after_update(
@@ -2030,6 +2113,8 @@ class _ProfileUpdater:
                     self._xbee.open()
                 elif not self._was_connected and self._xbee.is_open():
                     self._xbee.close()
+
+            self._notify_progress(update_result, 100, finished=True)
 
 
 def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=None):
@@ -2092,6 +2177,8 @@ def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=Non
             comm_iface.apply_profile(target, profile_path, timeout=timeout,
                                      progress_callback=progress_callback)
             return
+
+        target._active_update_type = NodeUpdateType.PROFILE
 
     profile_updater = _ProfileUpdater(target, xbee_profile, timeout=timeout,
                                       progress_callback=progress_callback)
