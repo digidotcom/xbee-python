@@ -1,17 +1,17 @@
 .. _configureXBee:
 
-Configure the XBee device
-=========================
+Configure the XBee
+==================
 
-One of the main features of the XBee Python Library is the ability to configure
-the parameters of local and remote XBee devices and execute some actions or
-commands on them.
+One of the features of the XBee Python Library is the ability to configure the
+parameters of local and remote XBee devices and execute some actions or commands
+on them.
 
 To apply a complete configuration profile see :ref:`applyProfile`.
 
 .. warning::
   The values set on the different parameters are not persistent through
-  subsequent resets unless you store those changes in the device. For more
+  subsequent resets unless you store these changes in the device. For more
   information, see :ref:`writeConfigurationChanges`.
 
 
@@ -20,23 +20,21 @@ To apply a complete configuration profile see :ref:`applyProfile`.
 Read and set common parameters
 ------------------------------
 
-Local and remote XBee device objects provide a set of methods to get and set
-common parameters of the device. Some of these parameters are saved inside the
-XBee device object, and a cached value is returned when the parameter is
-requested. Other parameters are read directly from the physical XBee device
-when requested.
+Local and remote XBee objects provide a set of methods to get and set common
+parameters of the device. Some of these parameters are saved inside the XBee
+object, and a cached value is returned when the parameter is requested. Other
+parameters are read directly from the physical XBee when requested.
 
 
 Cached parameters
 `````````````````
 
-Some parameters in an XBee device are used or requested frequently. To avoid
-the overhead of those parameters being read from the physical XBee device
-every time they are requested, they are saved inside the ``XBeeDevice``
-object being returned when the getters are called.
+Certain XBee parameters are used or requested frequently. To avoid the overhead
+of reading them from the physical XBee every time they are requested, their
+values are cached inside the ``XBeeDevice`` object being returned when the
+getters are called.
 
-The following table lists cached parameters and their corresponding
-getters:
+The following table lists cached parameters and their corresponding getters:
 
 +------------------------+----------------------------+
 | Parameter              | Method                     |
@@ -54,19 +52,19 @@ getters:
 | Role                   | **get_role()**             |
 +------------------------+----------------------------+
 
-Local XBee devices read and save previous parameters automatically when
-opening the connection of the device. In remote XBee devices, you must
-issue the ``read_device_info()`` method to initialize the parameters.
+Local XBee devices read and save previous parameters automatically when opening
+the connection of the device. In remote XBee devices, you must issue the
+``read_device_info()`` method to initialize their values.
 
-You can refresh the value of those parameters (that is, read their values and
-update them inside the XBee device object) at any time by calling the
+You can refresh the value of these parameters (that is, read their values and
+update them inside the XBee object) at any time by calling the
 ``read_device_info()`` method.
 
-+----------------------------------+-------------------------------------------------------------------------------------------------------------------------------------+
-| Method                           | Description                                                                                                                         |
-+==================================+=====================================================================================================================================+
-| **read_device_info(init=False)** | Updates cache parameters reading them from the XBee: If ``init`` is ``True`` it reads all values, else only those not initialized.  |
-+----------------------------------+-------------------------------------------------------------------------------------------------------------------------------------+
++----------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Method                           | Description                                                                                                                          |
++==================================+======================================================================================================================================+
+| **read_device_info(init=False)** | Updates cached parameters reading them from the XBee: If ``init`` is ``True``, it reads all values, else only those not initialized. |
++----------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
 
 
 **Refresh cached parameters**
@@ -75,12 +73,12 @@ update them inside the XBee device object) at any time by calling the
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Refresh the cached values.
-  local_xbee.refresh_device_info()
+  xbee.refresh_device_info()
 
   [...]
 
@@ -94,26 +92,26 @@ The ``read_device_info()`` method may fail for the following reasons:
 * There is an error writing to the XBee interface, or device is closed,
   throwing a generic ``XBeeException``.
 
-All the cached parameters but the Node Identifier do not change; therefore,
-they cannot be set. For the Node Identifier, there is a method within all the
-XBee device classes that allows you to change it:
+All the cached parameters but the Node Identifier (``NI``) do not change;
+therefore, they cannot be set. For the Node Identifier, there is a method within
+all the XBee classes that allows you to change it:
 
-+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Method                  | Description                                                                                                                                                                            |
-+=========================+========================================================================================================================================================================================+
-| **set_node_id(String)** | Specifies the new Node Identifier of the device. This method configures the physical XBee device with the provided Node Identifier and updates the cached value with the one provided. |
-+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Method                  | Description                                                                                                                                                                     |
++=========================+=================================================================================================================================================================================+
+| **set_node_id(String)** | Specifies the new Node Identifier of the device. This method configures the physical XBee with the provided Node Identifier and updates the cached value with the one provided. |
++-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
 Non-cached parameters
 `````````````````````
 
-The following non-cached parameters have their own methods to be
-configured within the XBee device classes:
+The following non-cached parameters have their own methods to be configured
+within the XBee classes:
 
-* **Destination Address**: This setting specifies the default 64-bit
-  destination address of a module that is used to report data generated by
-  the XBee device (that is, IO sampling data). This setting can be read and set.
+* **Destination Address**: This setting specifies the default 64-bit destination
+  address of a module that is used to report data generated by the XBee (that
+  is, IO sampling data). This setting can be read and set.
 
   +----------------------------------------+-----------------------------------------------------------------------------+
   | Method                                 | Description                                                                 |
@@ -123,27 +121,27 @@ configured within the XBee device classes:
   | **set_dest_address(XBee64BitAddress)** | Specifies the 64-bit address of the device where the data will be reported. |
   +----------------------------------------+-----------------------------------------------------------------------------+
 
-* **PAN ID**: This is the ID of the Personal Area Network the XBee device is
-  operating in. This setting can be read and set.
+* **PAN ID**: This is the ID of the Personal Area Network the XBee is operating
+  in. This setting can be read and set.
 
-  +---------------------------+---------------------------------------------------------------------------------------------------------+
-  | Method                    | Description                                                                                             |
-  +===========================+=========================================================================================================+
-  | **get_pan_id()**          | Returns a byte array containing the ID of the Personal Area Network where the XBee device is operating. |
-  +---------------------------+---------------------------------------------------------------------------------------------------------+
-  | **set_pan_id(Bytearray)** | Specifies the value in byte array format of the PAN ID where the XBee device should work.               |
-  +---------------------------+---------------------------------------------------------------------------------------------------------+
+  +---------------------------+--------------------------------------------------------------------------------------------------+
+  | Method                    | Description                                                                                      |
+  +===========================+==================================================================================================+
+  | **get_pan_id()**          | Returns a byte array containing the ID of the Personal Area Network where the XBee is operating. |
+  +---------------------------+--------------------------------------------------------------------------------------------------+
+  | **set_pan_id(Bytearray)** | Specifies the value in byte array format of the PAN ID where the XBee should work.               |
+  +---------------------------+--------------------------------------------------------------------------------------------------+
 
-* **Power level**: This setting specifies the output power level of the XBee
-  device. This setting can be read and set.
+* **Power level**: This setting specifies the output power level of the XBee.
+  This setting can be read and set.
 
-  +---------------------------------+------------------------------------------------------------------------------------------------------+
-  | Method                          | Description                                                                                          |
-  +=================================+======================================================================================================+
-  | **get_power_level()**           | Returns a **PowerLevel** enumeration entry indicating the power level of the XBee device.            |
-  +---------------------------------+------------------------------------------------------------------------------------------------------+
-  | **set_power_level(PowerLevel)** | Specifies a **PowerLevel** enumeration entry containing the desired output level of the XBee device. |
-  +---------------------------------+------------------------------------------------------------------------------------------------------+
+  +---------------------------------+-----------------------------------------------------------------------------------------------+
+  | Method                          | Description                                                                                   |
+  +=================================+===============================================================================================+
+  | **get_power_level()**           | Returns a **PowerLevel** enumeration entry indicating the power level of the XBee.            |
+  +---------------------------------+-----------------------------------------------------------------------------------------------+
+  | **set_power_level(PowerLevel)** | Specifies a **PowerLevel** enumeration entry containing the desired output level of the XBee. |
+  +---------------------------------+-----------------------------------------------------------------------------------------------+
 
 **Configure non-cached parameters**
 
@@ -151,29 +149,29 @@ configured within the XBee device classes:
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Set the destination address of the device.
   dest_address = XBee64BitAddress.from_hex_string("0013A20040XXXXXX")
-  local_xbee.set_dest_address(dest_address)
+  xbee.set_dest_address(dest_address)
 
   # Read the operating PAN ID of the device.
-  dest_addr = local_xbee.get_dst_address()
+  dest_addr = xbee.get_dst_address()
 
   # Read the operating PAN ID of the device.
-  pan_id = local_xbee.get_pan_id()
+  pan_id = xbee.get_pan_id()
 
   # Read the output power level.
-  p_level = local_xbee.get_power_level()
+  p_level = xbee.get_power_level()
 
   [...]
 
-All the previous getters and setters of the different options may fail for
-the following reasons:
+All the previous getters and setters of the different options may fail for the
+following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -184,13 +182,13 @@ the following reasons:
     * There is an error writing to the XBee interface, throwing a generic
       ``XBeeException``.
 
-+--------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Example: Common parameters                                                                                                                             |
-+========================================================================================================================================================+
-| The XBee Python Library includes a sample application that displays how to get and set common parameters. It can be located in the following path:     |
-|                                                                                                                                                        |
-| **examples/configuration/ManageCommonParametersSample**                                                                                                |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------+
++----------------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Common parameters                                                                                                                         |
++====================================================================================================================================================+
+| The XBee Python Library includes a sample application that displays how to get and set common parameters. It can be located in the following path: |
+|                                                                                                                                                    |
+| **examples/configuration/ManageCommonParametersSample**                                                                                            |
++----------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
 .. _configOtherParameters:
@@ -198,44 +196,46 @@ the following reasons:
 Read, set and execute other parameters
 --------------------------------------
 
-If you want to read or set a parameter that does not have a custom getter or
-setter within the XBee device object, you can do so. All the XBee device
-classes (local or remote) include two methods to get and set any AT parameter,
-and a third one to run a command in the XBee device.
+You can read or set a parameter that does not have a custom getter or setter
+within the XBee object. All the XBee classes (local or remote) include two
+methods to get and set any AT parameter, and a third one to run a command in
+the XBee.
 
 
 Get a parameter
 ```````````````
 
-You can read the value of any parameter of an XBee device using the
-``get_parameter()`` method provided by all the XBee device classes. Use this
-method to get the value of a parameter that does not have its getter method
-within the XBee device object.
+You can read the value of any parameter of an XBee using the ``get_parameter()``
+method provided by all the XBee classes. Use this method to get the value of a
+parameter that does not have a specific getter method within the XBee object.
 
-+---------------------------+--------------------------------------------------------------------------------------------------------------------------------+
-| Method                    | Description                                                                                                                    |
-+===========================+================================================================================================================================+
-| **get_parameter(String)** | Specifies the AT command (string format) to retrieve its value. The method returns the value of the parameter in a byte array. |
-+---------------------------+--------------------------------------------------------------------------------------------------------------------------------+
++---------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| Method                    | Description                                                                                                                      |
++===========================+==================================================================================================================================+
+| **get_parameter(String)** | Specifies the AT parameter (string format) to retrieve its value. The method returns the value of the parameter in a byte array. |
++---------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 
-**Get a parameter from the XBee device**
+You can also use ``get_parameter()`` for settings with a specific getter in the
+API.
+
+**Get a parameter from the XBee**
 
 .. code:: python
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Get the value of the Sleep Time (SP) parameter.
-  sp = local_xbee.get_parameter("SP")
+  sp = xbee.get_parameter("SP")
 
   [...]
 
 The ``get_parameter()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -259,33 +259,36 @@ The ``get_parameter()`` method may fail for the following reasons:
 Set a parameter
 ```````````````
 
-To set a parameter that does not have its own setter method, you can use the
-``set_parameter()`` method provided by all the XBee device classes.
+To set a parameter that does not have its own setter method, use the
+``set_parameter()`` method provided by all the XBee classes.
 
-+--------------------------------------+--------------------------------------------------------------------------------------------------------------------------+
-| Method                               | Description                                                                                                              |
-+======================================+==========================================================================================================================+
-| **set_parameter(String, Bytearray)** | Specifies the AT command (String format) to be set in the device and a byte array containing the value of the parameter. |
-+--------------------------------------+--------------------------------------------------------------------------------------------------------------------------+
++--------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
+| Method                               | Description                                                                                                                |
++======================================+============================================================================================================================+
+| **set_parameter(String, Bytearray)** | Specifies the AT parameter (String format) to be set in the device and a byte array containing the value of the parameter. |
++--------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
 
-**Set a parameter in the XBee device**
+You can also use ``set_parameter()`` for settings with a specific setter in the
+API.
+
+**Set a parameter in the XBee**
 
 .. code:: python
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
-  # Configure the Node ID using the set_parameter() method.
-  local_xbee.set_parameter("NI",  bytearray("Yoda", 'utf8'))
+  # Configure the Node ID using 'set_parameter' method.
+  xbee.set_parameter("NI",  bytearray("Yoda", 'utf8'))
 
   [...]
 
 The ``set_parameter()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -309,10 +312,10 @@ Execute a command
 `````````````````
 
 There are other AT parameters that cannot be read or written. They are actions
-that are executed by the XBee device. The XBee Python library has several
-commands that handle most common executable parameters, but to run a parameter
-that does not have a custom command, you can use the ``execute_command()``
-method provided by all the XBee device classes.
+that are executed by the XBee. The XBee Python Library has several commands
+that handle the most common executable parameters.
+To run a parameter that does not have a custom command, you can use the
+``execute_command()`` method provided by all the XBee classes.
 
 +-----------------------------+-------------------------------------------------------------------+
 | Method                      | Description                                                       |
@@ -320,24 +323,24 @@ method provided by all the XBee device classes.
 | **execute_command(String)** | Specifies the AT command (String format) to be run in the device. |
 +-----------------------------+-------------------------------------------------------------------+
 
-**Run a command in the XBee device**
+**Run a command in the XBee**
 
 .. code:: python
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Run the apply changes command.
-  local_xbee.execute_command("AC")
+  xbee.execute_command("AC")
 
   [...]
 
 The ``execute_command()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -352,22 +355,21 @@ The ``execute_command()`` method may fail for the following reasons:
 Apply configuration changes
 ---------------------------
 
-By default, when you perform any configuration on a local or remote XBee
-device, the changes are automatically applied. However, there could be some
-scenarios when you want to configure different settings or parameters of a
-device and apply the changes at the end when everything is configured. For
-that purpose, the XBeeDevice and RemoteXBeeDevice objects provide some
-methods that allow you to manage when to apply configuration changes.
+By default, when you perform any configuration on a local or remote XBee, the
+changes are automatically applied. However, you may want to configure different
+settings or parameters of a device and apply these changes at the same time. For
+that purpose, the ``XBeeDevice`` and ``RemoteXBeeDevice`` objects provide some
+methods to manage when to apply configuration changes.
 
-+-----------------------------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
-| Method                            | Description                                                                                 | Notes                                                                                            |
-+===================================+=============================================================================================+==================================================================================================+
-| **enable_apply_changes(Boolean)** | Specifies whether the changes on settings and parameters are applied when set.              | The apply configuration changes flag is enabled by default.                                      |
-+-----------------------------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
-| **is_apply_changes_enabled()**    | Returns whether the XBee device is configured to apply parameter changes when they are set. |                                                                                                  |
-+-----------------------------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
-| **apply_changes()**               | Applies the changes on parameters that were already set but are pending to be applied.      | This method is useful when the XBee device is configured to not apply changes when they are set. |
-+-----------------------------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
++-----------------------------------+---------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
+| Method                            | Description                                                                           | Notes                                                                                     |
++===================================+=======================================================================================+===========================================================================================+
+| **enable_apply_changes(Boolean)** | Specifies whether the changes on settings and parameters are applied when set.        | The apply configuration changes flag is enabled by default.                               |
++-----------------------------------+---------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
+| **is_apply_changes_enabled()**    | Returns whether the XBee is configured to apply parameter changes when they are set.  |                                                                                           |
++-----------------------------------+---------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
+| **apply_changes()**               | Applies parameters changes that were already set but are pending to be applied.       | This method is useful when the XBee is configured not to apply changes when they are set. |
++-----------------------------------+---------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
 
 **Apply configuration changes**
 
@@ -375,31 +377,31 @@ methods that allow you to manage when to apply configuration changes.
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Check if device is configured to apply changes.
-  apply_changes_enabled = local_xbee.is_apply_changes_enabled()
+  apply_changes_enabled = xbee.is_apply_changes_enabled()
 
   # Configure the device not to apply parameter changes automatically.
   if apply_changes_enabled:
-      local_xbee.enable_apply_changes(False)
+      xbee.enable_apply_changes(False)
 
-  # Set the PAN ID of the XBee device to BABE.
-  local_xbee.set_pan_id(utils.hex_string_to_bytes("BABE"))
+  # Set the PAN ID of the XBee to BABE.
+  xbee.set_pan_id(utils.hex_string_to_bytes("BABE"))
 
   # Perform other configurations.
   [...]
 
   # Apply changes.
-  local_xbee.apply_changes()
+  xbee.apply_changes()
 
   [...]
 
 The ``apply_changes()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -415,15 +417,14 @@ The ``apply_changes()`` method may fail for the following reasons:
 Write configuration changes
 ---------------------------
 
-If you want configuration changes performed in an XBee device to persist
-through subsequent resets, you need to write those changes in the device.
-Writing changes means that the parameter values configured in the device are
-written to the non-volatile memory of the XBee device. The module loads the
-parameter values from non-volatile memory every time it is started.
+For the configuration changes performed in an XBee to persist through subsequent
+resets, save those changes. Saving changes means that configured parameter
+values in the device are written to the non-volatile memory of the XBee. The
+module loads these values from non-volatile memory every time it is started.
 
-The XBee device classes (local and remote) provide a method to write (save)
-the parameter modifications in the XBee device memory so they persist through
-subsequent resets: ``write_changes()``.
+The XBee classes (local and remote) provide a method to save (write) the
+parameter modifications in the XBee memory so they persist through subsequent
+resets: ``write_changes()``.
 
 **Write configuration changes**
 
@@ -431,27 +432,27 @@ subsequent resets: ``write_changes()``.
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
-  # Set the PAN ID of the XBee device to BABE.
-  local_xbee.set_pan_id(utils.hex_string_to_bytes("BABE"))
+  # Set the PAN ID of the XBee to BABE.
+  xbee.set_pan_id(utils.hex_string_to_bytes("BABE"))
 
   # Perform other configurations.
   [...]
 
   # Apply changes.
-  local_xbee.apply_changes()
+  xbee.apply_changes()
 
   # Write changes.
-  local_xbee.write_changes()
+  xbee.write_changes()
 
   [...]
 
 The ``write_changes()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -468,13 +469,13 @@ The ``write_changes()`` method may fail for the following reasons:
 Reset the device
 ----------------
 
-It may be necessary to reset the XBee device when the system is not
-operating properly or you are initializing the system. All the XBee
-device classes of the XBee API provide the ``reset()`` method to perform a
-software reset on the local or remote XBee module.
+It may be necessary to reset the XBee when the system is not operating properly
+or you are initializing the system. All the XBee classes of the XBee API provide
+the ``reset()`` method to perform a software reset on the local or remote XBee
+module.
 
 In local modules, the ``reset()`` method blocks until a confirmation from the
-module is received, which usually takes one or two seconds. Remote modules do
+module is received, which, usually, takes one or two seconds. Remote modules do
 not send any kind of confirmation, so the method does not block when resetting
 them.
 
@@ -484,18 +485,18 @@ them.
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Reset the module.
-  local_xbee.reset()
+  xbee.reset()
 
   [...]
 
 The ``reset()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -506,13 +507,13 @@ The ``reset()`` method may fail for the following reasons:
     * There is an error writing to the XBee interface, throwing a generic
       ``XBeeException``.
 
-+----------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Example: Reset module                                                                                                                                          |
-+================================================================================================================================================================+
-| The XBee Python Library includes a sample application that shows you how to perform a reset on your XBee device. The example is located in the following path: |
-|                                                                                                                                                                |
-| **examples/configuration/ResetModuleSample**                                                                                                                   |
-+----------------------------------------------------------------------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Reset module                                                                                                                                   |
++=========================================================================================================================================================+
+| The XBee Python Library includes a sample application that shows you how to perform a reset on your XBee. The example is located in the following path: |
+|                                                                                                                                                         |
+| **examples/configuration/ResetModuleSample**                                                                                                            |
++---------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
 .. _configWiFi:
@@ -520,8 +521,8 @@ The ``reset()`` method may fail for the following reasons:
 Configure Wi-Fi settings
 ------------------------
 
-Unlike other protocols such as Zigbee or DigiMesh where devices are connected to
-each other, the XBee Wi-Fi protocol requires that the module is connected to
+Unlike other protocols, such as Zigbee or DigiMesh, where devices are connected
+to each other, the XBee Wi-Fi protocol requires that the module is connected to
 an access point in order to communicate with other TCP/IP devices.
 
 This configuration and connection with access points can be done using
@@ -541,8 +542,8 @@ an access point.
 Configure IP addressing mode
 ````````````````````````````
 
-Before connecting your Wi-Fi module to an access point, you must decide how
-to configure the network settings using the IP addressing mode option. The
+Before connecting your Wi-Fi module to an access point, you must decide how to
+configure the network settings using the IP addressing mode option. The
 supported IP addressing modes are contained in an enumerator called
 ``IPAddressingMode``. It allows you to choose between:
 
@@ -564,15 +565,15 @@ supported IP addressing modes are contained in an enumerator called
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = WiFiDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate an XBee Wi-Fi object.
+  xbee = WiFiDevice("COM1", 9600)
+  xbee.open()
 
   # Configure the IP addressing mode to DHCP.
-  local_xbee.set_ip_addressing_mode(IPAddressingMode.DHCP)
+  xbee.set_ip_addressing_mode(IPAddressingMode.DHCP)
 
   # Save the IP addressing mode.
-  local_xbee.write_changes()
+  xbee.write_changes()
 
   [...]
 
@@ -594,12 +595,12 @@ Configure IP network settings
 `````````````````````````````
 
 Like any TCP/IP protocol device, the XBee Wi-Fi modules have the IP address,
-subnet mask, default gateway and DNS settings that you can get at any time
+subnet mask, default gateway, and DNS settings that you can get at any time
 using the XBee Python Library.
 
 Unlike some general configuration settings, these parameters are not saved
-inside the WiFiDevice object. Every time you request the parameters, they are
-read directly from the Wi-Fi module connected to the computer. The following
+inside the ``WiFiDevice`` object. Every time you request the parameters, they
+are read directly from the Wi-Fi module connected to the computer. The following
 parameters are used in the configuration of the TCP/IP protocol:
 
 +-------------+---------------------------+
@@ -620,25 +621,25 @@ parameters are used in the configuration of the TCP/IP protocol:
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = WiFiDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate an XBee Wi-Fi object.
+  xbee = WiFiDevice("COM1", 9600)
+  xbee.open()
 
   # Configure the IP addressing mode to DHCP.
-  local_xbee.set_ip_addressing_mode(IPAddressingMode.DHCP)
+  xbee.set_ip_addressing_mode(IPAddressingMode.DHCP)
 
   # Connect to access point with SSID 'My SSID' and password 'myPassword'
-  local_xbee.connect_by_ssid("My SSID", "myPassword")
+  xbee.connect_by_ssid("My SSID", "myPassword")
 
   # Display the IP network settings that were assigned by the DHCP server.
-  print("- IP address: %s" % local_xbee.get_ip_address())
-  print("- Subnet mask: %s" % local_xbee.get_mask_address())
-  print("- Gateway IP address: %s" % local_xbee.get_gateway_address())
-  print("- DNS IP address: %s" % local_xbee.get_dns_address())
+  print("- IP address: %s" % xbee.get_ip_address())
+  print("- Subnet mask: %s" % xbee.get_mask_address())
+  print("- Gateway IP address: %s" % xbee.get_gateway_address())
+  print("- DNS IP address: %s" % xbee.get_dns_address())
 
   [...]
 
-You can also change those settings when the module has static IP configuration
+You can also change these settings when the module has static IP configuration
 with the following methods:
 
 +-------------+---------------------------+
@@ -659,9 +660,9 @@ with the following methods:
 Configure Bluetooth settings
 ----------------------------
 
-Newer XBee3 devices have a Bluetooth® Low Energy (BLE) interface that enables
-you to connect your XBee device to another device such as a cellphone. The XBee
-device classes (local and remote) offer some methods that allow you to:
+Newer XBee 3 devices have a Bluetooth® Low Energy (BLE) interface that enables
+you to connect your XBee to another device such as a cellphone. The XBee classes
+(local and remote) offer some methods that allow you to:
 
 * :ref:`configBluetoothEnableDisable`
 * :ref:`configBluetoothConfigurePassword`
@@ -673,17 +674,17 @@ device classes (local and remote) offer some methods that allow you to:
 Enable and disable Bluetooth
 ````````````````````````````
 
-Before connecting to your XBee device over Bluetooth Low Energy, you first have
-to enable this interface. The XBee Python Library provides a couple of methods
-to enable or disable this interface:
+Before connecting to your XBee over Bluetooth Low Energy, you first have to
+enable this interface. The XBee Python Library provides a couple of methods to
+enable or disable this interface:
 
-+-------------------------+------------------------------------------------------------------+
-| Method                  | Description                                                      |
-+=========================+==================================================================+
-| **enable_bluetooth()**  | Enables the Bluetooth Low Energy interface of your XBee device.  |
-+-------------------------+------------------------------------------------------------------+
-| **disable_bluetooth()** | Disables the Bluetooth Low Energy interface of your XBee device. |
-+-------------------------+------------------------------------------------------------------+
++-------------------------+-----------------------------------------------------------+
+| Method                  | Description                                               |
++=========================+===========================================================+
+| **enable_bluetooth()**  | Enables the Bluetooth Low Energy interface of your XBee.  |
++-------------------------+-----------------------------------------------------------+
+| **disable_bluetooth()** | Disables the Bluetooth Low Energy interface of your XBee. |
++-------------------------+-----------------------------------------------------------+
 
 **Enabling and disabling the Bluetooth interface**
 
@@ -691,23 +692,23 @@ to enable or disable this interface:
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Enable the Bluetooth interface.
-  local_xbee.enable_bluetooth()
+  xbee.enable_bluetooth()
 
   [...]
 
   # Disable the Bluetooth interface.
-  local_xbee.disable_bluetooth()
+  xbee.disable_bluetooth()
 
   [...]
 
 These methods may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -725,14 +726,14 @@ Configure the Bluetooth password
 ````````````````````````````````
 
 Once you have enabled the Bluetooth Low Energy, you must configure the password
-you will use to connect to the device over that interface (if not previously
-done). For this purpose, the API offers the following method:
+to connect to the device over that interface (if not previously done). For this
+purpose, the API offers the following method:
 
-+----------------------------------------+-----------------------------------------------------------+
-| Method                                 | Description                                               |
-+========================================+===========================================================+
-| **update_bluetooth_password(String)**  | Specifies the new Bluetooth password of the XBee device.  |
-+----------------------------------------+-----------------------------------------------------------+
++----------------------------------------+----------------------------------------------------+
+| Method                                 | Description                                        |
++========================================+====================================================+
+| **update_bluetooth_password(String)**  | Specifies the new Bluetooth password of the XBee.  |
++----------------------------------------+----------------------------------------------------+
 
 **Configuring or changing the Bluetooth password**
 
@@ -740,20 +741,20 @@ done). For this purpose, the API offers the following method:
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   new_password = "myBluetoothPassword" # Do not hard-code it in the app!
 
   # Configure the Bluetooth password.
-  local_xbee.update_bluetooth_password(new_password)
+  xbee.update_bluetooth_password(new_password)
 
   [...]
 
-The ``update_bluetooth_password`` method may fail for the following reasons:
+The ``update_bluetooth_password()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -774,9 +775,9 @@ The ``update_bluetooth_password`` method may fail for the following reasons:
 Read the Bluetooth MAC address
 ``````````````````````````````
 
-Another method that the XBee Java Library provides is
-``get_bluetooth_mac_addr()``, which returns the EUI-48 Bluetooth MAC address of
-your XBee device in a format such as "00112233AABB".
+The XBee Java Library provides the ``get_bluetooth_mac_addr()`` method to return
+the EUI-48 Bluetooth MAC address of your XBee following the format
+"00112233AABB".
 
 **Reading the Bluetooth MAC address**
 
@@ -784,17 +785,17 @@ your XBee device in a format such as "00112233AABB".
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
-  print("The Bluetooth MAC address is: %s" % local_xbee.get_bluetooth_mac_addr())
+  print("The Bluetooth MAC address is: %s" % xbee.get_bluetooth_mac_addr())
 
   [...]
 
-The ``get_bluetooth_mac_addr`` method may fail for the following reasons:
+The ``get_bluetooth_mac_addr()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 

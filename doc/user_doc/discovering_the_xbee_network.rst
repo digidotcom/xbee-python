@@ -5,9 +5,9 @@ Several XBee modules working together and communicating with each other form a
 network. XBee networks have different topologies and behaviors depending on the
 protocol of the XBee nodes that form it.
 
-The XBee Python Library includes a class, called ``XBeeNetwork``, that
-represents the set of nodes forming the actual XBee network. This class allows
-you to perform some operations related to the nodes.
+The XBee Python Library includes a class, called ``XBeeNetwork``, to represent
+the set of nodes forming the actual XBee network. This class allows you to
+perform some operations related to the nodes.
 
 .. note::
   There are ``XBeeNetwork`` subclasses for different protocols which correspond
@@ -66,8 +66,8 @@ There are two different types of discovery processes available in this API:
   (including quality) even if they are sleeping. It also allows to establish a
   number of rounds to continually explore the network.
 
-* :ref:`standardDiscovery` only identifies network nodes. It may not
-  discover sleeping nodes.
+* :ref:`standardDiscovery` only identifies network nodes. It may not discover
+  sleeping nodes.
 
 See :ref:`discoverNetwork` to know how to launch a deep or standard discovery
 process.
@@ -114,7 +114,7 @@ Available modes are defined in the ``NeighborDiscoveryMode`` enumeration:
   saturate the network.
 
 The default discovery mode is **Cascade**. You can configure the discovery mode
-with the method ``set_deep_discovery_options(NeighborDiscoveryMode, Boolean)``.
+with the method ``set_deep_discovery_options()``.
 
 
 .. _configDeepDiscoveryProcess:
@@ -122,9 +122,9 @@ with the method ``set_deep_discovery_options(NeighborDiscoveryMode, Boolean)``.
 Configure the deep discovery process
 ````````````````````````````````````
 
-Before discovering the nodes of a network, you can configure the settings of
-the process. The API provides two methods to configure the discovery timeout
-and discovery options.
+Before discovering the nodes of a network, you can configure the settings of the
+process. The API provides two methods to configure the discovery timeout and
+discovery options.
 
 +----------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                                         | Description                                                                                                                                                      |
@@ -190,9 +190,9 @@ The discovery process runs until the configured timeout expires or, in case of
 Configure the standard discovery process
 ````````````````````````````````````````
 
-Before discovering the nodes of a network, you can configure the settings of
-the process. The API provides two methods to configure the discovery timeout
-and discovery options. These methods set the values in the radio module.
+Before discovering the nodes of a network, you can configure the settings of the
+process. The API provides two methods to configure the discovery timeout and
+discovery options. These methods set the values in the radio module.
 
 +--------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                           | Description                                                                                                                                                                                                                                                                                  |
@@ -261,11 +261,10 @@ following methods provided by the ``XBeeNetwork`` object:
 
 .. warning::
   For a standard discovery and depending on your hardware and firmware version,
-  although you call the ``stop_discovery_process`` method, DigiMesh and
+  although you call the ``stop_discovery_process()`` method, DigiMesh and
   DigiPoint modules are blocked until the configured discovery time has elapsed.
   This means, if you try to get or set any parameter during that time, a
-  ``TimeoutException`` may be thrown.
-  This does not occur for:
+  ``TimeoutException`` may be thrown. This does not occur for:
 
   * XBee 3 modules running DigiMesh firmware 300B or higher.
   * XBee SX modules running firmware A008 or higher, 9008 or higher.
@@ -334,9 +333,9 @@ The API also allows you to add a discovery event listener to notify when:
 Notify new discovered nodes
 '''''''''''''''''''''''''''
 
-To get notifications when nodes are discovered, you must provide a callback
-before starting the discovery process using the
-``add_device_discovered_callback()`` method.
+To get notifications when nodes are discovered, provide a callback before
+starting the discovery process using the ``add_device_discovered_callback()``
+method.
 
 **Add a callback to device discovered event**
 
@@ -365,13 +364,14 @@ before starting the discovery process using the
 Every time a new remote XBee node is discovered all registered device discovered
 callbacks are executed, even if the discovered node is already in the node list
 of the network. Each callback receives a ``RemoteXBeeDevice`` as argument, with
-all the available information. Unknown parameters of this remote node are ``None``.
+all the available information. Unknown parameters of this remote node are
+``None``.
 
 Notify discovery finishes
 '''''''''''''''''''''''''
 
-To get notifications when a discovery process finishes, you must provide a
-callback before starting the discovery process using the
+To get notifications when a discovery process finishes, provide a callback
+before starting the discovery process using the
 ``add_discovery_process_finished_callback()`` method.
 
 **Add a callback to discovery process finished event**
@@ -411,8 +411,8 @@ Discover specific nodes
 ```````````````````````
 
 The ``XBeeNetwork`` object also provides methods to discover specific nodes
-within a network. This may be useful, for example, if you only need to work
-with a particular remote node.
+within a network. This may be useful, for example, to work with a particular
+remote node.
 
 +--------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                         | Description                                                                                                                                                                                                                          |
@@ -668,8 +668,8 @@ Clear the list of remote XBee nodes from the XBee network
 `````````````````````````````````````````````````````````
 
 The ``XBeeNetwork`` object also includes a method to clear the list of remote
-nodes. This can be useful when you want to perform a clean discovery, cleaning
-the list before calling the discovery method.
+nodes. This can be useful to perform a clean discovery, deleting the list before
+calling the discovery method.
 
 +-------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method      | Description                                                                                                                                                                                                                                       |
@@ -706,12 +706,12 @@ the list before calling the discovery method.
 Listen to network modification events
 -------------------------------------
 
-When a discovery process finds new nodes that were not in the XBee network
-list (``XBeeNetwork`` or a subclass), they are stored generating a modification
-event in the XBee network object. A manual removal or addition of an XBee to the
+When a discovery process finds new nodes that were not in the XBee network list
+(``XBeeNetwork`` or a subclass), they are stored generating a modification event
+in the XBee network object. A manual removal or addition of an XBee to the
 network also launches modification events.
 
-The XBee library notifies about these network list modification events to
+The XBee Python Library notifies about these network list modification events to
 registered callbacks. These events inform about the following network
 modifications:
 
@@ -720,23 +720,23 @@ modifications:
 * Update of nodes
 * Network clear
 
-To receive any of these modification events you must provide a callback using
-the ``add_network_modified_callback()`` method.
+To receive any of these modification events, provide a callback using the
+``add_network_modified_callback()`` method.
 This callback must follow the format:
 
 .. code:: python
 
-  def my_callback(event_type, reason, node):
-    """
-    Callback to notify about a new network modification event.
+  def my_net_modified_callback(event_type, reason, node):
+      """
+      Callback to notify about a new network modification event.
 
-    Args:
-      event_type (:class:`.NetworkEventType`): The type of modification.
-      reason (:class:`.NetworkEventReason`): The cause of the modification.
-      node (:class:`.AbstractXBeeDevice`): The node involved in the
-        modification (``None`` for ``NetworkEventType.CLEAR`` events)
-    """
-    [...]
+      Args:
+        event_type (:class:`.NetworkEventType`): The type of modification.
+        reason (:class:`.NetworkEventReason`): The cause of the modification.
+        node (:class:`.AbstractXBeeDevice`): The node involved in the
+          modification (``None`` for ``NetworkEventType.CLEAR`` events)
+      """
+      [...]
 
 When a modification in the network list occurs, all network modification
 callbacks are executed. Each callback receives the following arguments:
@@ -757,20 +757,42 @@ callbacks are executed. Each callback receives the following arguments:
 
   # Define the network modified callback.
   def cb_network_modified(event_type, reason, node):
-    print("  >>>> Network event:")
-    print("         Type: %s (%d)" % (event_type.description, event_type.code))
-    print("         Reason: %s (%d)" % (reason.description, reason.code))
+      print("  >>>> Network event:")
+      print("         Type: %s (%d)" % (event_type.description, event_type.code))
+      print("         Reason: %s (%d)" % (reason.description, reason.code))
 
-    if not node:
-      return
+      if not node:
+        return
 
-    print("         Node:")
-    print("            %s" % node)
+      print("         Node:")
+      print("            %s" % node)
 
   xnet = xbee.get_network()
 
   # Add the network modified callback.
   xnet.add_network_modified_callback(cb_network_modified)
+
+  [...]
+
+To stop listening to network modifications, use the
+``del_network_modified_callback()`` method to unsubscribe the already-registered
+callback.
+
+**Deregister a network modification callback**
+
+.. code:: python
+
+  [...]
+
+  def cb_network_modified(event_type, reason, node):
+      [...]
+
+  xbee.add_network_modified_callback(cb_network_modified)
+
+  [...]
+
+  # Delete the callback.
+  xbee.del_network_modified_callback(cb_network_modified)
 
   [...]
 

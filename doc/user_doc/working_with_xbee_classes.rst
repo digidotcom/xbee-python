@@ -1,63 +1,62 @@
 Work with XBee classes
 ======================
 
-When working with the XBee Python Library, start with an XBee device object
-that represents a physical module. A physical XBee device is the combination
-of hardware and firmware. Depending on that combination, the device runs a
-specific wireless communication protocol such as Zigbee, 802.15.4, DigiMesh,
-Wi-Fi, or cellular. An XBeeDevice class represents the XBee module in the
-API.
+When working with the XBee Python Library, start with an XBee object that
+represents a physical module. A physical XBee is the combination of hardware and
+firmware. Depending on that combination, the device runs a specific wireless
+communication protocol such as Zigbee, 802.15.4, DigiMesh, Wi-Fi, or Cellular.
+An ``XBeeDevice`` class represents the XBee module in the API.
 
-Most of the protocols share the same features and settings, but there are some
-differences between them. For that reason, the XBee Python Library also
-includes a set of classes that represent XBee devices running different
-communication protocols. The XBee Python Library supports one XBee device
-class per protocol, as follows:
+These protocols share some features and settings, but there are some differences
+between them. For that reason, the XBee Python Library also includes a set of
+classes to represent XBee devices running different communication protocols.
+The XBee Python Library supports one XBee class per protocol, as follows:
 
 .. image:: ../images/xbplib_class_hierarchy.png
    :align: center
    :alt: XBee Class hierarchy
 
-* XBee Zigbee device (``ZigBeeDevice``)
-* XBee 802.15.4 device (``Raw802Device``)
-* XBee DigiMesh device (``DigiMeshDevice``)
-* XBee Point-to-multipoint device (``DigiPointDevice``)
+* XBee Zigbee (``ZigBeeDevice``)
+* XBee 802.15.4 (``Raw802Device``)
+* XBee DigiMesh (``DigiMeshDevice``)
+* XBee Point-to-multipoint (``DigiPointDevice``)
 * XBee IP devices (This is a non-instantiable class)
 
-  * XBee Cellular device (``CellularDevice``)
-  * XBee Wi-Fi device (``WiFiDevice``)
+  * XBee Cellular (``CellularDevice``)
+  * XBee Wi-Fi (``WiFiDevice``)
 
-All these XBee device classes allow you to configure the physical XBee device,
-communicate with the device, send data to other nodes on the network, receive
-data from remote devices, and so on. Depending on the class, you may have
-additional methods to execute protocol-specific features or similar methods.
+All these XBee classes allow you to configure the physical XBee, communicate
+with the device, send data to other nodes on the network, receive data from
+remote devices, and so on. Depending on the class, you may have additional
+methods to execute protocol-specific features or similar methods.
 
-To work with the API and perform actions involving the physical device, you
-must instantiate a generic ``XBeeDevice`` object or one that is
-protocol-specific. This documentation refers to the ``XBeeDevice`` object
-generically when describing the different features, but they can be applicable
-to any XBee device class.
+To work with the API and perform actions involving the physical device,
+instantiate a generic ``XBeeDevice`` object or one that is protocol-specific.
+
+.. note::
+  This documentation refers to the ``XBeeDevice`` object when describing the
+  different features, but they are also applicable to any XBee
+  protocol-specific class.
 
 
-Instantiate an XBee device
+Instantiate an XBee object
 --------------------------
 
 When you are working with the XBee Python Library, the first step is to
-instantiate an XBee device object. The API works well using the generic
-``XBeeDevice`` class, but you can also instantiate a protocol-specific XBee
-device object if you know the protocol your physical XBee device is running.
+instantiate an XBee object. The API works well using the generic ``XBeeDevice``
+class, but you can also instantiate a protocol-specific XBee object if you know
+the protocol your physical XBee is running.
 
-An XBee device is represented as either **local** or **remote** in the XBee
-Python Library, depending upon how you communicate with the device.
+An XBee is represented as either **local** or **remote** in the XBee Python
+Library, depending upon how you communicate with the device.
 
 
-Local XBee device
-`````````````````
+Local XBee node
+```````````````
 
-A local XBee device is the object in the library representing the device that
-is physically attached to your PC through a serial or USB port. The classes
-you can instantiate to represent a local device are listed in the following
-table:
+A local XBee is the object representing the device physically attached to your
+PC through a serial or USB port. The classes you can instantiate to represent a
+local device are listed in the following table:
 
 +-----------------+--------------------------------------+
 | Class           | Description                          |
@@ -77,13 +76,13 @@ table:
 | WiFiDevice      | Wi-Fi protocol                       |
 +-----------------+--------------------------------------+
 
-To instantiate a generic or protocol-specific XBee device, you need to provide
-the following two parameters:
+To instantiate a generic or protocol-specific XBee, provide the following two
+parameters:
 
 * Serial port name
 * Serial port baud rate
 
-**Instantiate a local XBee device**
+**Instantiate a local XBee**
 
 .. code:: python
 
@@ -94,29 +93,28 @@ the following two parameters:
   [...]
 
 
-Remote XBee device
-``````````````````
+Remote XBee node
+````````````````
 
-Remote XBee device objects represent remote nodes of the network. These are
-XBee devices that are not attached to your PC but operate in the same network
-as the attached (local) device.
+Remote XBee objects represent remote nodes of the network. These are XBee
+devices that are not attached to your PC but operate in the same network as the
+attached (local) device.
 
 .. warning::
   When working with remote XBee devices, it is very important to understand
-  that you cannot communicate directly with them. You need to provide a local
-  XBee device operating in the same network that acts as bridge between your
-  serial port and the remote node.
+  that you cannot communicate directly with them. You must provide a local XBee
+  that operates in the same network and acts as bridge between your serial port
+  and the remote node.
 
 Managing remote devices is similar to managing local devices, but with
 limitations. You can configure them, handle their IO lines, and so on, in the
 same way you manage local devices. Local XBee devices have several methods for
-sending data to remote devices, but the remote devices cannot use these
-methods because they are already remote. Therefore, a remote device cannot send
-data to another remote device.
+sending data to remote devices, but a remote device cannot send data to another
+remote device.
 
-In the local XBee device instantiation, you can choose between instantiating a
-generic remote XBee device object or a protocol-specific remote XBee device.
-The following table lists the remote XBee device classes:
+In the local XBee instantiation, you can choose between instantiating a generic
+remote XBee object or a protocol-specific remote XBee device. The following
+table lists the remote XBee classes:
 
 +-----------------------+--------------------------------------+
 | Class                 | Description                          |
@@ -136,54 +134,51 @@ The following table lists the remote XBee device classes:
 .. note::
   XBee Cellular and Wi-Fi protocols do not support remote devices.
 
-To instantiate a remote XBee device object, you need to provide the following
-parameters:
+To instantiate a remote XBee object, provide the following parameters:
 
-* Local XBee device attached to your PC that serves as the communication
-  interface.
+* Local XBee attached to your PC that serves as the communication interface.
 * 64-bit address of the remote device.
 
 ``RemoteRaw802Device`` objects can be also instantiated by providing the local
-XBee device attached to your PC and the **16-bit address** of the remote
-device.
+XBee attached to your PC and the **16-bit address** of the remote device.
 
-**Instantiate a remote XBee device**
+**Instantiate a remote XBee**
 
 .. code:: python
 
   [...]
 
-  local_xbee = XBeeDevice("COM1", 9600)
-  remote_xbee = RemoteXBeeDevice(local_xbee, XBee64BitAddress.from_hex_string("0013A20012345678"))
+  xbee = XBeeDevice("COM1", 9600)
+  remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20012345678"))
 
   [...]
 
-The local device must also be the same protocol for protocol-specific remote
-XBee devices.
+.. note::
+  Local and remote devices must use the same protocol.
 
 .. _openXBeeConnection:
 
-Open the XBee device connection
--------------------------------
+Open the XBee connection
+------------------------
 
-Before trying to communicate with the local XBee device attached to your PC,
-you need to open its communication interface, which is typically a serial/USB
-port. Use the ``open()`` method of the instantiated XBee device, and you can
-then communicate and configure the device.
+Before trying to communicate with the local XBee attached to your PC, open its
+communication interface, which is typically a serial/USB port. Use the
+``open()`` method of the instantiated XBee, and you can then communicate and
+configure the device.
 
-Remote XBee devices do not have an open method. They use a local XBee device
-as the connection interface. If you want to perform any operation with a remote
-XBee device you must open the connection of the associated local device.
+Remote XBee devices do not have an equivalent method. They use a local XBee as
+the connection interface. To perform any operation with a remote XBee, open the
+connection of the associated local device.
 
 .. code:: python
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
 
   # Open the device connection.
-  local_xbee.open()
+  xbee.open()
 
   [...]
 
@@ -207,18 +202,18 @@ the XBee serial settings (baud rate, data bits, stop bits, etc.) to those
 specified in the XBee object constructor.
 
 This method also configures the operating mode of the local XBee to API mode
-without escapes (AP=1) if its not using an API mode (AP=1 or AP=2)
+without escapes (``AP=1``) if its not using an API mode (``AP=1`` or ``AP=2``)
 
 .. code:: python
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
 
   # Open the connection using constructor parameters: 9600 8N1.
   # This reconfigures the XBee if its serial settings do not match.
-  local_xbee.open(force_settings=True)
+  xbee.open(force_settings=True)
 
   [...]
 
@@ -234,9 +229,9 @@ without escapes (AP=1) if its not using an API mode (AP=1 or AP=2)
 Read device information
 ```````````````````````
 
-The read device information process reads the following parameters from the
-local or remote XBee device and stores them inside. You can then access
-parameters at any time, calling their corresponding getters.
+The read device information process gets some relevant data from the local or
+remote XBee and stores it. Once cached, you can access this information at any
+time, calling the corresponding getter. This process reads the following data:
 
 * 64-bit address
 * 16-bit address
@@ -246,31 +241,31 @@ parameters at any time, calling their corresponding getters.
 * IPv4 address (only for cellular and Wi-Fi modules)
 * IMEI (only for cellular modules)
 
-The read process is performed automatically in local XBee devices when
-opening them with the ``open()`` method. If remote XBee devices cannot be
-opened, you must use ``read_device_info()`` to read their device information.
+The read process is automatically performed in local XBee devices when opening
+them with the ``open()`` method. Remote XBee devices cannot be opened, use
+``read_device_info()`` to read their device information.
 
-**Initialize a remote XBee device**
+**Initialize a remote XBee**
 
 .. code:: python
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Instantiate a remote XBee device object.
-  remote_xbee = RemoteXBeeDevice(local_xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
+  remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
-  # Read the device information of the remote XBee device.
-  remote_xbee.read_device_info()
+  # Read the device information of the remote XBee.
+  remote.read_device_info()
 
   [...]
 
 The ``read_device_info()`` method may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -282,8 +277,8 @@ The ``read_device_info()`` method may fail for the following reasons:
       throwing a generic ``XBeeException``.
 
 .. note::
-  Although the ``readDeviceInfo`` method is executed automatically in local XBee
-  devices when they are open, you can issue it at any time to refresh the
+  Although the ``readDeviceInfo()`` method is executed automatically in local
+  XBee devices when they are open, you can issue it at any time to refresh the
   information of the device.
 
 **Get device information**
@@ -292,29 +287,29 @@ The ``read_device_info()`` method may fail for the following reasons:
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Get the 64-bit address of the device.
-  addr_64 = device.get_64bit_addr()
+  addr_64 = xbee.get_64bit_addr()
   # Get the node identifier of the device.
-  node_id = device.get_node_id()
+  node_id = xbee.get_node_id()
   # Get the hardware version of the device.
-  hardware_version = device.get_hardware_version()
+  hardware_version = xbee.get_hardware_version()
   # Get the firmware version of the device.
-  firmware_version = device.get_firmware_version()
+  firmware_version = xbee.get_firmware_version()
 
 The read device information process also determines the communication protocol
-of the local or remote XBee device object. This is typically something you
-need to know beforehand if you are not using the generic ``XBeeDevice`` object.
+of the local or remote XBee object. This is, typically, something you must know
+beforehand if you are not using the generic ``XBeeDevice`` object.
 
-However, the API performs this operation to ensure that the class you
-instantiated is the correct one. So, if you instantiated a Zigbee device and
-the ``open()`` process realizes that the physical device is actually a DigiMesh
-device, you receive an ``XBeeDeviceException`` indicating the device mismatch.
+However, the API performs this operation to ensure that the instantiated class
+is the right one. So, if you instantiated a Zigbee device and the ``open()``
+process determines that the physical XBee is actually a DigiMesh device, you
+receive an ``XBeeDeviceException`` indicating this mismatch.
 
-You can retrieve the protocol of the XBee device from the object executing the
+You can retrieve the protocol of the XBee from the object executing the
 corresponding getter.
 
 **Get the XBee protocol**
@@ -323,21 +318,20 @@ corresponding getter.
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Get the protocol of the device.
-  protocol = local_xbee.get_protocol()
+  protocol = xbee.get_protocol()
 
 
 Device operating mode
 `````````````````````
 
-The ``open()`` process also reads the operating mode of the physical local
-device and stores it in the object. As with previous settings, you can
-retrieve the operating mode from the object at any time by calling the
-corresponding getter.
+The ``open()`` process also reads the operating mode of the physical local XBee
+and stores it in the object. As with previous settings, you can retrieve the
+operating mode from the object at any time by calling the corresponding getter.
 
 **Get the operating mode**
 
@@ -345,37 +339,41 @@ corresponding getter.
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
-  local_xbee.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Get the operating mode of the device.
-  operating_mode = local_xbee.get_operating_mode()
+  operating_mode = xbee.get_operating_mode()
 
 Remote devices do not have an ``open()`` method, so you receive ``UNKNOWN``
-when retrieving the operating mode of a remote XBee device.
+when retrieving the operating mode of a remote XBee.
 
 The XBee Python Library supports two operating modes for local devices:
 
 * API
 * API with escaped characters
 
-This means that AT (transparent) mode is not supported by the API. So, if
-you try to execute the ``open()`` method in a local device working in AT mode,
-you get an ``XBeeException`` caused by an ``InvalidOperatingModeException``.
+AT (transparent) mode is not supported by the API. So, if you execute the
+``open()`` method in a local device working in AT mode, you get an
+``XBeeException`` caused by an ``InvalidOperatingModeException``.
+
+.. note::
+  If you are not sure of the operating mode of your local XBee, use
+  ``force_settings=True`` as parameter of ``open()`` method. This reconfigures
+  the XBee serial settings (baud rate, data bits, stop bits, etc.) to those
+  specified in the XBee object constructor, including the operating mode of the
+  XBee to be API (``AP=1``) if its not already using an API mode.
 
 
-Close the XBee device connection
---------------------------------
+Close the XBee connection
+-------------------------
 
-You must call the ``close()`` method each time you finish your XBee
-application. You can use this in the finally block or something similar.
+Call the ``close()`` method when you finish working with the local XBee. For
+example, before exiting your application.
 
-If you don't do this, you may have problems with the packet listener
-being executed in a separate thread.
-
-This method guarantees that the listener thread will be stopped and the
-serial port will be closed.
+This method guarantees the serial port where your XBee is connected will not be
+used for any operation and will remain close.
 
 **Close the connection**
 
@@ -383,8 +381,8 @@ serial port will be closed.
 
   [...]
 
-  # Instantiate an XBee device object.
-  local_xbee = XBeeDevice("COM1", 9600)
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
 
   try:
       xbee.open()
@@ -396,6 +394,6 @@ serial port will be closed.
           xbee.close()
 
 .. note::
-  Remote XBee devices cannot be opened, so they cannot be closed either. To close
-  the connection of a remote device you need to close the connection of the local
+  Remote XBee devices cannot be opened, so they cannot be closed either. To
+  close the connection of a remote device, close the connection of the local
   associated device.

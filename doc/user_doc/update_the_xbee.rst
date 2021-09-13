@@ -50,10 +50,10 @@ and remote devices:
 Update the firmware of a local XBee
 ```````````````````````````````````
 
-The firmware update process of a local XBee device is performed over the serial
+The firmware update process of a local XBee is performed over the serial
 connection. For this operation, you need the following components:
 
-* The XBee device object instance or the serial port name where the device is
+* The XBee object instance or the serial port name where the device is
   attached to.
 * The new firmware XML descriptor file.
 * The new firmware binary file (\*.gbl)
@@ -78,17 +78,17 @@ connection. For this operation, you need the following components:
 +------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-Update the local firmware using an XBee device object
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
+Update the local firmware using an XBee object
+''''''''''''''''''''''''''''''''''''''''''''''
 
-If you have an object instance of your local XBee device, you have to call
-the ``update_firmware`` method of the ``XBeeDevice`` class providing the
-required parameters:
+If you have an object instance of your local XBee, call the
+``update_firmware()`` method of the ``XBeeDevice`` class providing the required
+parameters:
 
 +----------------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
 | Method                                 | Description                                                                                                                    |
 +========================================+================================================================================================================================+
-| **update_firmware(String, String,**    | Performs a firmware update operation of the device.                                                                            |
+| **update_firmware(String, String,**    | Performs a firmware update operation of the local XBee.                                                                        |
 | **String, Integer, Function)**         |                                                                                                                                |
 |                                        | * **xml_firmware_file (String)**: path of the XML file that describes the firmware to upload.                                  |
 |                                        | * **xbee_firmware_file (String, optional)**: location of the XBee binary firmware file (\*.gbl).                               |
@@ -100,7 +100,7 @@ required parameters:
 |                                        |   * The current update task percentage as an Integer                                                                           |
 +----------------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
 
-The ``update_firmware`` method may fail for the following reasons:
+The ``update_firmware()`` method may fail for the following reasons:
 
 * The device does not support the firmware update operation, throwing a
   ``OperationNotSupportedException``.
@@ -109,31 +109,31 @@ The ``update_firmware`` method may fail for the following reasons:
 * Other errors caught as ``XBeeException``:
 
     * The device is not open, throwing a generic ``XBeeException``.
-    * The operating mode of the local XBee device is not ``API_MODE`` or
+    * The operating mode of the local XBee is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
 
-**Update local XBee device firmware using an XBee device object**
+**Update local XBee firmware using an XBee object**
 
 .. code:: python
 
   [...]
 
-  XML_FIRMWARE_FILE = "my_path/my_firmware.xml"
-  XBEE_FIRMWARE_FILE = "my_path/my_firmware.gbl"
-  BOOTLOADER_FIRMWARE_FILE = "my_path/my_bootloader.gbl"
+  XML_FIRMWARE_FILE = "/home/user/my_firmware.xml"
+  XBEE_FIRMWARE_FILE = "/home/user/my_firmware.gbl"
+  BOOTLOADER_FIRMWARE_FILE = "/home/user/my_bootloader.gbl"
 
   [...]
 
-  # Instantiate an XBee device object.
+  # Instantiate a local XBee object.
   xbee = XBeeDevice(...)
 
   [...]
 
-  # Update the XBee device firmware.
-  device.update_firmware(XML_FIRMWARE_FILE,
-                         xbee_firmware_file=XBEE_FIRMWARE_FILE,
-                         bootloader_firmware_file=BOOTLOADER_FIRMWARE_FILE,
-                         progress_callback=progress_callback,)
+  # Update the XBee firmware.
+  xbee.update_firmware(XML_FIRMWARE_FILE,
+                       xbee_firmware_file=XBEE_FIRMWARE_FILE,
+                       bootloader_firmware_file=BOOTLOADER_FIRMWARE_FILE,
+                       progress_callback=progress_callback,)
 
   [...]
 
@@ -142,23 +142,23 @@ Update the local firmware using a serial port
 '''''''''''''''''''''''''''''''''''''''''''''
 
 If you do not know the XBee serial communication parameters or you cannot
-instantiate the XBee device object (for example if the device must be
-recovered), you can perform the firmware update process by providing the serial
-port identifier where the XBee is attached to.
+instantiate the XBee object (for example, if the device must be recovered), you
+can perform the firmware update process by providing the serial port identifier
+where the XBee is attached to.
 
-In this scenario, use the ``update_local_firmware`` method of the
-XBee ``firmware`` module providing the required parameters. The library
-forces the XBee to reboot into bootloader mode, using the recovery mechanism,
-and performs the firmware update from that point.
+In this scenario, use the ``update_local_firmware()`` method of the XBee
+``firmware`` module providing the required parameters. The library forces the
+XBee to reboot into bootloader mode, using the recovery mechanism, and performs
+the firmware update from that point.
 
 +---------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
 | Method                                            | Description                                                                                                                    |
 +===================================================+================================================================================================================================+
 | **update_local_firmware(String or XBeeDevice,**   | Performs a local firmware update operation in the given target.                                                                |
 | **String, String, String, Integer, Function)**    |                                                                                                                                |
-|                                                   | * **target (String or :class:`.XBeeDevice`)**: target of the firmware upload operation.                                        |
+|                                                   | * **target (String or ``XBeeDevice`)**: target of the firmware upload operation.                                               |
 |                                                   |   * **String**: serial port identifier.                                                                                        |
-|                                                   |   * **:class:`.AbstractXBeeDevice`**: the XBee device to upload its firmware.                                                  |
+|                                                   |   * **``XBeeDevice`**: the XBee to upload its firmware.                                                                        |
 |                                                   | * **xml_firmware_file (String)**: path of the XML file that describes the firmware to upload.                                  |
 |                                                   | * **xbee_firmware_file (String, optional)**: location of the XBee binary firmware file (\*.gbl).                               |
 |                                                   | * **bootloader_firmware_file (String, optional)**: location of the bootloader binary firmware file.                            |
@@ -169,12 +169,12 @@ and performs the firmware update from that point.
 |                                                   |   * The current update task percentage as an Integer                                                                           |
 +---------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
 
-The ``update_local_firmware`` method may fail for the following reasons:
+The ``update_local_firmware()`` method may fail for the following reasons:
 
 * There is an error during the firmware update operation, throwing a
   ``FirmwareUpdateException``.
 
-**Update local XBee device firmware using a serial port**
+**Update local XBee firmware using a serial port**
 
 .. code:: python
 
@@ -184,13 +184,13 @@ The ``update_local_firmware`` method may fail for the following reasons:
 
   SERIAL_PORT = "COM1"
 
-  XML_FIRMWARE_FILE = "my_path/my_firmware.xml"
-  XBEE_FIRMWARE_FILE = "my_path/my_firmware.gbl"
-  BOOTLOADER_FIRMWARE_FILE = "my_path/my_bootloader.gbl"
+  XML_FIRMWARE_FILE = "/home/user/my_firmware.xml"
+  XBEE_FIRMWARE_FILE = "/home/user/my_firmware.gbl"
+  BOOTLOADER_FIRMWARE_FILE = "/home/user/my_bootloader.gbl"
 
   [...]
 
-  # Update the XBee device firmware using the serial port name.
+  # Update the XBee firmware using the serial port name.
   firmware.update_local_firmware(SERIAL_PORT,
                                  XML_FIRMWARE_FILE,
                                  xbee_firmware_file=XBEE_FIRMWARE_FILE,
@@ -209,7 +209,7 @@ The firmware update process for remote XBee devices is performed over the air
 using special XBee frames. For this operation, you need the following
 components:
 
-* The remote XBee device object instance.
+* The remote XBee object instance.
 * The new firmware XML descriptor file.
 * The new firmware binary file (\*.ota)
 * Optionally, the new firmware binary file with the bootloader embedded (\*.otb)
@@ -222,9 +222,8 @@ components:
   At the moment, remote firmware update is only supported in **XBee 3**,
   **XBee SX 868/900 MHz**, and **XBee S2C** devices.
 
-To perform the remote firmware update, call the
-``update_firmware`` method of the ``RemoteXBeeDevice`` class providing the
-required parameters:
+To perform the remote firmware update, call the ``update_firmware()`` method of
+the ``RemoteXBeeDevice`` class providing the required parameters:
 
 +---------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
 | Method                                | Description                                                                                                                     |
@@ -241,7 +240,7 @@ required parameters:
 |                                       |   * The current update task percentage as an Integer                                                                            |
 +---------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
 
-The ``update_firmware`` method may fail for the following reasons:
+The ``update_firmware()`` method may fail for the following reasons:
 
 * The remote device does not support the firmware update operation, throwing a
   ``OperationNotSupportedException``.
@@ -253,30 +252,30 @@ The ``update_firmware`` method may fail for the following reasons:
     * The operating mode of the local device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
 
-**Update remote XBee device firmware**
+**Update a remote XBee firmware**
 
 .. code:: python
 
   [...]
 
-  XML_FIRMWARE_FILE = "my_path/my_firmware.xml"
-  OTA_FIRMWARE_FILE = "my_path/my_firmware.ota"
-  OTB_FIRMWARE_FILE = "my_path/my_firmware.otb"
+  XML_FIRMWARE_FILE = "/home/user/my_firmware.xml"
+  OTA_FIRMWARE_FILE = "/home/user/my_firmware.ota"
+  OTB_FIRMWARE_FILE = "/home/user/my_firmware.otb"
 
-  REMOTE_DEVICE_NAME = "REMOTE"
+  REMOTE_NODE_NAME = "REMOTE"
 
   [...]
 
-  # Instantiate an XBee device object.
+  # Instantiate a local XBee object.
   xbee = XBeeDevice(...)
 
   # Get the network.
   xnet = xbee.get_network()
 
-  # Get the remote device.
-  remote = xnet.discover_device(REMOTE_DEVICE_NAME)
+  # Get the remote node.
+  remote = xnet.discover_device(REMOTE_NODE_NAME)
 
-  # Update the remote XBee device firmware.
+  # Update the remote XBee firmware.
   remote.update_firmware(SERIAL_PORT,
                          XML_FIRMWARE_FILE,
                          xbee_firmware_file=OTA_FIRMWARE_FILE,
@@ -317,15 +316,15 @@ Create file system manager
 ``````````````````````````
 
 A ``LocalXBeeFileSystemManager`` object is required to work with local devices
-file system. You can instantiate this class by providing the local XBee device
-object. Once you have the object instance, you must call the ``connect``
-method to open the file system connection and leave it ready to work.
+file system. You can instantiate this class by providing the local XBee object.
+Once you have the object instance, you must call the ``connect()`` method to
+open the file system connection and leave it ready to work.
 
 .. warning::
-  File system operations take ownership of the serial port, meaning that you will
-  stop receiving messages from the device until file system connection is closed.
-  For this reason it is highly recommended to call the ``disconnect`` method of
-  the file system manager as soon as you finish working with it.
+  File system operations take ownership of the serial port, meaning that you
+  will stop receiving messages from the device until file system connection is
+  closed. For this reason, it is recommended to call the ``disconnect()``
+  method of the file system manager as soon as you finish working with it.
 
 +------------------+-------------------------------------------------------------------------+
 | Method           | Description                                                             |
@@ -335,7 +334,7 @@ method to open the file system connection and leave it ready to work.
 | **disconnect()** | Disconnects the file system manager and restores the device connection. |
 +------------------+-------------------------------------------------------------------------+
 
-The ``connect`` method may fail for the following reasons:
+The ``connect()`` method may fail for the following reasons:
 
 * The device does not support the file system capabilities, throwing a
   ``FileSystemNotSupportedException``.
@@ -350,7 +349,7 @@ The ``connect`` method may fail for the following reasons:
 
   [...]
 
-  # Instantiate an XBee device object.
+  # Instantiate a local XBee object.
   xbee = XBeeDevice(...)
 
   [...]
@@ -400,7 +399,7 @@ file system and operate with the different files and folders:
 |                                      | * **source_path (String)**: source path of the element to move.                                                                               |
 |                                      | * **dest_path (String)**: destination path of the element to move.                                                                            |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
-| **put_file(String, String,**         | Transfers the given file in the specified destination path of the XBee device.                                                                |
+| **put_file(String, String,**         | Transfers the given file in the specified destination path of the XBee.                                                                       |
 | **Boolean, Function)**               |                                                                                                                                               |
 |                                      | * **source_path (String)**: the path of the file to transfer.                                                                                 |
 |                                      | * **dest_path (String)**: the destination path to put the file in.                                                                            |
@@ -418,9 +417,9 @@ file system and operate with the different files and folders:
 |                                      |   * The file being uploaded as string.                                                                                                        |
 |                                      |   * The progress percentage as integer.                                                                                                       |
 +--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
-| **get_file(String, String,**         | Downloads the given XBee device file in the specified destination path.                                                                       |
+| **get_file(String, String,**         | Downloads the given XBee file in the specified destination path.                                                                              |
 | **Function)**                        |                                                                                                                                               |
-|                                      | * **source_path (String)**: the path of the XBee device file to download.                                                                     |
+|                                      | * **source_path (String)**: the path of the XBee file to download.                                                                            |
 |                                      | * **dest_path (String)**: the destination path to store the file in.                                                                          |
 |                                      | * **progress_callback (Function, optional)**: function to execute to receive progress information. Takes the following arguments:             |
 |                                      |                                                                                                                                               |
@@ -539,7 +538,7 @@ information by accessing each of the exposed properties:
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **description**               | Returns the profile description.                                                                       |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
-| **reset_settings**            | Returns whether the settings of the XBee device are reset before applying the profile ones.            |
+| **reset_settings**            | Returns whether the settings of the XBee are reset before applying the profile ones.                   |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 | **has_firmware_files**        | Returns whether the profile has firmware binaries (local or remote)                                    |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
@@ -564,8 +563,8 @@ information by accessing each of the exposed properties:
 | **region_lock**               | Returns the region lock of the profile.                                                                |
 +-------------------------------+--------------------------------------------------------------------------------------------------------+
 
-To access to the files inside, use ``open`` method. Once done with it, use
-``close`` method.
+To access to the files inside, use ``open()`` method. Once done with it, use
+``close()`` method.
 
 **Open/close a profile**
 
@@ -629,12 +628,12 @@ An opened profile also offers the following properties:
 
 .. _applyProfileLocal:
 
-Apply an XBee profile to a local device
-```````````````````````````````````````
+Apply a profile to a local XBee
+```````````````````````````````
 
-Applying a profile to a local XBee device requires the following components:
+Applying a profile to a local XBee requires the following components:
 
-* The local XBee device object instance.
+* The local XBee object instance.
 * The profile file to apply (\*.xpro).
 
 .. note::
@@ -644,14 +643,13 @@ Applying a profile to a local XBee device requires the following components:
   At the moment, local profile update is only supported in **XBee 3** and
   **XBee SX 868/900 MHz** devices.
 
-To apply the XBee profile to a local XBee, you have to call the
-``apply_profile`` method of the ``XBeeDevice`` class providing the required
-parameters:
+To apply the XBee profile to a local XBee, call the ``apply_profile()`` method
+of the ``XBeeDevice`` class providing the required parameters:
 
 +----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
 | Method                                       | Description                                                                                                                |
 +==============================================+============================================================================================================================+
-| **apply_profile(String, timeout, Function)** | Applies the given XBee profile to the XBee device.                                                                         |
+| **apply_profile(String, timeout, Function)** | Applies the given XBee profile to the XBee.                                                                                |
 |                                              |                                                                                                                            |
 |                                              | * **profile_path (String)**: path of the XBee profile file to apply.                                                       |
 |                                              | * **timeout (Integer, optional)**: maximum time to wait for read operations during the apply profile.                      |
@@ -661,7 +659,7 @@ parameters:
 |                                              |   * The current apply profile task percentage as an Integer                                                                |
 +----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
 
-The ``apply_profile`` method may fail for the following reasons:
+The ``apply_profile()`` method may fail for the following reasons:
 
 * The local device does not support the apply profile operation, throwing a
   ``OperationNotSupportedException``.
@@ -673,7 +671,7 @@ The ``apply_profile`` method may fail for the following reasons:
     * The operating mode of the local device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
 
-**Apply an XBee profile to a local device**
+**Apply a profile to a local device**
 
 .. code:: python
 
@@ -683,13 +681,13 @@ The ``apply_profile`` method may fail for the following reasons:
 
   [...]
 
-  # Instantiate an XBee device object.
+  # Instantiate a local XBee object.
   xbee = XBeeDevice(...)
 
   [...]
 
   # Apply the XBee device profile.
-  device.apply_profile(PROFILE_PATH, progress_callback=progress_callback)
+  xbee.apply_profile(PROFILE_PATH, progress_callback=progress_callback)
 
   [...]
 
@@ -704,12 +702,12 @@ The ``apply_profile`` method may fail for the following reasons:
 
 .. _applyProfileRemote:
 
-Apply an XBee profile to a remote device
-````````````````````````````````````````
+Apply a profile to a remote XBee
+````````````````````````````````
 
 Applying a profile to a remote XBee requires the following components:
 
-* The remote XBee device object instance.
+* The remote XBee object instance.
 * The profile file to apply (\*.xpro).
 
 .. note::
@@ -719,14 +717,13 @@ Applying a profile to a remote XBee requires the following components:
   At the moment, remote profile update is only supported in **XBee 3**,
   **XBee SX 868/900 MHz**, and **XBee S2C** devices.
 
-To apply the XBee profile to a remote XBee device, you have to call the
-``apply_profile`` method of the ``RemoteXBeeDevice`` class providing the
-required parameters:
+To apply the XBee profile to a remote XBee, call the ``apply_profile()`` method
+of the ``RemoteXBeeDevice`` class providing the required parameters:
 
 +----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
 | Method                                       | Description                                                                                                                |
 +==============================================+============================================================================================================================+
-| **apply_profile(String, timeout, Function)** | Applies the given XBee profile to the remote XBee device.                                                                  |
+| **apply_profile(String, timeout, Function)** | Applies the given XBee profile to the remote XBee.                                                                         |
 |                                              |                                                                                                                            |
 |                                              | * **profile_path (String)**: path of the XBee profile file to apply.                                                       |
 |                                              | * **timeout (Integer, optional)**: maximum time to wait for read operations during the apply profile.                      |
@@ -736,7 +733,7 @@ required parameters:
 |                                              |   * The current apply profile task percentage as an Integer                                                                |
 +----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------+
 
-The ``apply_profile`` method may fail for the following reasons:
+The ``apply_profile()`` method may fail for the following reasons:
 
 * The remote device does not support the apply profile operation, throwing a
   ``OperationNotSupportedException``.
@@ -748,29 +745,29 @@ The ``apply_profile`` method may fail for the following reasons:
     * The operating mode of the local device is not ``API_MODE`` or
       ``ESCAPED_API_MODE``, throwing an ``InvalidOperatingModeException``.
 
-**Apply an XBee profile to a remote device**
+**Apply a profile to a remote device**
 
 .. code:: python
 
   [...]
 
   PROFILE_PATH = "/home/user/my_profile.xpro"
-  REMOTE_DEVICE_NAME = "REMOTE"
+  REMOTE_NODE_NAME = "REMOTE"
 
   [...]
 
-  # Instantiate an XBee device object.
+  # Instantiate a local XBee object.
   xbee = XBeeDevice(...)
 
   # Get the network.
   xnet = xbee.get_network()
 
-  # Get the remote device.
-  remote = xnet.discover_device(REMOTE_DEVICE_NAME)
+  # Get the remote node.
+  remote = xnet.discover_device(REMOTE_NODE_NAME)
 
   [...]
 
-  # Apply the XBee device profile.
+  # Apply the XBee profile.
   remote.apply_profile(PROFILE_PATH, progress_callback=progress_callback)
 
   [...]

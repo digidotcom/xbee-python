@@ -8,7 +8,7 @@ reception of data.
 
 .. warning::
   Communication features described in this topic and sub-topics are only
-  applicable for local XBee devices. Remote XBee device classes do not include
+  applicable for local XBee devices. Remote XBee classes do not include
   methods for transmitting or receiving data.
 
 
@@ -17,8 +17,7 @@ Send and receive data
 
 XBee modules can communicate with other devices that are on the same network and
 use the same radio frequency. The XBee Python Library provides several methods
-to send and receive data between the local XBee device and any remote on the
-network.
+to send and receive data between the local XBee and any remote on the network.
 
 * :ref:`communicateSendData`
 * :ref:`communicateReceiveData`
@@ -29,12 +28,12 @@ network.
 Send data
 `````````
 
-A data transmission operation sends data from your local (attached) XBee device
-to a remote device on the network. The operation sends data in API frames, but
-the XBee Python library abstracts the process so you only need to specify the
-device you want to send data to and the data itself.
+A data transmission operation sends data from your local (attached) XBee to a
+remote device on the network. The operation sends data in API frames. The XBee
+Python Library abstracts the process so you only have to specify the device to
+send data to and the data itself.
 
-You can send data either using a unicast or broadcast transmission. Unicast
+You can send data either using a unicast or a broadcast transmission. Unicast
 transmissions route data from one source device to one destination device,
 whereas broadcast transmissions are sent to all devices in the network.
 
@@ -88,21 +87,21 @@ methods apart from the one provided by the ``XBeeDevice`` object:
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
-  # Instantiate a remote XBee device object.
-  remote_device = RemoteXBeeDevice(device, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
+  # Instantiate a remote XBee object.
+  remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send data using the remote object.
-  device.send_data(remote_device, "Hello XBee!")
+  xbee.send_data(remote, "Hello XBee!")
 
   [...]
 
 The previous methods may fail for the following reasons:
 
-* ACK of the command sent is not received in the configured timeout, throwing
+* ACK of the sent command is not received in the configured timeout, throwing
   a ``TimeoutException``.
 * Other errors caught as ``XBeeException``:
 
@@ -114,8 +113,8 @@ The previous methods may fail for the following reasons:
       ``XBeeException``.
 
 The default timeout to wait for the send status is two seconds. However, you
-can configure the timeout using the ``get_sync_ops_timeout`` and
-``set_sync_ops_timeout`` methods of an XBee device class.
+can configure the timeout using the ``get_sync_ops_timeout()`` and
+``set_sync_ops_timeout()`` methods of an XBee class.
 
 **Get/set the timeout for synchronous operations**
 
@@ -125,22 +124,22 @@ can configure the timeout using the ``get_sync_ops_timeout`` and
 
   NEW_TIMEOUT_FOR_SYNC_OPERATIONS = 5 # 5 seconds
 
-  device = [...]
+  xbee = [...]
 
   # Retrieving the configured timeout for synchronous operations.
-  print("Current timeout: %d seconds" % device.get_sync_ops_timeout())
+  print("Current timeout: %d seconds" % xbee.get_sync_ops_timeout())
 
   [...]
 
   # Configuring the new timeout (in seconds) for synchronous operations.
-  device.set_sync_ops_timeout(NEW_TIMEOUT_FOR_SYNC_OPERATIONS)
+  xbee.set_sync_ops_timeout(NEW_TIMEOUT_FOR_SYNC_OPERATIONS)
 
   [...]
 
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Example: Synchronous unicast transmission                                                                                                                                  |
 +============================================================================================================================================================================+
-| The XBee Python Library includes a sample application that shows you how to send data to another XBee device on the network. The example is located in the following path: |
+| The XBee Python Library includes a sample application that shows you how to send data to another XBee on the network. The example is located in the following path:        |
 |                                                                                                                                                                            |
 | **examples/communication/SendDataSample**                                                                                                                                  |
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -151,7 +150,7 @@ Asynchronous operation
 
 Transmitting data asynchronously means that your application does not block
 during the transmit process. However, you cannot ensure that the data was
-successfully sent to the remote device.
+successfully sent to the remote node.
 
 The ``XBeeDevice`` class of the API provides the following method to perform
 an asynchronous unicast transmission with a remote node on the network:
@@ -185,15 +184,15 @@ methods in addition to the one provided by the XBeeDevice object:
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
-  # Instantiate a remote XBee device object.
-  remote_device = RemoteXBeeDevice(device, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
+  # Instantiate a remote XBee object.
+  remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send data using the remote object.
-  device.send_data_async(remote_device, "Hello XBee!")
+  xbee.send_data_async(remote, "Hello XBee!")
 
   [...]
 
@@ -209,7 +208,7 @@ The previous methods may fail for the following reasons:
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Example: Asynchronous unicast transmission                                                                                                                                 |
 +============================================================================================================================================================================+
-| The XBee Python Library includes a sample application that shows you how to send data to another XBee device asynchronously. The example is located in the following path: |
+| The XBee Python Library includes a sample application that shows you how to send data to another XBee asynchronously. The example is located in the following path:        |
 |                                                                                                                                                                            |
 | **examples/communication/SendDataAsyncSample**                                                                                                                             |
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -223,8 +222,8 @@ Send data to all devices of the network
 Broadcast transmissions are sent from one source device to all the other
 devices on the network.
 
-All the XBee device classes (generic and protocol specific) provide the same
-method to send broadcast data:
+All the XBee classes (generic and protocol specific) provide the same method to
+send broadcast data:
 
 +-------------------------------------------------------+-----------------------------------------------------------------+
 | Method                                                | Description                                                     |
@@ -238,16 +237,16 @@ method to send broadcast data:
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Send broadcast data.
-  device.send_data_broadcast("Hello XBees!")
+  xbee.send_data_broadcast("Hello XBees!")
 
   [...]
 
-The ``send_data_broadcast`` method may fail for the following reasons:
+The ``send_data_broadcast()`` method may fail for the following reasons:
 
 * Transmit status is not received in the configured timeout, throwing a
   ``TimeoutException`` exception.
@@ -282,9 +281,8 @@ There are two different ways to read data from the device:
   a polling sequence. The read method blocks until data is received or until a
   configurable timeout has expired.
 * **Data reception callback**. In this case, you must register a listener that
-  executes a callback each time new data is received by the local XBee device
-  (that is, the device attached to your PC) providing data and other related
-  information.
+  executes a callback each time new data is received by the local XBee (that is,
+  the device attached to your PC) providing data and other related information.
 
 
 .. _communicateReceiveDataPolling:
@@ -292,9 +290,9 @@ There are two different ways to read data from the device:
 Polling for data
 ''''''''''''''''
 
-The simplest way to read for data is by executing the ``read_data`` method of
-the local XBee device. This method blocks your application until data from any
-XBee device of the network is received or the timeout provided has expired:
+The simplest way to read for data is by executing the ``read_data()`` method of
+the local XBee. This method blocks your application until data from any XBee
+on the network is received or the provided timeout expires:
 
 +------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                 | Description                                                                                                                                                                                                                                                                   |
@@ -302,18 +300,18 @@ XBee device of the network is received or the timeout provided has expired:
 | **read_data(Integer)** | Specifies the time to wait for data reception (method blocks during that time and throws a ``TimeoutException`` if no data is received). If you do not specify a timeout, the method returns immediately the read message or ``None`` if the device did not receive new data. |
 +------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-**Reading data from any remote XBee device (polling)**
+**Reading data from any remote XBee (polling)**
 
 .. code:: python
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Read data.
-  xbee_message = device.read_data()
+  xbee_message = xbee.read_data()
 
   [...]
 
@@ -334,39 +332,39 @@ the ``XBeeMessage`` object:
 
   [...]
 
-  xbee_message = device.read_data()
+  xbee_message = xbee.read_data()
 
-  remote_device = xbee_message.remote_device
+  remote = xbee_message.remote_device
   data = xbee_message.data
   is_broadcast = xbee_message.is_broadcast
   timestamp = xbee_message.timestamp
 
   [...]
 
-You can also read data from a specific remote XBee device of the network. For
-that purpose, the XBee device object provides the ``read_data_from`` method:
+You can also read data from a specific remote XBee of the network. For that
+purpose, the XBee object provides the ``read_data_from()`` method:
 
 +-----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                        | Description                                                                                                                                                                                                                                                                                                                |
 +===============================================+============================================================================================================================================================================================================================================================================================================================+
-| **read_data_from(RemoteXBeeDevice, Integer)** | Specifies the remote XBee device to read data from and the time to wait for data reception (method blocks during that time and throws a ``TimeoutException`` if no data is received). If you do not specify a timeout, the method returns immediately the read message or ``None`` if the device did not receive new data. |
+| **read_data_from(RemoteXBeeDevice, Integer)** | Specifies the remote XBee to read data from and the time to wait for data reception (method blocks during that time and throws a ``TimeoutException`` if no data is received). If you do not specify a timeout, the method returns immediately the read message or ``None`` if the device did not receive new data.        |
 +-----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-**Read data from a specific remote XBee device (polling)**
+**Read data from a specific remote XBee (polling)**
 
 .. code:: python
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
-  # Instantiate a remote XBee device object.
-  remote_device = RemoteXBeeDevice(device, XBee64BitAddress.from_hex_string("0013A200XXXXXX"))
+  # Instantiate a remote XBee object.
+  remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A200XXXXXX"))
 
   # Read data sent by the remote device.
-  xbee_message = device.read_data(remote_device)
+  xbee_message = xbee.read_data(remote)
 
   [...]
 
@@ -374,8 +372,8 @@ As in the previous method, this method also returns an ``XBeeMessage`` object
 with all the information inside.
 
 The default timeout to wait for the send status is two seconds. However, you
-can configure the timeout using the ``get_sync_ops_timeout`` and
-``set_sync_ops_timeout`` methods of an XBee device class.
+can configure the timeout using the ``get_sync_ops_timeout()`` and
+``set_sync_ops_timeout()`` methods of an XBee class.
 
 +---------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Example: Receive data with polling                                                                                                                                  |
@@ -394,7 +392,7 @@ Data reception callback
 This mechanism for reading data does not block your application. Instead,
 you can be notified when new data has been received if you are subscribed or
 registered to the data reception service using the
-``add_data_received_callback`` method with a data reception callback as
+``add_data_received_callback()`` method with a data reception callback as
 parameter.
 
 **Register for data reception**
@@ -403,9 +401,9 @@ parameter.
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Define callback.
   def my_data_received_callback(xbee_message):
@@ -414,7 +412,7 @@ parameter.
       print("Received data from %s: %s" % (address, data))
 
   # Add the callback.
-  device.add_data_received_callback(my_data_received_callback)
+  xbee.add_data_received_callback(my_data_received_callback)
 
   [...]
 
@@ -426,7 +424,7 @@ When new data is received, your callback is executed providing as parameter an
 * Flag indicating if the data was sent via broadcast.
 * Time when the message was received.
 
-To stop listening to new received data, use the ``del_data_received_callback``
+To stop listening to new received data, use the ``del_data_received_callback()``
 method to unsubscribe the already-registered callback.
 
 **Deregister data reception**
@@ -438,12 +436,12 @@ method to unsubscribe the already-registered callback.
   def my_data_received_callback(xbee_message):
       [...]
 
-  device.add_data_received_callback(my_data_received_callback)
+  xbee.add_data_received_callback(my_data_received_callback)
 
   [...]
 
   # Delete the callback
-  device.del_data_received_callback(my_data_received_callback)
+  xbee.del_data_received_callback(my_data_received_callback)
 
   [...]
 
@@ -473,7 +471,7 @@ cluster ID.
   Only Zigbee, DigiMesh, and Point-to-Multipoint protocols support the
   transmission and reception of data in explicit format. This means you cannot
   transmit or receive explicit data using a generic ``XBeeDevice`` object. You
-  must use a protocol-specific XBee device object such as a ``ZigBeeDevice``.
+  must use a protocol-specific XBee object such as a ``ZigBeeDevice``.
 
 * :ref:`communicateSendExplicitData`
 * :ref:`communicateReceiveExplicitData`
@@ -507,9 +505,9 @@ The synchronous data transmission is a blocking operation. That is, the method
 waits until it either receives the transmit status response or the default
 timeout is reached.
 
-All local XBee device classes that support explicit data transmission provide a
-method to transmit unicast and synchronous explicit data to a remote node of
-the network:
+All local XBee classes that support explicit data transmission provide a method
+to transmit unicast and synchronous explicit data to a remote node of the
+network:
 
 +--------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                                                                                 | Description                                                                                                                                                                                        |
@@ -523,15 +521,15 @@ the network:
 
   [...]
 
-  # Instantiate a Zigbee device object.
-  device = ZigBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local Zigbee object.
+  xbee = ZigBeeDevice("COM1", 9600)
+  xbee.open()
 
-  # Instantiate a remote Zigbee device object.
-  remote_device = RemoteZigBeeDevice(device, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
+  # Instantiate a remote Zigbee object.
+  remote = RemoteZigBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send explicit data using the remote object.
-  device.send_expl_data(remote_device, 0xA0, 0xA1, 0x1554, 0xC105, "Hello XBee!")
+  xbee.send_expl_data(remote, 0xA0, 0xA1, 0x1554, 0xC105, "Hello XBee!")
 
   [...]
 
@@ -549,8 +547,8 @@ The previous methods may fail for the following reasons:
       generic ``XBeeException``.
 
 The default timeout to wait for the send status is two seconds. However, you
-can configure the timeout using the ``get_sync_ops_timeout`` and
-``set_sync_ops_timeout`` methods of an XBee device class.
+can configure the timeout using the ``get_sync_ops_timeout()`` and
+``set_sync_ops_timeout()`` methods of an XBee class.
 
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Example: Transmit explicit synchronous unicast data                                                                                                                                     |
@@ -568,7 +566,7 @@ Transmitting explicit data asynchronously means that your application does not
 block during the transmit process. However, you cannot ensure that the data was
 successfully sent to the remote device.
 
-All local XBee device classes that support explicit data transmission provide
+All local XBee classes that support explicit data transmission provide
 a method to transmit unicast and asynchronous explicit data to a remote node
 of the network:
 
@@ -584,15 +582,15 @@ of the network:
 
   [...]
 
-  # Instantiate a Zigbee device object.
-  device = ZigBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local Zigbee object.
+  xbee = ZigBeeDevice("COM1", 9600)
+  xbee.open()
 
-  # Instantiate a remote Zigbee device object.
-  remote_device = RemoteZigBeeDevice(device, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
+  # Instantiate a remote Zigbee object.
+  remote = RemoteZigBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send explicit data asynchronously using the remote object.
-  device.send_expl_data_async(remote_device, 0xA0, 0xA1, 0x1554, 0xC105, "Hello XBee!")
+  xbee.send_expl_data_async(remote, 0xA0, 0xA1, 0x1554, 0xC105, "Hello XBee!")
 
   [...]
 
@@ -622,8 +620,8 @@ Send explicit data to all devices in the network
 Broadcast transmissions are sent from one source device to all other devices in
 the network.
 
-All protocol-specific XBee device classes that support the transmission of
-explicit data provide the same method to send broadcast explicit data:
+All protocol-specific XBee classes that support the transmission of explicit
+data provide the same method to send broadcast explicit data:
 
 +------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                                                                         | Description                                                                                                                                                            |
@@ -637,16 +635,16 @@ explicit data provide the same method to send broadcast explicit data:
 
   [...]
 
-  # Instantiate a Zigbee device object.
-  device = ZigBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local Zigbee object.
+  xbee = ZigBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Send broadcast data.
-  device.send_expl_data_broadcast(0xA0, 0xA1, 0x1554, 0xC105, "Hello XBees!")
+  xbee.send_expl_data_broadcast(0xA0, 0xA1, 0x1554, 0xC105, "Hello XBees!")
 
   [...]
 
-The ``send_expl_data_broadcast`` method may fail for the following reasons:
+The ``send_expl_data_broadcast()`` method may fail for the following reasons:
 
 * Transmit status is not received in the configured timeout, throwing a
   ``TimeoutException`` exception.
@@ -674,16 +672,16 @@ Receive explicit data
 Some applications developed with the XBee Python Library may require modules to
 receive data in application layer, or explicit, data format.
 
-To receive data in explicit format, you must first configure the data output
-mode of the receiver XBee device to explicit format using the
-``set_api_output_mode_value`` method.
+To receive data in explicit format, configure the data output mode of the
+receiver XBee to explicit format using the ``set_api_output_mode_value()``
+method.
 
 +----------------------------------------+----------------------------------------------------------------------------------------------+
 | Method                                 | Description                                                                                  |
 +========================================+==============================================================================================+
-| **get_api_output_mode_value()**        | Returns the API output mode of the data received by the XBee device.                         |
+| **get_api_output_mode_value()**        | Returns the API output mode of the data received by the XBee.                                |
 +----------------------------------------+----------------------------------------------------------------------------------------------+
-| **set_api_output_mode_value(Integer)** | Specifies the API output mode of the data received by the XBee device. Calculate the mode    |
+| **set_api_output_mode_value(Integer)** | Specifies the API output mode of the data received by the XBee. Calculate the mode           |
 |                                        | with the method `calculate_api_output_mode_value` with a set of `APIOutputModeBit`.          |
 +----------------------------------------+----------------------------------------------------------------------------------------------+
 
@@ -693,23 +691,23 @@ mode of the receiver XBee device to explicit format using the
 
   [...]
 
-  # Instantiate a Zigbee device object.
-  device = ZigBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local Zigbee object.
+  xbee = ZigBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Set explicit output mode
-  mode = APIOutputModeBit.calculate_api_output_mode_value(device.get_protocol(),
+  mode = APIOutputModeBit.calculate_api_output_mode_value(xbee.get_protocol(),
     {APIOutputModeBit.EXPLICIT})
-  device.set_api_output_mode_value(mode)
+  xbee.set_api_output_mode_value(mode)
 
   # Set native output mode
   mode = 0
-  device.set_api_output_mode_value(mode)
+  xbee.set_api_output_mode_value(mode)
 
   # Set explicit plus unsupported ZDO request pass-through
-  mode = APIOutputModeBit.calculate_api_output_mode_value(device.get_protocol(),
+  mode = APIOutputModeBit.calculate_api_output_mode_value(xbee.get_protocol(),
     {APIOutputModeBit.EXPLICIT, APIOutputModeBit.UNSUPPORTED_ZDO_PASSTHRU})
-  device.set_api_output_mode_value(mode)
+  xbee.set_api_output_mode_value(mode)
 
   [...]
 
@@ -724,7 +722,7 @@ Polling for explicit data
 '''''''''''''''''''''''''
 
 The simplest way to read for explicit data is by executing the
-``read_expl_data`` method of the local XBee device. This method blocks your
+``read_expl_data()`` method of the local XBee. This method blocks your
 application until explicit data from any XBee device of the network is received
 or the provided timeout has expired:
 
@@ -734,18 +732,18 @@ or the provided timeout has expired:
 | **read_expl_data(Integer)** | Specifies the time to wait in seconds for explicit data reception (method blocks during that time and throws a ``TimeoutException`` if no data is received). If you do not specify a timeout, the method returns immediately the read message or ``None`` if the device did not receive new data. |
 +-----------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-**Read explicit data from any remote XBee device (polling)**
+**Read explicit data from any remote XBee (polling)**
 
 .. code:: python
 
   [...]
 
-  # Instantiate a Zigbee device object.
-  device = ZigBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local Zigbee object.
+  xbee = ZigBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Read data.
-  xbee_message = device.read_expl_data()
+  xbee_message = xbee.read_expl_data()
 
   [...]
 
@@ -770,9 +768,9 @@ the ``ExplicitXBeeMessage`` object:
 
   [...]
 
-  expl_xbee_message = device.read_expl_data()
+  expl_xbee_message = xbee.read_expl_data()
 
-  remote_device = expl_xbee_message.remote_device
+  remote = expl_xbee_message.remote_device
   source_endpoint = expl_xbee_message.source_endpoint
   dest_endpoint = expl_xbee_message.dest_endpoint
   cluster_id = expl_xbee_message.cluster_id
@@ -783,31 +781,30 @@ the ``ExplicitXBeeMessage`` object:
 
   [...]
 
-You can also read explicit data from a specific remote XBee device of the
-network. For that purpose, the XBee device object provides the
-``read_expl_data_from`` method:
+You can also read explicit data from a specific remote XBee of the network. For
+that purpose, the XBee object provides the ``read_expl_data_from()`` method:
 
 +----------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                             | Description                                                                                                                                                                                                                                                                                                                                  |
 +====================================================+==============================================================================================================================================================================================================================================================================================================================================+
-| **read_expl_data_from(RemoteXBeeDevice, Integer)** | Specifies the remote XBee device to read explicit data from and the time to wait for explicit data reception (method blocks during that time and throws a ``TimeoutException`` if no data is received). If you do not specify a timeout, the method returns immediately the read message or ``None`` if the device did not receive new data. |
+| **read_expl_data_from(RemoteXBeeDevice, Integer)** | Specifies the remote XBee to read explicit data from and the time to wait for explicit data reception (method blocks during that time and throws a ``TimeoutException`` if no data is received). If you do not specify a timeout, the method returns immediately the read message or ``None`` if the device did not receive new data.        |
 +----------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-**Read explicit data from a specific remote XBee device (polling)**
+**Read explicit data from a specific remote XBee (polling)**
 
 .. code:: python
 
   [...]
 
-  # Instantiate a Zigbee device object.
-  device = ZigBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local Zigbee object.
+  xbee = ZigBeeDevice("COM1", 9600)
+  xbee.open()
 
-  # Instantiate a remote Zigbee device object.
-  remote_device = RemoteZigBeeDevice(device, XBee64BitAddress.from_hex_string("0013A200XXXXXX"))
+  # Instantiate a remote Zigbee object.
+  remote = RemoteZigBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A200XXXXXX"))
 
   # Read data sent by the remote device.
-  expl_xbee_message = device.read_expl_data(remote_device)
+  expl_xbee_message = xbee.read_expl_data(remote)
 
   [...]
 
@@ -815,8 +812,8 @@ As in the previous method, this method also returns an ``ExplicitXBeeMessage``
 object with all the information inside.
 
 The default timeout to wait for data is two seconds. However, you
-can configure the timeout using the ``get_sync_ops_timeout`` and
-``set_sync_ops_timeout`` methods of an XBee device class.
+can configure the timeout using the ``get_sync_ops_timeout()`` and
+``set_sync_ops_timeout()`` methods of an XBee class.
 
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Example: Receive explicit data with polling                                                                                                                                |
@@ -835,7 +832,7 @@ Explicit data reception callback
 This mechanism for reading explicit data does not block your application.
 Instead, you can be notified when new explicit data has been received if you
 are subscribed or registered to the explicit data reception service by using the
-``add_expl_data_received_callback``.
+``add_expl_data_received_callback()``.
 
 **Explicit data reception registration**
 
@@ -843,9 +840,9 @@ are subscribed or registered to the explicit data reception service by using the
 
   [...]
 
-  # Instantiate a Zigbee device object.
-  device = ZigBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local Zigbee object.
+  xbee = ZigBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Define callback.
   def my_expl_data_received_callback(expl_xbee_message):
@@ -859,7 +856,7 @@ are subscribed or registered to the explicit data reception service by using the
       print("Received explicit data from %s: %s" % (address, data))
 
   # Add the callback.
-  device.add_expl_data_received_callback(my_expl_data_received_callback)
+  xbee.add_expl_data_received_callback(my_expl_data_received_callback)
 
   [...]
 
@@ -877,8 +874,8 @@ useful information:
 * Time when the message was received.
 
 To stop listening to new received explicit data, use the
-``del_expl_data_received_callback`` method to unsubscribe the already-registered
-callback.
+``del_expl_data_received_callback()`` method to unsubscribe the
+already-registered callback.
 
 **Explicit data reception deregistration**
 
@@ -889,12 +886,12 @@ callback.
   def my_expl_data_received_callback(xbee_message):
       [...]
 
-  device.add_expl_data_received_callback(my_expl_data_received_callback)
+  xbee.add_expl_data_received_callback(my_expl_data_received_callback)
 
   [...]
 
   # Delete the callback
-  device.del_expl_data_received_callback(my_expl_data_received_callback)
+  xbee.del_expl_data_received_callback(my_expl_data_received_callback)
 
   [...]
 
@@ -952,7 +949,7 @@ specifying the destination IP address, port, and protocol (TCP, TCP SSL or UDP).
 .. warning::
   Only Cellular and Wi-Fi protocols support the transmission and reception of IP
   data. This means you cannot transmit or receive IP data using a generic
-  ``XBeeDevice`` object; you must use the protocol-specific XBee device objects
+  ``XBeeDevice`` object; you must use the protocol-specific XBee objects
   ``CellularDevice`` or ``WiFiDevice``.
 
 * :ref:`communicateSendIPData`
@@ -989,7 +986,7 @@ transmit IP data synchronously:
 
   [...]
 
-  # Instantiate a Cellular device object.
+  # Instantiate an XBee Cellular object.
   xbee = CellularDevice("COM1", 9600)
   xbee.open()
 
@@ -1003,7 +1000,7 @@ transmit IP data synchronously:
 
   [...]
 
-The ``send_ip_data`` method may fail for the following reasons:
+The ``send_ip_data()`` method may fail for the following reasons:
 
 * There is a timeout setting the IP addressing parameter, throwing a
   ``TimeoutException``.
@@ -1061,7 +1058,7 @@ transmit IP data asynchronously:
 
   [...]
 
-  # Instantiate a Cellular device object.
+  # Instantiate an XBee Cellular object.
   xbee = CellularDevice("COM1", 9600)
   xbee.open()
 
@@ -1075,7 +1072,7 @@ transmit IP data asynchronously:
 
   [...]
 
-The ``send_ip_data_async`` method may fail for the following reasons:
+The ``send_ip_data_async()`` method may fail for the following reasons:
 
 * All possible errors are caught as ``XBeeException``:
 
@@ -1108,11 +1105,11 @@ TCP or UDP transmissions, you must start listening at a specific port,
 similar to the bind operation of a socket. The XBee Python Library
 provides a method to listen for incoming transmissions:
 
-+------------------------------+----------------------------------------------------------------------------+
-| Method                       | Description                                                                |
-+==============================+============================================================================+
-| **start_listening(Integer)** | Starts listening for incoming IP transmissions in the provided port.       |
-+------------------------------+----------------------------------------------------------------------------+
++------------------------------+----------------------------------------------------------------------+
+| Method                       | Description                                                          |
++==============================+======================================================================+
+| **start_listening(Integer)** | Starts listening for incoming IP transmissions in the provided port. |
++------------------------------+----------------------------------------------------------------------+
 
 **Listen for incoming transmissions**
 
@@ -1121,16 +1118,16 @@ provides a method to listen for incoming transmissions:
   [...]
 
 
-  # Instantiate a Cellular device object.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Instantiate an XBee Cellular object.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
   # Listen for TCP or UDP transmissions at port 1234.
-  device.start_listening(1234);
+  xbee.start_listening(1234);
 
   [...]
 
-The ``start_listening`` method may fail for the following reasons:
+The ``start_listening()`` method may fail for the following reasons:
 
 * If the listening port provided is lesser than 0 or greater than 65535, the
   method throws a ``ValueError`` error.
@@ -1145,8 +1142,8 @@ The ``start_listening`` method may fail for the following reasons:
     * If there is an error writing to the XBee interface, the method throws a
       generic ``XBeeException``.
 
-You can call the ``stop_listening`` method to stop listening for incoming TCP or
-UDP transmissions:
+You can call the ``stop_listening()`` method to stop listening for incoming TCP
+or UDP transmissions:
 
 +----------------------+-----------------------------------------------------+
 | Method               | Description                                         |
@@ -1160,16 +1157,16 @@ UDP transmissions:
 
   [...]
 
-  # Instantiate a Cellular device object.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Instantiate an XBee Cellular object.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
   # Stop listening for TCP or UDP transmissions.
-  device.stop_listening()
+  xbee.stop_listening()
 
   [...]
 
-The ``stop_listening`` method may fail for the following reasons:
+The ``stop_listening()`` method may fail for the following reasons:
 
 * There is a timeout setting the listening port, throwing a
   ``TimeoutException``.
@@ -1186,9 +1183,9 @@ The ``stop_listening`` method may fail for the following reasons:
 Polling for IP data
 '''''''''''''''''''
 
-The simplest way to read IP data is by executing the ``read_ip_data`` method of
-the local Cellular or Wi-Fi devices. This method blocks your application until
-IP data is received or the provided timeout has expired.
+The simplest way to read IP data is by executing the ``read_ip_data()`` method
+of the local Cellular or Wi-Fi devices. This method blocks your application
+until IP data is received or the provided timeout has expired.
 
 +---------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                    | Description                                                                                                                                                                                                                          |
@@ -1202,12 +1199,12 @@ IP data is received or the provided timeout has expired.
 
   [...]
 
-  # Instantiate a Cellular device object.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Instantiate an XBee Cellular object.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
   # Read IP data.
-  ip_message = device.read_ip_data()
+  ip_message = xbee.read_ip_data()
 
   [...]
 
@@ -1228,12 +1225,12 @@ the ``IPMessage`` object:
 
   [...]
 
-  # Instantiate a cellular device object.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Instantiate an XBee Cellular object.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
   # Read IP data.
-  ip_message = device.read_ip_data()
+  ip_message = xbee.read_ip_data()
 
 
   ip_addr = ip_message.ip_addr
@@ -1245,8 +1242,8 @@ the ``IPMessage`` object:
   [...]
 
 You can also read IP data that comes from a specific IP address. For that
-purpose, the cellular and Wi-Fi device objects provide the ``read_ip_data_from``
-method:
+purpose, the cellular and Wi-Fi device objects provide the
+``read_ip_data_from()`` method:
 
 **Read IP data from a specific IP address (polling)**
 
@@ -1254,12 +1251,12 @@ method:
 
   [...]
 
-  # Instantiate a cellular device object.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Instantiate an XBee Cellular object.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
   # Read IP data.
-  ip_message = device.read_ip_data_from(IPv4Address("52.36.102.96"))
+  ip_message = xbee.read_ip_data_from(IPv4Address("52.36.102.96"))
 
   [...]
 
@@ -1281,7 +1278,7 @@ IP data reception callback
 This mechanism for reading IP data does not block your application. Instead,
 you can be notified when new IP data has been received if you have subscribed
 or registered with the IP data reception service by using the
-``add_ip_data_received_callback`` method.
+``add_ip_data_received_callback()`` method.
 
 **IP data reception registration**
 
@@ -1289,9 +1286,9 @@ or registered with the IP data reception service by using the
 
   [...]
 
-  # Instantiate a Cellular device object.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Instantiate an XBee Cellular object.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
 
   # Define the callback.
@@ -1299,7 +1296,7 @@ or registered with the IP data reception service by using the
       print("Received IP data from %s: %s" % (ip_message.ip_addr, ip_message.data))
 
   # Add the callback.
-  device.add_ip_data_received_callback(my_ip_data_received_callback)
+  xbee.add_ip_data_received_callback(my_ip_data_received_callback)
 
   [...]
 
@@ -1312,7 +1309,7 @@ an ``IPMessage`` object which contains the data and other useful information:
 * Byte array with the contents of the received data
 
 To stop listening to new received IP data, use the
-``del_ip_data_received_callback`` method to unsubscribe the already-registered
+``del_ip_data_received_callback()`` method to unsubscribe the already-registered
 listener.
 
 **Data reception deregistration**
@@ -1321,17 +1318,17 @@ listener.
 
   [...]
 
-  device = [...]
+  xbee = [...]
 
   def my_ip_data_received_callback(ip_message):
       [...]
 
-  device.add_ip_data_received_callback(my_ip_data_received_callback)
+  xbee.add_ip_data_received_callback(my_ip_data_received_callback)
 
   [...]
 
   # Delete the IP data callback.
-  device.del_ip_data_received_callback(my_ip_data_received_callback)
+  xbee.del_ip_data_received_callback(my_ip_data_received_callback)
 
   [...]
 
@@ -1357,8 +1354,7 @@ receiving text messages, specifying the destination phone number and data.
 .. warning::
   Only Cellular protocol supports the transmission and reception of SMS. This
   means you cannot send or receive text messages using a generic ``XBeeDevice``
-  object; you must use the protocol-specific XBee device object
-  ``CellularDevice``.
+  object; you must use the protocol-specific XBee object ``CellularDevice``.
 
 * :ref:`communicateSendSMS`
 * :ref:`communicateReceiveSMS`
@@ -1395,7 +1391,7 @@ synchronously:
 
   [...]
 
-  # Instantiate a Cellular device object.
+  # Instantiate an XBee Cellular object.
   xbee = CellularDevice("COM1", 9600)
   xbee.open()
 
@@ -1407,7 +1403,7 @@ synchronously:
 
   [...]
 
-The ``send_sms`` method may fail for the following reasons:
+The ``send_sms()`` method may fail for the following reasons:
 
 * If the response is not received in the configured timeout, the method throws
   a ``TimeoutException``.
@@ -1450,7 +1446,7 @@ asynchronously:
 
   [...]
 
-  # Instantiate a Cellular device object.
+  # Instantiate an XBee Cellular object.
   xbee = CellularDevice("COM1", 9600)
   xbee.open()
 
@@ -1462,7 +1458,7 @@ asynchronously:
 
   [...]
 
-The ``send_sms_async`` method may fail for the following reasons:
+The ``send_sms_async()`` method may fail for the following reasons:
 
 * If the phone number has an invalid format, the method throws a ``ValueError``.
 * Errors register as ``XBeeException``:
@@ -1486,7 +1482,7 @@ SMS reception callback
 ''''''''''''''''''''''
 
 You can be notified when a new SMS has been received if you are subscribed or
-registered to the SMS reception service by using the ``add_sms_callback``
+registered to the SMS reception service by using the ``add_sms_callback()``
 method.
 
 **SMS reception registration**
@@ -1495,9 +1491,9 @@ method.
 
   [...]
 
-  # Instantiate a cellular device object.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Instantiate an XBee Cellular object.
+  xbee CellularDevice("COM1", 9600)
+  xbee.open()
 
 
   # Define the callback.
@@ -1505,15 +1501,15 @@ method.
       print("Received SMS from %s: %s" % (sms_message.phone_number, sms_message.data))
 
   # Add the callback.
-  device.add_sms_callback(my_sms_callback)
+  xbee.add_sms_callback(my_sms_callback)
 
   [...]
 
 When a new SMS message is received, your callback is executed providing an
-``SMSMessage`` object as paramater. This object contains the data and the
+``SMSMessage`` object as parameter. This object contains the data and the
 phone number that sent the message.
 
-To stop listening to new SMS messages, use the ``del_sms_callback`` method to
+To stop listening to new SMS messages, use the ``del_sms_callback()`` method to
 unsubscribe the already-registered listener.
 
 **Deregister SMS reception**
@@ -1522,17 +1518,17 @@ unsubscribe the already-registered listener.
 
   [...]
 
-  device = [...]
+  xbee = [...]
 
   def my_sms_callback(sms_message):
       [...]
 
-  device.add_sms_callback(my_sms_callback)
+  xbee.add_sms_callback(my_sms_callback)
 
   [...]
 
   # Delete the SMS callback.
-  device.del_sms_callback(my_sms_callback)
+  xbee.del_sms_callback(my_sms_callback)
 
   [...]
 
@@ -1548,13 +1544,13 @@ unsubscribe the already-registered listener.
 Send and receive Bluetooth data
 -------------------------------
 
-XBee3 modules have the ability to send and receive data from the Bluetooth Low
-Energy interface of the local XBee device through User Data Relay frames. This
-can be useful if your application wants to transmit or receive data from a
-cellphone connected to it over BLE.
+XBee 3 modules have the ability to send and receive data from the Bluetooth Low
+Energy interface of the local XBee through User Data Relay frames. This can be
+useful if your application wants to transmit or receive data from a cellphone
+connected to it over BLE.
 
 .. warning::
-  Only XBee3 modules support Bluetooth Low Energy. This means that you cannot
+  Only XBee 3 modules support Bluetooth Low Energy. This means that you cannot
   transmit or receive Bluetooth data if you don't have one of these modules.
 
 * :ref:`communicateSendBluetoothData`
@@ -1584,18 +1580,18 @@ during the transmit process.
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   data = "Bluetooth, are you there?"
 
   # Send the data to the Bluetooth interface.
-  device.send_bluetooth_data(data.encode("utf8"))
+  xbee.send_bluetooth_data(data.encode("utf8"))
 
   [...]
 
-The ``send_bluetooth_data`` method may fail for the following reasons:
+The ``send_bluetooth_data()`` method may fail for the following reasons:
 
 * Errors register as ``XBeeException``:
 
@@ -1621,7 +1617,7 @@ Receive Bluetooth data
 
 You can be notified when new data from the Bluetooth Low Energy interface has
 been received if you are subscribed or registered to the Bluetooth data
-reception service by using the ``add_bluetooth_data_received_callback`` method.
+reception service by using the ``add_bluetooth_data_received_callback()`` method.
 
 **Bluetooth data reception registration**
 
@@ -1629,16 +1625,16 @@ reception service by using the ``add_bluetooth_data_received_callback`` method.
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Define the callback.
   def my_bluetooth_data_callback(data):
       print("Data received from the Bluetooth interface >> '%s'" % data.decode("utf-8"))
 
   # Add the callback.
-  device.add_bluetooth_data_received_callback(my_bluetooth_data_callback)
+  xbee.add_bluetooth_data_received_callback(my_bluetooth_data_callback)
 
   [...]
 
@@ -1646,7 +1642,7 @@ When a new data from the Bluetooth interface is received, your callback is
 executed providing the data in byte array format as parameter.
 
 To stop listening to new data messages from the Bluetooth interface, use the
-``del_bluetooth_data_received_callback`` method to unsubscribe the
+``del_bluetooth_data_received_callback()`` method to unsubscribe the
 already-registered listener.
 
 **Deregister Bluetooth data reception**
@@ -1655,17 +1651,17 @@ already-registered listener.
 
   [...]
 
-  device = [...]
+  xbee = [...]
 
   def my_bluetooth_data_callback(data):
       [...]
 
-  device.add_bluetooth_data_received_callback(my_bluetooth_data_callback)
+  xbee.add_bluetooth_data_received_callback(my_bluetooth_data_callback)
 
   [...]
 
   # Delete the Bluetooth data callback.
-  device.del_bluetooth_data_received_callback(my_bluetooth_data_callback)
+  xbee.del_bluetooth_data_received_callback(my_bluetooth_data_callback)
 
   [...]
 
@@ -1681,13 +1677,13 @@ already-registered listener.
 Send and receive MicroPython data
 ---------------------------------
 
-XBee3 modules have the ability to send and receive data from the MicroPython
-interface of the local XBee device through User Data Relay frames. This can be
-useful if your application wants to transmit or receive data from a MicroPython
-program running on the module.
+XBee 3 modules have the ability to send and receive data from the MicroPython
+interface of the local XBee through User Data Relay frames. This can be useful
+if your application wants to transmit or receive data from a MicroPython program
+running on the module.
 
 .. warning::
-  Only XBee3 and XBee Cellular modules support MicroPython. This means that you
+  Only XBee 3 and XBee Cellular modules support MicroPython. This means that you
   cannot transmit or receive MicroPython data if you don't have one of these
   modules.
 
@@ -1718,18 +1714,18 @@ during the transmit process.
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   data = "MicroPython, are you there?"
 
   # Send the data to the MicroPython interface.
-  device.send_micropython_data(data.encode("utf8"))
+  xbee.send_micropython_data(data.encode("utf8"))
 
   [...]
 
-The ``send_micropython_data`` method may fail for the following reasons:
+The ``send_micropython_data()`` method may fail for the following reasons:
 
 * Errors register as ``XBeeException``:
 
@@ -1755,7 +1751,7 @@ Receive MicroPython data
 
 You can be notified when new data from the MicroPython interface has been
 received if you are subscribed or registered to the MicroPython data reception
-service by using the ``add_micropython_data_received_callback`` method.
+service by using the ``add_micropython_data_received_callback()`` method.
 
 **MicroPython data reception registration**
 
@@ -1763,16 +1759,16 @@ service by using the ``add_micropython_data_received_callback`` method.
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Define the callback.
   def my_micropython_data_callback(data):
       print("Data received from the MicroPython interface >> '%s'" % data.decode("utf-8"))
 
   # Add the callback.
-  device.add_micropython_data_received_callback(my_micropython_data_callback)
+  xbee.add_micropython_data_received_callback(my_micropython_data_callback)
 
   [...]
 
@@ -1780,7 +1776,7 @@ When a new data from the MicroPython interface is received, your callback is
 executed providing the data in byte array format as parameter.
 
 To stop listening to new data messages from the MicroPython interface, use the
-``del_micropython_data_received_callback`` method to unsubscribe the
+``del_micropython_data_received_callback()`` method to unsubscribe the
 already-registered listener.
 
 **Deregister MicroPython data reception**
@@ -1789,17 +1785,17 @@ already-registered listener.
 
   [...]
 
-  device = [...]
+  xbee = [...]
 
   def my_micropython_data_callback(data):
       [...]
 
-  device.add_micropython_data_received_callback(my_micropython_data_callback)
+  xbee.add_micropython_data_received_callback(my_micropython_data_callback)
 
   [...]
 
   # Delete the MicroPython data callback.
-  device.del_micropython_data_received_callback(my_micropython_data_callback)
+  xbee.del_micropython_data_received_callback(my_micropython_data_callback)
 
   [...]
 
@@ -1817,18 +1813,18 @@ already-registered listener.
 Receive modem status events
 ---------------------------
 
-A local XBee device is able to determine when it connects to a network, when it
-is disconnected, and when any kind of error or other events occur. The local
-device generates these events, and they can be handled using the XBee Python
-library via the modem status frames reception.
+A local XBee is able to determine when it connects to a network, when it is
+disconnected, and when any kind of error or other events occur. The local device
+generates these events, and they can be handled using the XBee Python Library
+via the modem status frames reception.
 
 When a modem status frame is received, you are notified through the callback of
 a custom listener so you can take the proper actions depending on the event
 received.
 
-For that purpose, you must subscribe or register to the modem status reception
-service using a modem status listener as parameter with the method
-``add_modem_status_received_callback``.
+For that purpose, subscribe or register to the modem status reception service
+using a modem status listener as parameter with the method
+``add_modem_status_received_callback()``.
 
 **Subscribe to modem status reception service**
 
@@ -1836,16 +1832,16 @@ service using a modem status listener as parameter with the method
 
   [...]
 
-  # Instantiate an XBee device object.
-  device = XBeeDevice("COM1", 9600)
-  device.open()
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
 
   # Define the callback.
   def my_modem_status_callback(status):
       print("Modem status: %s" % status.description)
 
   # Add the callback.
-  device.add_modem_status_received_callback(my_modem_status_callback)
+  xbee.add_modem_status_received_callback(my_modem_status_callback)
 
   [...]
 
@@ -1853,7 +1849,7 @@ When a new modem status is received, your callback is executed providing as
 parameter a ``ModemStatus`` object.
 
 To stop listening to new modem statuses, use the
-``del_modem_status_received_callback`` method to unsubscribe the
+``del_modem_status_received_callback()`` method to unsubscribe the
 already-registered listener.
 
 **Deregister modem status**
@@ -1862,17 +1858,17 @@ already-registered listener.
 
   [...]
 
-  device = [...]
+  xbee = [...]
 
   def my_modem_status_callback(status):
       [...]
 
-  device.add_modem_status_received_callback(my_modem_status_callback)
+  xbee.add_modem_status_received_callback(my_modem_status_callback)
 
   [...]
 
   # Delete the modem status callback.
-  device.del_modem_status_received_callback(my_modem_status_callback)
+  xbee.del_modem_status_received_callback(my_modem_status_callback)
 
   [...]
 
@@ -1903,7 +1899,7 @@ application.
 .. warning::
   Only the Cellular protocol supports the use of XBee sockets. This means you
   cannot use this API with a generic ``XBeeDevice`` object; you must use the
-  protocol-specific XBee device object ``CellularDevice``.
+  protocol-specific XBee object ``CellularDevice``.
 
 The XBee socket API is available through the ``socket`` class of the
 ``digi.xbee.xsocket`` module.
@@ -1913,10 +1909,10 @@ Create an XBee socket
 `````````````````````
 
 Before working with an XBee socket to communicate with other devices, you have
-to instantiate a ``socket`` object in order to create it. To do so, you need to
-provide the following parameters:
+to instantiate a ``socket`` object in order to create it. To do so, provide the
+following parameters:
 
-* XBee Cellular device object used to work with the socket.
+* XBee Cellular object used to work with the socket.
 * IP protocol of the socket (optional). It can be ``IPProtocol.TCP`` (default),
   ``IPProtocol.UDP`` or ``IPProtocol.TCP_SSL``.
 
@@ -1928,12 +1924,12 @@ provide the following parameters:
   from digi.xbee.devices import CellularDevice
   from digi.xbee.models.protocol import IPProtocol
 
-  # Create and open an XBee Cellular device.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Create and open an XBee Cellular.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
   # Create a new XBee socket.
-  sock = xsocket.socket(device, IPProtocol.TCP)
+  sock = xsocket.socket(xbee, IPProtocol.TCP)
 
 
 Work with an XBee socket
@@ -1999,12 +1995,12 @@ socket before sending or receiving data with a remote host.
   PORT = "80"
   REQUEST = "GET /random/trivia HTTP/1.1\r\nHost: numbersapi.com\r\n\r\n"
 
-  # Create and open an XBee Cellular device.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Create and open an XBee Cellular.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
   # Create a new XBee socket.
-  with xsocket.socket(device, IPProtocol.TCP) as sock:
+  with xsocket.socket(xbee, IPProtocol.TCP) as sock:
       # Connect the socket.
       sock.connect((HOST, PORT))
 
@@ -2039,12 +2035,12 @@ the sequence ``bind()``, ``listen()``, ``accept()``.
 
   PORT = "1234"
 
-  # Create and open an XBee Cellular device.
-  device = CellularDevice("COM1", 9600)
-  device.open()
+  # Create and open an XBee Cellular.
+  xbee = CellularDevice("COM1", 9600)
+  xbee.open()
 
   # Create a new XBee socket.
-  with xsocket.socket(device, IPProtocol.TCP) as sock:
+  with xsocket.socket(xbee, IPProtocol.TCP) as sock:
       # Bind the socket to the local port.
       sock.bind((None, PORT))
 

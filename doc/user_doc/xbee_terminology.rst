@@ -2,17 +2,17 @@ XBee terminology
 ================
 
 This section covers basic XBee concepts and terminology. The XBee Python
-library manual refers to these concepts frequently, so it is important to
-understand these concepts.
+Library manual refers to these concepts frequently, so it is important to
+understand them.
 
 
 RF modules
 ----------
 
 A radio frequency (RF) module is a small electronic circuit used to transmit
-and receive radio signals on different frequencies. Digi produces a wide
-variety of RF modules to meet the requirements of almost any wireless solution,
-such as long-range, low-cost, and low power modules.
+and receive radio signals on different frequencies. Digi produces a wide variety
+of RF modules to meet the requirements of almost any wireless solution, such as
+long-range, low-cost, and low power modules.
 
 
 XBee RF modules
@@ -38,11 +38,12 @@ Radio firmware
 --------------
 
 Radio firmware is the program code stored in the radio module's persistent
-memory that provides the control program for the device. From XCTU or the local
-web interface of the XBee Gateway, you can update or change the firmware of the
-local XBee module or any other module connected to the same network. This is a
-common task when changing the role of the device or updating to the latest
-version of the firmware.
+memory that provides the control program for the device.
+
+To update or change the firmware of the local XBee module or any other module
+operating in the same network, use the mechanisms the XBee Python Library
+includes. Other programs, such as XCTU, or the web interface of the XBee
+Gateway, also allows you to update the firmware of your XBee nodes.
 
 
 Radio communication protocols
@@ -63,7 +64,7 @@ Following is the complete list of protocols supported by the XBee radio modules:
 * Point-to-multipoint (Digi proprietary)
 * XSC (XStream compatibility)
 * Cellular
-* Thread
+* Wi-Fi
 
 .. image:: ../images/concepts_protocol.png
    :align: center
@@ -72,11 +73,38 @@ Following is the complete list of protocols supported by the XBee radio modules:
 .. note::
    Not all XBee devices can run all these communication protocols. The
    combination of XBee hardware and radio firmware determines the protocol that
-   an XBee device can execute. Refer to the
+   an XBee can execute. Refer to the
    `XBee RF Family Comparison Matrix
    <https://www.digi.com/pdf/chart_xbee_rf_features.pdf>`_
    for more information about the available XBee RF modules and the protocols
    they support.
+
+
+AT settings or commands
+-----------------------
+
+The firmware running in the XBee RF modules contains a group of settings and
+commands that you can configure to change the behavior of the module or to
+perform any related action. Depending on the protocol, the number of settings
+and meanings vary, but all the XBee RF modules can be configured with AT
+commands.
+
+All the firmware settings or commands are identified with two ASCII characters
+and some applications and documents refer to them as **AT settings** or
+**AT commands**.
+
+The configuration process of the AT settings varies depending on the operating
+mode of the XBee RF module.
+
+* **AT operating mode**. In this mode, you must put the module in a special mode
+  called command mode, so it can receive AT commands. For more information about
+  configuring XBee RF modules working in AT operating mode, see
+  :ref:`atOperatingMode`.
+* **API operating mode**. When working in this mode, entering in command mode
+  will also allow the configuration of the local XBee. But to configure or
+  execute AT commands in API mode, generate an AT command API frame containing
+  the AT setting and the value of that setting, and send it to the XBee RF
+  module. For more information about API mode see , see :ref:`apiOperatingMode`.
 
 
 Radio module operating modes
@@ -94,12 +122,12 @@ three different operating modes:
 * API escaped operating mode
 
 In some cases, the operating mode of a radio module is established by the
-firmware version and the firmware's AP setting. The module's firmware version
-determines whether the operating mode is AT or API. The firmware's AP setting
-determines if the API mode is escaped (**AP** = 2) or not (**AP** = 1). In
-other cases, the operating mode is only determined by the AP setting, which
-allows you to configure the mode to be AT (**AP** = 0), API (**AP** = 1) or
-API escaped (**AP** = 2).
+firmware version and the firmware's ``AP`` setting. The module's firmware
+version determines whether the operating mode is AT or API. The firmware's
+``AP`` setting determines if the API mode is escaped (``AP=2``) or not
+(``AP=1``). In other cases, the operating mode is only determined by the ``AP``
+setting, which allows you to configure the mode to be AT (``AP=0``), API
+(``AP=1``) or API escaped (``AP=2``).
 
 
 .. _atOperatingMode:
@@ -107,37 +135,30 @@ API escaped (**AP** = 2).
 Application Transparent (AT) operating mode
 ```````````````````````````````````````````
 
-In Application Transparent (AT) or transparent operating mode, all serial data
-received by the radio module is queued up for RF transmission. When the module
-receives RF data, it sends the data out through the serial interface.
+In Application Transparent (AT) or transparent operating mode, all data received
+through the serial input is queued up for radio transmission and data received
+wirelessly is sent to the serial output exactly as it is received. In fact,
+communication in transparent mode yields the same result as if the two modules
+were connected by a wire, but wireless communication makes that physical wire
+unnecessary.
 
-To configure an XBee module operating in AT, put the device in command mode to
-send the configuration commands.
+Some advantages of this mode:
+
+* XBee in transparent mode act as a serial line replacement: what you send is
+  exactly what the other module get.
+* It is compatible with any device that speaks serial.
+* It works very well when facilitating communication between two XBees.
+
+Transparent mode has some limitations. For example:
+
+* When working with several remote nodes, you must configure the destination
+  before sending each message.
+* It is not possible to identify the source of a received wireless message.
+* To access the configuration of an XBee in transparent mode a special procedure
+  for transitioning the module into :ref:`commandMode`.
 
 
-Command mode
-''''''''''''
-
-When the radio module is working in AT operating mode, configure settings using
-the command mode interface.
-
-To enter command mode, send the 3-character command sequence through the serial
-interface of the radio module, usually ``+++``, within one second. Once the
-command mode has been established, the module sends the reply ``OK``, the
-command mode timer starts, and the radio module can receive AT commands.
-
-The structure of an AT command follows this format:
-
-``AT[ASCII command][Space (optional)][Parameter (optional)][Carriage return]``
-
-Example:
-
-``ATNI MyDevice\r``
-
-If no valid AT commands are received within the command mode timeout, the radio
-module automatically exits command mode. You can also exit command mode issuing
-the ``CN`` command (Exit Command mode).
-
+.. _apiOperatingMode:
 
 API operating mode
 ``````````````````
@@ -150,20 +171,22 @@ The API specifies how commands, command responses, the module sends and
 receives status messages using the serial interface. API operation mode enables
 many operations, such as the following:
 
-* Configure the XBee device itself.
+* Configure the XBee itself.
 * Configure remote devices in the network.
 * Manage data transmission to multiple destinations.
 * Receive success/failure status of each transmitted RF packet.
 * Identify the source address of each received packet.
+* Advanced network management and diagnosis.
+* Advanced features such as remote firmware update, ZDO, ZCL, etc.
 
 Depending on the AP parameter value, the device can operate in one of two modes:
-API (**AP** = 1) or API escaped (**AP** = 2) operating mode.
+API (``AP=1``) or API escaped (``AP=2``) operating mode.
 
 
 API escaped operating mode
 ``````````````````````````
 
-API escaped operating mode (**AP** = 2) works similarly to API mode. The only
+API escaped operating mode (``AP=2``) works similarly to API mode. The only
 difference is that when working in API escaped mode, some bytes of the API
 frame specific data must be escaped.
 
@@ -188,6 +211,33 @@ The following data bytes must be escaped:
 * 0x7D: Escape
 * 0x11: XON
 * 0x13: XOFF
+
+
+.. _commandMode:
+
+Command mode
+````````````
+
+Command mode allows to get and set local XBee parameters and execute certain AT
+commands.
+
+To enter command mode, send the 3-character command sequence through the serial
+interface of the radio module, usually ``+++``, within one second. Once the XBee
+is operating in command mode, the module sends the reply ``OK``, the command
+mode timer starts, and the data coming from the serial input is interpreted as
+commands to set up the module.
+
+The structure of an AT command follows this format:
+
+``AT[ASCII command][Space (optional)][Parameter (optional)][Carriage return]``
+
+Example:
+
+``ATNI MyDevice\r``
+
+If no valid AT commands are received within the command mode timeout, the radio
+module automatically exits command mode. You can also exit command mode issuing
+the ``CN`` command (Exit Command mode).
 
 
 .. _apiFrames:
@@ -217,37 +267,10 @@ An API frame has the following structure:
 | **Checksum**        | Byte containing the hash sum of the API frame bytes.                                                                                                                                                      |
 +---------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-In API escaped mode, some bytes in the Length, Frame Data and
-Checksum fields must be escaped.
+In API escaped mode, some bytes in the Length, Frame Data and Checksum fields
+must be escaped.
 
 .. image:: ../images/concepts_api_frame_explained.jpg
    :align: center
    :width: 600px
    :alt: API frames escaped
-
-
-AT settings or commands
------------------------
-
-The firmware running in the XBee RF modules contains a group of settings and
-commands that you can configure to change the behavior of the module or to
-perform any related action. Depending on the protocol, the number of settings
-and meanings vary, but all the XBee RF modules can be configured with AT
-commands.
-
-All the firmware settings or commands are identified with two ASCII characters
-and some applications and documents refer to them as **AT settings** or
-**AT commands**.
-
-The configuration process of the AT settings varies depending on the operating
-mode of the XBee RF module.
-
-* **AT operating mode**. In this mode, you must put the module in a special mode
-  called command mode, so it can receive AT commands. For more information about
-  configuring XBee RF modules working in AT operating mode, see
-  :ref:`atOperatingMode`.
-* **API operating mode**. To configure or execute AT commands when the XBee RF
-  module operates in API mode, you must generate an AT command API frame
-  containing the AT setting identifier and the value of that setting, and send
-  it to the XBee RF module. For more information about API frames, see
-  :ref:`apiFrames`.

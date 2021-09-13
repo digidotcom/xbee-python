@@ -11,25 +11,26 @@ The XBee Python Library uses the Python standard logging module for
 registering logging events. The logger works at module level; that is, each
 module has a logger with a unique name.
 
-The modules that have logging integrated are ``devices`` and ``reader``. By
-default, all loggers are disabled so you will not see any logging message
+The modules that have logging integrated are ``digi.xbee.devices``,
+``digi.xbee.reader``, ``digi.xbee.sender``, ``digi.xbee.recovery``,
+``digi.xbee.firmware``, ``digi.xbee.profile``, and ``digi.xbee.models.zdo``.
+By default, all loggers are disabled so you will not see any logging message
 in the console if you do not activate them.
 
 In the XBee Python Library, you need three things to enable the logger:
 
 1. The logger itself.
-2. A handler. This will determine if the messages will be displayed in the
-   console, written in a file, sent through a socket, etc.
-3. A formatter. This will determine the message format. For example, a format
-   could be:
+2. A handler to determine if log messages will be displayed in the console,
+   written to a file, sent through a socket, etc.
+3. A formatter to define the message format. For example, a format could be:
 
     * *Timestamp with the current date - logger name - level (debug, info,
       warning...) - data.*
 
-To retrieve the logger, use the ``get_logger()`` method of the
-logging module, providing the name of the logger that you want to get as
-parameter. In the XBee Python Library all loggers have the name of the module
-they belong to. For example, the name of the logger of the ``devices`` module
+To retrieve the logger, use the ``get_logger()`` method of the logging module,
+providing the name of the logger that you want to get as parameter. In the XBee
+Python Library all loggers have the name of the module they belong to.
+For example, the name of the logger of the ``digi.xbee.devices`` module
 is ``digi.xbee.devices``. You can get a module name with the special attribute
 ``\_\_name\_\_``.
 
@@ -50,10 +51,10 @@ is ``digi.xbee.devices``. You can get a module name with the special attribute
   [...]
 
 To retrieve a handler, you can use the default Python handler or create your
-own one. Depending on which type of handler you use, the messages created by
-the logger will be printed in the console, in a file, etc. You can have more
-than one handler per logger, this means that you can enable the default XBee
-Python Library handler and add your own handlers.
+own. Depending on which type of handler you use, the messages created by the
+logger is printed in the console, to a file, etc. You can have more than one
+handler per logger, this means that you can enable the default XBee Python
+Library handler and add your own handlers.
 
 **Retrieve a handler and add it to a logger**
 
@@ -72,14 +73,13 @@ Python Library handler and add your own handlers.
 
   [...]
 
-The previous code snippet shows how to add a handler to a logger, but the
-logical way is to add a formatter to a handler, and then add the handler to the
+The previous code snippet shows how to add a handler to a logger, but it is
+recommended to add a formatter to a handler, and then add the handler to the
 logger.
 
-When you create a formatter, you must specify which information will be printed
-and in which format. This guide shows you how to create a formatter with a
-simple format. If you want to create more complex formatters or handlers, see
-the Python documentation.
+When you create a formatter, you must specify the information to print and its
+format. This guide shows you how to create a formatter with a simple format.
+To create more complex formatters or handlers, see the Python documentation.
 
 **Create a formatter and add it to a handler**
 
@@ -127,9 +127,9 @@ the Python documentation.
 Logging level
 -------------
 
-The XBee Python Library also provides a method in the ``utils`` module,
-``enable_logger()``, to enable the logger with the default settings. These
-settings are:
+The XBee Python Library also provides a method in the ``digi.xbee.util.utils``
+module, ``enable_logger()``, to enable the logger with the default settings.
+These settings are:
 
 * Handler: ``StreamHandler``
 * Format: *timestamp - logger name - level - message*
@@ -148,6 +148,8 @@ settings are:
 .. code:: python
 
   import logging
+
+  from digi.xbee.util.utils import enable_logger
 
   [...]
 
