@@ -5053,7 +5053,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 image response frame.
         """
         name = "Query next image response"
-        retries = self.__REC_TRANSMIT_STATUS_RETRIES
+        total_retries = self.__REC_TRANSMIT_STATUS_RETRIES
+        retries = total_retries
         resp_frame = self._create_query_next_image_response_frame(status=status)
         while retries > 0:
             try:
@@ -5067,19 +5068,31 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 st_frame = self._local.send_packet_sync_and_get_response(resp_frame, timeout=timeout)
                 if not isinstance(st_frame, TransmitStatusPacket):
                     retries -= 1
-                    continue
-                _log.debug("Received '%s' status frame: %s", name,
-                           st_frame.transmit_status.description)
-                if st_frame.transmit_status != TransmitStatus.SUCCESS:
+                elif st_frame.transmit_status != TransmitStatus.SUCCESS:
+                    _log.debug(
+                        "Received '%s' status frame: %s, retrying (%d/%d)",
+                        name, st_frame.transmit_status.description,
+                        total_retries - retries + 1, total_retries)
+                    retries -= 1
                     # DigiMesh: Updating from 3004 to 300A/300B, we are
                     # receiving Transmit status responses with 0x25 error
                     # (Route not found). If we wait a little between retries,
                     # the response contains a 0x00 (success) after 3 retries
                     time.sleep(2)
-                    retries -= 1
-                    continue
-                return
+                else:
+                    _log.debug("Received '%s' status frame: %s", name,
+                               st_frame.transmit_status.description)
+                    return
+                # If the corresponding transmit status is not received, but a
+                # Image Block Request does, continue.
+                if self._check_received_request(self._requested_offset):
+                    return
             except XBeeException as exc:
+                # If the corresponding transmit status is not received, but a
+                # Image Block Request does, continue.
+                if self._check_received_request(self._requested_offset):
+                    return
+                # If the transmit status is not received, let's try again
                 retries -= 1
                 if not retries:
                     raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE %
@@ -5142,25 +5155,26 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                     _log.debug("Received '%s' status frame for offset %d: %s",
                                name, file_offset, status_frame.transmit_status.description)
                     return size
+                # If the corresponding transmit status is not received, but a
+                # Image Block Request or a Upgrade End Request does, continue.
                 if self._check_received_request(file_offset):
                     return size
                 continue
-            except TimeoutException:
+            except XBeeException as exc:
+                # If the corresponding transmit status is not received, but a
+                # Image Block Request or a Upgrade End Request does, continue.
                 if self._check_received_request(file_offset):
                     return size
                 # If the transmit status is not received, let's try again
                 retries -= 1
-                _log.debug("Not received '%s' status frame for offset %d, %s",
-                           name, file_offset, "aborting" if retries == 0 else
-                           "retrying (%d/%d)" % (total_retries - retries + 1,
-                                                 total_retries))
-                if not retries:
-                    return size
-            except XBeeException as exc:
-                if self._check_received_request(file_offset):
-                    return size
-                retries -= 1
-                if not retries:
+                if isinstance(exc, TimeoutException):
+                    _log.debug("Not received '%s' status frame for offset %d, %s",
+                               name, file_offset, "aborting" if retries == 0 else
+                               "retrying (%d/%d)" % (total_retries - retries + 1,
+                                                     total_retries))
+                    if not retries:
+                        return size
+                elif not retries:
                     raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK
                                                   % (file_offset, str(exc)))
 
@@ -5273,9 +5287,9 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             self._exit_with_error(str(exc))
         # Wait for answer.
         if self._requested_offset == -1:
-            # If offset is different from -1 it means callback was executed.
+            # If offset is different from -1 it means the callback was executed.
 
-            # Ensure to wait at least 30 seconds for the first Image Block Request.
+            # Ensure to wait at least 45 seconds for the first Image Block Request.
             # Workaround for client (remote) fw version 1008 and prior, see
             # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
             _log.debug("Waiting for first 'Image Block Request' request (%f s)"
@@ -5286,7 +5300,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 # Workaround for client (remote) fw version 1008 and prior, see
                 # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
                 lost_requests += 1
-                # If there are too many lost client request in a row, consider as a failure
+                # Failure if there are too many lost client requests in a row
                 if lost_requests > max_lost_requests:
                     _log.warning("Lost %d/%d requests from client (in a row), update failed",
                                  lost_requests, max_lost_requests)
