@@ -93,7 +93,7 @@ class SocketInfo:
             List: list with the IDs of all active (open) sockets, or empty list
                 if there is not any active socket.
         """
-        socket_list = list()
+        socket_list = []
         ids_array = bytearray.fromhex(
             utils.hex_to_string(raw)).decode("utf8").strip().split(
                 SocketInfo.__SEPARATOR)

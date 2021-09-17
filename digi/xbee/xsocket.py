@@ -117,7 +117,7 @@ class socket:
             self.__create_socket()
 
         lock = threading.Condition()
-        received_state = list()
+        received_state = []
 
         # Define the socket state received callback.
         def socket_state_received_callback(socket_id, state):
@@ -251,7 +251,7 @@ class socket:
             raise XBeeSocketException(message="Socket must be listening")
 
         lock = threading.Condition()
-        received_packet = list()
+        received_packet = []
 
         # Define the IPv4 client callback.
         def ipv4_client_callback(packet):

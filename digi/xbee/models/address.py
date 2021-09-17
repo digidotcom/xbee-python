@@ -299,8 +299,6 @@ class XBee64BitAddress:
     """
 
     __REGEXP = re.compile(PATTERN)
-    __DEVICE_ID_SEPARATOR = "-"
-    __DEVICE_ID_MAC_SEPARATOR = "FF"
 
     def __init__(self, address):
         """

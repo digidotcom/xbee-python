@@ -426,7 +426,7 @@ class UnknownFSCmd(FSCmd):
         try:
             return UnknownFSCmd(raw, direction=direction)
         except (ValueError, TypeError) as exc:
-            raise InvalidPacketException(message=str(exc))
+            raise InvalidPacketException(message=str(exc)) from None
 
     def output(self):
         """

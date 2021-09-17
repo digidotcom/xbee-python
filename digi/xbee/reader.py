@@ -579,8 +579,7 @@ class PacketListener(threading.Thread):
                     if "device reports readiness to read but returned no data" in str(exc):
                         self._log.warning("Serial exception while reading: %s", exc)
                         continue
-                    else:
-                        raise exc
+                    raise exc
 
                 if raw_packet is not None:
                     # If the current protocol is 802.15.4, the packet may have
@@ -1855,7 +1854,7 @@ class XBeeQueue(Queue):
         try:
             return Queue.get(self, True, timeout)
         except Empty:
-            raise TimeoutException()
+            raise TimeoutException() from None
 
     def get_by_remote(self, remote, timeout=None):
         """

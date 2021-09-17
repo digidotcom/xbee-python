@@ -84,23 +84,12 @@ class _XModemMode(Enum):
     |     **name** (String): The name of this _XModemMode.
     |     **value** (Integer): The ID of this _XModemMode.
     """
-    XMODEM = ("XModem", _XMODEM_BLOCK_SIZE_128, _PADDING_BYTE_XMODEM)
-    YMODEM = ("YModem", _XMODEM_BLOCK_SIZE_1K, _PADDING_BYTE_YMODEM)
+    XMODEM = (_XMODEM_BLOCK_SIZE_128, _PADDING_BYTE_XMODEM)
+    YMODEM = (_XMODEM_BLOCK_SIZE_1K, _PADDING_BYTE_YMODEM)
 
-    def __init__(self, name, block_size, eof_pad):
-        self.__name = name
+    def __init__(self, block_size, eof_pad):
         self.__block_size = block_size
         self.__eof_pad = eof_pad
-
-    @property
-    def name(self):
-        """
-        Returns the name of the _XModemMode element.
-
-        Returns:
-            String: the name of the _XModemMode element.
-        """
-        return self.__name
 
     @property
     def block_size(self):
@@ -140,12 +129,12 @@ class _XModemVerificationMode(Enum):
         self.__byte = byte
 
     @property
-    def name(self):
+    def identifier(self):
         """
-        Returns the name of the _XModemVerificationMode element.
+        Returns the identifier of the _XModemVerificationMode element.
 
         Returns:
-            String: the name of the _XModemVerificationMode element.
+            String: the identifier of the _XModemVerificationMode element.
         """
         return self.__name
 
@@ -294,7 +283,7 @@ class _DownloadFile:
             self._chunk_index += 1
         except Exception as exc:
             self.close_file()
-            raise XModemException(_ERROR_XMODEM_WRITE_TO_FILE % (self._file_path, str(exc)))
+            raise XModemException(_ERROR_XMODEM_WRITE_TO_FILE % (self._file_path, str(exc))) from None
 
     def close_file(self):
         """
@@ -464,7 +453,7 @@ class _XModemTransferSession:
         if retries <= 0:
             raise XModemException(_ERROR_XMODEM_READ_VERIFICATION % _XMODEM_WRITE_RETRIES)
         if self._log:
-            self._log.debug("Verification mode is '%s'" % self._verification_mode.name)
+            self._log.debug("Verification mode is '%s'" % self._verification_mode.identifier)
 
     def _send_block_0(self):
         """
@@ -819,7 +808,7 @@ class _XModemReadSession:
                 raise XModemException(_ERROR_XMODEM_READ_PACKET_TIMEOUT)
             # Second sequence byte should be the same as first as 1's complement
             seq_byte_2 = 0xff - seq_byte_2[0]
-            if not (seq_byte == seq_byte_2 == self._seq_index):
+            if not seq_byte == seq_byte_2 == self._seq_index:
                 # Invalid block index.
                 if self._log:
                     self._log.error(_ERROR_XMODEM_BAD_BLOCK_NUMBER % (self._seq_index, seq_byte))
@@ -895,7 +884,7 @@ class _XModemReadSession:
         try:
             size = int(size.decode(encoding='utf8', errors='ignore'))
         except ValueError:
-            raise XModemException("Bad file size")
+            raise XModemException("Bad file size") from None
         self._download_file.size = size
 
         self._send_ack()

@@ -351,7 +351,7 @@ class SyncRequestSender:
         self._packet = packet_to_send
         self._timeout = timeout
         self._lock = threading.Condition()
-        self._response_list = list()
+        self._response_list = []
 
     def send(self):
         """

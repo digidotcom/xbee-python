@@ -148,13 +148,13 @@ class _FilesystemFunction(Enum):
                 provided name.
         """
         for value in _FilesystemFunction:
-            if value.name == name:
+            if value.cmd_name == name:
                 return value
 
         return None
 
     @property
-    def name(self):
+    def cmd_name(self):
         """
         Returns the name of the `_FilesystemFunction` element.
 
@@ -2684,7 +2684,7 @@ class LocalXBeeFileSystemManager:
         if not isinstance(function, _FilesystemFunction):
             return False
 
-        return function.name in self._supported_functions
+        return function.cmd_name in self._supported_functions
 
     @staticmethod
     def _check_function_error(answer, command):
@@ -2777,7 +2777,7 @@ class LocalXBeeFileSystemManager:
         """
         # Sanity checks.
         if not self._is_function_supported(cmd_type):
-            raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED % cmd_type.name)
+            raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED % cmd_type.cmd_name)
         if not self._check_atcmd_mode():
             raise FileSystemException(_ERROR_ENTER_CMD_MODE)
 
@@ -2794,7 +2794,7 @@ class LocalXBeeFileSystemManager:
             return answer
         except SerialException as exc:
             raise FileSystemException(_ERROR_EXECUTE_COMMAND %
-                                      (command.replace("\r", ""), str(exc)))
+                                      (command.replace("\r", ""), str(exc))) from None
 
     @property
     def is_connected(self):
@@ -2849,7 +2849,7 @@ class LocalXBeeFileSystemManager:
                 # much info but confusion.
                 pass
             if isinstance(exc, SerialException):
-                raise FileSystemException(_ERROR_CONNECT_FILESYSTEM % str(exc))
+                raise FileSystemException(_ERROR_CONNECT_FILESYSTEM % str(exc)) from None
             raise exc
 
     def disconnect(self):
@@ -3071,10 +3071,10 @@ class LocalXBeeFileSystemManager:
         # Sanity checks.
         if secure and not self._is_function_supported(_FilesystemFunction.XPUT):
             raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED
-                                      % _FilesystemFunction.XPUT.name)
+                                      % _FilesystemFunction.XPUT.cmd_name)
         if not secure and not self._is_function_supported(_FilesystemFunction.PUT):
             raise FileSystemException(_ERROR_FUNCTION_NOT_SUPPORTED
-                                      % _FilesystemFunction.PUT.name)
+                                      % _FilesystemFunction.PUT.cmd_name)
 
         # Sanitize destination path.
         dest_path = dest_path.replace('\\', '/')
@@ -3111,7 +3111,7 @@ class LocalXBeeFileSystemManager:
                 progress_cb=progress_callback, log=_log)
         except XModemException as exc:
             raise FileSystemException(_ERROR_EXECUTE_COMMAND %
-                                      (command.replace("\r", ""), str(exc)))
+                                      (command.replace("\r", ""), str(exc))) from None
         # Read operation result.
         answer = self._read_data(timeout=_READ_DATA_TIMEOUT,
                                  empty_retries=_READ_EMPTY_DATA_RETRIES)
@@ -3197,14 +3197,14 @@ class LocalXBeeFileSystemManager:
                                            "Transfer not ready"))
         except SerialException as exc:
             raise FileSystemException(_ERROR_EXECUTE_COMMAND %
-                                      (command.replace("\r", ""), str(exc)))
+                                      (command.replace("\r", ""), str(exc))) from None
         # Receive the file.
         try:
             xmodem.get_file_ymodem(dest_path, self._xmodem_write_cb, self._xmodem_read_cb,
                                    progress_cb=progress_callback, log=_log)
         except XModemException as exc:
             raise FileSystemException(_ERROR_EXECUTE_COMMAND %
-                                      (command.replace("\r", ""), str(exc)))
+                                      (command.replace("\r", ""), str(exc))) from None
         # Read operation result.
         answer = self._read_data()
         if not answer:
@@ -3233,7 +3233,7 @@ class LocalXBeeFileSystemManager:
                 raise FileSystemException(_ERROR_TIMEOUT)
         except SerialException as exc:
             raise FileSystemException(_ERROR_EXECUTE_COMMAND %
-                                      (command.replace("\r", ""), str(exc)))
+                                      (command.replace("\r", ""), str(exc))) from None
 
     def get_usage_information(self):
         """
@@ -3323,7 +3323,7 @@ def update_remote_filesystem_image(remote_device, ota_filesystem_file,
             timeout=timeout, progress_callback=progress_callback, _prepare=_prepare)
     except FirmwareUpdateException as exc:
         _log.error("ERROR: %s", str(exc))
-        raise FileSystemException(str(exc))
+        raise FileSystemException(str(exc)) from None
 
 
 def check_fs_support(xbee, min_fw_vers=None, max_fw_vers=None):

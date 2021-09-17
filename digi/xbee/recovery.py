@@ -271,6 +271,8 @@ class _LocalRecoverDevice:
             _log.debug("[try %d] Could not determine the baudrate to get the "
                        "values in recovery mode", retry)
 
+        return None
+
     def _enter_in_recovery(self):
         """
         Enters the device in recovery mode.

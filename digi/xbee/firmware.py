@@ -567,7 +567,7 @@ class _OTAFile:
                 self._discard_size = self._header_length + _OTA_GBL_SIZE_BYTE_COUNT
                 _log.debug(" - Discard size: %d", self._discard_size)
         except IOError as exc:
-            raise _ParsingOTAException(_ERROR_PARSING_OTA_FILE % str(exc))
+            raise _ParsingOTAException(_ERROR_PARSING_OTA_FILE % str(exc)) from None
 
     def get_next_data_chunk(self, offset, size):
         """
@@ -590,7 +590,7 @@ class _OTAFile:
             return self._file.read(size)
         except IOError as exc:
             self.close_file()
-            raise _ParsingOTAException(str(exc))
+            raise _ParsingOTAException(str(exc)) from None
 
     def close_file(self):
         """
@@ -1741,6 +1741,10 @@ class UpdateConfigurer:
                 the network.
             restore_later (Boolean, optional, default=`True`): `True` to
                 restore node original values when finish the update process.
+
+        Raises:
+            XBeeException: If cannot get network synchronous sleep configuration,
+                or cannot prepare the network.
         """
         _log.info("'%s' - %s", self._xbee, self.TASK_PREPARE)
 
@@ -1856,7 +1860,17 @@ class UpdateConfigurer:
         Returns:
             Integer: Total work done for the task.
         """
-        if not self._callback and not _log.isEnabledFor(logging.DEBUG):
+        if self._xbee.is_remote():
+            xnet = self._xbee.get_local_xbee_device().get_network()
+        else:
+            xnet = self._xbee.get_network()
+
+        net_progress_cbs = None
+        if xnet:
+            net_progress_cbs = xnet.get_update_progress_callbacks()
+
+        if (not self._callback and not net_progress_cbs
+                and not _log.isEnabledFor(logging.DEBUG)):
             return 0
 
         percentage = 0
@@ -1871,8 +1885,8 @@ class UpdateConfigurer:
         if active_task:
             if done > 0:
                 self._task_done[active_task] = done
-            percentage = self._task_done[active_task] * 100 // self._task_total[active_task]
             total_done = self._task_done[active_task]
+            percentage = total_done * 100 // self._task_total[active_task]
             if done == 0:
                 self._task_done[active_task] += 1
             percentage = max(min(percentage, 100), 0)
@@ -1880,6 +1894,11 @@ class UpdateConfigurer:
         _log.debug("%s: %d", task, percentage)
         if self._callback:
             self._callback(task, percentage)
+        if net_progress_cbs:
+            update_type = self._xbee._active_update_type
+            net_progress_cbs(self._xbee,
+                             UpdateProgressStatus(update_type,
+                                                  task, percentage, False))
 
         return total_done
 
@@ -1979,6 +1998,10 @@ class UpdateConfigurer:
         It also modifies 'SO' of the local XBee to be eligible to be a sleep
         coordinator (bit 1 = 0) and enable modem status network sleep frames
         (bit 2 = 1). It stores original values to restore them later.
+
+        Raises:
+            XBeeException: If cannot get network synchronous sleep configuration,
+                or cannot prepare the network.
         """
         if not self.sync_sleep:
             return
@@ -2005,6 +2028,7 @@ class UpdateConfigurer:
             if os_val is None or ow_val is None:
                 msg = error_format % "Cannot get network synchronous sleep configuration"
                 _log.error(msg)
+                self.progress_cb("%s: %s" % (self.TASK_PREPARE, msg), done=100)
                 raise XBeeException(msg)
 
             # Read the sleep options
@@ -2014,6 +2038,7 @@ class UpdateConfigurer:
             if so_val is None:
                 msg = error_format % "Cannot get network synchronous sleep configuration"
                 _log.error(msg)
+                self.progress_cb("%s: %s" % (self.TASK_PREPARE, msg), done=100)
                 raise XBeeException(msg)
 
             so_val = utils.int_to_bytes(utils.bytes_to_int(so_val), 2)
@@ -2070,6 +2095,7 @@ class UpdateConfigurer:
             if msg:
                 self._restore_network_after_update()
                 _log.error(msg)
+                self.progress_cb("%s: %s" % (self.TASK_PREPARE, msg), done=100)
                 raise XBeeException(msg)
             if so_val[1] & 0x04 != 4:
                 # Restore SO not to have so many modem status frames
@@ -2355,6 +2381,19 @@ class _XBeeFirmwareUpdater(ABC):
         self._target_region_lock = None
         self._target_bootloader_version = None
 
+    def _notify_progress(self, task_str, percent, finished=False):
+        """
+        Notifies update progress information.
+
+        Args:
+            task_str (String): Current update task.
+            percent (Integer): Current update progress percent.
+            finished (Boolean, optional, default=`False`): `True` if the update
+                process finished, `False` otherwise.
+        """
+        if self._progress_callback:
+            self._progress_callback(task_str, percent)
+
     def _parse_xml_firmware_file(self):
         """
         Parses the XML firmware file and stores the required parameters.
@@ -2609,13 +2648,13 @@ class _XBeeFirmwareUpdater(ABC):
         try:
             self._restore_updater()
         except Exception as exc:
-            raise FirmwareUpdateException(_ERROR_RESTORE_TARGET_CONNECTION % str(exc))
+            raise FirmwareUpdateException(_ERROR_RESTORE_TARGET_CONNECTION % str(exc)) from None
 
         # Leave local connection in its original state.
         try:
             self._restore_local_connection()
         except Exception as exc:
-            raise FirmwareUpdateException(_ERROR_RESTORE_LOCAL_CONNECTION % str(exc))
+            raise FirmwareUpdateException(_ERROR_RESTORE_LOCAL_CONNECTION % str(exc)) from None
 
         # Update target information.
         self._update_target_information()
@@ -2980,7 +3019,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                 self._serial_port.open()
             except SerialException as exc:
                 _log.error(_ERROR_CONNECT_SERIAL_PORT, str(exc))
-                raise FirmwareUpdateException(_ERROR_CONNECT_SERIAL_PORT % str(exc))
+                raise FirmwareUpdateException(_ERROR_CONNECT_SERIAL_PORT % str(exc)) from exc
 
             # Check if device is in bootloader mode.
             _log.debug("Checking if bootloader is active")
@@ -3075,7 +3114,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
             self._xbee._read_device_info(NetworkEventReason.FIRMWARE_UPDATE,
                                          init=True, fire_event=True)
         except XBeeException as exc:
-            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFO % str(exc))
+            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFO % str(exc)) from None
         finally:
             if not was_open:
                 self._xbee.close()
@@ -3425,7 +3464,7 @@ class _RemoteFirmwareUpdater(_XBeeFirmwareUpdater):
             if not initialized:
                 self._exit_with_error(_ERROR_UPDATE_TARGET_TIMEOUT, restore_updater=False)
         except XBeeException as exc:
-            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFO % str(exc))
+            raise FirmwareUpdateException(_ERROR_UPDATE_TARGET_INFO % str(exc)) from None
         finally:
             if self._old_sync_ops_timeout is not None:
                 self._local.set_sync_ops_timeout(self._old_sync_ops_timeout)
@@ -3827,11 +3866,11 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
             if (not self._run_fw_operation()
                     and not (self._is_bootloader_active()
                              or self._enter_bootloader_mode_with_break())):
-                raise FirmwareUpdateException(_ERROR_XMODEM_RESTART)
+                raise FirmwareUpdateException(_ERROR_XMODEM_RESTART) from None
             try:
                 self._serial_port.purge_port()
             except SerialException as exc:
-                raise FirmwareUpdateException(_ERROR_XMODEM_COMMUNICATION % str(exc))
+                raise FirmwareUpdateException(_ERROR_XMODEM_COMMUNICATION % str(exc)) from None
             self._start_firmware_upload_operation()
             try:
                 xmodem.send_file_xmodem(fw_file_path, self._xmodem_write_cb,
@@ -3840,7 +3879,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
             except XModemException:
                 raise
         except XModemException as exc:
-            raise FirmwareUpdateException(str(exc))
+            raise FirmwareUpdateException(str(exc)) from exc
 
 
 class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
@@ -4067,7 +4106,7 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
             if _GEN3_BOOTLOADER_PROMPT not in answer_str:
                 raise FirmwareUpdateException(_ERROR_INITIALIZE_PROCESS)
         except TypeError:
-            raise FirmwareUpdateException(_ERROR_INITIALIZE_PROCESS)
+            raise FirmwareUpdateException(_ERROR_INITIALIZE_PROCESS) from None
 
     def _send_finish_cmd(self):
         """
@@ -4085,7 +4124,7 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
             if _GEN3_BOOTLOADER_PROMPT not in answer_str:
                 raise FirmwareUpdateException(_ERROR_FINISH_PROCESS)
         except TypeError:
-            raise FirmwareUpdateException(_ERROR_FINISH_PROCESS)
+            raise FirmwareUpdateException(_ERROR_FINISH_PROCESS) from None
 
     def _send_verify_cmd(self):
         """
@@ -4186,7 +4225,7 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
                 else:
                     page_flashed = True
             except SerialException as exc:
-                raise FirmwareUpdateException(_ERROR_SERIAL_COMMUNICATION % str(exc))
+                raise FirmwareUpdateException(_ERROR_SERIAL_COMMUNICATION % str(exc)) from exc
 
     def _calculate_page_verification(self, page):
         """
@@ -4635,7 +4674,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             data_block = self._ota_file.get_next_data_chunk(
                 self._get_ota_offset(file_offset), size)
         except _ParsingOTAException as exc:
-            raise FirmwareUpdateException(_ERROR_READ_OTA_FILE % str(exc))
+            raise FirmwareUpdateException(_ERROR_READ_OTA_FILE % str(exc)) from exc
         payload = bytearray()
         # This status could be:
         #    * _XBee3OTAStatus.SUCCESS (0x00): Image data is available
@@ -4733,11 +4772,11 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             if self._is_next_img_req_frame(frame):
                 _log.debug("Received 'Query next image' request frame")
                 self._img_req_received = True
-                server_status, self._seq_number = self._parse_next_img_req_frame(frame)
+                _server_status, self._seq_number = self._parse_next_img_req_frame(frame)
             elif self._is_default_response_frame(frame, self._seq_number):
                 _log.debug("Received 'Default response' frame")
                 # If the received frame is a 'default response' frame, set the corresponding error.
-                ota_cmd, status = self._parse_default_response_frame(frame, self._seq_number)
+                _ota_cmd, status = self._parse_default_response_frame(frame, self._seq_number)
                 self._response_str = (status.description if status is not None
                                       else _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR)
             else:
@@ -4797,7 +4836,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         elif self._is_default_response_frame(frame, self._seq_number):
             _log.debug("Received 'Default response' frame")
             # If the received frame is a 'default response' frame, set the corresponding error.
-            ota_cmd, status = self._parse_default_response_frame(frame, self._seq_number)
+            _ota_cmd, status = self._parse_default_response_frame(frame, self._seq_number)
             self._response_str = (status.description if status is not None
                                   else _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR)
         else:
@@ -4819,7 +4858,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         server_status = _XBee3OTAStatus.SUCCESS
         man_code = utils.bytes_to_int(_reverse_bytearray(payload[4:6]))
         img_type = utils.bytes_to_int(_reverse_bytearray(payload[6:8]))
-        fw_version = utils.bytes_to_int(_reverse_bytearray(payload[8:11]))
+        _fw_version = utils.bytes_to_int(_reverse_bytearray(payload[8:11]))
         compatibility_number = payload[11] & 0xFF
 
         # Check manufacturer:
@@ -5096,7 +5135,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                 retries -= 1
                 if not retries:
                     raise FirmwareUpdateException(_ERROR_SEND_FRAME_RESPONSE %
-                                                  (name, str(exc)))
+                                                  (name, str(exc))) from None
                 time.sleep(2)
 
         raise FirmwareUpdateException(
@@ -5176,7 +5215,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                         return size
                 elif not retries:
                     raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK
-                                                  % (file_offset, str(exc)))
+                                                  % (file_offset, str(exc))) from None
 
         raise FirmwareUpdateException(_ERROR_SEND_OTA_BLOCK
                                       % (file_offset, "Timeout sending frame"))
@@ -5292,8 +5331,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             # Ensure to wait at least 45 seconds for the first Image Block Request.
             # Workaround for client (remote) fw version 1008 and prior, see
             # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
-            _log.debug("Waiting for first 'Image Block Request' request (%f s)"
-                       % max(self._timeout, timeout_for_request))
+            _log.debug("Waiting for first 'Image Block Request' request (%f s)",
+                       max(self._timeout, timeout_for_request))
             if (not self._transfer_lock.wait(max(self._timeout, timeout_for_request))
                     and not self._remote_fw_desc.wait_for_client_retry()):
                 # Send the first chunk of the ota file.
@@ -5350,7 +5389,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             # Ensure to wait for the Image Block Request
             # Workaround for client (remote) fw version 1008 and prior, see
             # https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm
-            _log.debug("Waiting for next request (%f s)" % max(self._timeout, timeout_for_request))
+            _log.debug("Waiting for next request (%f s)", max(self._timeout, timeout_for_request))
             if not self._transfer_lock.wait(max(self._timeout, timeout_for_request)):
                 retries -= 1
                 if retries > 0:
@@ -7389,7 +7428,7 @@ def _determine_bootloader_type(target):
                 target.close()
             return _BootloaderType.determine_bootloader_type(hardware_version)
         except XBeeException as exc:
-            raise FirmwareUpdateException(_ERROR_DETERMINE_BOOTLOADER_TYPE % str(exc))
+            raise FirmwareUpdateException(_ERROR_DETERMINE_BOOTLOADER_TYPE % str(exc)) from exc
     else:
         # A serial port was given, determine the bootloader by testing prompts and baud rates.
         # -- 1 -- Check if bootloader is active.
@@ -7399,7 +7438,7 @@ def _determine_bootloader_type(target):
             port.open()
         except SerialException as exc:
             _log.error(_ERROR_CONNECT_SERIAL_PORT, str(exc))
-            raise FirmwareUpdateException(_ERROR_DETERMINE_BOOTLOADER_TYPE % str(exc))
+            raise FirmwareUpdateException(_ERROR_DETERMINE_BOOTLOADER_TYPE % str(exc)) from exc
         # Check if GEN3 bootloader is active.
         if _is_bootloader_active_generic(
                 port, _GEN3_BOOTLOADER_TEST_CHAR, _GEN3_BOOTLOADER_PROMPT):

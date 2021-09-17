@@ -416,7 +416,8 @@ class AbstractXBeeDevice:
 
         return response.response
 
-    def _check_at_cmd_response_is_valid(self, response):
+    @staticmethod
+    def _check_at_cmd_response_is_valid(response):
         """
         Checks if the provided `ATCommandResponse` is valid throwing an
         :class:`.ATCommandException` in case it is not.
@@ -1222,7 +1223,7 @@ class AbstractXBeeDevice:
             mode = IOMode(value[0])
         except ValueError:
             raise OperationNotSupportedException(
-                "Received configuration IO mode '%s' is invalid." % utils.hex_to_string(value))
+                "Received configuration IO mode '%s' is invalid." % utils.hex_to_string(value)) from None
         return mode
 
     def get_io_sampling_rate(self):
@@ -1340,7 +1341,7 @@ class AbstractXBeeDevice:
         try:
             return IOSample(sample_payload)
         except Exception as exc:
-            raise XBeeException("Could not create the IO sample.", exc)
+            raise XBeeException("Could not create the IO sample.", exc) from None
 
     def get_adc_value(self, io_line):
         """
@@ -2033,22 +2034,6 @@ class AbstractXBeeDevice:
 
         return packet
 
-    @staticmethod
-    def __is_api_packet(xbee_packet):
-        """
-        Determines whether the provided XBee packet is an API packet.
-
-        Returns:
-            Boolean: `True` if the provided XBee packet is an API packet (its
-                frame type is in :class:`.ApiFrameType` enum), `False` otherwise.
-        """
-        aft = xbee_packet.get_frame_type()
-        try:
-            ApiFrameType.get(aft)
-        except ValueError:
-            return False
-        return True
-
     def _add_packet_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.PacketReceived`.
@@ -2305,14 +2290,6 @@ class XBeeDevice(AbstractXBeeDevice):
     supports API modes, not AT (transparent) mode).
     """
 
-    __TIMEOUT_ENTER_COMMAND_MODE = 1.5  # seconds
-    """
-    Timeout to wait after entering in command mode in seconds.
-
-    It is used to determine the operating mode of the module (this library only
-    supports API modes, not transparent mode).
-    """
-
     __TIMEOUT_RESET = 5  # seconds
     """
     Timeout to wait when resetting the module.
@@ -2321,16 +2298,6 @@ class XBeeDevice(AbstractXBeeDevice):
     TIMEOUT_READ_PACKET = 3  # seconds
     """
     Timeout to read packets.
-    """
-
-    __COMMAND_MODE_CHAR = "+"
-    """
-    Character you have to send to enter AT command mode
-    """
-
-    __COMMAND_MODE_OK = "OK\r"
-    """
-    Response received if the attempt to enter in AT command mode goes well.
     """
 
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
@@ -2460,7 +2427,7 @@ class XBeeDevice(AbstractXBeeDevice):
                            "forcing settings using recovery: %s", str(exc))
             if self._serial_port is None:
                 raise XBeeException("Can not open the port by forcing the settings, "
-                                    "it is only supported for Serial")
+                                    "it is only supported for Serial") from None
             self._autodetect_device()
             self.open(force_settings=False)
 
@@ -2475,7 +2442,7 @@ class XBeeDevice(AbstractXBeeDevice):
                 the operating mode.
             XBeeException: If the XBee is already opened.
         """
-        xbee_info = self._comm_iface.get_local_xbee_info() if self._comm_iface else None
+        xbee_info = self._comm_iface.get_local_xbee_info() if self._comm_iface else ()
         if xbee_info:
             self._operating_mode = OperatingMode.get(xbee_info[0])
             self._hardware_version = HardwareVersion.get(xbee_info[1])
@@ -6196,8 +6163,6 @@ class IPDevice(XBeeDevice):
 
     __DEFAULT_SOURCE_PORT = 9750
 
-    __DEFAULT_PROTOCOL = IPProtocol.TCP
-
     __OPERATION_EXCEPTION = "Operation not supported in this module."
 
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
@@ -7731,12 +7696,7 @@ class WiFiDevice(IPDevice):
             quality = 2 * signal_strength
 
         # Check limits.
-        if quality > 100:
-            quality = 100
-        if quality < 0:
-            quality = 0
-
-        return quality
+        return max(min(quality, 100), 0)
 
     def get_access_point_timeout(self):
         """
@@ -10112,7 +10072,7 @@ class XBeeNetwork:
             self.set_discovery_timeout(self._node_timeout)
         except XBeeException as exc:
             raise XBeeException(
-                "Could not prepare XBee for network discovery: %s" % str(exc))
+                "Could not prepare XBee for network discovery: %s" % str(exc)) from exc
 
     def __init_scan(self):
         """
@@ -10346,6 +10306,7 @@ class XBeeNetwork:
             return err_code
         except Exception as exc:
             self._local_xbee.log.exception(exc)
+            return NetworkDiscoveryStatus.ERROR_GENERAL
 
     def _node_discovery_process_finished(self, requester, code=None, error=None):
         """
@@ -10713,7 +10674,7 @@ class XBeeNetwork:
         connections = []
         with self.__conn_lock:
             for conn in self.__connections:
-                if conn.node_a == node or conn.node_b == node:
+                if node in (conn.node_a, conn.node_b):
                     connections.append(conn)
 
         return connections
@@ -11074,7 +11035,7 @@ class ZigBeeNetwork(XBeeNetwork):
             self.__enable_explicit_mode()
         except XBeeException as exc:
             raise XBeeException(
-                "Could not prepare XBee for network discovery: %s" % str(exc))
+                "Could not prepare XBee for network discovery: %s" % str(exc)) from exc
 
     def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
         """
@@ -11457,7 +11418,8 @@ class ZigBeeNetwork(XBeeNetwork):
 
         return None
 
-    def __stop_zdo_command(self, commands, cmd_type):
+    @staticmethod
+    def __stop_zdo_command(commands, cmd_type):
         """
         Stops the execution of the ZDO command contained in the given dictionary.
         This method blocks until the ZDO command is completely stopped.
@@ -11609,7 +11571,7 @@ class DigiMeshNetwork(XBeeNetwork):
 
         except XBeeException as exc:
             raise XBeeException(
-                "Could not prepare XBee for network discovery: %s" % str(exc))
+                "Could not prepare XBee for network discovery: %s" % str(exc)) from exc
 
         # Calculate the real timeout to wait for responses, based on 'N?' and
         # the cyclic sleep times, if the node is configured for that.

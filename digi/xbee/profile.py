@@ -768,7 +768,7 @@ class XBeeProfile:
         """
         # If already open, just return
         if self._profile_dir:
-            return
+            return self._profile_dir
         try:
             self._profile_dir = tempfile.mkdtemp()
         except (PermissionError, FileExistsError) as exc:
@@ -1507,7 +1507,7 @@ class _ProfileUpdater:
                     bootloader_firmware_file=self._profile.bootloader_file,
                     timeout=self._timeout, progress_callback=self._progress_callback)
         except FirmwareUpdateException as exc:
-            raise UpdateProfileException(_ERROR_UPDATE_FW % str(exc))
+            raise UpdateProfileException(_ERROR_UPDATE_FW % str(exc)) from exc
 
     def _check_port_settings_changed(self):
         """
@@ -1626,7 +1626,7 @@ class _ProfileUpdater:
         if (len(self._profile.profile_settings) == 0
                 and not self._profile.reset_settings
                 and not isinstance(self._target, str)):
-            return False, False
+            return False, False, None
 
         # For remote nodes that changed the protocol, raise an exception if
         # there are settings to apply or reset as the node is no longer reachable.
@@ -1733,7 +1733,7 @@ class _ProfileUpdater:
             self.set_parameter_with_retries(ATStringCommand.WR, bytearray(0),
                                             _PARAM_WRITE_RETRIES, apply=bool(not cmd_dict))
         except XBeeException as exc:
-            raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(exc))
+            raise UpdateProfileException(_ERROR_UPDATE_SETTINGS % str(exc)) from None
 
         # Check if port settings have changed on local devices.
         port_params = None
@@ -1780,9 +1780,9 @@ class _ProfileUpdater:
                     self._progress_callback(_TASK_UPDATE_FILE % src, percent)
                     if self._progress_callback is not None else None)
             except FileSystemNotSupportedException:
-                raise UpdateProfileException(_ERROR_FS_NOT_SUPPORTED)
+                raise UpdateProfileException(_ERROR_FS_NOT_SUPPORTED) from None
             except FileSystemException as exc:
-                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc))
+                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc)) from exc
         else:
             self._legacy_update_file_system()
 
@@ -1819,9 +1819,9 @@ class _ProfileUpdater:
                     self._progress_callback(_TASK_UPDATE_FILE % file, percent)
                     if self._progress_callback is not None else None)
             except FileSystemNotSupportedException:
-                raise UpdateProfileException(_ERROR_FS_NOT_SUPPORTED)
+                raise UpdateProfileException(_ERROR_FS_NOT_SUPPORTED) from None
             except FileSystemException as exc:
-                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc))
+                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc)) from exc
             finally:
                 if fs_manager:
                     try:
@@ -1844,7 +1844,7 @@ class _ProfileUpdater:
                     max_block_size=self._xbee.get_ota_max_block_size(),
                     timeout=self._timeout, progress_callback=self._progress_callback)
             except FileSystemException as exc:
-                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc))
+                raise UpdateProfileException(_ERROR_UPDATE_FS % str(exc)) from exc
 
     def _should_update_fw(self):
         """
@@ -1888,7 +1888,7 @@ class _ProfileUpdater:
                 try:
                     self._xbee.open()
                 except XBeeException as exc:
-                    raise UpdateProfileException(_ERROR_OPEN_DEVICE % str(exc))
+                    raise UpdateProfileException(_ERROR_OPEN_DEVICE % str(exc)) from None
             # For local devices, required parameters are read on 'open()'
             # method, just use them.
             self._device_fw_version = self._xbee.get_firmware_version()
@@ -1902,7 +1902,7 @@ class _ProfileUpdater:
                     self.read_parameter_with_retries(
                         ATStringCommand.HV, _PARAM_READ_RETRIES)[0])
             except XBeeException as exc:
-                raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(exc))
+                raise UpdateProfileException(_ERROR_READ_REMOTE_PARAMETER % str(exc)) from None
 
         # Sanitize firmware version.
         self._device_fw_version = int(utils.hex_to_string(
@@ -2073,7 +2073,7 @@ def apply_xbee_profile(target, profile_path, timeout=None, progress_callback=Non
     except (ValueError, ReadProfileException) as exc:
         error = _ERROR_PROFILE_INVALID % str(exc)
         _log.error("ERROR: %s", error)
-        raise UpdateProfileException(error)
+        raise UpdateProfileException(error) from exc
 
     if not timeout:
         timeout = _REMOTE_DEFAULT_TIMEOUT \

@@ -295,7 +295,7 @@ class _ZDOCommand(metaclass=ABCMeta):
             node.set_parameter(ATStringCommand.AO, value, apply=True)
 
         except XBeeException as exc:
-            raise XBeeException("Could not prepare XBee for ZDO: " + str(exc))
+            raise XBeeException("Could not prepare XBee for ZDO: " + str(exc)) from exc
 
     def __restore_device(self):
         """
