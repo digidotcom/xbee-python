@@ -5206,6 +5206,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
 
         while retries > 0:
             _log.debug("Sending '%s' frame", name)
+            self._receive_lock.clear()
             try:
                 self._local.send_packet(image_notify_request_frame)
                 self._receive_lock.wait(self._timeout)
