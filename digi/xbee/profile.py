@@ -793,8 +793,8 @@ class XBeeProfile:
         # Remote filesystem OTA file.
         if self._has_remote_fs:
             self._remote_fs_image = os.path.join(
-                self._profile_dir, _LOCAL_FS_DIR,
-                os.listdir(os.path.join(self._profile_dir, _LOCAL_FS_DIR))[0])
+                self._profile_dir, _REMOTE_FS_DIR,
+                os.listdir(os.path.join(self._profile_dir, _REMOTE_FS_DIR))[0])
         # Bootloader file.
         if len(list(firmware_path.rglob(_WILDCARD_BOOTLOADER))) != 0:
             self._bootloader_file = str(
