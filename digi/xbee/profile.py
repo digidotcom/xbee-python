@@ -891,7 +891,7 @@ class XBeeProfile:
                                            % "missing firmware file element")
             self._fw_xml_filename = fw_xml_file_element.text
             # Store XML firmware file name.
-            self._fw_xml_file = os.path.join(_FW_DIR_NAME, self._fw_xml_filename)
+            self._fw_xml_file = _FW_DIR_NAME + "/" + self._fw_xml_filename
             _log.debug(" - XML firmware file: %s", self._fw_xml_file)
             # Version. Optional.
             version_element = root.find(_XML_PROFILE_VERSION)

@@ -39,7 +39,7 @@ def main():
         if not xbee_profile.profile_settings:
             print("    - None")
             return
-        for profile_setting in xbee_profile.profile_settings:
+        for profile_setting in xbee_profile.profile_settings.values():
             print("    - Setting '%s' - type: %s - format: %s - value: %s" %
                   (profile_setting.name, profile_setting.type.description,
                    profile_setting.format.description, profile_setting.value))
