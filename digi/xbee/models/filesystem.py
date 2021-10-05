@@ -796,7 +796,8 @@ class OpenFileCmdRequest(FileIdNameCmd):
         if direction != FSCmd.REQUEST:
             raise InvalidPacketException(message="Direction must be 0")
 
-        return OpenFileCmdRequest(utils.bytes_to_int(raw[1:3]), raw[4:],
+        return OpenFileCmdRequest(utils.bytes_to_int(raw[1:3]),
+                                  raw[4:].decode('utf-8'),
                                   utils.bytes_to_int(raw[3:4]))
 
     @staticmethod
@@ -1019,7 +1020,7 @@ class CloseFileCmdResponse(FSCmd):
     """
     This class represents a file close file system command response.
 
-    Command response is received as a :class:`.CloseFileCmdRequest`.
+    This is received in response of a :class:`.CloseFileCmdRequest`.
     """
 
     def __init__(self, status):
@@ -1209,7 +1210,7 @@ class ReadFileCmdResponse(FileIdCmd):
     """
     This class represents a read file system command response.
 
-    Command response is received as a :class:`.ReadFileCmdRequest`.
+    This is received in response of a :class:`.ReadFileCmdRequest`.
     """
 
     def __init__(self, status, fid=None, offset=None, data=None):
@@ -1653,7 +1654,7 @@ class HashFileCmdResponse(FSCmd):
     """
     This class represents a file hash command response.
 
-    This is received in response of an :class:`.HashFileCmdRequest`.
+    This is received in response of a :class:`.HashFileCmdRequest`.
     """
 
     def __init__(self, status, file_hash=None):
@@ -1816,7 +1817,7 @@ class CreateDirCmdResponse(FSCmd):
     """
     This class represents a create directory file system command response.
 
-    Command response is received as a :class:`.CreateDirCmdRequest`.
+    This is received in response of a :class:`.CreateDirCmdRequest`.
     """
 
     def __init__(self, status):
@@ -2156,7 +2157,7 @@ class CloseDirCmdResponse(FSCmd):
     Directory Open Request and additional Directory Read Requests until the
     Response includes an entry with the `DirResponseFlag.ENTRY_IS_LAST` flag set.
 
-    Command response is received as a :class:`.CloseDirCmdRequest`.
+    This is received in response of a :class:`.CloseDirCmdRequest`.
     """
 
     def __init__(self, status):
@@ -2265,7 +2266,7 @@ class ReadDirCmdResponse(OpenDirCmdResponse):
     A response ending with an `DirResponseFlag.ENTRY_IS_LAST` flag automatically
     closes the Directory Handle.
 
-    This is received in response of an :class:`.ReadDirCmdRequest`.
+    This is received in response of a :class:`.ReadDirCmdRequest`.
     """
 
     def __init__(self, status, did=None, fs_entries=None):
@@ -2424,7 +2425,7 @@ class GetPathIdCmdResponse(FileIdCmd):
     This class represents a get path id file system command response.
     The full path of the new current directory is included if can fit.
 
-    This is received in response of an :class:`.GetPathIdCmdRequest`.
+    This is received in response of a :class:`.GetPathIdCmdRequest`.
     """
 
     def __init__(self, status, path_id=None, full_path=None):
@@ -2437,10 +2438,10 @@ class GetPathIdCmdResponse(FileIdCmd):
                 system command execution.
             path_id (Integer, optional, default=`None`): New directory path id.
             full_path (String or bytearray, optional, default=`None`): If short
-                enough, the full path of the current directory , relative to
-                `path_id`. Deep subdirectories may return an empty field
-                instead of their full path name. The maximum full path length
-                is 255 characters.
+                enough, the full path of the current directory (starting with
+                "/flash"). Deep subdirectories may return an empty field
+                instead of their Full Pathname. The maximum full path length is
+                255 characters.
 
         Raises:
             ValueError: If any of the parameters is invalid.
@@ -2466,7 +2467,8 @@ class GetPathIdCmdResponse(FileIdCmd):
     @property
     def full_path(self):
         """
-        Returns the full path of the current directory.
+        Returns the full path of the current directory (starting with
+        "/flash").
 
         Returns:
             String: The directory full path.
@@ -2676,7 +2678,7 @@ class RenameCmdResponse(FSCmd):
     """
     This class represents a rename file system command response.
 
-    Command response is received as a :class:`.RenameCmdRequest`.
+    This is received in response of a :class:`.RenameCmdRequest`.
     """
 
     def __init__(self, status):
@@ -2790,7 +2792,7 @@ class DeleteCmdResponse(FSCmd):
     """
     This class represents a delete file system command response.
 
-    Command response is received as a :class:`.DeleteCmdRequest`.
+    This is received in response of a :class:`.DeleteCmdRequest`.
     """
 
     def __init__(self, status):
@@ -2839,8 +2841,6 @@ class DeleteCmdResponse(FSCmd):
 class VolStatCmdRequest(FSCmd):
     """
     This class represents a volume stat file system command request.
-    Formatting the file system takes time, and any other requests fails until
-    it completes and sends a response.
 
     Command response is received as a :class:`.VolStatCmdResponse`.
     """
@@ -2945,7 +2945,7 @@ class VolStatCmdResponse(FSCmd):
     """
     This class represents a stat file system command response.
 
-    Command response is received as a :class:`.VolStatCmdRequest`.
+    This is received in response of a :class:`.VolStatCmdRequest`.
     """
 
     def __init__(self, status, bytes_used=None, bytes_free=None, bytes_bad=None):
@@ -3089,6 +3089,8 @@ class VolStatCmdResponse(FSCmd):
 class VolFormatCmdRequest(VolStatCmdRequest):
     """
     This class represents a volume format file system command request.
+    Formatting the file system takes time, and any other requests fails until
+    it completes and sends a response.
 
     Command response is received as a :class:`.VolFormatCmdResponse`.
     """
@@ -3143,7 +3145,7 @@ class VolFormatCmdResponse(VolStatCmdResponse):
     """
     This class represents a format file system command response.
 
-    Command response is received as a :class:`.VolStatCmdRequest`.
+    This is received in response of a :class:`.VolStatCmdRequest`.
     """
 
     def __init__(self, status, bytes_used=None, bytes_free=None, bytes_bad=None):

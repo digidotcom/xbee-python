@@ -508,7 +508,7 @@ class FileProcess(metaclass=ABCMeta):
         file_path = file
         if isinstance(file, FileSystemElement):
             file_path = file.path
-        file_path = os.path.normpath(file_path.replace('\\', '/'))
+        file_path = os.path.normpath(file_path).replace('\\', '/')
 
         self._f_mng = f_mng
         self._f_path = file_path
@@ -556,6 +556,10 @@ class FileProcess(metaclass=ABCMeta):
     def _next(self, last=True):
         """
         Executes the next action.
+
+        Args:
+            last (Boolean, optional, default=`True'): `True` if this is the
+                last step, `False` otherwise.
         """
         error = bool(self._status not in (None, FSCommandStatus.SUCCESS.code))
 
@@ -704,7 +708,7 @@ class _ReadFileProcess(FileProcess):
         blocks until all data is read.
         Set `last` to `False` to use subsequents calls to `next` to read more
         data. When no more read is required, close the file setting `last` to
-        `True`. If the end of the file is reached it is close independently of
+        `True`. If the end of the file is reached it is closed independently of
         `last` value.
 
         Args:
@@ -829,6 +833,8 @@ class _WriteFileProcess(FileProcess):
         Override.
 
         Args:
+            offset (Integer): File offset to start writing.
+            options (Integer):
             write_callback (Function, optional, default=`None`): Method called
                 when data is written. Receives three arguments:
 
@@ -1042,7 +1048,7 @@ class FileSystemManager:
 
         Args:
             dir_path (String): Path of the new directory to create. It is
-                relative to the directory specify in base.
+                relative to the directory specified in base.
             base (:class:`.FileSystemElement`, optional, default=`None): Base
                 directory. If not specify it refers to '/flash'.
             mk_parents (Boolean, optional, default=`True`): `True` to make
@@ -1070,11 +1076,11 @@ class FileSystemManager:
 
         # Sanitize path
         path_id = 0
-        path = os.path.normpath(dir_path.replace('\\', '/'))
+        path = os.path.normpath(dir_path).replace('\\', '/')
 
         base_path = "/flash"
         if base:
-            base_path = os.path.normpath(base.path.replace('\\', '/'))
+            base_path = os.path.normpath(base.path).replace('\\', '/')
 
         comp_path = os.path.join(base_path, path)
 
@@ -1151,7 +1157,7 @@ class FileSystemManager:
             dir_path = "/flash"
         elif dir_path == "..":
             dir_path = "/"
-        dir_path = os.path.normpath(dir_path.replace('\\', '/'))
+        dir_path = os.path.normpath(dir_path).replace('\\', '/')
 
         _log.debug(self._log_str("Listing directory '%s'", dir_path))
 
@@ -1215,7 +1221,7 @@ class FileSystemManager:
             entry_path = "/flash"
         elif entry_path == "..":
             entry_path = "/"
-        entry_path = os.path.normpath(entry_path.replace('\\', '/'))
+        entry_path = os.path.normpath(entry_path).replace('\\', '/')
 
         _log.debug(self._log_str("Removing entry '%s'", entry_path))
 
@@ -1295,9 +1301,9 @@ class FileSystemManager:
             file (:class:`.FileSystemElement` or String): File to write or its
                 absolute path.
             offset (Integer, optional, default=0): File offset to start writing.
-            secure (Boolean, optional, default=`False`): `True` to store the
+            secure (Boolean, optional, default=`False`):`True` to store the
                 file securely (no read access), `False` otherwise.
-            options (Dictionary, optional): Other write options as list:
+            options (List, optional): Other write options as list:
                 `exclusive`, `truncate`, `append`.
             progress_cb (Function, optional, default=`None`): Function call
                 when data is written. Receives three arguments:
@@ -1305,6 +1311,9 @@ class FileSystemManager:
                     * The amount of bytes written (for each chunk).
                     * The progress percentage as float.
                     * The status when process finishes.
+
+        Returns:
+            :class:`.FileProcess`: The process to write data to the file.
 
         Raises:
             FileSystemException: If there is any error performing the operation
@@ -1358,7 +1367,7 @@ class FileSystemManager:
         src_path = src
         if isinstance(src, FileSystemElement):
             src_path = src.path
-        src_path = os.path.normpath(src_path.replace('\\', '/'))
+        src_path = os.path.normpath(src_path).replace('\\', '/')
 
         total_read = 0
 
@@ -1419,7 +1428,7 @@ class FileSystemManager:
         dst_path = dest
         if isinstance(dest, FileSystemElement):
             dst_path = dest.path
-        dst_path = os.path.normpath(dst_path.replace('\\', '/'))
+        dst_path = os.path.normpath(dst_path).replace('\\', '/')
 
         f_size = os.stat(src).st_size
         wr_bytes = 0
@@ -1564,7 +1573,7 @@ class FileSystemManager:
         file_path = file
         if isinstance(file, FileSystemElement):
             file_path = file.path
-        file_path = os.path.normpath(file_path.replace('\\', '/'))
+        file_path = os.path.normpath(file_path).replace('\\', '/')
 
         _log.debug(self._log_str("Retrieving SHA256 hash of '%s'", file_path))
 
@@ -1615,8 +1624,8 @@ class FileSystemManager:
 
         # Sanitize path
         path_id = 0
-        src_path = os.path.normpath(src_path.replace('\\', '/'))
-        dst_path = os.path.normpath(src_path.replace('\\', '/'))
+        src_path = os.path.normpath(src_path).replace('\\', '/')
+        dst_path = os.path.normpath(src_path).replace('\\', '/')
         common_dir = os.path.normpath(os.path.commonprefix([src_path, dst_path]))
 
         _log.debug(self._log_str("Moving '%s' to '%s' (path id: %d)", src_path,
@@ -1675,7 +1684,7 @@ class FileSystemManager:
         name = vol
         if isinstance(vol, FileSystemElement):
             name = vol.path
-        name = os.path.normpath(name.replace('\\', '/'))
+        name = os.path.normpath(name).replace('\\', '/')
 
         _log.info(self._log_str("Reading volume information '%s'", name))
 
@@ -1729,7 +1738,7 @@ class FileSystemManager:
         name = vol
         if isinstance(vol, FileSystemElement):
             name = vol.path
-        name = os.path.normpath(name.replace('\\', '/'))
+        name = os.path.normpath(name).replace('\\', '/')
 
         _log.info(self._log_str("Formatting volume '%s'", name))
 
@@ -1787,7 +1796,7 @@ class FileSystemManager:
 
         # Sanitize path
         if dir_path not in (".", ".."):
-            dir_path = os.path.normpath(dir_path.replace('\\', '/'))
+            dir_path = os.path.normpath(dir_path).replace('\\', '/')
 
         _log.info(self._log_str("Getting ID of directory '%s' (path id: %d)",
                                 dir_path, path_id))
@@ -1821,7 +1830,7 @@ class FileSystemManager:
     def pmake_directory(self, dir_path, path_id=0, timeout=DEFAULT_TIMEOUT):
         """
         Creates the provided directory. Parent directories of the one to be
-        created must exist. Separate requests must be dane to make intermediate
+        created must exist. Separate requests must be done to make intermediate
         directories.
 
         Args:
@@ -1830,8 +1839,7 @@ class FileSystemManager:
             path_id (Integer, optional, default=0): Directory path id. 0 for
                 the root directory.
             timeout (Float, optional, default=`DEFAULT_TIMEOUT`): Maximum
-                number of seconds to wait for the operation completion. If
-                `mk_parents` this is the timeout per directory creation.
+                number of seconds to wait for the operation completion.
 
         Returns:
             Integer: Status of the file system command execution
@@ -1855,7 +1863,7 @@ class FileSystemManager:
             timeout = self.DEFAULT_TIMEOUT
 
         # Sanitize path
-        path = PurePosixPath(os.path.normpath(dir_path.replace('\\', '/')))
+        path = PurePosixPath(os.path.normpath(dir_path).replace('\\', '/'))
 
         _log.info(self._log_str("Creating directory '%s' (path id: %d)",
                                 str(path), path_id))
@@ -1902,7 +1910,7 @@ class FileSystemManager:
 
         # Sanitize path
         if dir_path not in (".", ".."):
-            dir_path = os.path.normpath(dir_path.replace('\\', '/'))
+            dir_path = os.path.normpath(dir_path).replace('\\', '/')
 
         _log.info(self._log_str("Listing directory '%s' (path id: %d)",
                                 dir_path, path_id))
@@ -1934,7 +1942,7 @@ class FileSystemManager:
 
         # This will store the path relative to the directory path id
         for entry in dir_list:
-            entry.path = os.path.join(dir_path.replace('\\', '/'), entry.name)
+            entry.path = os.path.join(dir_path, entry.name).replace('\\', '/')
 
         _log.info(self._log_str("List directory '%s' (%d):\n%s", dir_path,
                                 path_id, '\n'.join(map(str, dir_list))))
@@ -1981,7 +1989,7 @@ class FileSystemManager:
 
         # Sanitize path
         if entry_path not in (".", ".."):
-            entry_path = os.path.normpath(entry_path.replace('\\', '/'))
+            entry_path = os.path.normpath(entry_path).replace('\\', '/')
 
         _log.info(self._log_str("Removing entry '%s' (path id: %d)", entry_path,
                                 path_id))
@@ -2043,7 +2051,7 @@ class FileSystemManager:
             timeout = self.DEFAULT_TIMEOUT
 
         # Sanitize path
-        path = PurePosixPath(os.path.normpath(file_path.replace('\\', '/')))
+        path = PurePosixPath(os.path.normpath(file_path).replace('\\', '/'))
 
         _log.info(self._log_str("Opening file '%s' (path id: %d) options: 0x%0.2X",
                                 str(path), path_id, options))
@@ -2250,7 +2258,7 @@ class FileSystemManager:
             timeout = self.DEFAULT_TIMEOUT
 
         # Sanitize path
-        file_path = os.path.normpath(file_path.replace('\\', '/'))
+        file_path = os.path.normpath(file_path).replace('\\', '/')
 
         _log.info(self._log_str("Retrieving SHA256 hash of '%s' (path id: %d)",
                                 file_path, path_id))
@@ -2305,9 +2313,9 @@ class FileSystemManager:
 
         # Sanitize path
         if current_path not in (".", ".."):
-            current_path = os.path.normpath(current_path.replace('\\', '/'))
+            current_path = os.path.normpath(current_path).replace('\\', '/')
         if new_path not in (".", ".."):
-            new_path = os.path.normpath(new_path.replace('\\', '/'))
+            new_path = os.path.normpath(new_path).replace('\\', '/')
 
         _log.info(self._log_str("Renaming entry '%s' to '%s' (path id: %d)",
                                 current_path, new_path, path_id))
