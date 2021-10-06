@@ -77,9 +77,15 @@ _GECKO_BOOTLOADER_TEST_CHAR = "\n"
 _PATTERN_GECKO_BOOTLOADER_COMPATIBILITY_FULL = \
     "^.*Gecko Bootloader.*\\(([0-9a-fA-F]{4})-([0-9a-fA-F]{2})(.*)\\).*$"
 _PATTERN_GECKO_BOOTLOADER_VERSION = \
-    "^.*Gecko Bootloader v([0-9a-fA-F]{1}\\.[0-9a-fA-F]{1}\\.[0-9a-fA-F]{1}).*$"
+    "^.*Gecko Bootloader v([0-9a-fA-F]{1,}\\.[0-9a-fA-F]{1,}\\.[0-9a-fA-F]{1,}).*$"
 
-_XBEE3_BOOTLOADER_FILE_PREFIX = "xb3-boot-rf_"
+_XBEE3_BL_DEF_PREFIX = "xb3-boot-rf_"
+_XBEE3_BOOTLOADER_FILE_PREFIX = {
+    HardwareVersion.XBEE3.code: _XBEE3_BL_DEF_PREFIX,
+    HardwareVersion.XBEE3_SMT.code: _XBEE3_BL_DEF_PREFIX,
+    HardwareVersion.XBEE3_TH.code: _XBEE3_BL_DEF_PREFIX,
+    HardwareVersion.XBEE3_RR.code: "xb3-boot-rr_"
+}
 
 _GEN3_BOOTLOADER_ERROR_CHECKSUM = 0x12
 _GEN3_BOOTLOADER_ERROR_VERIFY = 0x13
@@ -280,7 +286,8 @@ S2C_HW_VERSIONS = (HardwareVersion.XBP24C.code,
                    HardwareVersion.XB24C.code,
                    HardwareVersion.XBP24C_S2C_SMT.code,
                    HardwareVersion.XBP24C_TH_DIP.code,
-                   HardwareVersion.XB24C_TH_DIP.code)
+                   HardwareVersion.XB24C_TH_DIP.code,
+                   HardwareVersion.S2C_P5.code)
 
 SX_HW_VERSIONS = (HardwareVersion.SX.code,
                   HardwareVersion.SX_PRO.code,
@@ -288,7 +295,8 @@ SX_HW_VERSIONS = (HardwareVersion.SX.code,
 
 XBEE3_HW_VERSIONS = (HardwareVersion.XBEE3.code,
                      HardwareVersion.XBEE3_SMT.code,
-                     HardwareVersion.XBEE3_TH.code)
+                     HardwareVersion.XBEE3_TH.code,
+                     HardwareVersion.XBEE3_RR.code)
 
 LOCAL_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS
 REMOTE_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + S2C_HW_VERSIONS
@@ -521,7 +529,7 @@ class _OTAFile:
                 self._image_type = utils.bytes_to_int(
                     _reverse_bytearray(file.read(_BUFFER_SIZE_SHORT)))
                 _log.debug(" - Image type: %s (%d)",
-                           "Firmware" if not self._image_type else "File system", self._image_type)
+                           "Firmware" if self._image_type in (0, 1) else "File system", self._image_type)
                 f_version = _reverse_bytearray(file.read(_BUFFER_SIZE_INT))
                 self._file_version = utils.bytes_to_int(f_version)
                 _log.debug(" - File version: %s (%d)",
@@ -652,8 +660,8 @@ class _OTAFile:
     @property
     def image_type(self):
         """
-        Returns the OTA file image type: 0x0000 for firmware,
-        0x0100 for file system.
+        Returns the OTA file image type: 0x0000 for XBee 3 firmware,
+        0x0001 for XBee 3 RR firmware, 0x0100 for file system.
 
         Returns:
             Integer: OTA file image type.
@@ -3720,7 +3728,8 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
         if self._bootloader_fw_file is None:
             path = Path(self._xml_fw_file)
             self._bootloader_fw_file = str(Path(path.parent).joinpath(
-                _XBEE3_BOOTLOADER_FILE_PREFIX + str(self._xml_bootloader_version[0])
+                _XBEE3_BOOTLOADER_FILE_PREFIX[self._target_hw_version]
+                + str(self._xml_bootloader_version[0])
                 + _BOOTLOADER_VERSION_SEPARATOR + str(self._xml_bootloader_version[1])
                 + _BOOTLOADER_VERSION_SEPARATOR + str(self._xml_bootloader_version[2])
                 + EXTENSION_GBL))
@@ -4932,8 +4941,9 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
         if man_code != self._ota_file.manufacturer_code:
             server_status = _XBee3OTAStatus.NO_IMAGE_AVAILABLE
         # Check image type:
-        #    0x0000: firmware upgrade
-        #    0x0100: file system upgrade
+        #    0x0000: XBee 3 firmware upgrade
+        #    0x0001: XBee 3 RR firmware upgrade
+        #    0x0100: XBee 3 file system upgrade
         elif img_type != self._ota_file.image_type:
             server_status = _XBee3OTAStatus.NO_IMAGE_AVAILABLE
         # Check compatibility number

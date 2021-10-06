@@ -4,6 +4,13 @@ Changelog
 v1.4.1 - XX/XX/2021
 -------------------
 
+* Support for new hardware variants:
+
+  * XBee 3 Cellular LTE-M/NB-IoT (Telit)
+  * XBee 3 Reduced RAM
+  * S2C P5
+  * XB3-DMLR
+  * XB3-DMLR868
 * OTA firmware update:
 
   * Implementation of considerations for versions 1009, 300A, 200A or prior

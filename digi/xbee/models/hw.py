@@ -93,6 +93,11 @@ class HardwareVersion(Enum):
     CELLULAR_3_LTE_M_VERIZON = (0x4A, "XBee Cellular 3 LTE-M Verizon")
     CELLULAR_3_LTE_M_ATT = (0x4B, "XBee Cellular 3 LTE-M AT&T")
     CELLULAR_3_CAT1_LTE_VERIZON = (0x4D, "XBee Cellular 3 Cat 1 LTE Verizon")
+    CELLULAR_3_LTE_M_TELIT = (0x4E, "XBee 3 Cellular LTE-M/NB-IoT (Telit)")
+    XBEE3_DM_LR = (0x50, "XB3-DMLR")
+    XBEE3_DM_LR_868 = (0x51, "XB3-DMLR868")
+    XBEE3_RR = (0x52, "XBee 3 Reduced RAM")
+    S2C_P5 = (0x53, "S2C P5")
 
     def __init__(self, code, description):
         self.__code = code

@@ -256,7 +256,8 @@ class XBeeProtocol(Enum):
                           HardwareVersion.CELLULAR_3_CAT1_LTE_ATT.code,
                           HardwareVersion.CELLULAR_3_LTE_M_VERIZON.code,
                           HardwareVersion.CELLULAR_3_LTE_M_ATT.code,
-                          HardwareVersion.CELLULAR_3_CAT1_LTE_VERIZON.code):
+                          HardwareVersion.CELLULAR_3_CAT1_LTE_VERIZON.code,
+                          HardwareVersion.CELLULAR_3_LTE_M_TELIT.code):
             return XBeeProtocol.CELLULAR
 
         if hw_version == HardwareVersion.CELLULAR_NBIOT_EUROPE.code:
@@ -264,7 +265,8 @@ class XBeeProtocol(Enum):
 
         if hw_version in (HardwareVersion.XBEE3.code,
                           HardwareVersion.XBEE3_SMT.code,
-                          HardwareVersion.XBEE3_TH.code):
+                          HardwareVersion.XBEE3_TH.code,
+                          HardwareVersion.XBEE3_RR.code):
             if fw_version.startswith("2"):
                 return XBeeProtocol.RAW_802_15_4
             if fw_version.startswith("3"):
@@ -274,6 +276,17 @@ class XBeeProtocol(Enum):
         if hw_version == HardwareVersion.XB8X.code:
             return (XBeeProtocol.DIGI_MESH
                     if br_value != 0 else XBeeProtocol.DIGI_POINT)
+
+        if hw_version in (HardwareVersion.XBEE3_DM_LR.code,
+                          HardwareVersion.XBEE3_DM_LR_868.code):
+            return XBeeProtocol.DIGI_MESH
+
+        if hw_version == HardwareVersion.S2C_P5.code:
+            if fw_version.startswith("C"):
+                return XBeeProtocol.RAW_802_15_4
+            if fw_version.startswith("B"):
+                return XBeeProtocol.DIGI_MESH
+            return XBeeProtocol.ZIGBEE
 
         return XBeeProtocol.ZIGBEE
 

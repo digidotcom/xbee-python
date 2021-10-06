@@ -82,9 +82,11 @@ _READ_PORT_TIMEOUT = 0.05  # Seconds.
 
 _SECURE_ELEMENT_SUFFIX = "#"
 
-SUPPORTED_HW_VERSIONS = (HardwareVersion.XBEE3.code,
-                         HardwareVersion.XBEE3_SMT.code,
-                         HardwareVersion.XBEE3_TH.code)
+REMOTE_SUPPORTED_HW_VERSIONS = (HardwareVersion.XBEE3.code,
+                                HardwareVersion.XBEE3_SMT.code,
+                                HardwareVersion.XBEE3_TH.code)
+LOCAL_SUPPORTED_HW_VERSIONS = REMOTE_SUPPORTED_HW_VERSIONS \
+                              + (HardwareVersion.XBEE3_RR.code,)
 
 # Update this value when File System API frames are supported
 XB3_MIN_FW_VERSION_FS_API_SUPPORT = {
@@ -3355,7 +3357,10 @@ def check_fs_support(xbee, min_fw_vers=None, max_fw_vers=None):
                 "filesystem support: %s", str(exc))
 
     # Check compatibility
-    if hw_version and hw_version.code not in SUPPORTED_HW_VERSIONS:
+    supported_hw_versions = LOCAL_SUPPORTED_HW_VERSIONS
+    if xbee.is_remote():
+        supported_hw_versions = REMOTE_SUPPORTED_HW_VERSIONS
+    if hw_version and hw_version.code not in supported_hw_versions:
         return False
 
     if not fw_version:
