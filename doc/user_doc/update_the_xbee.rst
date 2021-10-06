@@ -796,61 +796,63 @@ For this, define the update tasks to perform. An update task includes:
 There are two types of update task:
 
 * A ``FwUpdateTask`` defines a firmware update task for a local or remote node.
-  .. code:: python
 
-    from digi.xbee.firmware import FwUpdateTask
+.. code:: python
 
-    [...]
+  from digi.xbee.firmware import FwUpdateTask
 
-    XML_FIRMWARE_FILE = "/home/user/my_firmware.xml"
-    XBEE_FIRMWARE_FILE = "/home/user/my_firmware.gbl"
-    BOOTLOADER_FIRMWARE_FILE = "/home/user/my_bootloader.gbl"
+  [...]
 
-    [...]
+  XML_FIRMWARE_FILE = "/home/user/my_firmware.xml"
+  XBEE_FIRMWARE_FILE = "/home/user/my_firmware.gbl"
+  BOOTLOADER_FIRMWARE_FILE = "/home/user/my_bootloader.gbl"
 
-    # Instantiate an XBee object.
-    xbee = XBeeDevice(...)
+  [...]
 
-    [...]
+  # Instantiate an XBee object.
+  xbee = XBeeDevice(...)
 
-    # Define an update progress callback for the firmware update task
-    def my_fw_update_cb(task_msg, percentage):
-        print("%s: %%d" %(task_msg, percentage))
+  [...]
 
-    # Define a firmware update task for the local node
-    fw_update_task = FwUpdateTask(xbee, XML_FIRMWARE_FILE,
-                                  fw_path=XBEE_FIRMWARE_FILE,
-                                  bl_fw_path=BOOTLOADER_FIRMWARE_FILE,
-                                  progress_cb=my_fw_update_cb)
+  # Define an update progress callback for the firmware update task
+  def my_fw_update_cb(task_msg, percentage):
+      print("%s: %%d" %(task_msg, percentage))
 
-    [...]
+  # Define a firmware update task for the local node
+  fw_update_task = FwUpdateTask(xbee, XML_FIRMWARE_FILE,
+                                fw_path=XBEE_FIRMWARE_FILE,
+                                bl_fw_path=BOOTLOADER_FIRMWARE_FILE,
+                                progress_cb=my_fw_update_cb)
+
+  [...]
 
 * A ``ProfileUpdateTask`` defines a profile update task for a local or remote
   node.
-  .. code:: python
 
-    from digi.xbee.firmware import ProfileUpdateTask
+.. code:: python
 
-    [...]
+  from digi.xbee.firmware import ProfileUpdateTask
 
-    PROFILE_PATH = "/home/user/my_profile.xpro"
+  [...]
 
-    [...]
+  PROFILE_PATH = "/home/user/my_profile.xpro"
 
-    # Get the remote node.
-    remote = ...
+  [...]
 
-    [...]
+  # Get the remote node.
+  remote = ...
 
-    # Define an update progress callback for the profile update task
-    def my_profile_update_cb(task_msg, percentage):
-        print("%s: %%d" %(task_msg, percentage))
+  [...]
 
-    # Define a firmware update task
-    profile_update_task = ProfileUpdateTask(remote, PROFILE_PATH,
-                                            progress_cb=my_profile_update_cb)
+  # Define an update progress callback for the profile update task
+  def my_profile_update_cb(task_msg, percentage):
+      print("%s: %%d" %(task_msg, percentage))
 
-    [...]
+  # Define a firmware update task
+  profile_update_task = ProfileUpdateTask(remote, PROFILE_PATH,
+                                          progress_cb=my_profile_update_cb)
+
+  [...]
 
 You can define as many update tasks as you need. Then use the ``update_nodes()``
 method of the ``XBeeNetwork`` to perform all of them.
@@ -861,9 +863,9 @@ method of the ``XBeeNetwork`` to perform all of them.
 | **update_nodes(List)**  | Performs the provided update tasks. It blocks until all tasks finish.                 |
 |                         |                                                                                       |
 |                         | * **task_list (List)**: List of ``FwUpdateTask`` or ``ProfileUpdateTask`` to perform. |
-|                         |    The method returns a dictionary with the 64-bit address of the XBee as key and, as |
-|                         |    value, a ``Tuple`` with the XBee (``XBeeDevice`` or ``RemoteXBeeDevice``) and an   |
-|                         |    ``XBeeException`` if the process failed for that node (``None`` if it successes)   |
+|                         |   The method returns a dictionary with the 64-bit address of the XBee as key and, as  |
+|                         |   value, a ``Tuple`` with the XBee (``XBeeDevice`` or ``RemoteXBeeDevice``) and an    |
+|                         |   ``XBeeException`` if the process failed for that node (``None`` if it successes)    |
 +-------------------------+---------------------------------------------------------------------------------------+
 
 **Update several nodes**
