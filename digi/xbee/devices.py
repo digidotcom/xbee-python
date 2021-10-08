@@ -1739,7 +1739,7 @@ class AbstractXBeeDevice:
         return utils.hex_to_string(
             self.get_parameter(ATStringCommand.BL, apply=False), pretty=False)
 
-    def update_bluetooth_password(self, new_password):
+    def update_bluetooth_password(self, new_password, apply=True, save=True):
         """
         Changes the Bluetooth password of this XBee with the new one provided.
 
@@ -1747,8 +1747,14 @@ class AbstractXBeeDevice:
 
         Args:
             new_password (String): New Bluetooth password.
+            apply (Boolean, optional, default=`True`): `True` to apply changes,
+                `False` otherwise, `None` to use `is_apply_changes_enabled()`
+                returned value.
+            save (Boolean, optional, default=`True`): `True` to save changes,
+                `False` otherwise.
 
         Raises:
+            ValueError: If `new_password` is invalid.
             TimeoutException: If response is not received before the read
                 timeout expires.
             XBeeException: If the XBee's communication interface is closed.
@@ -1757,12 +1763,51 @@ class AbstractXBeeDevice:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
+        if not isinstance(new_password, (str, bytes, bytearray)):
+            raise ValueError("Password must be a string, bytes, or bytearray")
+
         import srp
 
         # Generate the salt and verifier using the SRP library.
         salt, verifier = srp.create_salted_verification_key(
             self._BLE_API_USERNAME, new_password, hash_alg=srp.SHA256,
             ng_type=srp.NG_1024, salt_len=4)
+
+        self.update_bluetooth_salt_verifier(salt, verifier, apply=apply, save=save)
+
+    def update_bluetooth_salt_verifier(self, salt, verifier, apply=True, save=True):
+        """
+        Changes the Bluetooth password of this XBee with the new one provided.
+
+        Note that your device must include Bluetooth Low Energy support.
+
+        Args:
+            salt (bytes): New Bluetooth password.
+            verifier (bytes): `True` to apply changes,
+                `False` otherwise, `None` to use `is_apply_changes_enabled()`
+                returned value.
+            apply (Boolean, optional, default=`True`): `True` to apply changes,
+                `False` otherwise, `None` to use `is_apply_changes_enabled()`
+                returned value.
+            save (Boolean, optional, default=`True`): `True` to save changes,
+                `False` otherwise.
+
+        Raises:
+            ValueError: If `salt` or `verifier` are invalid.
+            TimeoutException: If response is not received before the read
+                timeout expires.
+            XBeeException: If the XBee's communication interface is closed.
+            InvalidOperatingModeException: If the XBee's operating mode is not
+                API or ESCAPED API. This method only checks the cached value of
+                the operating mode.
+            ATCommandException: If response is not as expected.
+        """
+        if not isinstance(salt, (bytes, bytearray)):
+            raise ValueError("Salt must be a bytes or bytearray")
+        if not isinstance(verifier, (bytes, bytearray)):
+            raise ValueError("Verifier must be a bytes or bytearray")
+
+        apply_changes = apply if apply is not None else self.is_apply_changes_enabled()
 
         # Ensure the verifier is 128 bytes.
         verifier = (128 - len(verifier)) * b'\x00' + verifier
@@ -1784,11 +1829,11 @@ class AbstractXBeeDevice:
                            verifier[index:(index + at_length)], apply=False)
         index += at_length
         self.set_parameter(ATStringCommand.DOLLAR_Y,
-                           verifier[index:(index + at_length)], apply=False)
+                           verifier[index:(index + at_length)], apply=apply_changes and not save)
 
         # Write and apply changes.
-        self.write_changes()
-        self.apply_changes()
+        if save:
+            self.execute_command(ATStringCommand.WR, apply=apply_changes)
 
     def update_firmware(self, xml_firmware_file, xbee_firmware_file=None,
                         bootloader_firmware_file=None, timeout=None, progress_callback=None):
