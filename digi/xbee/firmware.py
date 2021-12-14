@@ -1954,6 +1954,9 @@ class UpdateConfigurer:
                     return
             except XBeeException as exc:
                 _log.info("Unable to read '%s' configuration: %s", self._xbee, str(exc))
+        elif self._xbee.get_protocol() == XBeeProtocol.DIGI_POINT:
+            # P2MP does not require settings preparation
+            return
 
         default_sp = self._get_min_value(ATStringCommand.SP, self._xbee.get_protocol())
         default_sn = self._get_min_value(ATStringCommand.SN, self._xbee.get_protocol())
