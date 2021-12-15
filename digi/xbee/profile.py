@@ -29,8 +29,10 @@ import serial
 
 from digi.xbee.firmware import UpdateConfigurer, EXTENSION_GBL, EXTENSION_XML, \
     EXTENSION_EBIN, EXTENSION_EHX2, EXTENSION_OTB, EXTENSION_OTA, \
-    EXTENSION_EBL, update_local_firmware, update_remote_firmware
-from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, NetworkEventReason
+    EXTENSION_EBL, update_local_firmware, update_remote_firmware, \
+    SX_HW_VERSIONS
+from digi.xbee.devices import XBeeDevice, RemoteXBeeDevice, NetworkEventReason, \
+    DigiMeshDevice, DigiPointDevice
 from digi.xbee.exception import XBeeException, FirmwareUpdateException, \
     InvalidOperatingModeException
 from digi.xbee.filesystem import LocalXBeeFileSystemManager, \
@@ -1670,6 +1672,10 @@ class _ProfileUpdater:
             Boolean: `True` if the protocol will change after the firmware
                 update, `False` otherwise.
         """
+        # SX devices cannot change the protocol by only updating the firmware.
+        if self._device_hw_version.code in SX_HW_VERSIONS:
+            return False
+
         orig_protocol = self._xbee.get_protocol()
         new_protocol = XBeeProtocol.determine_protocol(
             self._profile.hardware_version,
@@ -1686,13 +1692,25 @@ class _ProfileUpdater:
             Boolean: `True` if the protocol will change after the application
                 of profiles settings, `False` otherwise.
         """
-        if self._profile.protocol is XBeeProtocol.DIGI_MESH:
-            self._profile.protocol = self._xbee.determine_protocol(
-                self._profile.hardware_version,
-                utils.int_to_bytes(self._profile.firmware_version))
+        if self._device_hw_version.code not in SX_HW_VERSIONS:
+            return False
 
-        return (self._xbee.get_protocol() != self._profile.protocol
-                and self._profile.flash_firmware_option.code < 2)
+        br_val = None
+        br_setting = self._profile.profile_settings.get(ATStringCommand.BR.command, None)
+        if br_setting:
+            br_val = br_setting.value
+        elif self._profile.reset_settings:
+            br_val = self._profile.get_setting_default_value(ATStringCommand.BR)
+
+        if not br_val:
+            return False
+
+        self._profile.protocol = XBeeProtocol.determine_protocol(
+            self._profile.hardware_version,
+            utils.int_to_bytes(self._profile.firmware_version),
+            br_value=int(br_val, base=16))
+
+        return self._xbee.get_protocol() != self._profile.protocol
 
     def _update_device_settings(self):
         """
@@ -2098,6 +2116,21 @@ class _ProfileUpdater:
                 self._update_file_system()
             # Update the settings.
             net_changed, _info_changed, port_settings = self._update_device_settings()
+            # In SX devices, protocol changes are not linked to the firmware file applied.
+            # SX devices can change the protocol by updating the value of the BR parameter.
+            # Checking whether the protocol has changed after applying the settings is
+            # mandatory to avoid future failures with XBee device class instances.
+            #
+            # BR setting value:
+            # - 0: DigiPoint (P2MP point to multi-point)
+            # - 1, 2: DigiMesh
+            #
+            # If the protocol has changed by the profile settings, raise an exception
+            # so upper layers can instantiate the correct XBee device class.
+            if self._device_hw_version.code in SX_HW_VERSIONS:
+                if (isinstance(self._xbee, (DigiMeshDevice, DigiPointDevice)) and
+                        protocol_changed_by_settings):
+                    raise UpdateProfileException("Check if you are using the appropriate device class.")
         except UpdateProfileException as exc:
             update_result = "Error: %s" % str(exc)
             raise exc
