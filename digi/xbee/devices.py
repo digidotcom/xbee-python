@@ -138,6 +138,7 @@ class AbstractXBeeDevice:
         self._protocol = None
         self._node_id = None
         self._role = Role.UNKNOWN
+        self._br = None
 
         self._packet_listener = None
         self._packet_sender = None
@@ -242,6 +243,18 @@ class AbstractXBeeDevice:
         new_hw = device.get_hardware_version()
         if new_hw:
             self._hardware_version = new_hw
+
+        new_br = device.br
+        if new_br != self._br:
+            self._br = new_br
+            # It is not necessary to set the 'updated' flag to 'True' because,
+            # if the 'BR' change occurs between 0 and X or X and 0, it means
+            # the device protocol has changed. When this happens in a remote
+            # device, the device is removed from the network and if it happens
+            # in a local device, the object is re-instantiated. In both cases,
+            # this code is never reached. If the 'BR' change occurs between 1
+            # and 2 or 2 and 1, the device protocol (Digi-Mesh) does not
+            # change, thus it is not necessary to notify any relevant change.
 
         if (isinstance(self, (ZigBeeDevice, RemoteZigBeeDevice))
                 and isinstance(device, (ZigBeeDevice, RemoteZigBeeDevice))):
@@ -723,14 +736,13 @@ class AbstractXBeeDevice:
             :class:`.XBeeProtocol`: XBee protocol corresponding to the given
                 hardware and firmware versions.
         """
-        br_value = None
         if hardware_version in (HardwareVersion.SX.code,
                                 HardwareVersion.SX_PRO.code,
                                 HardwareVersion.XB8X.code):
-            br_value = self.get_parameter(ATStringCommand.BR, apply=False)[0]
+            self._br = self.get_parameter(ATStringCommand.BR, apply=False)[0]
 
         return XBeeProtocol.determine_protocol(
-            hardware_version, firmware_version, br_value=br_value)
+            hardware_version, firmware_version, br_value=self._br)
 
     def is_device_info_complete(self):
         """
@@ -2318,6 +2330,16 @@ class AbstractXBeeDevice:
         """
         return self._log
 
+    @property
+    def br(self):
+        """
+        Returns the BR value of the device.
+
+        Returns:
+            Integer: The BR value of the device.
+        """
+        return self._br
+
 
 class XBeeDevice(AbstractXBeeDevice):
     """
@@ -2493,8 +2515,10 @@ class XBeeDevice(AbstractXBeeDevice):
             self._operating_mode = OperatingMode.get(xbee_info[0])
             self._hardware_version = HardwareVersion.get(xbee_info[1])
             self._firmware_version = utils.int_to_bytes(xbee_info[2])
-            self._protocol = self.determine_protocol(
-                self._hardware_version.code, self._firmware_version)
+            self._br = xbee_info[7]
+            self._protocol = XBeeProtocol.determine_protocol(
+                self._hardware_version.code, self._firmware_version,
+                br_value=self._br)
             self._64bit_addr = XBee64BitAddress.from_hex_string(xbee_info[3])
             self._16bit_addr = XBee16BitAddress.from_hex_string(xbee_info[4])
             self._node_id = xbee_info[5]
