@@ -1039,7 +1039,7 @@ class XBeeProfile:
                     # 0: All regions
                     self._region_lock = 0
                 else:
-                    self._region_lock = int(fw_version_str[1:2], base=0)
+                    self._region_lock = int(fw_version_str[1:2], base=16)
             _log.debug(" - Region lock: %d", self._region_lock)
             # Determine protocol.
             br_value = self._raw_settings.get(ATStringCommand.BR.command, None)
