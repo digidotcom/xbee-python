@@ -1,7 +1,7 @@
 Changelog
 =========
 
-v1.4.1 - XX/XX/2021
+v1.4.1 - 12/22/2021
 -------------------
 
 * Support for new hardware variants:
@@ -36,6 +36,10 @@ v1.4.1 - XX/XX/2021
 * Do not use 'os.path.join()' for relative paths of zip entries (#247)
 * Fix bad conditions when checking for a received packet (#242)
 * Fix attribute name in find neighbors debug message (#122)
+* Fix remote firmware update issue with binary file on SX devices.
+* Fix protocol change issues during firmware update operation on SX devices.
+* Do not reconfigure SP and SN values after a firmware update operation in P2MP protocol.
+* Add new method to update salt and verifier values of Bluetooth password SRP authentication.
 * Several minor bug fixes.
 
 v1.4.0 - 03/18/2021
