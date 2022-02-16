@@ -171,15 +171,6 @@ class TransmitOptions(Enum):
     Only valid for DigiMesh 868/900 protocol, and XBee 3 DigiMesh.
     """
 
-    ENABLE_UNICAST_TRACE_ROUTE = 0x04
-    """
-    Enables unicast trace route messages.
-
-    Trace route is enabled on the packets.
-
-    Only valid for DigiMesh 868/900 protocol.
-    """
-
     INDIRECT_TRANSMISSION = 0x04
     """
     Used for binding transmissions.
@@ -200,6 +191,15 @@ class TransmitOptions(Enum):
     When set, the transmission will generate a Route Information - 0x8D frame.
 
     Only valid for DigiMesh XBee protocol.
+    """
+
+    ENABLE_UNICAST_TRACE_ROUTE = 0x08
+    """
+    Enables unicast trace route messages.
+
+    Trace route is enabled on the packets.
+
+    Only valid for DigiMesh 868/900 protocol.
     """
 
     SECURE_SESSION_ENC = 0x10
