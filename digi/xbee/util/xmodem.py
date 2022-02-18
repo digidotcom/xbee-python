@@ -12,7 +12,10 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import collections
+try:
+    import collections.abc as collections
+except ImportError:
+    import collections
 import os
 import time
 
