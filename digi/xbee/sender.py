@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, Digi International Inc.
+# Copyright 2020-2022, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -82,6 +82,9 @@ class PacketSender:
 
         comm_iface = self.__xbee.comm_iface
         op_mode = self.__xbee.operating_mode
+
+        if self.__xbee._serial_port:
+            self.__xbee._update_tx_stats(packet)
 
         out = packet.output(escaped=op_mode == OperatingMode.ESCAPED_API_MODE)
         comm_iface.write_frame(out)

@@ -25,6 +25,7 @@ Examples are split by categories:
 * :ref:`samplesFirmware`
 * :ref:`samplesFilesystem`
 * :ref:`samplesProfile`
+* :ref:`samplesStatistics`
 
 
 .. _samplesConfiguration:
@@ -163,6 +164,7 @@ You can locate the example in the following path:
 .. note::
    For more information about how to listen to network modifications, see
    :ref:`listenToNetworkCacheModifications`.
+
 
 .. _samplesCommunication:
 
@@ -803,3 +805,23 @@ file and prints all the accessible settings and properties.
 
 You can locate the example in the following path:
 **examples/profile/ReadXBeeProfileSample**
+
+
+.. _samplesStatistics:
+
+Statistics samples
+------------------
+
+Get XBee statistics sample
+``````````````````````````
+This sample application demonstrates how to get XBee statistics.
+
+The application sets and gets some local parameters. After that, it retrieves
+the XBee statistics.
+
+You can locate the example in the following path:
+**examples/statistics/GetXBeeStatisticsSample**
+
+.. note::
+   For more information about how to use the XBee statistics, see
+   :ref:`getXBeeStatistics`.

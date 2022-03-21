@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2022, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -174,6 +174,16 @@ class IODataSampleRxIndicatorWifiPacket(XBeeAPIPacket):
             base[DictKeys.RF_DATA] = utils.hex_to_string(self.__data)
 
         return base
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 8  # Remove 64-bit address
 
     @property
     def source_address(self):
@@ -446,6 +456,16 @@ class RemoteATCommandWifiPacket(XBeeAPIPacket):
                 DictKeys.PARAMETER:        list(self.__param) if self.__param is not None else None}
 
     @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 8  # Destination address
+
+    @property
     def dest_address(self):
         """
         Returns the IPv4 address of the destination device.
@@ -671,6 +691,16 @@ class RemoteATCommandResponseWifiPacket(XBeeAPIPacket):
                 DictKeys.COMMAND:       self.__cmd,
                 DictKeys.AT_CMD_STATUS: self.__resp_status,
                 DictKeys.RF_DATA:       list(self.__comm_val) if self.__comm_val is not None else None}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 8  # Remove source address
 
     @property
     def source_address(self):

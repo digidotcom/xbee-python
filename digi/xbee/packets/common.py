@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2022, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -734,6 +734,16 @@ class ReceivePacket(XBeeAPIPacket):
                 DictKeys.RF_DATA:         list(self.__data) if self.__data is not None else None}
 
     @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2 - 8  # Remove 16-bit and 64-bit addresses
+
+    @property
     def x64bit_source_addr(self):
         """
         Returns the 64-bit source address.
@@ -978,6 +988,16 @@ class RemoteATCommandPacket(XBeeAPIPacket):
                 DictKeys.TRANSMIT_OPTIONS: self.__tx_opts,
                 DictKeys.COMMAND: self.__cmd,
                 DictKeys.PARAMETER: list(self.__param) if self.__param is not None else None}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2 - 8  # Remove 16-bit and 64-bit addresses
 
     @property
     def x64bit_dest_addr(self):
@@ -1252,6 +1272,16 @@ class RemoteATCommandResponsePacket(XBeeAPIPacket):
                 DictKeys.COMMAND:       self.__cmd,
                 DictKeys.AT_CMD_STATUS: self.__resp_st,
                 DictKeys.RF_DATA:       list(self.__comm_val) if self.__comm_val is not None else None}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2 - 8  # Remove 16-bit and 64-bit addresses
 
     @property
     def command(self):
@@ -1564,6 +1594,16 @@ class TransmitPacket(XBeeAPIPacket):
                 DictKeys.RF_DATA:          list(self.__data) if self.__data is not None else None}
 
     @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2 - 8  # Remove 16-bit and 64-bit addresses
+
+    @property
     def rf_data(self):
         """
         Returns the RF data to send.
@@ -1820,6 +1860,16 @@ class TransmitStatusPacket(XBeeAPIPacket):
                 DictKeys.TRANS_R_COUNT: self.__tx_retry_count,
                 DictKeys.TS_STATUS: self.__tx_status,
                 DictKeys.DS_STATUS: self.__discovery_status}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2  # Remove 16-bit address
 
     @property
     def x16bit_dest_addr(self):
@@ -2204,6 +2254,16 @@ class IODataSampleRxIndicatorPacket(XBeeAPIPacket):
         return utils.is_bit_enabled(self.__rx_opts, 1)
 
     @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2 - 8  # Remove 16-bit and 64-bit addresses
+
+    @property
     def x64bit_source_addr(self):
         """
         Returns the 64-bit source address.
@@ -2538,6 +2598,18 @@ class ExplicitAddressingPacket(XBeeAPIPacket):
                 DictKeys.BROADCAST_RADIUS: self.__broadcast_radius,
                 DictKeys.TRANSMIT_OPTIONS: self.__tx_opts,
                 DictKeys.RF_DATA:          self.__data}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        # Remove 16-bit and 64-bit addresses, the source and destination
+        # endpoints, the cluster ID and the profile ID.
+        return len(self) - 2 - 8 - 1 - 1 - 2 - 2
 
     @property
     def source_endpoint(self):
@@ -2913,6 +2985,18 @@ class ExplicitRXIndicatorPacket(XBeeAPIPacket):
                 DictKeys.PROFILE_ID:      self.__profile_id,
                 DictKeys.RECEIVE_OPTIONS: self.__rx_opts,
                 DictKeys.RF_DATA:         self.__data}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        # Remove 16-bit and 64-bit addresses, the source and destination
+        # endpoints, the cluster ID and the profile ID.
+        return len(self) - 2 - 8 - 1 - 1 - 2 - 2
 
     @property
     def x64bit_source_addr(self):

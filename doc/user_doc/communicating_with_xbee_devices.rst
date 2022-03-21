@@ -2074,3 +2074,68 @@ the sequence ``bind()``, ``listen()``, ``accept()``.
 |                                                                                                                                                                                                                           |
 | **examples/communication/socket/SocketUDPServerClientSample**                                                                                                                                                             |
 +---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. _getXBeeStatistics:
+
+Get XBee statistics
+-------------------
+
+XBee statistics are collected automatically when it receives or transmits data.
+These statistics are only available for the local XBee device, they are not
+available for remote nodes.
+
+You can access the statistics information of a local XBee using its ``stats``
+attribute, which returns a ``Statistics`` object:
+
++--------------+---------------------------------------------------------+
+| Attribute    | Description                                             |
++==============+=========================================================+
+| **stats**    | Attribute with XBee statistic, a ``Statistics`` object. |
++--------------+---------------------------------------------------------+
+
+Available statistics are attributes of the ``Statistics`` object:
+
++--------------------------------+--------------------+--------------------------------------------------+
+| Statistics                     | Attribute          | Description                                      |
++============+===================+====================+==================================================+
+| Transmit   | TX packets        | **tx_packets**     | Number of transmitted packets via serial         |
+|            +-------------------+--------------------+--------------------------------------------------+
+|            | TX bytes          | **tx_bytes**       | Number of effective transmitted bytes via serial |
++------------+-------------------+--------------------+--------------------------------------------------+
+| Receive    | RX packets        | **rx_packets**     | Number of received packets via serial            |
+|            +-------------------+--------------------+--------------------------------------------------+
+|            | RX bytes          | **rx_bytes**       | Number of effective received bytes via serial    |
++------------+-------------------+--------------------+--------------------------------------------------+
+| Errors     | Remote cmd errors | **rmt_cmd_errors** | Number of failed remote AT commands              |
+|            +-------------------+--------------------+--------------------------------------------------+
+|            | TX errors         | **tx_errors**      | Number of transmission errors                    |
++------------+-------------------+--------------------+--------------------------------------------------+
+
+**Get XBee statistics**
+
+.. code:: python
+
+  [...]
+
+  # Instantiate a local XBee object.
+  xbee = XBeeDevice("COM1", 9600)
+  xbee.open()
+
+  # Perform any action.
+  [...]
+
+  # Get and print XBee stats
+  print(xbee.stats.tx_packets)
+  print(xbee.stats.tx_bytes)
+  print(xbee.stats.rx_packets)
+  print(xbee.stats.rx_bytes)
+  print(xbee.stats.rmt_cmd_errors)
+  print(xbee.stats.tx_errors)
+
++--------------------------------------------------------------------------------------------------------------------------------------------+
+| Example: Get XBee statistics                                                                                                               |
++============================================================================================================================================+
+| The XBee Python Library includes a sample application that shows how to get XBee statistics. The example is located in the following path: |
+|                                                                                                                                            |
+| **examples/statistics/GetXBeeStatisticsSample**                                                                                            |
++--------------------------------------------------------------------------------------------------------------------------------------------+
