@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v1.4.2 - XX/XX/202X
+
+* Support to retrieve XBee statistics.
+
+
 v1.4.1 - 12/22/2021
 -------------------
 

@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2022, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -24,6 +24,7 @@ from queue import Queue, Empty
 
 from digi.xbee import serial
 from digi.xbee.filesystem import FileSystemManager
+from digi.xbee.models.statistics import Statistics
 from digi.xbee.packets.cellular import TXSMSPacket
 from digi.xbee.models.accesspoint import AccessPoint, WiFiEncryptionType
 from digi.xbee.models.atcomm import ATCommandResponse, ATCommand, ATStringCommand
@@ -2420,6 +2421,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self.__tmp_dm_to_insert = []
         self.__tmp_dm_routes_lock = threading.Lock()
         self.__route_received = RouteReceived()
+        self.__stats = Statistics()
 
     @classmethod
     def create_xbee_device(cls, comm_port_data):
@@ -2595,6 +2597,16 @@ class XBeeDevice(AbstractXBeeDevice):
             :class:`.OperatingMode`. This XBee operating mode.
         """
         return super()._get_operating_mode()
+
+    @property
+    def stats(self):
+        """
+        Gets the statistics for this XBee.
+
+        Returns:
+            :class:`.Statistics`. XBee statistics.
+        """
+        return self._comm_iface.get_stats() if self._comm_iface.get_stats() else self.__stats
 
     @AbstractXBeeDevice._before_send_method
     def get_parameter(self, parameter, parameter_value=None, apply=None):
@@ -3559,6 +3571,7 @@ class XBeeDevice(AbstractXBeeDevice):
 
         if self.serial_port:
             api_callbacks.append(self._packet_sender.at_response_received_cb)
+            api_callbacks.append(self._update_rx_stats_cb)
 
         if not self._network:
             return api_callbacks
@@ -4564,6 +4577,24 @@ class XBeeDevice(AbstractXBeeDevice):
             return status, None
 
         return status, (self, remote, node_list[1:])
+
+    def _update_rx_stats_cb(self, rx_packet):
+        """
+        Callback to increase the XBee statistics related with received packets.
+
+        Args:
+            rx_packet (:class: `.XBeeAPIPacket`): The received API packet.
+        """
+        self.__stats._update_rx_stats(rx_packet)
+
+    def _update_tx_stats(self, tx_packet):
+        """
+        Increments the XBee statistics related with transmitted packets.
+
+        Args:
+            tx_packet (:class: `.XBeeAPIPacket`): The sent API packet.
+        """
+        self.__stats._update_tx_stats(tx_packet)
 
 
 class Raw802Device(XBeeDevice):
@@ -10409,7 +10440,7 @@ class XBeeNetwork:
     def __discover_devices(self, node_id=None):
         """
         Blocking method. Performs a device discovery in the network and waits
-        until it finish (timeout or 'end' packet for 802.15.4)
+        until it finishes (timeout or 'end' packet for 802.15.4)
 
         Args:
             node_id (String, optional, default=`None`): Node identifier of the

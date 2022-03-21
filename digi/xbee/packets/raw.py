@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2022, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -138,6 +138,16 @@ class TX64Packet(XBeeAPIPacket):
         return {DictKeys.X64BIT_ADDR:      self.__x64bit_addr.address,
                 DictKeys.TRANSMIT_OPTIONS: self.__tx_opts,
                 DictKeys.RF_DATA:          self.__data}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 8  # Remove 64-bit address
 
     @property
     def x64bit_dest_addr(self):
@@ -333,6 +343,16 @@ class TX16Packet(XBeeAPIPacket):
         return {DictKeys.X16BIT_ADDR:      self.__x16bit_addr,
                 DictKeys.TRANSMIT_OPTIONS: self.__tx_opts,
                 DictKeys.RF_DATA:          self.__data}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2  # Remove 16-bit address
 
     @property
     def x16bit_dest_addr(self):
@@ -675,6 +695,16 @@ class RX64Packet(XBeeAPIPacket):
                 DictKeys.RF_DATA:         self.__data}
 
     @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 8  # Remove 64-bit address
+
+    @property
     def x64bit_source_addr(self):
         """
         Returns the 64-bit source address.
@@ -900,6 +930,16 @@ class RX16Packet(XBeeAPIPacket):
                 DictKeys.RSSI:            self.__rssi,
                 DictKeys.RECEIVE_OPTIONS: self.__rx_opts,
                 DictKeys.RF_DATA:         self.__data}
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2  # Remove 16-bit address
 
     @property
     def x16bit_source_addr(self):
@@ -1145,6 +1185,16 @@ class RX64IOPacket(XBeeAPIPacket):
             base[DictKeys.RF_DATA] = utils.hex_to_string(self.__data)
 
         return base
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 8  # Remove 64-bit address
 
     @property
     def x64bit_source_addr(self):
@@ -1423,6 +1473,16 @@ class RX16IOPacket(XBeeAPIPacket):
             base[DictKeys.RF_DATA] = utils.hex_to_string(self.__data)
 
         return base
+
+    @property
+    def effective_len(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.effective_len`
+        """
+        return len(self) - 2  # Remove 16-bit address
 
     @property
     def x16bit_source_addr(self):

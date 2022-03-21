@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, Digi International Inc.
+# Copyright 2019-2022, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -135,6 +135,16 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
                 hardware version (int), firmware version (int),
                 64-bit address (string), 16-bit address (string),
                 node identifier (string), and role (int).
+        """
+        return None
+
+    def get_stats(self):
+        """
+        Returns a statistics object.
+
+        Returns:
+             :class: `.Statistics`: `None` if not implemented,
+              otherwise a `Statistics` object.
         """
         return None
 
