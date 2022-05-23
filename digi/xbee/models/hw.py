@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2022, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -98,6 +98,8 @@ class HardwareVersion(Enum):
     XBEE3_DM_LR_868 = (0x51, "XB3-DMLR868")
     XBEE3_RR = (0x52, "XBee 3 Reduced RAM")
     S2C_P5 = (0x53, "S2C P5")
+    CELLULAR_3_GLOBAL_LTE_CAT1 = (0x54, "XBee 3 Cellular Global LTE Cat 1")
+    CELLULAR_3_NA_LTE_CAT1 = (0x55, "XBee 3 Cellular North America LTE Cat 1")
 
     def __init__(self, code, description):
         self.__code = code

@@ -3,6 +3,10 @@ Changelog
 
 v1.4.2 - XX/XX/202X
 
+* Support for new hardware variants:
+
+  * XBee 3 Cellular Global LTE Cat 1
+  * XBee 3 Cellular North America LTE Cat 1
 * Support to retrieve XBee statistics.
 
 

@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2022, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -257,7 +257,9 @@ class XBeeProtocol(Enum):
                           HardwareVersion.CELLULAR_3_LTE_M_VERIZON.code,
                           HardwareVersion.CELLULAR_3_LTE_M_ATT.code,
                           HardwareVersion.CELLULAR_3_CAT1_LTE_VERIZON.code,
-                          HardwareVersion.CELLULAR_3_LTE_M_TELIT.code):
+                          HardwareVersion.CELLULAR_3_LTE_M_TELIT.code,
+                          HardwareVersion.CELLULAR_3_GLOBAL_LTE_CAT1.code,
+                          HardwareVersion.CELLULAR_3_NA_LTE_CAT1.code):
             return XBeeProtocol.CELLULAR
 
         if hw_version == HardwareVersion.CELLULAR_NBIOT_EUROPE.code:
