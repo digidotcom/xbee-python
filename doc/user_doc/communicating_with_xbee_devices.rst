@@ -11,13 +11,17 @@ reception of data.
   applicable for local XBee devices. Remote XBee classes do not include
   methods for transmitting or receiving data.
 
+.. warning::
+  Only Zigbee, DigiMesh, 802.15.4, and Point-to-Multipoint protocols support the
+  transmission and reception of data from other devices in the network.
+
 
 Send and receive data
 ---------------------
 
 XBee modules can communicate with other devices that are on the same network and
 use the same radio frequency. The XBee Python Library provides several methods
-to send and receive data between the local XBee and any remote on the network.
+to send and receive data between the local XBee and any remote in the network.
 
 * :ref:`communicateSendData`
 * :ref:`communicateReceiveData`
@@ -29,7 +33,7 @@ Send data
 `````````
 
 A data transmission operation sends data from your local (attached) XBee to a
-remote device on the network. The operation sends data in API frames. The XBee
+remote device in the network. The operation sends data in API frames. The XBee
 Python Library abstracts the process so you only have to specify the device to
 send data to and the data itself.
 
@@ -56,30 +60,30 @@ This type of operation is blocking. This means the method waits until the
 transmit status response is received or the default timeout is reached.
 
 The ``XBeeDevice`` class of the API provides the following method to perform a
-synchronous unicast transmission with a remote node of the network:
+synchronous unicast transmission with a remote node in the network:
 
-+---------------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
-| Method                                                        | Description                                                                                         |
-+===============================================================+=====================================================================================================+
-| **send_data(RemoteXBeeDevice, String or Bytearray, Integer)** | Specifies the remote XBee destination object, the data to send and optionally the transmit options. |
-+---------------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+
+| Method                                                        | Description                                                                                            |
++===============================================================+========================================================================================================+
+| **send_data(RemoteXBeeDevice, String or Bytearray, Integer)** | Specifies the remote XBee destination object, the data to send, and, optionally, the transmit options. |
++---------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+
 
 Protocol-specific classes offer additional synchronous unicast transmission
 methods apart from the one provided by the ``XBeeDevice`` object:
 
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| XBee class      | Method                                                                                | Description                                                                                                                                                                                       |
-+=================+=======================================================================================+===================================================================================================================================================================================================+
-| ZigBeeDevice    | **send_data_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Raw802Device    | **send_data_16(XBee16BitAddress, String or Bytearray, Integer)**                      | Specifies the 16-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+                 +---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|                 | **send_data_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiMeshDevice  | **send_data_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiPointDevice | **send_data_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+---------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-----------------+---------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| XBee class      | Method                                                                                | Description                                                                                                                                                                                      |
++=================+=======================================================================================+==================================================================================================================================================================================================+
+| ZigBeeDevice    | **send_data_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send, and, optionally, the transmit options. If you do not know the 16-bit address, use ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
++-----------------+---------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Raw802Device    | **send_data_16(XBee16BitAddress, String or Bytearray, Integer)**                      | Specifies the 16-bit destination address, the data to send, and, optionally, the transmit options.                                                                                               |
++                 +---------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                 | **send_data_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send, and, optionally, the transmit options.                                                                                               |
++-----------------+---------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| DigiMeshDevice  | **send_data_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send, and, optionally, the transmit options.                                                                                               |
++-----------------+---------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| DigiPointDevice | **send_data_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send, and, optionally, the transmit options. If you do not know the 16-bit address, use ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
++-----------------+---------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send data synchronously**
 
@@ -87,11 +91,11 @@ methods apart from the one provided by the ``XBeeDevice`` object:
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
-  # Instantiate a remote XBee object.
+  # Instantiate a remote XBee node.
   remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send data using the remote object.
@@ -113,7 +117,7 @@ The previous methods may fail for the following reasons:
       ``XBeeException``.
 
 The default timeout to wait for the send status is two seconds. However, you
-can configure the timeout using the ``get_sync_ops_timeout()`` and
+can configure the timeout using ``get_sync_ops_timeout()`` and
 ``set_sync_ops_timeout()`` methods of an XBee class.
 
 **Get/set the timeout for synchronous operations**
@@ -139,7 +143,7 @@ can configure the timeout using the ``get_sync_ops_timeout()`` and
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Example: Synchronous unicast transmission                                                                                                                                  |
 +============================================================================================================================================================================+
-| The XBee Python Library includes a sample application that shows you how to send data to another XBee on the network. The example is located in the following path:        |
+| The XBee Python Library includes a sample application that shows you how to send data to another XBee in the network. The example is located in the following path:        |
 |                                                                                                                                                                            |
 | **examples/communication/SendDataSample**                                                                                                                                  |
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -153,30 +157,30 @@ during the transmit process. However, you cannot ensure that the data was
 successfully sent to the remote node.
 
 The ``XBeeDevice`` class of the API provides the following method to perform
-an asynchronous unicast transmission with a remote node on the network:
+an asynchronous unicast transmission with a remote node in the network:
 
-+---------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
-| Method                                                              | Description                                                                                         |
-+=====================================================================+=====================================================================================================+
-| **send_data_async(RemoteXBeeDevice, String or Bytearray, Integer)** | Specifies the remote XBee destination object, the data to send and optionally the transmit options. |
-+---------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+
+| Method                                                              | Description                                                                                            |
++=====================================================================+========================================================================================================+
+| **send_data_async(RemoteXBeeDevice, String or Bytearray, Integer)** | Specifies the remote XBee destination object, the data to send, and, optionally, the transmit options. |
++---------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+
 
 Protocol-specific classes offer some other asynchronous unicast transmission
 methods in addition to the one provided by the XBeeDevice object:
 
-+-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| XBee class      | Method                                                                                      | Description                                                                                                                                                                                       |
-+=================+=============================================================================================+===================================================================================================================================================================================================+
-| ZigBeeDevice    | **send_data_async_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Raw802Device    | **send_data_async_16(XBee16BitAddress, String or Bytearray, Integer)**                      | Specifies the 16-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+                 +---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|                 | **send_data_async_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiMeshDevice  | **send_data_async_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send and optionally the transmit options.                                                                                                   |
-+-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| DigiPointDevice | **send_data_async_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send and optionally the transmit options. If you do not know the 16-bit address, use the ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
-+-----------------+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-----------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| XBee class      | Method                                                                                      | Description                                                                                                                                                                                      |
++=================+=============================================================================================+==================================================================================================================================================================================================+
+| ZigBeeDevice    | **send_data_async_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send, and, optionally, the transmit options. If you do not know the 16-bit address, use ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
++-----------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Raw802Device    | **send_data_async_16(XBee16BitAddress, String or Bytearray, Integer)**                      | Specifies the 16-bit destination address, the data to send, and, optionally, the transmit options.                                                                                               |
++                 +---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                 | **send_data_async_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send, and, optionally, the transmit options.                                                                                               |
++-----------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| DigiMeshDevice  | **send_data_async_64(XBee64BitAddress, String or Bytearray, Integer)**                      | Specifies the 64-bit destination address, the data to send, and, optionally, the transmit options.                                                                                               |
++-----------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| DigiPointDevice | **send_data_async_64_16(XBee64BitAddress, XBee16BitAddress, String or Bytearray, Integer)** | Specifies the 64-bit and 16-bit destination addresses, the data to send, and, optionally, the transmit options. If you do not know the 16-bit address, use ``XBee16BitAddress.UNKNOWN_ADDRESS``. |
++-----------------+---------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send data asynchronously**
 
@@ -184,11 +188,11 @@ methods in addition to the one provided by the XBeeDevice object:
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
-  # Instantiate a remote XBee object.
+  # Instantiate a remote XBee node.
   remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send data using the remote object.
@@ -220,16 +224,16 @@ Send data to all devices of the network
 '''''''''''''''''''''''''''''''''''''''
 
 Broadcast transmissions are sent from one source device to all the other
-devices on the network.
+devices in the network.
 
 All the XBee classes (generic and protocol specific) provide the same method to
 send broadcast data:
 
-+-------------------------------------------------------+-----------------------------------------------------------------+
-| Method                                                | Description                                                     |
-+=======================================================+=================================================================+
-| **send_data_broadcast(String or Bytearray, Integer)** | Specifies the data to send and optionally the transmit options. |
-+-------------------------------------------------------+-----------------------------------------------------------------+
++-------------------------------------------------------+--------------------------------------------------------------------+
+| Method                                                | Description                                                        |
++=======================================================+====================================================================+
+| **send_data_broadcast(String or Bytearray, Integer)** | Specifies the data to send, and, optionally, the transmit options. |
++-------------------------------------------------------+--------------------------------------------------------------------+
 
 **Send broadcast data**
 
@@ -237,7 +241,7 @@ send broadcast data:
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
@@ -248,7 +252,7 @@ send broadcast data:
 
 The ``send_data_broadcast()`` method may fail for the following reasons:
 
-* Transmit status is not received in the configured timeout, throwing a
+* A Transmit status is not received in the configured timeout, throwing a
   ``TimeoutException`` exception.
 * Error types catch as ``XBeeException``:
 
@@ -261,7 +265,7 @@ The ``send_data_broadcast()`` method may fail for the following reasons:
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Example: Broadcast transmission                                                                                                                                                    |
 +====================================================================================================================================================================================+
-| The XBee Python Library includes a sample application that shows you how to send data to all the devices on the network (broadcast). The example is located in the following path: |
+| The XBee Python Library includes a sample application that shows you how to send data to all the devices in the network (broadcast). The example is located in the following path: |
 |                                                                                                                                                                                    |
 | **examples/communication/SendBroadcastDataSample**                                                                                                                                 |
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -272,7 +276,7 @@ The ``send_data_broadcast()`` method may fail for the following reasons:
 Receive data
 ````````````
 
-The data reception operation allows you to receive and handle data sent by
+The data reception operation allows you to receive and handle sent data by
 other remote nodes of the network.
 
 There are two different ways to read data from the device:
@@ -282,7 +286,8 @@ There are two different ways to read data from the device:
   configurable timeout has expired.
 * **Data reception callback**. In this case, you must register a listener that
   executes a callback each time new data is received by the local XBee (that is,
-  the device attached to your PC) providing data and other related information.
+  the device attached to your PC) providing received data and other related
+  information.
 
 
 .. _communicateReceiveDataPolling:
@@ -292,7 +297,7 @@ Polling for data
 
 The simplest way to read for data is by executing the ``read_data()`` method of
 the local XBee. This method blocks your application until data from any XBee
-on the network is received or the provided timeout expires:
+in the network is received or the provided timeout expires:
 
 +------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                 | Description                                                                                                                                                                                                                                                                   |
@@ -306,7 +311,7 @@ on the network is received or the provided timeout expires:
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
@@ -342,7 +347,7 @@ the ``XBeeMessage`` object:
   [...]
 
 You can also read data from a specific remote XBee of the network. For that
-purpose, the XBee object provides the ``read_data_from()`` method:
+purpose, ``XBeeDevice`` object provides the ``read_data_from()`` method:
 
 +-----------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                        | Description                                                                                                                                                                                                                                                                                                                |
@@ -356,14 +361,14 @@ purpose, the XBee object provides the ``read_data_from()`` method:
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
-  # Instantiate a remote XBee object.
+  # Instantiate a remote XBee node.
   remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A200XXXXXX"))
 
-  # Read data sent by the remote device.
+  # Read sent data by the remote device.
   xbee_message = xbee.read_data(remote)
 
   [...]
@@ -401,11 +406,11 @@ parameter.
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
-  # Define callback.
+  # Define the callback.
   def my_data_received_callback(xbee_message):
       address = xbee_message.remote_device.get_64bit_addr()
       data = xbee_message.data.decode("utf8")
@@ -468,10 +473,8 @@ layer-specific fields—the source and destination endpoints, profile ID, and
 cluster ID.
 
 .. warning::
-  Only Zigbee, DigiMesh, and Point-to-Multipoint protocols support the
-  transmission and reception of data in explicit format. This means you cannot
-  transmit or receive explicit data using a generic ``XBeeDevice`` object. You
-  must use a protocol-specific XBee object such as a ``ZigBeeDevice``.
+  Only Zigbee, DigiMesh, 802.15.4, and Point-to-Multipoint protocols support the
+  transmission and reception of data from other devices in the network.
 
 * :ref:`communicateSendExplicitData`
 * :ref:`communicateReceiveExplicitData`
@@ -509,11 +512,11 @@ All local XBee classes that support explicit data transmission provide a method
 to transmit unicast and synchronous explicit data to a remote node of the
 network:
 
-+--------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Method                                                                                                 | Description                                                                                                                                                                                        |
-+========================================================================================================+====================================================================================================================================================================================================+
-| **send_expl_data(RemoteXBeeDevice, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies remote XBee destination object, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. |
-+--------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++--------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Method                                                                                                 | Description                                                                                                                                                                                           |
++========================================================================================================+=======================================================================================================================================================================================================+
+| **send_expl_data(RemoteXBeeDevice, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies remote XBee destination object, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send, and, optionally, the transmit options. |
++--------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send unicast explicit data synchronously**
 
@@ -521,19 +524,19 @@ network:
 
   [...]
 
-  # Instantiate a local Zigbee object.
-  xbee = ZigBeeDevice("COM1", 9600)
+  # Instantiate a local node.
+  xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
-  # Instantiate a remote Zigbee object.
-  remote = RemoteZigBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
+  # Instantiate a remote node.
+  remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send explicit data using the remote object.
   xbee.send_expl_data(remote, 0xA0, 0xA1, 0x1554, 0xC105, "Hello XBee!")
 
   [...]
 
-The previous methods may fail for the following reasons:
+The previous method may fail for the following reasons:
 
 * The method throws a ``TimeoutException`` exception if the response is not
   received in the configured timeout.
@@ -547,7 +550,7 @@ The previous methods may fail for the following reasons:
       generic ``XBeeException``.
 
 The default timeout to wait for the send status is two seconds. However, you
-can configure the timeout using the ``get_sync_ops_timeout()`` and
+can configure the timeout using ``get_sync_ops_timeout()`` and
 ``set_sync_ops_timeout()`` methods of an XBee class.
 
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -570,11 +573,11 @@ All local XBee classes that support explicit data transmission provide
 a method to transmit unicast and asynchronous explicit data to a remote node
 of the network:
 
-+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Method                                                                                                       | Description                                                                                                                                                                                        |
-+==============================================================================================================+====================================================================================================================================================================================================+
-| **send_expl_data_async(RemoteXBeeDevice, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies remote XBee destination object, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. |
-+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++--------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Method                                                                                                       | Description                                                                                                                                                                                          |
++==============================================================================================================+======================================================================================================================================================================================================+
+| **send_expl_data_async(RemoteXBeeDevice, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies remote XBee destination object, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and, optionally, the transmit options. |
++--------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send unicast explicit data asynchronously**
 
@@ -582,19 +585,19 @@ of the network:
 
   [...]
 
-  # Instantiate a local Zigbee object.
-  xbee = ZigBeeDevice("COM1", 9600)
+  # Instantiate a local XBee node.
+  xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
-  # Instantiate a remote Zigbee object.
-  remote = RemoteZigBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
+  # Instantiate a remote XBee node.
+  remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send explicit data asynchronously using the remote object.
   xbee.send_expl_data_async(remote, 0xA0, 0xA1, 0x1554, 0xC105, "Hello XBee!")
 
   [...]
 
-The previous methods may fail for the following reasons:
+The previous method may fail for the following reasons:
 
 * All the possible errors are caught as an ``XBeeException``:
 
@@ -623,11 +626,11 @@ the network.
 All protocol-specific XBee classes that support the transmission of explicit
 data provide the same method to send broadcast explicit data:
 
-+------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Method                                                                                         | Description                                                                                                                                                            |
-+================================================================================================+========================================================================================================================================================================+
-| **send_expl_data_broadcast(Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and optionally the transmit options. |
-+------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Method                                                                                         | Description                                                                                                                                                               |
++================================================================================================+===========================================================================================================================================================================+
+| **send_expl_data_broadcast(Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send, and, optionally, the transmit options. |
++------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send broadcast data**
 
@@ -635,8 +638,8 @@ data provide the same method to send broadcast explicit data:
 
   [...]
 
-  # Instantiate a local Zigbee object.
-  xbee = ZigBeeDevice("COM1", 9600)
+  # Instantiate a local XBee node.
+  xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
   # Send broadcast data.
@@ -676,14 +679,14 @@ To receive data in explicit format, configure the data output mode of the
 receiver XBee to explicit format using the ``set_api_output_mode_value()``
 method.
 
-+----------------------------------------+----------------------------------------------------------------------------------------------+
-| Method                                 | Description                                                                                  |
-+========================================+==============================================================================================+
-| **get_api_output_mode_value()**        | Returns the API output mode of the data received by the XBee.                                |
-+----------------------------------------+----------------------------------------------------------------------------------------------+
-| **set_api_output_mode_value(Integer)** | Specifies the API output mode of the data received by the XBee. Calculate the mode           |
-|                                        | with the method `calculate_api_output_mode_value` with a set of `APIOutputModeBit`.          |
-+----------------------------------------+----------------------------------------------------------------------------------------------+
++----------------------------------------+-------------------------------------------------------------------------------------+
+| Method                                 | Description                                                                         |
++========================================+=====================================================================================+
+| **get_api_output_mode_value()**        | Returns the API output mode of the data received by the XBee.                       |
++----------------------------------------+-------------------------------------------------------------------------------------+
+| **set_api_output_mode_value(Integer)** | Specifies the API output mode of the data received by the XBee. Calculate the mode  |
+|                                        | with the method `calculate_api_output_mode_value` with a set of `APIOutputModeBit`. |
++----------------------------------------+-------------------------------------------------------------------------------------+
 
 **Set API output mode**
 
@@ -691,8 +694,8 @@ method.
 
   [...]
 
-  # Instantiate a local Zigbee object.
-  xbee = ZigBeeDevice("COM1", 9600)
+  # Instantiate a local XBee node.
+  xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
   # Set explicit output mode
@@ -704,7 +707,7 @@ method.
   mode = 0
   xbee.set_api_output_mode_value(mode)
 
-  # Set explicit plus unsupported ZDO request pass-through
+  # Set explicit plus unsupported ZDO request pass-through (only for Zigbee)
   mode = APIOutputModeBit.calculate_api_output_mode_value(xbee.get_protocol(),
     {APIOutputModeBit.EXPLICIT, APIOutputModeBit.UNSUPPORTED_ZDO_PASSTHRU})
   xbee.set_api_output_mode_value(mode)
@@ -738,8 +741,8 @@ or the provided timeout has expired:
 
   [...]
 
-  # Instantiate a local Zigbee object.
-  xbee = ZigBeeDevice("COM1", 9600)
+  # Instantiate a local XBee node.
+  xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
   # Read data.
@@ -782,7 +785,7 @@ the ``ExplicitXBeeMessage`` object:
   [...]
 
 You can also read explicit data from a specific remote XBee of the network. For
-that purpose, the XBee object provides the ``read_expl_data_from()`` method:
+that purpose, ``XBeeDevice`` provides the ``read_expl_data_from()`` method:
 
 +----------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                             | Description                                                                                                                                                                                                                                                                                                                                  |
@@ -796,14 +799,14 @@ that purpose, the XBee object provides the ``read_expl_data_from()`` method:
 
   [...]
 
-  # Instantiate a local Zigbee object.
-  xbee = ZigBeeDevice("COM1", 9600)
+  # Instantiate a local XBee node.
+  xbee = BeeDevice("COM1", 9600)
   xbee.open()
 
-  # Instantiate a remote Zigbee object.
-  remote = RemoteZigBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A200XXXXXX"))
+  # Instantiate a remote XBee node.
+  remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A200XXXXXX"))
 
-  # Read data sent by the remote device.
+  # Read sent data by the remote device.
   expl_xbee_message = xbee.read_expl_data(remote)
 
   [...]
@@ -812,7 +815,7 @@ As in the previous method, this method also returns an ``ExplicitXBeeMessage``
 object with all the information inside.
 
 The default timeout to wait for data is two seconds. However, you
-can configure the timeout using the ``get_sync_ops_timeout()`` and
+can configure the timeout using ``get_sync_ops_timeout()`` and
 ``set_sync_ops_timeout()`` methods of an XBee class.
 
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -830,8 +833,8 @@ Explicit data reception callback
 ''''''''''''''''''''''''''''''''
 
 This mechanism for reading explicit data does not block your application.
-Instead, you can be notified when new explicit data has been received if you
-are subscribed or registered to the explicit data reception service by using the
+Instead, you are notified when new explicit data has been received if you are
+subscribed or registered to the explicit data reception service by using
 ``add_expl_data_received_callback()``.
 
 **Explicit data reception registration**
@@ -840,11 +843,11 @@ are subscribed or registered to the explicit data reception service by using the
 
   [...]
 
-  # Instantiate a local Zigbee object.
-  xbee = ZigBeeDevice("COM1", 9600)
+  # Instantiate a local XBee node.
+  xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
-  # Define callback.
+  # Define the callback.
   def my_expl_data_received_callback(expl_xbee_message):
       address = expl_xbee_message.remote_device.get_64bit_addr()
       source_endpoint = expl_xbee_message.source_endpoint
@@ -938,8 +941,8 @@ already-registered callback.
 Send and receive IP data
 ------------------------
 
-In contrast to XBee protocols like Zigbee, DigiMesh or 802.15.4, where the
-devices are connected each other, in cellular and Wi-Fi protocols the modules
+In contrast to XBee protocols like Zigbee, DigiMesh, or 802.15.4, where the
+devices are connected to each other, in Cellular and Wi-Fi protocols, modules
 are part of the Internet.
 
 XBee Cellular and Wi-Fi modules offer a special type of frame for communicating
@@ -974,11 +977,11 @@ default timeout.
 The ``CellularDevice`` and ``WiFiDevice`` classes include several methods to
 transmit IP data synchronously:
 
-+----------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Method                                                                           | Description                                                                                                                                                                                                 |
-+==================================================================================+=============================================================================================================================================================================================================+
-| **send_ip_data(IPv4Address, Integer, IPProtocol, String or Bytearray, Boolean)** | Specifies the destination IP address, destination port, IP protocol (UDP, TCP or TCP SSL), data to send for transmissions and whether the socket should be closed after the transmission or not (optional). |
-+----------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++----------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Method                                                                           | Description                                                                                                                                                                                                  |
++==================================================================================+==============================================================================================================================================================================================================+
+| **send_ip_data(IPv4Address, Integer, IPProtocol, String or Bytearray, Boolean)** | Specifies the destination IP address, destination port, IP protocol (UDP, TCP or TCP SSL), data to send for transmissions, and whether the socket should be closed after the transmission or not (optional). |
++----------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send network data synchronously**
 
@@ -1046,11 +1049,11 @@ successfully sent.
 The ``CellularDevice`` and ``WiFiDevice`` classes include several methods to
 transmit IP data asynchronously:
 
-+----------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Method                                                                                 | Description                                                                                                                                                                                                 |
-+========================================================================================+=============================================================================================================================================================================================================+
-| **send_ip_data_async(IPv4Address, Integer, IPProtocol, String or Bytearray, Boolean)** | Specifies the destination IP address, destination port, IP protocol (UDP, TCP or TCP SSL), data to send for transmissions and whether the socket should be closed after the transmission or not (optional). |
-+----------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++----------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Method                                                                                 | Description                                                                                                                                                                                                  |
++========================================================================================+==============================================================================================================================================================================================================+
+| **send_ip_data_async(IPv4Address, Integer, IPProtocol, String or Bytearray, Boolean)** | Specifies the destination IP address, destination port, IP protocol (UDP, TCP or TCP SSL), data to send for transmissions, and whether the socket should be closed after the transmission or not (optional). |
++----------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send network data asynchronously**
 
@@ -1093,14 +1096,13 @@ receive IP data.
 XBee Cellular and Wi-Fi modules operate the same way as other TCP/IP devices.
 They can initiate communications with other devices or listen for TCP or UDP
 transmissions at a specific port. In either case, you must apply any of the
-receive methods explained in this section in order to read IP data from other
-devices.
+receive methods explained in this section to read IP data from other devices.
 
 
 Listen for incoming transmissions
 '''''''''''''''''''''''''''''''''
 
-If the cellular or Wi-Fi module operates as a server, listening for incoming
+If the Cellular or Wi-Fi module operates as a server, listening for incoming
 TCP or UDP transmissions, you must start listening at a specific port,
 similar to the bind operation of a socket. The XBee Python Library
 provides a method to listen for incoming transmissions:
@@ -1242,7 +1244,7 @@ the ``IPMessage`` object:
   [...]
 
 You can also read IP data that comes from a specific IP address. For that
-purpose, the cellular and Wi-Fi device objects provide the
+purpose, the Cellular and Wi-Fi device objects provide the
 ``read_ip_data_from()`` method:
 
 **Read IP data from a specific IP address (polling)**
@@ -1580,7 +1582,7 @@ during the transmit process.
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
@@ -1625,7 +1627,7 @@ reception service by using the ``add_bluetooth_data_received_callback()`` method
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
@@ -1714,7 +1716,7 @@ during the transmit process.
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
@@ -1759,7 +1761,7 @@ service by using the ``add_micropython_data_received_callback()`` method.
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
@@ -1832,7 +1834,7 @@ using a modem status listener as parameter with the method
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 
@@ -2117,7 +2119,7 @@ Available statistics are attributes of the ``Statistics`` object:
 
   [...]
 
-  # Instantiate a local XBee object.
+  # Instantiate a local XBee node.
   xbee = XBeeDevice("COM1", 9600)
   xbee.open()
 

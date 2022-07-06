@@ -26,7 +26,7 @@ The XBee Python Library supports one XBee class per protocol, as follows:
   * XBee Wi-Fi (``WiFiDevice``)
 
 All these XBee classes allow you to configure the physical XBee, communicate
-with the device, send data to other nodes on the network, receive data from
+with the device, send data to other nodes in the network, receive data from
 remote devices, and so on. Depending on the class, you may have additional
 methods to execute protocol-specific features or similar methods.
 

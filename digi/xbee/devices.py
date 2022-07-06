@@ -1661,6 +1661,7 @@ class AbstractXBeeDevice:
             raise ValueError("API output mode cannot be None")
 
         if self.get_protocol() not in (XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_MESH,
+                                       XBeeProtocol.RAW_802_15_4,
                                        XBeeProtocol.DIGI_POINT, XBeeProtocol.XLR,
                                        XBeeProtocol.XLR_DM):
             raise OperationNotSupportedException(
@@ -3693,6 +3694,181 @@ class XBeeDevice(AbstractXBeeDevice):
         """
         return XBeeNetwork(self)
 
+    def read_expl_data(self, timeout=None):
+        """
+        Reads new explicit data received by this XBee.
+
+        If `timeout` is specified, this method blocks until new data is received
+        or the timeout expires, throwing a :class:`.TimeoutException` in this case.
+
+        Args:
+            timeout (Integer, optional): Read timeout in seconds. If `None`,
+                this method is non-blocking and returns `None` if there is no
+                explicit data available.
+
+        Returns:
+            :class:`.ExplicitXBeeMessage`: Read message or `None` if this XBee
+                did not receive new explicit data.
+
+        Raises:
+            ValueError: If a timeout is specified and is less than 0.
+            TimeoutException: If a timeout is specified and no explicit data was
+                received during that time.
+            InvalidOperatingModeException: If the XBee's operating mode is not
+                API or ESCAPED API. This method only checks the cached value of
+                the operating mode.
+            XBeeException: If the XBee's communication interface is closed.
+
+        .. seealso::
+           | :class:`.ExplicitXBeeMessage`
+        """
+        return self._read_expl_data(timeout=timeout)
+
+    def read_expl_data_from(self, remote_xbee, timeout=None):
+        """
+        Reads new explicit data received from the given remote XBee.
+
+        If `timeout` is specified, this method blocks until new data is received
+        or the timeout expires, throwing a :class:`.TimeoutException` in this case.
+
+        Args:
+            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee that sent the explicit data.
+            timeout (Integer, optional): Read timeout in seconds. If `None`,
+                this method is non-blocking and returns `None` if there is no
+                data available.
+
+        Returns:
+            :class:`.ExplicitXBeeMessage`: Read message sent by `remote_xbee`
+                or `None` if this XBee did not receive new data from that node.
+
+        Raises:
+            ValueError: If a timeout is specified and is less than 0.
+            TimeoutException: If a timeout is specified and no explicit data was
+                received during that time.
+            InvalidOperatingModeException: If the XBee's operating mode is not
+                API or ESCAPED API. This method only checks the cached value of
+                the operating mode.
+            XBeeException: If the XBee's communication interface is closed.
+
+        .. seealso::
+           | :class:`.ExplicitXBeeMessage`
+           | :class:`.RemoteXBeeDevice`
+        """
+        return self._read_expl_data_from(remote_xbee, timeout=timeout)
+
+    def send_expl_data(self, remote_xbee, data, src_endpoint, dest_endpoint,
+                       cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Blocking method. Sends the provided explicit data to the given XBee,
+        source and destination end points, cluster and profile ids.
+
+        This method blocks until a success or error response arrives or the
+        configured receive timeout expires. The default timeout is
+        :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS`.
+
+        Args:
+            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee to send data to.
+            data (String or Bytearray): Raw data to send.
+            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
+            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
+            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
+            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
+            transmit_options (Integer, optional): Transmit options, bitfield of
+                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
+
+        Returns:
+            :class:`.XBeePacket`: Response packet obtained after sending data.
+
+        Raises:
+            TimeoutException: If response is not received before the read
+                timeout expires.
+            InvalidOperatingModeException: If the XBee's operating mode is not
+                API or ESCAPED API. This method only checks the cached value of
+                the operating mode.
+            TransmitException: If the status of the response received is not OK.
+            XBeeException: If the XBee's communication interface is closed.
+            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
+                greater than 0xFFFF.
+
+        .. seealso::
+           | :class:`.RemoteXBeeDevice`
+           | :class:`.XBeePacket`
+        """
+        return self._send_expl_data(
+            remote_xbee, data, src_endpoint, dest_endpoint, cluster_id,
+            profile_id, transmit_options=transmit_options)
+
+    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id,
+                                 profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Sends the provided explicit data to all the XBee nodes of the network
+        (broadcast) using provided source and destination end points, cluster
+        and profile ids.
+
+        This method blocks until a success or error transmit status arrives or
+        the configured receive timeout expires. The received timeout is
+        configured using the :meth:`.AbstractXBeeDevice.set_sync_ops_timeout`
+        method and can be consulted with method
+        :meth:`.AbstractXBeeDevice.get_sync_ops_timeout`.
+
+        Args:
+            data (String or Bytearray): Raw data to send.
+            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
+            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
+            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
+            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
+            transmit_options (Integer, optional): Transmit options, bitfield of
+                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
+
+        Raises:
+            TimeoutException: If response is not received before the read
+                timeout expires.
+            InvalidOperatingModeException: If the XBee's operating mode is not
+                API or ESCAPED API. This method only checks the cached value of
+                the operating mode.
+            TransmitException: If the status of the response received is not OK.
+            XBeeException: If the XBee's communication interface is closed.
+            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
+                greater than 0xFFFF.
+
+        .. seealso::
+           | :meth:`.XBeeDevice._send_expl_data`
+        """
+        return self._send_expl_data_broadcast(
+            data, src_endpoint, dest_endpoint, cluster_id, profile_id,
+            transmit_options=transmit_options)
+
+    def send_expl_data_async(self, remote_xbee, data, src_endpoint, dest_endpoint,
+                             cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Non-blocking method. Sends the provided explicit data to the given XBee,
+        source and destination end points, cluster and profile ids.
+
+        Args:
+            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee to send data to.
+            data (String or Bytearray): Raw data to send.
+            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
+            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
+            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
+            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
+            transmit_options (Integer, optional): Transmit options, bitfield of
+                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
+
+        Raises:
+            InvalidOperatingModeException: If the XBee's operating mode is not
+                API or ESCAPED API. This method only checks the cached value of
+                the operating mode.
+            XBeeException: If the XBee's communication interface is closed.
+            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
+                greater than 0xFFFF.
+
+        .. seealso::
+           | :class:`.RemoteXBeeDevice`
+        """
+        self._send_expl_data_async(remote_xbee, data, src_endpoint,
+                                   dest_endpoint, cluster_id, profile_id,
+                                   transmit_options=transmit_options)
+
     @AbstractXBeeDevice._before_send_method
     @AbstractXBeeDevice._after_send_method
     def _send_expl_data(self, remote_xbee, data, src_endpoint, dest_endpoint,
@@ -4959,181 +5135,6 @@ class DigiMeshDevice(XBeeDevice):
         """
         self._send_data_async_64(x64addr, data, transmit_options=transmit_options)
 
-    def read_expl_data(self, timeout=None):
-        """
-        Reads new explicit data received by this XBee.
-
-        If `timeout` is specified, this method blocks until new data is received
-        or the timeout expires, throwing a :class:`.TimeoutException` in this case.
-
-        Args:
-            timeout (Integer, optional): Read timeout in seconds. If `None`,
-                this method is non-blocking and returns `None` if there is no
-                explicit data available.
-
-        Returns:
-            :class:`.ExplicitXBeeMessage`: Read message or `None` if this XBee
-                did not receive new explicit data.
-
-        Raises:
-            ValueError: If a timeout is specified and is less than 0.
-            TimeoutException: If a timeout is specified and no explicit data was
-                received during that time.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-
-        .. seealso::
-           | :class:`.ExplicitXBeeMessage`
-        """
-        return self._read_expl_data(timeout=timeout)
-
-    def read_expl_data_from(self, remote_xbee, timeout=None):
-        """
-        Reads new explicit data received from the given remote XBee.
-
-        If `timeout` is specified, this method blocks until new data is received
-        or the timeout expires, throwing a :class:`.TimeoutException` in this case.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee that sent the explicit data.
-            timeout (Integer, optional): Read timeout in seconds. If `None`,
-                this method is non-blocking and returns `None` if there is no
-                data available.
-
-        Returns:
-            :class:`.ExplicitXBeeMessage`: Read message sent by `remote_xbee`
-                or `None` if this XBee did not receive new data from that node.
-
-        Raises:
-            ValueError: If a timeout is specified and is less than 0.
-            TimeoutException: If a timeout is specified and no explicit data was
-                received during that time.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-
-        .. seealso::
-           | :class:`.ExplicitXBeeMessage`
-           | :class:`.RemoteXBeeDevice`
-        """
-        return self._read_expl_data_from(remote_xbee, timeout=timeout)
-
-    def send_expl_data(self, remote_xbee, data, src_endpoint, dest_endpoint,
-                       cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
-        """
-        Blocking method. Sends the provided explicit data to the given XBee,
-        source and destination end points, cluster and profile ids.
-
-        This method blocks until a success or error response arrives or the
-        configured receive timeout expires. The default timeout is
-        :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS`.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee to send data to.
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Returns:
-            :class:`.XBeePacket`: Response packet obtained after sending data.
-
-        Raises:
-            TimeoutException: If response is not received before the read
-                timeout expires.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            TransmitException: If the status of the response received is not OK.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :class:`.RemoteXBeeDevice`
-           | :class:`.XBeePacket`
-        """
-        return self._send_expl_data(
-            remote_xbee, data, src_endpoint, dest_endpoint, cluster_id,
-            profile_id, transmit_options=transmit_options)
-
-    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id,
-                                 profile_id, transmit_options=TransmitOptions.NONE.value):
-        """
-        Sends the provided explicit data to all the XBee nodes of the network
-        (broadcast) using provided source and destination end points, cluster
-        and profile ids.
-
-        This method blocks until a success or error transmit status arrives or
-        the configured receive timeout expires. The received timeout is
-        configured using the :meth:`.AbstractXBeeDevice.set_sync_ops_timeout`
-        method and can be consulted with method
-        :meth:`.AbstractXBeeDevice.get_sync_ops_timeout`.
-
-        Args:
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Raises:
-            TimeoutException: If response is not received before the read
-                timeout expires.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            TransmitException: If the status of the response received is not OK.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :meth:`.XBeeDevice._send_expl_data`
-        """
-        return self._send_expl_data_broadcast(
-            data, src_endpoint, dest_endpoint, cluster_id, profile_id,
-            transmit_options=transmit_options)
-
-    def send_expl_data_async(self, remote_xbee, data, src_endpoint, dest_endpoint,
-                             cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
-        """
-        Non-blocking method. Sends the provided explicit data to the given XBee,
-        source and destination end points, cluster and profile ids.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee to send data to.
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Raises:
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :class:`.RemoteXBeeDevice`
-        """
-        self._send_expl_data_async(remote_xbee, data, src_endpoint,
-                                   dest_endpoint, cluster_id, profile_id,
-                                   transmit_options=transmit_options)
-
     def get_neighbors(self, neighbor_cb=None, finished_cb=None, timeout=None):
         """
         Returns the neighbors of this XBee. If `neighbor_cb` is not
@@ -5311,181 +5312,6 @@ class DigiPointDevice(XBeeDevice):
         """
         self._send_data_async_64_16(x64addr, x16addr, data,
                                     transmit_options=transmit_options)
-
-    def read_expl_data(self, timeout=None):
-        """
-        Reads new explicit data received by this XBee.
-
-        If `timeout` is specified, this method blocks until new data is received
-        or the timeout expires, throwing a :class:`.TimeoutException` in this case.
-
-        Args:
-            timeout (Integer, optional): Read timeout in seconds. If `None`,
-                this method is non-blocking and returns `None` if there is no
-                explicit data available.
-
-        Returns:
-            :class:`.ExplicitXBeeMessage`: Read message or `None` if this XBee
-                did not receive new explicit data.
-
-        Raises:
-            ValueError: If a timeout is specified and is less than 0.
-            TimeoutException: If a timeout is specified and no explicit data was
-                received during that time.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-
-        .. seealso::
-           | :class:`.ExplicitXBeeMessage`
-        """
-        return self._read_expl_data(timeout=timeout)
-
-    def read_expl_data_from(self, remote_xbee, timeout=None):
-        """
-        Reads new explicit data received from the given remote XBee.
-
-        If `timeout` is specified, this method blocks until new data is received
-        or the timeout expires, throwing a :class:`.TimeoutException` in this case.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee that sent the explicit data.
-            timeout (Integer, optional): Read timeout in seconds. If `None`,
-                this method is non-blocking and returns `None` if there is no
-                data available.
-
-        Returns:
-            :class:`.ExplicitXBeeMessage`: Read message sent by `remote_xbee`
-                or `None` if this XBee did not receive new data from that node.
-
-        Raises:
-            ValueError: If a timeout is specified and is less than 0.
-            TimeoutException: If a timeout is specified and no explicit data was
-                received during that time.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-
-        .. seealso::
-           | :class:`.ExplicitXBeeMessage`
-           | :class:`.RemoteXBeeDevice`
-        """
-        return self._read_expl_data_from(remote_xbee, timeout=timeout)
-
-    def send_expl_data(self, remote_xbee, data, src_endpoint, dest_endpoint,
-                       cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
-        """
-        Blocking method. Sends the provided explicit data to the given XBee,
-        source and destination end points, cluster and profile ids.
-
-        This method blocks until a success or error response arrives or the
-        configured receive timeout expires. The default timeout is
-        :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS`.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee to send data to.
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Returns:
-            :class:`.XBeePacket`: Response packet obtained after sending data.
-
-        Raises:
-            TimeoutException: If response is not received before the read
-                timeout expires.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            TransmitException: If the status of the response received is not OK.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :class:`.RemoteXBeeDevice`
-           | :class:`.XBeePacket`
-        """
-        return self._send_expl_data(remote_xbee, data, src_endpoint,
-                                    dest_endpoint, cluster_id, profile_id,
-                                    transmit_options=transmit_options)
-
-    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id, profile_id,
-                                 transmit_options=TransmitOptions.NONE.value):
-        """
-        Sends the provided explicit data to all the XBee nodes of the network
-        (broadcast) using provided source and destination end points, cluster
-        and profile ids.
-
-        This method blocks until a success or error transmit status arrives or
-        the configured receive timeout expires. The received timeout is
-        configured using the :meth:`.AbstractXBeeDevice.set_sync_ops_timeout`
-        method and can be consulted with method
-        :meth:`.AbstractXBeeDevice.get_sync_ops_timeout`.
-
-        Args:
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Raises:
-            TimeoutException: If response is not received before the read
-                timeout expires.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            TransmitException: If the status of the response received is not OK.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :meth:`.XBeeDevice._send_expl_data`
-        """
-        return self._send_expl_data_broadcast(data, src_endpoint, dest_endpoint,
-                                              cluster_id, profile_id,
-                                              transmit_options=transmit_options)
-
-    def send_expl_data_async(self, remote_xbee, data, src_endpoint, dest_endpoint,
-                             cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
-        """
-        Non-blocking method. Sends the provided explicit data to the given XBee,
-        source and destination end points, cluster and profile ids.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee to send data to.
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Raises:
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :class:`.RemoteXBeeDevice`
-        """
-        self._send_expl_data_async(remote_xbee, data, src_endpoint,
-                                   dest_endpoint, cluster_id, profile_id,
-                                   transmit_options=transmit_options)
 
 
 class ZigBeeDevice(XBeeDevice):
@@ -5722,182 +5548,6 @@ class ZigBeeDevice(XBeeDevice):
            | :class:`.XBeePacket`
         """
         self._send_data_async_64_16(x64addr, x16addr, data, transmit_options=transmit_options)
-
-    def read_expl_data(self, timeout=None):
-        """
-        Reads new explicit data received by this XBee.
-
-        If `timeout` is specified, this method blocks until new data is received
-        or the timeout expires, throwing a :class:`.TimeoutException` in this case.
-
-        Args:
-            timeout (Integer, optional): Read timeout in seconds. If `None`,
-                this method is non-blocking and returns `None` if there is no
-                explicit data available.
-
-        Returns:
-            :class:`.ExplicitXBeeMessage`: Read message or `None` if this XBee
-                did not receive new explicit data.
-
-        Raises:
-            ValueError: If a timeout is specified and is less than 0.
-            TimeoutException: If a timeout is specified and no explicit data was
-                received during that time.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-
-        .. seealso::
-           | :class:`.ExplicitXBeeMessage`
-        """
-        return self._read_expl_data(timeout=timeout)
-
-    def read_expl_data_from(self, remote_xbee, timeout=None):
-        """
-        Reads new explicit data received from the given remote XBee.
-
-        If `timeout` is specified, this method blocks until new data is received
-        or the timeout expires, throwing a :class:`.TimeoutException` in this case.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee that sent the explicit data.
-            timeout (Integer, optional): Read timeout in seconds. If `None`,
-                this method is non-blocking and returns `None` if there is no
-                data available.
-
-        Returns:
-            :class:`.ExplicitXBeeMessage`: Read message sent by `remote_xbee`
-                or `None` if this XBee did not receive new data from that node.
-
-        Raises:
-            ValueError: If a timeout is specified and is less than 0.
-            TimeoutException: If a timeout is specified and no explicit data was
-                received during that time.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-
-        .. seealso::
-           | :class:`.ExplicitXBeeMessage`
-           | :class:`.RemoteXBeeDevice`
-        """
-        return self._read_expl_data_from(remote_xbee, timeout=timeout)
-
-    def send_expl_data(self, remote_xbee, data, src_endpoint, dest_endpoint,
-                       cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
-        """
-        Blocking method. Sends the provided explicit data to the given XBee,
-        source and destination end points, cluster and profile ids.
-
-        This method blocks until a success or error response arrives or the
-        configured receive timeout expires. The default timeout is
-        :attr:`.XBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS`.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee to send data to.
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Returns:
-            :class:`.XBeePacket`: Response packet obtained after sending data.
-
-        Raises:
-            TimeoutException: If response is not received before the read
-                timeout expires.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            TransmitException: If the status of the response received is not OK.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :class:`.RemoteXBeeDevice`
-           | :class:`.XBeePacket`
-        """
-        return self._send_expl_data(remote_xbee, data, src_endpoint,
-                                    dest_endpoint, cluster_id, profile_id,
-                                    transmit_options=transmit_options)
-
-    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint,
-                                 cluster_id, profile_id,
-                                 transmit_options=TransmitOptions.NONE.value):
-        """
-        Sends the provided explicit data to all the XBee nodes of the network
-        (broadcast) using provided source and destination end points, cluster
-        and profile ids.
-
-        This method blocks until a success or error transmit status arrives or
-        the configured receive timeout expires. The received timeout is
-        configured using the :meth:`.AbstractXBeeDevice.set_sync_ops_timeout`
-        method and can be consulted with method
-        :meth:`.AbstractXBeeDevice.get_sync_ops_timeout`.
-
-        Args:
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Raises:
-            TimeoutException: If response is not received before the read
-                timeout expires.
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            TransmitException: If the status of the response received is not OK.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :meth:`.XBeeDevice._send_expl_data`
-        """
-        return self._send_expl_data_broadcast(data, src_endpoint, dest_endpoint,
-                                              cluster_id, profile_id,
-                                              transmit_options=transmit_options)
-
-    def send_expl_data_async(self, remote_xbee, data, src_endpoint, dest_endpoint,
-                             cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
-        """
-        Non-blocking method. Sends the provided explicit data to the given XBee,
-        source and destination end points, cluster and profile ids.
-
-        Args:
-            remote_xbee (:class:`.RemoteXBeeDevice`): Remote XBee to send data to.
-            data (String or Bytearray): Raw data to send.
-            src_endpoint (Integer): Source endpoint of the transmission. 1 byte.
-            dest_endpoint (Integer): Destination endpoint of the transmission. 1 byte.
-            cluster_id (Integer): Cluster ID of the transmission (between 0x0 and 0xFFFF)
-            profile_id (Integer): Profile ID of the transmission (between 0x0 and 0xFFFF)
-            transmit_options (Integer, optional): Transmit options, bitfield of
-                :class:`.TransmitOptions`. Default to `TransmitOptions.NONE.value`.
-
-        Raises:
-            InvalidOperatingModeException: If the XBee's operating mode is not
-                API or ESCAPED API. This method only checks the cached value of
-                the operating mode.
-            XBeeException: If the XBee's communication interface is closed.
-            ValueError: if `cluster_id` or `profile_id` is less than 0x0 or
-                greater than 0xFFFF.
-
-        .. seealso::
-           | :class:`.RemoteXBeeDevice`
-        """
-        self._send_expl_data_async(remote_xbee, data, src_endpoint,
-                                   dest_endpoint, cluster_id, profile_id,
-                                   transmit_options=transmit_options)
 
     @AbstractXBeeDevice._before_send_method
     @AbstractXBeeDevice._after_send_method
@@ -6817,6 +6467,54 @@ class IPDevice(XBeeDevice):
     def send_data_async(self, remote_xbee, data, transmit_options=TransmitOptions.NONE.value):
         """
         Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def read_expl_data(self, timeout=None):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def read_expl_data_from(self, remote_xbee, timeout=None):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_expl_data(self, remote_xbee, data, src_endpoint, dest_endpoint,
+                       cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id,
+                                 profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_expl_data_async(self, remote_xbee, data, src_endpoint, dest_endpoint,
+                             cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Override.
 
         Operation not supported in this protocol. This method raises an
         :class:`.AttributeError`.

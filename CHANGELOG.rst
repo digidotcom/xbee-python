@@ -8,6 +8,8 @@ v1.4.2 - XX/XX/202X
   * XBee 3 Cellular Global LTE Cat 1
   * XBee 3 Cellular North America LTE Cat 1
 * Support to retrieve XBee statistics.
+* Send/receive explicit data in 802.15.4.
+  (XBee 3 modules support this feature)
 
 
 v1.4.1 - 12/22/2021
