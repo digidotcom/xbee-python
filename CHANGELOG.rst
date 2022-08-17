@@ -2,6 +2,7 @@ Changelog
 =========
 
 v1.4.2 - XX/XX/202X
+-------------------
 
 * Support for new hardware variants:
 
@@ -10,7 +11,9 @@ v1.4.2 - XX/XX/202X
 * Support to retrieve XBee statistics.
 * Send/receive explicit data in 802.15.4.
   (XBee 3 modules support this feature)
+* Bug fixing:
 
+  * Fix order of nodes when creating a Zigbee source route (#278)
 
 v1.4.1 - 12/22/2021
 -------------------

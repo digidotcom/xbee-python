@@ -5901,6 +5901,9 @@ class ZigBeeDevice(XBeeDevice):
                         dest_node, dest_node.get_local_xbee_device(),
                         " >>> " if hops else "", " >>> ".join(map(str, hops)),
                         dest_node, len(hops) + 1)
+        # Reverse addresses to create the packet:
+        # from closest to destination to closest to source
+        addresses.reverse()
         self.send_packet(
             CreateSourceRoutePacket(0x00, x64, x16, route_options=0, hops=addresses), sync=False)
 
