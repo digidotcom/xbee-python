@@ -80,11 +80,13 @@ _PATTERN_GECKO_BOOTLOADER_VERSION = \
     "^.*Gecko Bootloader v([0-9a-fA-F]{1,}\\.[0-9a-fA-F]{1,}\\.[0-9a-fA-F]{1,}).*$"
 
 _XBEE3_BL_DEF_PREFIX = "xb3-boot-rf_"
+_XBEE3_RR_BL_DEF_PREFIX = "xb3-boot-rr_"
 _XBEE3_BOOTLOADER_FILE_PREFIX = {
     HardwareVersion.XBEE3.code: _XBEE3_BL_DEF_PREFIX,
     HardwareVersion.XBEE3_SMT.code: _XBEE3_BL_DEF_PREFIX,
     HardwareVersion.XBEE3_TH.code: _XBEE3_BL_DEF_PREFIX,
-    HardwareVersion.XBEE3_RR.code: "xb3-boot-rr_"
+    HardwareVersion.XBEE3_RR.code: _XBEE3_RR_BL_DEF_PREFIX,
+    HardwareVersion.XBEE3_RR_TH.code: _XBEE3_RR_BL_DEF_PREFIX
 }
 
 _GEN3_BOOTLOADER_ERROR_CHECKSUM = 0x12
@@ -296,7 +298,8 @@ SX_HW_VERSIONS = (HardwareVersion.SX.code,
 XBEE3_HW_VERSIONS = (HardwareVersion.XBEE3.code,
                      HardwareVersion.XBEE3_SMT.code,
                      HardwareVersion.XBEE3_TH.code,
-                     HardwareVersion.XBEE3_RR.code)
+                     HardwareVersion.XBEE3_RR.code,
+                     HardwareVersion.XBEE3_RR_TH.code)
 
 LOCAL_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS
 REMOTE_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + S2C_HW_VERSIONS

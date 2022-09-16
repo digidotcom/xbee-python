@@ -31,7 +31,8 @@ from digi.xbee.util import utils
 SUPPORTED_HARDWARE_VERSIONS = (HardwareVersion.XBEE3.code,
                                HardwareVersion.XBEE3_SMT.code,
                                HardwareVersion.XBEE3_TH.code,
-                               HardwareVersion.XBEE3_RR.code)
+                               HardwareVersion.XBEE3_RR.code,
+                               HardwareVersion.XBEE3_RR_TH.code)
 
 _BAUDRATE_KEY = "baudrate"
 _PARITY_KEY = "parity"

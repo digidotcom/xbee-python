@@ -86,7 +86,8 @@ REMOTE_SUPPORTED_HW_VERSIONS = (HardwareVersion.XBEE3.code,
                                 HardwareVersion.XBEE3_SMT.code,
                                 HardwareVersion.XBEE3_TH.code)
 LOCAL_SUPPORTED_HW_VERSIONS = REMOTE_SUPPORTED_HW_VERSIONS \
-                              + (HardwareVersion.XBEE3_RR.code,)
+                              + (HardwareVersion.XBEE3_RR.code,
+                                 HardwareVersion.XBEE3_RR_TH.code)
 
 # Update this value when File System API frames are supported
 XB3_MIN_FW_VERSION_FS_API_SUPPORT = {

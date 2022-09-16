@@ -259,7 +259,8 @@ class XBeeProtocol(Enum):
                           HardwareVersion.CELLULAR_3_CAT1_LTE_VERIZON.code,
                           HardwareVersion.CELLULAR_3_LTE_M_TELIT.code,
                           HardwareVersion.CELLULAR_3_GLOBAL_LTE_CAT1.code,
-                          HardwareVersion.CELLULAR_3_NA_LTE_CAT1.code):
+                          HardwareVersion.CELLULAR_3_NA_LTE_CAT1.code,
+                          HardwareVersion.CELLULAR_3_LTE_M_LOW_POWER.code):
             return XBeeProtocol.CELLULAR
 
         if hw_version == HardwareVersion.CELLULAR_NBIOT_EUROPE.code:
@@ -268,7 +269,8 @@ class XBeeProtocol(Enum):
         if hw_version in (HardwareVersion.XBEE3.code,
                           HardwareVersion.XBEE3_SMT.code,
                           HardwareVersion.XBEE3_TH.code,
-                          HardwareVersion.XBEE3_RR.code):
+                          HardwareVersion.XBEE3_RR.code,
+                          HardwareVersion.XBEE3_RR_TH.code):
             if fw_version.startswith("2"):
                 return XBeeProtocol.RAW_802_15_4
             if fw_version.startswith("3"):
