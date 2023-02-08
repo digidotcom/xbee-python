@@ -1544,7 +1544,7 @@ class AbstractXBeeDevice:
                 if i < 8:
                     flags[1] = flags[1] | (1 << i)
                 else:
-                    flags[0] = flags[0] | ((1 << i) - 8)
+                    flags[0] = flags[0] | (1 << (i - 8))
         self.set_parameter(ATStringCommand.IC, flags,
                            apply=self.is_apply_changes_enabled())
 
