@@ -10,6 +10,10 @@ v1.4.2 - XX/XX/202X
   * XBee 3 Cellular North America LTE Cat 1
   * XBee 3 Cellular LTE-M/NB-IoT Low Power
   * XBee RR TH Pro/Non-Pro
+  * XBee 3 Cellular Global Cat 4
+  * XBee 3 Cellular North America Cat 4
+  * XBee XR 900 TH
+  * XBee XR 868 TH
 * Support to retrieve XBee statistics.
 * Send/receive explicit data in 802.15.4.
   (XBee 3 modules support this feature)

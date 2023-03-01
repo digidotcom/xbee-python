@@ -1,4 +1,4 @@
-# Copyright 2017-2022, Digi International Inc.
+# Copyright 2017-2023, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -94,14 +94,18 @@ class HardwareVersion(Enum):
     CELLULAR_3_LTE_M_ATT = (0x4B, "XBee Cellular 3 LTE-M AT&T")
     CELLULAR_3_CAT1_LTE_VERIZON = (0x4D, "XBee Cellular 3 Cat 1 LTE Verizon")
     CELLULAR_3_LTE_M_TELIT = (0x4E, "XBee 3 Cellular LTE-M/NB-IoT (Telit)")
-    XBEE3_DM_LR = (0x50, "XB3-DMLR")
-    XBEE3_DM_LR_868 = (0x51, "XB3-DMLR868")
+    XBEE3_DM_LR = (0x50, "XBee XR 900")
+    XBEE3_DM_LR_868 = (0x51, "XBee XR 868")
     XBEE3_RR = (0x52, "XBee RR SMT/MMT, Pro/Non-Pro")
     S2C_P5 = (0x53, "S2C P5")
     CELLULAR_3_GLOBAL_LTE_CAT1 = (0x54, "XBee 3 Cellular Global LTE Cat 1")
     CELLULAR_3_NA_LTE_CAT1 = (0x55, "XBee 3 Cellular North America LTE Cat 1")
     CELLULAR_3_LTE_M_LOW_POWER = (0x56, "XBee 3 Cellular LTE-M/NB-IoT Low Power")
     XBEE3_RR_TH = (0x57, "XBee RR TH Pro/Non-Pro")
+    CELLULAR_3_GLOBAL_CAT4 = (0x58, "XBee 3 Cellular Global Cat 4")
+    CELLULAR_3_NA_CAT4 = (0x59, "XBee 3 Cellular North America Cat 4")
+    XBEE_XR_900_TH = (0x5A, "XBee XR 900 TH")
+    XBEE_XR_868_TH = (0x5B, "XBee XR 868 TH")
 
     def __init__(self, code, description):
         self.__code = code

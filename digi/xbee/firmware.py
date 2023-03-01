@@ -1,4 +1,4 @@
-# Copyright 2019-2021, Digi International Inc.
+# Copyright 2019-2023, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -299,7 +299,11 @@ XBEE3_HW_VERSIONS = (HardwareVersion.XBEE3.code,
                      HardwareVersion.XBEE3_SMT.code,
                      HardwareVersion.XBEE3_TH.code,
                      HardwareVersion.XBEE3_RR.code,
-                     HardwareVersion.XBEE3_RR_TH.code)
+                     HardwareVersion.XBEE3_RR_TH.code,
+                     HardwareVersion.XBEE3_DM_LR.code,
+                     HardwareVersion.XBEE3_DM_LR_868.code,
+                     HardwareVersion.XBEE_XR_900_TH.code,
+                     HardwareVersion.XBEE_XR_868_TH.code)
 
 LOCAL_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS
 REMOTE_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + S2C_HW_VERSIONS
