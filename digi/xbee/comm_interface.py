@@ -1,4 +1,4 @@
-# Copyright 2019-2022, Digi International Inc.
+# Copyright 2019-2023, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -99,6 +99,9 @@ class XBeeCommunicationInterface(metaclass=abc.ABCMeta):
             frame (Bytearray): The XBee API frame packet to write.
                 If the bytearray does not correctly represent an XBee frame,
                 the behaviour is undefined.
+
+        Raises:
+            CommunicationException: If there is any error writing the frame.
         """
 
     def get_network(self, local_xbee):

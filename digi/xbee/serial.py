@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2023, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,10 +16,10 @@ import enum
 import os
 import time
 
-from serial import Serial, EIGHTBITS, STOPBITS_ONE, PARITY_NONE
+from serial import Serial, EIGHTBITS, STOPBITS_ONE, PARITY_NONE, PortNotOpenError, SerialException
 
-import digi.xbee.exception
 from digi.xbee.comm_interface import XBeeCommunicationInterface
+from digi.xbee.exception import CommunicationException, TimeoutException
 from digi.xbee.models.atcomm import SpecialByte
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.packets.base import XBeeAPIPacket, XBeePacket
@@ -126,8 +126,16 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
             frame (Bytearray): The XBee API frame packet to write. If the
                 bytearray does not correctly represent an XBee frame, the
                 behaviour is undefined.
+
+        Raises:
+            CommunicationException: If there is any error writing the frame.
         """
-        self.write(frame)
+        try:
+            self.write(frame)
+        except PortNotOpenError as error:
+            raise CommunicationException("Serial port not open") from error
+        except SerialException as exc:
+            raise CommunicationException(str(exc)) from exc
 
     def read_byte(self):
         """
@@ -141,7 +149,7 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
         """
         byte = bytearray(self.read(1))
         if len(byte) == 0:
-            raise digi.xbee.exception.TimeoutException()
+            raise TimeoutException()
 
         return byte[0]
 
@@ -160,7 +168,7 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
         """
         read_bytes = bytearray(self.read(num_bytes))
         if len(read_bytes) != num_bytes:
-            raise digi.xbee.exception.TimeoutException()
+            raise TimeoutException()
         return read_bytes
 
     def __read_next_byte(self, operating_mode=OperatingMode.API_MODE):
@@ -263,7 +271,7 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
                 return XBeeAPIPacket.unescape_data(xbee_packet)
 
             return xbee_packet
-        except digi.xbee.exception.TimeoutException:
+        except TimeoutException:
             return None
 
     def read_existing(self):

@@ -1,4 +1,4 @@
-# Copyright 2020-2022, Digi International Inc.
+# Copyright 2020-2023, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -67,7 +67,8 @@ class PacketSender:
             InvalidOperatingModeException: If the XBee device's operating mode
                 is not API or ESCAPED API. This method only checks the cached
                 value of the operating mode.
-            XBeeException: if the XBee device's communication interface is closed.
+            XBeeException: if the XBee device's communication interface is closed
+                           or there is any error sending the packet.
 
         .. seealso::
            | :class:`.XBeePacket`
