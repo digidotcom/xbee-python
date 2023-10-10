@@ -16,7 +16,7 @@ import enum
 import os
 import time
 
-from serial import Serial, EIGHTBITS, STOPBITS_ONE, PARITY_NONE, PortNotOpenError, SerialException
+from serial import Serial, EIGHTBITS, STOPBITS_ONE, PARITY_NONE, SerialException
 
 from digi.xbee.comm_interface import XBeeCommunicationInterface
 from digi.xbee.exception import CommunicationException, TimeoutException
@@ -132,8 +132,6 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
         """
         try:
             self.write(frame)
-        except PortNotOpenError as error:
-            raise CommunicationException("Serial port not open") from error
         except SerialException as exc:
             raise CommunicationException(str(exc)) from exc
 
