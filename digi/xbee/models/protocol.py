@@ -438,3 +438,86 @@ class Role(Enum):
 
 
 Role.__doc__ += utils.doc_enum(Role)
+
+
+@unique
+class Region(Enum):
+    """
+    Enumerates the available regions for an XBee.
+
+    | Inherited properties:
+    |     **name** (String): the name (id) of this Region.
+    |     **value** (String): the value of this Region.
+    """
+
+    ALL = (0, "Any")
+    USA = (1, "USA")
+    AUSTRALIA = (2, "Australia")
+    BRAZIL = (3, "Brazil")
+    MEXICO = (4, "Mexico")
+    PERU = (5, "Peru")
+    NEW_ZEALAND = (6, "New Zealand")
+    SINGAPORE = (7, "Singapore")
+    CHILE = (8, "Chile")
+    FRANCE = (9, "France")
+    EUROPE = (10, "Europe")
+    SKIP = (99, "Skip")
+    UNKNOWN = (999, "Unknown")
+    ALL2 = (65535, "Any")
+
+    def __init__(self, identifier, description):
+        self.__id = identifier
+        self.__desc = description
+
+    def __str__(self):
+        return "%s (%s)" % (self.__desc, self.__id)
+
+    @property
+    def id(self):
+        """
+        Gets the identifier of the region.
+
+        Returns:
+            Integer: the region identifier.
+        """
+        return self.__id
+
+    @property
+    def description(self):
+        """
+        Gets the description of the region.
+
+        Returns:
+            String: the region description.
+        """
+        return self.__desc
+
+    @classmethod
+    def get(cls, identifier):
+        """
+        Returns the Region for the given identifier.
+
+        Args:
+            identifier (Integer): the id value of the region to get.
+
+        Returns:
+            :class:`.Region`: the Region with the given identifier. `None` if it
+                does not exist.
+        """
+        for item in cls:
+            if identifier == item.id:
+                return item
+
+        return None
+
+    def allows_any(self):
+        """
+        Returns whether this region accepts any region specified in the firmware.
+
+        Returns:
+            Boolean: `True` if this region accepts any region `False` otherwise.
+        """
+        return self in (Region.ALL, Region.ALL2)
+
+
+Region.__doc__ += utils.doc_enum(Region)

@@ -39,7 +39,7 @@ from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import APIOutputModeBit
 from digi.xbee.models.options import RemoteATCmdOptions
-from digi.xbee.models.protocol import XBeeProtocol, Role
+from digi.xbee.models.protocol import XBeeProtocol, Role, Region
 from digi.xbee.models.status import TransmitStatus, ATCommandStatus, \
     EmberBootloaderMessageType, ModemStatus, UpdateProgressStatus, NodeUpdateType
 from digi.xbee.packets.aft import ApiFrameType
@@ -242,8 +242,6 @@ _PROGRESS_TASK_UPDATE_BOOTLOADER = "Updating bootloader"
 _PROGRESS_TASK_UPDATE_REMOTE_XBEE = "Updating remote XBee firmware"
 _PROGRESS_TASK_UPDATE_REMOTE_FILESYSTEM = "Updating remote XBee filesystem"
 _PROGRESS_TASK_UPDATE_XBEE = "Updating XBee firmware"
-
-_REGION_ALL = 0
 
 _REMOTE_FW_UPDATE_DEFAULT_TIMEOUT = 30  # Seconds
 
@@ -2454,7 +2452,9 @@ class _XBeeFirmwareUpdater(ABC):
             element = root.find(_XML_REGION_LOCK)
             if element is None:
                 self._exit_with_error(_ERROR_XML_PARSE % self._xml_fw_file, restore_updater=False)
-            self._xml_region_lock = int(element.text)
+            self._xml_region_lock = Region.get(int(element.text))
+            if self._xml_region_lock is None:
+                self._xml_region_lock = Region.ALL
             _log.debug(" - Region lock: %d", self._xml_region_lock)
             # Update timeout, optional.
             element = root.find(_XML_UPDATE_TIMEOUT)
@@ -2554,8 +2554,8 @@ class _XBeeFirmwareUpdater(ABC):
         # Check region lock for compatibility numbers greater than 1.
         if self._target_compat_number and self._target_compat_number > 1 and \
                 self._target_region_lock is not None:
-            if (self._target_region_lock != _REGION_ALL
-                    and self._target_region_lock != self._xml_region_lock):
+            if (not self._target_region_lock.allows_any()
+                    and self._xml_region_lock not in (Region.SKIP, self._target_region_lock)):
                 self._exit_with_error(
                     _ERROR_REGION_LOCK % (self._target_region_lock, self._xml_region_lock),
                     restore_updater=False)
@@ -2752,7 +2752,7 @@ class _XBeeFirmwareUpdater(ABC):
         Returns the update target region lock number.
 
         Returns:
-            Integer: Update target region lock number as integer, `None` if it
+            :class:`.Region`: Update target region lock, `None` if it
                 could not be read.
         """
 
@@ -3293,7 +3293,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
         Returns the update target region lock number from the bootloader.
 
         Returns:
-            Integer: Update target region lock number as integer read from the
+            :class:`.Region`: Update target region lock read from the
                 bootloader, `None` if it could not be read.
         """
 
@@ -4103,9 +4103,9 @@ class _LocalXBeeGEN3FirmwareUpdater(_LocalFirmwareUpdater):
         # Assume the device is already in bootloader mode.
         region_info = self._execute_bootloader_cmd(_Gen3BootloaderCmd.REGION_LOCK)
         if not region_info:
-            return _REGION_ALL
+            return Region.ALL
 
-        return region_info[0]
+        return Region.get(region_info[0])
 
     def _get_target_hw_version_bootloader(self):
         """
@@ -7506,14 +7506,14 @@ def _get_region_lock(xbee):
         xbee (:class:`.AbstractXBeeDevice`): XBee to read the parameter from.
 
     Returns:
-        Integer: XBee region lock number as integer, `None` if it could not be read.
+        :class:`.Region`: XBee region lock, `None` if it could not be read.
     """
     region_lock = _get_parameter_with_retries(
         xbee, ATStringCommand.R_QUESTION, _PARAM_READ_RETRIES)
     if region_lock is None:
         return None
 
-    return int(region_lock[0])
+    return Region.get(int(region_lock[0]))
 
 
 def _get_hw_version(xbee):
