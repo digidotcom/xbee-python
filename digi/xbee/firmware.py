@@ -167,7 +167,7 @@ _ERROR_PARSING_OTA_FILE = "Error parsing OTA file: %s"
 _ERROR_RECEIVE_FRAME_TIMEOUT = "Timeout waiting for response"
 _ERROR_RECOVERY_MODE = "Could not put updater device in recovery mode"
 _ERROR_READ_OTA_FILE = "Error reading OTA file: %s"
-_ERROR_REGION_LOCK = "Device region (%d) differs from the firmware one (%d)"
+_ERROR_REGION_LOCK = "Device region (%s) differs from the firmware one (%s)"
 _ERROR_REMOTE_DEVICE_INVALID = "Invalid remote XBee device"
 _ERROR_RESTORE_TARGET_CONNECTION = "Could not restore target connection: %s"
 _ERROR_RESTORE_LOCAL_CONNECTION = "Could not restore local connection: %s"
@@ -2455,7 +2455,7 @@ class _XBeeFirmwareUpdater(ABC):
             self._xml_region_lock = Region.get(int(element.text))
             if self._xml_region_lock is None:
                 self._xml_region_lock = Region.ALL
-            _log.debug(" - Region lock: %d", self._xml_region_lock)
+            _log.debug(" - Region lock: %s", self._xml_region_lock)
             # Update timeout, optional.
             element = root.find(_XML_UPDATE_TIMEOUT)
             if element is not None:
