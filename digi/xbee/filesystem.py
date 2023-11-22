@@ -1,4 +1,4 @@
-# Copyright 2019-2021, Digi International Inc.
+# Copyright 2019-2023, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -104,6 +104,7 @@ XB3_MAX_FW_VERSION_FS_OTA_SUPPORT = {
 }
 
 _DEFAULT_BLOCK_SIZE = 64
+_DEFAULT_BLOCK_SIZE_CELLULAR = 1490
 
 _TRANSFER_TIMEOUT = 5  # Seconds.
 
@@ -589,6 +590,10 @@ class FileProcess(metaclass=ABCMeta):
         self._status, self._fid, self._fsize = self._f_mng.popen_file(
             f_path, options=self._get_open_flags(), path_id=self._cpid,
             timeout=self._timeout)
+        # RF file systems return 0xFFFFFFFF file size for new files,
+        # while Cellular file systems return 0.
+        if self._fsize == 0 and (self._get_open_flags() & FileOpenRequestOption.CREATE) > 0:
+            self._fsize = 0xFFFFFFFF
 
         self._opened = bool(self._status == FSCommandStatus.SUCCESS.code)
         if not self._opened:
@@ -646,6 +651,10 @@ class FileProcess(metaclass=ABCMeta):
     def _exec_specific_cmd(self):
         """
         Executes the specific file process (read or write).
+
+        Returns:
+            Boolean: `True` if this was the last command to execute, `False`
+                otherwise.
         """
 
     @abstractmethod
@@ -923,7 +932,8 @@ class _WriteFileProcess(FileProcess):
            | :meth:`._FileProcess._exec_specific_cmd`
         """
         self._status = FSCommandStatus.SUCCESS.code
-        if not self.__data or self.__offset + 1 >= self._fsize:
+        if not self.__data or (self.__offset != WriteFileCmdRequest.USE_CURRENT_OFFSET
+                               and self.__offset + 1 >= self._fsize):
             return True
 
         last_offset = self.__offset
@@ -953,7 +963,8 @@ class _WriteFileProcess(FileProcess):
             # Recalculate chunk length
             chunk_len = min(chunk_len, len(self.__data) - data_offset)
 
-        self.__offset = last_offset
+        if self.__offset != WriteFileCmdRequest.USE_CURRENT_OFFSET:
+            self.__offset += data_offset
         self.__n_bytes = 0
 
         return False
@@ -1444,8 +1455,8 @@ class FileSystemManager:
             wr_opts = []
             if overwrite:
                 wr_opts.append("truncate")
-            w_proc = self.write_file(dest, offset=0, secure=secure,
-                                     options=wr_opts, progress_cb=p_cb)
+            w_proc = self.write_file(dest, offset=WriteFileCmdRequest.USE_CURRENT_OFFSET,
+                                     secure=secure, options=wr_opts, progress_cb=p_cb)
             try:
                 size = w_proc.block_size
                 data = src_file.read(size)
@@ -1459,8 +1470,9 @@ class FileSystemManager:
                         if not overwrite or exc.status != FSCommandStatus.ALREADY_EXISTS.code:
                             raise exc
                         self.remove(dest, rm_children=False)
-                        w_proc = self.write_file(dest, offset=0, secure=secure,
-                                                 options=wr_opts, progress_cb=p_cb)
+                        w_proc = self.write_file(dest,
+                                                 offset=WriteFileCmdRequest.USE_CURRENT_OFFSET,
+                                                 secure=secure, options=wr_opts, progress_cb=p_cb)
                         w_proc.next(data, last=False)
                     data = src_file.read(size)
             finally:
@@ -2406,6 +2418,10 @@ class FileSystemManager:
              Integer: 'NP' value.
         """
         if self.__np_val and not refresh:
+            return self.__np_val
+        # Cellular devices do not have NP setting.
+        if self.__xbee.get_protocol() == XBeeProtocol.CELLULAR:
+            self.__np_val = _DEFAULT_BLOCK_SIZE_CELLULAR
             return self.__np_val
 
         xbee = self.__xbee
