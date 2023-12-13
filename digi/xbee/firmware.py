@@ -7131,7 +7131,8 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
             timeout=timeout, progress_cb=progress_callback)
     else:
         # Bootloader not supported.
-        if target._active_update_type == NodeUpdateType.FIRMWARE:
+        if (isinstance(target, XBeeDevice)
+                and target._active_update_type == NodeUpdateType.FIRMWARE):
             target._active_update_type = None
         _log.error("ERROR: %s", _ERROR_BOOTLOADER_NOT_SUPPORTED)
         raise FirmwareUpdateException(_ERROR_BOOTLOADER_NOT_SUPPORTED)
@@ -7143,7 +7144,8 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
         msg = "Error: %s" % exc
         raise exc
     finally:
-        finished = (target._active_update_type == NodeUpdateType.FIRMWARE)
+        finished = (isinstance(target, str)
+                    or target._active_update_type == NodeUpdateType.FIRMWARE)
         if finished or msg != "Success":
             update_process._notify_progress(msg, 100, finished=finished)
 
