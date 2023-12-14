@@ -80,6 +80,20 @@ _RECOVERY_CHAR_TO_BAUDRATE = {
     0xfc: [921600],  # When receiving data (explicit)
 }
 
+_RECOVERY_ALL_REASONABLE_BAUDRATES = (
+    9600,
+    921600,
+    460800,
+    230400,
+    115200,
+    57600,
+    38400,
+    19200,
+    4800,
+    2400,
+    1200
+)
+
 _DEFAULT_GUARD_TIME = 1  # seconds
 _DEVICE_BREAK_RESET_TIMEOUT = 10  # seconds
 _BOOTLOADER_CONTINUE_KEY = "2"
@@ -183,6 +197,20 @@ class _LocalRecoverDevice:
             error = self._try_baudrate(baudrate)
             if not error:
                 break
+
+        # If we received an error on all the preferred bauds that were
+        # auto-detected as likely candidates, then attempt the
+        # rest of the remaining reasonable bauds that it could be at
+        # before giving up
+        if error:
+            rest_of_bauds = [
+                b for b in _RECOVERY_ALL_REASONABLE_BAUDRATES
+                if b not in recovery_baudrate
+            ]
+            for baudrate in rest_of_bauds:
+                error = self._try_baudrate(baudrate)
+                if not error:
+                    break
 
         if error:
             self._do_exception(error)
