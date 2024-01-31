@@ -32,9 +32,11 @@ from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import OperatingMode, APIOutputMode, \
     IPAddressingMode, NeighborDiscoveryMode, APIOutputModeBit
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, \
-    XBeeIMEIAddress
+    XBeeIMEIAddress, XBeeBLEAddress
 from digi.xbee.models.info import SocketInfo
-from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage
+from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
+    BLEGAPScanLegacyAdvertisementMessage, BLEGAPScanExtendedAdvertisementMessage, \
+    BLEGAPScanStatusMessage
 from digi.xbee.models.options import TransmitOptions, RemoteATCmdOptions, \
     DiscoveryOptions, XBeeLocalInterface, RegisterKeyOptions
 from digi.xbee.models.protocol import XBeeProtocol, IPProtocol, Role
@@ -51,6 +53,8 @@ from digi.xbee.packets.raw import TX64Packet, TX16Packet
 from digi.xbee.packets.relay import UserDataRelayPacket
 from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, \
     RegisterDeviceStatusPacket, CreateSourceRoutePacket
+from digi.xbee.packets.bluetooth import BluetoothGAPScanRequestPacket
+
 from digi.xbee.sender import PacketSender, SyncRequestSender
 from digi.xbee.util import utils
 from digi.xbee.exception import XBeeException, TimeoutException, \
@@ -1734,12 +1738,12 @@ class AbstractXBeeDevice:
     def get_bluetooth_mac_addr(self):
         """
         Reads and returns the EUI-48 Bluetooth MAC address of this XBee
-        following the format `00112233AABB`.
+        as a :class:`.XBeeBLEAddress`
 
         Note that your device must include Bluetooth Low Energy support.
 
         Returns:
-            String: The Bluetooth MAC address.
+            :class:`.XBeeBLEAddress`: The Bluetooth MAC address.
 
         Raises:
             TimeoutException: If response is not received before the read
@@ -3653,6 +3657,10 @@ class XBeeDevice(AbstractXBeeDevice):
             if self._packet_listener else None
         fs_frame_cbs = self._packet_listener.get_fs_frame_received_callbacks() \
             if self._packet_listener else None
+        ble_gap_scan_cbs = self._packet_listener.get_ble_gap_scan_received_callbacks() \
+            if self._packet_listener else None
+        ble_gap_scan_status_cbs = self._packet_listener.get_ble_gap_scan_status_received_callbacks() \
+            if self._packet_listener else None
 
         # Initialize the packet listener
         self._packet_listener = None
@@ -3679,6 +3687,8 @@ class XBeeDevice(AbstractXBeeDevice):
         self._packet_listener.add_route_record_received_callback(route_record_cbs)
         self._packet_listener.add_route_info_received_callback(route_info_cbs)
         self._packet_listener.add_fs_frame_received_callback(fs_frame_cbs)
+        self._packet_listener.add_ble_gap_advertisement_received_callback(ble_gap_scan_cbs)
+        self._packet_listener.add_ble_gap_scan_status_received_callback(ble_gap_scan_status_cbs)
 
         self._packet_listener.start()
         self._packet_listener.wait_until_started()
@@ -5904,6 +5914,353 @@ class ZigBeeDevice(XBeeDevice):
         addresses.reverse()
         self.send_packet(
             CreateSourceRoutePacket(0x00, x64, x16, route_options=0, hops=addresses), sync=False)
+
+
+class BluDevice(XBeeDevice):
+    """
+    This class represents a local Blu device.
+    """
+
+    __OPERATION_EXCEPTION = "Operation not supported in this module."
+
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
+        """
+        Class constructor. Instantiates a new :class:`.BluDevice` with the
+        provided parameters.
+
+        Args:
+            port (String): Serial port identifier. Depends on operating system.
+                e.g. '/dev/ttyUSB0' on 'GNU/Linux' or 'COM3' on Windows.
+            baud_rate (Integer): Serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): Port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): Port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): Port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): Port flow control.
+            _sync_ops_timeout (Integer, default: 3): Read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): Communication interface.
+
+        Raises:
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
+
+        .. seealso::
+           | :class:`.XBeeDevice`
+           | :meth:`.XBeeDevice.__init__`
+        """
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+
+        from digi.xbee.ble import BLEManager
+        self._ble_manager = BLEManager(self)
+
+    def open(self, force_settings=False):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.open`
+        """
+        super().open(force_settings=force_settings)
+        if self._protocol not in (XBeeProtocol.BLE,):
+            self.close()
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.BLE))
+        self._ble_manager.open()
+
+    def close(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.close`
+        """
+        self._ble_manager.close()
+        super().close()
+
+    def get_ble_manager(self):
+        """
+        Returns the BLE manager for the XBee.
+
+        Returns:
+             :class:`.BLEManager`: The BLE manager.
+
+        Raises:
+            FileSystemNotSupportedException: If the XBee does not support
+                filesystem.
+        """
+        if not self._ble_manager:
+            self._ble_manager = BLEManager(self)
+
+        return self._ble_manager
+
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.BLE
+
+        return self._protocol
+
+    def get_network(self):
+        """
+        Deprecated.
+
+        This protocol does not support the network functionality.
+        """
+        return None
+
+    def _init_network(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice._init_network`
+        """
+        return None
+
+    def get_16bit_addr(self):
+        """
+        Deprecated.
+
+        This protocol does not have an associated 16-bit address.
+        """
+        return None
+
+    def get_dest_address(self):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol.
+        This method raises an :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def set_dest_address(self, addr):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol.
+        This method raises an :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def get_pan_id(self):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def set_pan_id(self, value):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def add_data_received_callback(self, callback):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def del_data_received_callback(self, callback):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def add_expl_data_received_callback(self, callback):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def del_expl_data_received_callback(self, callback):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def read_data(self, timeout=None):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def read_data_from(self, remote_xbee, timeout=None):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_data_broadcast(self, data, transmit_options=TransmitOptions.NONE.value):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_data(self, remote_xbee, data, transmit_options=TransmitOptions.NONE.value):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_data_async(self, remote_xbee, data, transmit_options=TransmitOptions.NONE.value):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def read_expl_data(self, timeout=None):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def read_expl_data_from(self, remote_xbee, timeout=None):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_expl_data(self, remote_xbee, data, src_endpoint, dest_endpoint,
+                       cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_expl_data_broadcast(self, data, src_endpoint, dest_endpoint, cluster_id,
+                                 profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def send_expl_data_async(self, remote_xbee, data, src_endpoint, dest_endpoint,
+                             cluster_id, profile_id, transmit_options=TransmitOptions.NONE.value):
+        """
+        Override.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def add_io_sample_received_callback(self, callback):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def del_io_sample_received_callback(self, callback):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def set_dio_change_detection(self, io_lines_set):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def get_io_sampling_rate(self):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def set_io_sampling_rate(self, rate):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def get_power_level(self):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def set_power_level(self, power_level):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
 
 
 class IPDevice(XBeeDevice):

@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -25,8 +25,11 @@ import digi.xbee.devices
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
 from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
-from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage, \
-    SMSMessage, UserDataRelayMessage
+from digi.xbee.models.message import (
+    XBeeMessage, ExplicitXBeeMessage, IPMessage, SMSMessage,
+    UserDataRelayMessage, BLEGAPScanLegacyAdvertisementMessage,
+    BLEGAPScanExtendedAdvertisementMessage, BLEGAPScanStatusMessage
+)
 from digi.xbee.models.mode import OperatingMode
 from digi.xbee.models.options import XBeeLocalInterface
 from digi.xbee.models.protocol import XBeeProtocol
@@ -451,6 +454,31 @@ class FileSystemFrameReceived(XBeeEvent):
     """
 
 
+class BLEGAPScanReceived(XBeeEvent):
+    """
+    This event is fired when an XBee receives data from the BLE scan interface.
+
+    The callbacks to handle these events will receive the following arguments:
+        1. data (Bytearray): Received Bluetooth data.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+
+
+class BLEGAPScanStatusReceived(XBeeEvent):
+    """
+    This event is fired when an XBee receives status from the BLE
+    scan interface.
+
+    The callbacks for handle this events will receive the following arguments:
+        1. Status (:class:`.BLEGAPScanStatus`): Gap scan Status code.
+
+    .. seealso::
+       | :class:`.XBeeEvent`
+    """
+
+
 class NetworkUpdateProgress(XBeeEvent):
     """
     This event is fired when the progress of a running firmware update changes.
@@ -546,6 +574,8 @@ class PacketListener(threading.Thread):
         self.__route_record_indicator_received_from = RouteRecordIndicatorReceived()
         self.__dm_route_information_received_from = RouteInformationReceived()
         self.__fs_frame_received = FileSystemFrameReceived()
+        self.__ble_gap_scan_received = BLEGAPScanReceived()
+        self.__ble_gap_scan_status_received = BLEGAPScanStatusReceived()
 
         # API internal callbacks:
         self.__packet_received_api = xbee_device.get_xbee_device_callbacks()
@@ -985,6 +1015,36 @@ class PacketListener(threading.Thread):
         elif callback:
             self.__fs_frame_received += callback
 
+    def add_ble_gap_advertisement_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.BluetoothDataReceived`.
+
+        Args:
+            callback (Function or List of functions): Callback. Receives one
+                argument.
+
+                * The data received as a Bytearray
+        """
+        if isinstance(callback, list):
+            self.__ble_gap_scan_received.extend(callback)
+        elif callback:
+            self.__ble_gap_scan_received += callback
+
+    def add_ble_gap_scan_status_received_callback(self, callback):
+        """
+        Adds a callback for the event :class:`.BluetoothDataReceived`.
+
+        Args:
+            callback (Function or List of functions): Callback. Receives one
+                argument.
+
+                * The data received as a Bytearray
+        """
+        if isinstance(callback, list):
+            self.__ble_gap_scan_status_received.extend(callback)
+        elif callback:
+            self.__ble_gap_scan_status_received += callback
+
     def del_packet_received_callback(self, callback):
         """
         Deletes a callback for the callback list of :class:`.PacketReceived`
@@ -1222,6 +1282,34 @@ class PacketListener(threading.Thread):
         """
         self.__fs_frame_received -= callback
 
+    def del_ble_gap_advertisement_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`.BluetoothDataReceived` event.
+
+        Args:
+            callback (Function): Callback to delete.
+
+        Raises:
+            ValueError: If `callback` is not in the callback list of
+                :class:`.BluetoothDataReceived` event.
+        """
+        self.__ble_gap_scan_received -= callback
+
+    def del_ble_gap_scan_status_received_callback(self, callback):
+        """
+        Deletes a callback for the callback list of
+        :class:`.BluetoothDataReceived` event.
+
+        Args:
+            callback (Function): Callback to delete.
+
+        Raises:
+            ValueError: If `callback` is not in the callback list of
+                :class:`.BluetoothDataReceived` event.
+        """
+        self.__ble_gap_scan_status_received -= callback
+
     def get_packet_received_callbacks(self):
         """
         Returns the list of registered callbacks for received packets.
@@ -1376,6 +1464,24 @@ class PacketListener(threading.Thread):
             List: List of :class:`.FileSystemFrameReceived` events.
         """
         return self.__fs_frame_received
+
+    def get_ble_gap_scan_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received Bluetooth data.
+
+        Returns:
+            List: List of :class:`.BluetoothDataReceived` events.
+        """
+        return self.__ble_gap_scan_received
+
+    def get_ble_gap_scan_status_received_callbacks(self):
+        """
+        Returns the list of registered callbacks for received Bluetooth data.
+
+        Returns:
+            List: List of :class:`.BluetoothDataReceived` events.
+        """
+        return self.__ble_gap_scan_status_received
 
     def __execute_user_callbacks(self, packet, remote=None):
         """
@@ -1549,6 +1655,47 @@ class PacketListener(threading.Thread):
                                                    packet.command.status_value,
                                                    packet.command.status,
                                                    rcv_opts)))
+
+        # Bluetooth BLE GAP Scan Legacy Advertisement Response
+        elif f_type == ApiFrameType.BLUETOOTH_GAP_SCAN_LEGACY_ADVERTISEMENT_RESPONSE:
+            self.__ble_gap_scan_received(BLEGAPScanLegacyAdvertisementMessage(
+                                         packet.address,
+                                         packet.address_type,
+                                         packet.advertisement_flags,
+                                         packet.rssi,
+                                         packet.payload))
+            self._log.debug(self._LOG_PATTERN.format(
+                comm_iface=str(self.__xbee.comm_iface), event="RECEIVED",
+                fr_type="BLE GAP SCAN LEGACY", sender=str(packet.address),
+                more_data=packet.payload.decode(encoding='utf8', errors='ignore')))
+
+        # Bluetooth BLE GAP Scan Extended Advertisement Response
+        elif f_type == ApiFrameType.BLUETOOTH_GAP_SCAN_EXTENDED_ADVERTISEMENT_RESPONSE:
+            self.__ble_gap_scan_received(BLEGAPScanExtendedAdvertisementMessage(
+                                         packet.address,
+                                         packet.address_type,
+                                         packet.advertisement_flags,
+                                         packet.rssi,
+                                         packet.advertisement_set_id,
+                                         packet.primary_phy,
+                                         packet.secondary_phy,
+                                         packet.tx_power,
+                                         packet.periodic_interval,
+                                         packet.data_completeness,
+                                         packet.payload))
+            self._log.debug(self._LOG_PATTERN.format(
+                comm_iface=str(self.__xbee.comm_iface), event="RECEIVED",
+                fr_type="BLE GAP SCAN EXTENDED", sender=str(packet.address),
+                more_data=packet.payload.decode(encoding='utf8', errors='ignore')))
+
+        # Bluetooth BLE GAP Scan Status Response
+        elif f_type == ApiFrameType.BLUETOOTH_GAP_SCAN_STATUS:
+            self.__ble_gap_scan_status_received(BLEGAPScanStatusMessage(
+                                                packet.scan_status))
+            self._log.debug(self._LOG_PATTERN.format(
+                comm_iface=str(self.__xbee.comm_iface), event="RECEIVED",
+                fr_type="BLE GAP SCAN STATUS", sender="None",
+                more_data=str(packet.scan_status)))
 
     @staticmethod
     def __get_remote_device_data_from_packet(packet, uses_16bit_addr):

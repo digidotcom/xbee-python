@@ -332,6 +332,19 @@ You can find the example at the following path:
    :ref:`communicateSendBluetoothData`.
 
 
+Generic Access Profile (GAP) Scan (BLU Devices)
+```````````````````````````````````````````````
+
+The 2 sample applications show how to issue a BLE GAP scan request,
+and display its results.
+
+You can find the first example at the following path:
+**examples/communication/bluetooth/GapScanExample**
+
+You can find the second example at the following path:
+**examples/communication/bluetooth/GapScanCursesDemo**
+
+
 Send MicroPython Data
 `````````````````````
 

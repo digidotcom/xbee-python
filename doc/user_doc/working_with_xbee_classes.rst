@@ -4,7 +4,7 @@ Work with XBee classes
 When working with the XBee Python Library, start with an XBee object that
 represents a physical module. A physical XBee is the combination of hardware and
 firmware. Depending on that combination, the device runs a specific wireless
-communication protocol such as Zigbee, 802.15.4, DigiMesh, Wi-Fi, or Cellular.
+communication protocol such as Zigbee, 802.15.4, DigiMesh, BLE, Wi-Fi, or Cellular.
 An ``XBeeDevice`` class represents the XBee module in the API.
 
 These protocols share some features and settings, but there are some differences
@@ -20,6 +20,7 @@ The XBee Python Library supports one XBee class per protocol, as follows:
 * XBee 802.15.4 (``Raw802Device``)
 * XBee DigiMesh (``DigiMeshDevice``)
 * XBee Point-to-multipoint (``DigiPointDevice``)
+* XBee BLU (``BluDevice``)
 * XBee IP devices (This is a non-instantiable class)
 
   * XBee Cellular (``CellularDevice``)
@@ -70,6 +71,8 @@ local device are listed in the following table:
 | DigiMeshDevice  | DigiMesh protocol                    |
 +-----------------+--------------------------------------+
 | DigiPointDevice | Point-to-multipoint protocol         |
++-----------------+--------------------------------------+
+| BluDevice       | BLE protocol                         |
 +-----------------+--------------------------------------+
 | CellularDevice  | Cellular protocol                    |
 +-----------------+--------------------------------------+
@@ -132,7 +135,7 @@ table lists the remote XBee classes:
 
 
 .. note::
-  XBee Cellular and Wi-Fi protocols do not support remote devices.
+  XBee Cellular, Wi-Fi and BLE protocols do not support remote devices.
 
 To instantiate a remote XBee object, provide the following parameters:
 

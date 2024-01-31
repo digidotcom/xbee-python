@@ -1,4 +1,4 @@
-# Copyright 2019-2023, Digi International Inc.
+# Copyright 2019-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -87,7 +87,9 @@ REMOTE_SUPPORTED_HW_VERSIONS = (HardwareVersion.XBEE3.code,
                                 HardwareVersion.XBEE3_TH.code)
 LOCAL_SUPPORTED_HW_VERSIONS = REMOTE_SUPPORTED_HW_VERSIONS \
                               + (HardwareVersion.XBEE3_RR.code,
-                                 HardwareVersion.XBEE3_RR_TH.code)
+                                 HardwareVersion.XBEE3_RR_TH.code,
+                                 HardwareVersion.XBEE_BLU.code,
+                                 HardwareVersion.XBEE_BLU_TH.code)
 
 # Update this value when File System API frames are supported
 XB3_MIN_FW_VERSION_FS_API_SUPPORT = {
