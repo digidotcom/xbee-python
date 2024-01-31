@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,6 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import re
+from digi.xbee.models.status import BLEMACAddressType, BLEGAPScanStatus
 
 
 class XBeeMessage:
@@ -429,3 +430,396 @@ class UserDataRelayMessage:
         """
         return {"XBee local interface: ": self.__local_iface,
                 "Data: ":                 self.__data}
+
+
+class _BLEGAPScanBaseAdvertisementMessage:
+    """
+    This class represents a base BLE advertising message.
+    It will contain a common set of values that all BLE advertising
+    messages will have.
+    This includes:
+        The address that the message was received from.
+        The type of address it is.
+        Whether the device is connectable or not.
+        The RSSI of the advertisement.
+        The Local/Short name embedded into the payload, if any.
+    """
+
+    def __init__(self, address, address_type, advertisement_flags, rssi,
+                 payload):
+        """
+        Class  constructor.
+
+        Args:
+            address (:class:`.XBeeBLEAddress`): The BLE address the message
+                                                comes from.
+            address_type (Integer): The type of BLE address.
+            advertisement_flags (Integer): Flags.  Includes whether
+                                           connectable or not.
+            rssi (Float): The received signal strength of the advertisement,
+                          in dBm.
+            payload (Bytearray): The data payload of the advertisement.
+
+        Raises:
+            ValueError: if `address` is `None`.
+            ValueError: if `address_type` is `None`.
+            ValueError: if `advertisement_flags` is `None`.
+            ValueError: if `rssi` is `None`.
+            ValueError: if `payload` is `None`.
+        """
+        if address is None:
+            raise ValueError("BLE address cannot be None")
+        if address_type is None:
+            raise ValueError("BLE address type cannot be None")
+        if advertisement_flags is None:
+            raise ValueError("BLE advertisement flags cannot be None")
+        if rssi is None:
+            raise ValueError("RSSI cannot be None")
+        if payload is None:
+            raise ValueError("Payload cannot be None")
+
+        self.__address = address
+        # Address type comes in as Integer, convert to BLEMACAddressType
+        self.__address_type = BLEMACAddressType.get(address_type)
+        self.__connectable = bool(advertisement_flags & 0x1)
+        self.__rssi = -float(rssi)
+        self.__payload = payload
+        self.__name = None
+
+        # Attempt to find a Local or Short name, if it exists.
+        ltv = self.__find_advertising_str()
+        if ltv >= 0:
+            # Found a Local/Short name LTV (Length-Type-Value)
+
+            # Length is the first byte
+            length = self.__payload[ltv]
+            # Jump over Length and Type to get to the name
+            start = ltv + 2
+            # Mark finish
+            finish = ltv + length + 1
+            # Extract name as a string from the payload
+            self.__name = self.__payload[start:finish].decode(
+                          encoding='utf8', errors='ignore')
+
+    def __find_advertising_str(self):
+        """
+        The Advertising data(AD) is formatted as follows: 1st byte length,
+        2nd byte AD type, and  AD DATA.
+
+        Returns:
+            Integer: Location in the payload of where to find the start of the
+                     advertising data's LTV (Length-type-value).
+                     Returns -1 if no advertising data LTV was found.
+        """
+        # Check if payload length is less then 2 bytes, if so
+        # it can't possibly contain an advertising string.
+        if len(self.__payload) < 2:
+            return -1
+        # Walk payload
+        offset = 0
+        while offset < len(self.__payload):
+            # Get the LTV type
+            typ = self.__payload[offset + 1]
+            if typ in (0x08, 0x09):
+                # Found a Long/Short name LTV type, return it
+                return offset
+            if self.__payload[offset] == 0x00:
+                # NULL Byte, no LTV's, return -1
+                return -1
+
+            # Jump to the next LTV
+            offset += self.__payload[offset] + 1
+
+        # Didn't find anything
+        return -1
+
+    @property
+    def address(self):
+        """
+        Returns the BLE MAC address of the sender of the advertisement.
+
+        Returns:
+            :class:`.XBeeBLEAddress`: the BLE address of the sender.
+        """
+        return self.__address
+
+    @property
+    def address_type(self):
+        """
+        Returns the type of BLE address of the sender.
+
+        Returns:
+            :class:`.BLEMACAddressType`: The type of BLE address.
+        """
+        return self.__address_type
+
+    @property
+    def connectable(self):
+        """
+        Returns if the advertising device indicates that BLE central-mode
+        devices may connect to it.
+
+        Returns:
+            Boolean: `True` if connectable, `False` otherwise.
+        """
+        return self.__connectable
+
+    @property
+    def rssi(self):
+        """
+        Returns the received signal strength of the advertisement, in dBm.
+
+        Returns:
+            Integer: The RSSI value.
+        """
+        return self.__rssi
+
+    @property
+    def name(self):
+        """
+        Returns the Local/Short name, if the sender presented one.
+
+        Returns:
+            Str: The Local/Short name.
+        """
+        return self.__name
+
+    @property
+    def payload(self):
+        """
+        Returns a bytearray containing the data of the message.
+
+        Returns:
+            Bytearray: the data of the message.
+        """
+        return self.__payload
+
+    def to_dict(self):
+        """
+        Returns the message information as a dictionary.
+        """
+        return {"Address":     str(self.address),
+                "Type":        self.address_type.description,
+                "Name":        self.name,
+                "Connectable": self.connectable,
+                "RSSI":        self.rssi,
+                "Payload":     self.payload}
+
+
+class BLEGAPScanLegacyAdvertisementMessage(_BLEGAPScanBaseAdvertisementMessage):
+    """
+    This class represents a 'Legacy' BLE advertising message, that contains
+    the address that the message was received from, the type of address it is,
+    whether the device is connectable or not, the RSSI of the advertisement,
+    and the payload that was sent.
+    """
+
+
+class BLEGAPScanExtendedAdvertisementMessage(_BLEGAPScanBaseAdvertisementMessage):
+    """
+    This class represents an 'Extended' BLE advertising message, that contains
+    the address that the message was received from, the type of address it is,
+    whether the device is connectable or not, the RSSI of the advertisement,
+    and the payload that was sent.
+    """
+
+    def __init__(self, address, address_type, advertisement_flags, rssi,
+                 advertisement_set_id, primary_phy, secondary_phy,
+                 tx_power, periodic_interval, data_completeness, payload):
+        """
+        Class  constructor.
+
+        Args:
+            address (:class:`.XBeeBLEAddress`): The BLE address the message
+                                                comes from.
+            address_type (Integer): The type of BLE address.
+            advertisement_flags (Integer): Flags.  Includes whether
+                                           connectable or not.
+            rssi (Float): The received signal strength of the advertisement,
+                          in dBm.
+            advertisement_set_id (Integer): A device can broadcast multiple
+                                            advertisements at a time.
+                                            The set identifier will help identify
+                                            which advertisement you received.
+            primary_phy (Integer): This is the preferred PHY for connecting
+                                   with this device. Values are:
+                                   0x1: 1M PHY
+                                   0x2: 2M PHY
+                                   0x4: LE Coded PHY 125k
+                                   0x8: LE Coded PHY 500k
+                                   0xFF : Any PHY supported
+            secondary_phy (Integer): This is the secondary PHY for connecting
+                                     with this device.
+                                     This has the same values as `primary_phy`.
+            tx_power (Integer): Transmission power of received advertisement.
+                                This is a signed value.
+            periodic_interval (Integer): Interval for periodic advertising.
+                                         0 indicates no periodic advertising.
+                                         Interval value is in increments of
+                                         1.25 ms.
+            data_completeness (Integer): Values are:
+                0x0: indicates all data of the advertisement has been reported.
+                0x1: Data is incomplete, but more data will follow.
+                0x2: Data is incomplete, but no more data is following. Data has be truncated.
+            payload (Bytearray): The data payload of the advertisement.
+
+        Raises:
+            ValueError: if `address` is `None`.
+            ValueError: if `address_type` is `None`.
+            ValueError: if `advertisement_flags` is `None`.
+            ValueError: if `rssi` is `None`.
+            ValueError: if `advertisement_set_id` is `None`.
+            ValueError: if `primary_phy` is `None`.
+            ValueError: if `secondary_phy` is `None`.
+            ValueError: if `tx_power` is `None`.
+            ValueError: if `periodic_interval` is `None`.
+            ValueError: if `data_completeness` is `None`.
+            ValueError: if `payload` is `None`.
+        """
+        if advertisement_set_id is None:
+            raise ValueError("BLE advertisement set ID cannot be None")
+        if primary_phy is None:
+            raise ValueError("BLE primary PHY cannot be None")
+        if secondary_phy is None:
+            raise ValueError("BLE secondary PHY cannot be None")
+        if tx_power is None:
+            raise ValueError("BLE tx power cannot be None")
+        if periodic_interval is None:
+            raise ValueError("BLE periodic interval cannot be None")
+        if data_completeness is None:
+            raise ValueError("BLE data completeness cannot be None")
+        if primary_phy not in (0x01, 0x02, 0x04, 0x08, 0xFF):
+            raise ValueError("primary_phy must be 1, 2, 4, 8 or 255")
+        if secondary_phy not in (0x01, 0x02, 0x04, 0x08, 0xFF):
+            raise ValueError("secondary_phy must be 1, 2, 4, 8 or 255")
+        if data_completeness not in (0x0, 0x1, 0x2):
+            raise ValueError("BLE data completeness must be 0, 1 or 2")
+
+        super().__init__(address, address_type, advertisement_flags, rssi,
+                         payload)
+
+        self.__advertisement_set_id = advertisement_set_id
+        self.__primary_phy = primary_phy
+        self.__secondary_phy = secondary_phy
+        self.__tx_power = tx_power
+        self.__periodic_interval = periodic_interval
+        self.__data_completeness = data_completeness
+
+    @property
+    def advertisement_set_id(self):
+        """
+        Returns the advertisement set identifier used to help identify
+        which advertisement you received.
+
+        Returns:
+            Integer: the advertisement set identifier.
+        """
+        return self.__advertisement_set_id
+
+    @property
+    def primary_phy(self):
+        """
+        Returns the preferred PHY for connecting this device.
+
+        Returns:
+            Integer: the primary PHY
+        """
+        return self.__primary_phy
+
+    @property
+    def secondary_phy(self):
+        """
+        Returns the secondary PHY for connecting this device.
+
+        Returns:
+            Integer: the secondary PHY.
+        """
+        return self.__secondary_phy
+
+    @property
+    def tx_power(self):
+        """
+        Returns the transmission power of received advertisement.
+        This is a signed value.
+
+        Returns:
+            Integer: transmission power.
+        """
+        return self.__tx_power
+
+    @property
+    def periodic_interval(self):
+        """
+        Returns the interval for periodic advertising.
+        0 indicates no periodic advertising.
+
+        Returns:
+            Integer: periodic interval.
+        """
+        return self.__periodic_interval
+
+    @property
+    def data_completeness(self):
+        """
+        Returns the data completeness field.
+
+        Returns:
+            Integer: data completeness field.
+        """
+        return self.__data_completeness
+
+    def to_dict(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._BLEGAPScanBaseAdvertisementMessage.to_dict`
+        """
+        msg_dict = super().to_dict()
+        msg_dict.update({
+            "Advertisement set ID": self.__advertisement_set_id,
+            "Primary PHY": self.__primary_phy,
+            "Secondary PHY": self.__secondary_phy,
+            "TX power": self.__tx_power,
+            "Periodic interval": self.__periodic_interval,
+            "Data completeness": self.__data_completeness
+        })
+        return msg_dict
+
+
+class BLEGAPScanStatusMessage:
+    """
+    This class represents a BLE GAP scan status message.
+    It will store the Status value received.
+    """
+
+    def __init__(self, status):
+        """
+        Class  constructor.
+
+        Args:
+            status (Integer): The status of the GAP scan.
+
+        Raises:
+            ValueError: if `status` is invalid.
+        """
+        if status is None:
+            raise ValueError("status cannot be None")
+
+        self.__status = BLEGAPScanStatus.get(status)
+
+    @property
+    def status(self):
+        """
+        Returns the status of the GAP scan.
+
+        Returns:
+            :class:`.BLEGAPScanStatus`: The status of the GAP scan.
+        """
+        return self.__status
+
+    def to_dict(self):
+        """
+        Returns the message information as a dictionary.
+        """
+        return {"Status": self.__status.description}

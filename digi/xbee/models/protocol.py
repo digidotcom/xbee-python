@@ -1,4 +1,4 @@
-# Copyright 2017-2023, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -45,6 +45,7 @@ class XBeeProtocol(Enum):
     XLR_MODULE = (14, "XLR Module")
     CELLULAR = (15, "Cellular")
     CELLULAR_NBIOT = (16, "Cellular NB-IoT")
+    BLE = (17, "BLE")
     UNKNOWN = (99, "Unknown")
 
     def __init__(self, code, description):
@@ -295,6 +296,10 @@ class XBeeProtocol(Enum):
             if fw_version.startswith("B"):
                 return XBeeProtocol.DIGI_MESH
             return XBeeProtocol.ZIGBEE
+
+        if hw_version in (HardwareVersion.XBEE_BLU.code,
+                          HardwareVersion.XBEE_BLU_TH.code):
+            return XBeeProtocol.BLE
 
         return XBeeProtocol.ZIGBEE
 

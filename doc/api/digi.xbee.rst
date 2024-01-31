@@ -20,6 +20,7 @@ Submodules
 
 .. toctree::
 
+   digi.xbee.ble
    digi.xbee.comm_interface
    digi.xbee.devices
    digi.xbee.exception

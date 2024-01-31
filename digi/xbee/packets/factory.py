@@ -123,6 +123,8 @@ from digi.xbee.packets.wifi import RemoteATCommandWifiPacket, \
     RemoteATCommandResponseWifiPacket, IODataSampleRxIndicatorWifiPacket
 from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket,\
     RegisterDeviceStatusPacket, RouteRecordIndicatorPacket, OTAFirmwareUpdateStatusPacket
+from digi.xbee.packets.bluetooth import BluetoothGAPScanLegacyAdvertisementResponsePacket, \
+    BluetoothGAPScanExtendedAdvertisementResponsePacket, BluetoothGAPScanStatusPacket
 
 
 def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
@@ -318,5 +320,17 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
 
     if frame_type == ApiFrameType.OTA_FIRMWARE_UPDATE_STATUS:
         return OTAFirmwareUpdateStatusPacket.create_packet(packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.BLUETOOTH_GAP_SCAN_LEGACY_ADVERTISEMENT_RESPONSE:
+        return BluetoothGAPScanLegacyAdvertisementResponsePacket.create_packet(
+                   packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.BLUETOOTH_GAP_SCAN_EXTENDED_ADVERTISEMENT_RESPONSE:
+        return BluetoothGAPScanExtendedAdvertisementResponsePacket.create_packet(
+                   packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.BLUETOOTH_GAP_SCAN_STATUS:
+        return BluetoothGAPScanStatusPacket.create_packet(packet_bytearray,
+                                                          operating_mode)
 
     return UnknownXBeePacket.create_packet(packet_bytearray, operating_mode=operating_mode)

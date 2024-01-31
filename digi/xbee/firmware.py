@@ -1,4 +1,4 @@
-# Copyright 2019-2023, Digi International Inc.
+# Copyright 2019-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -92,6 +92,8 @@ _XBEE3_BOOTLOADER_FILE_PREFIX = {
     HardwareVersion.XBEE3_DM_LR_868.code: _XBEE3_XR_BL_DEF_PREFIX,
     HardwareVersion.XBEE_XR_900_TH.code: _XBEE3_XR_BL_DEF_PREFIX,
     HardwareVersion.XBEE_XR_868_TH.code: _XBEE3_XR_BL_DEF_PREFIX,
+    HardwareVersion.XBEE_BLU.code: _XBEE3_RR_BL_DEF_PREFIX,
+    HardwareVersion.XBEE_BLU_TH.code: _XBEE3_RR_BL_DEF_PREFIX
 }
 
 _GEN3_BOOTLOADER_ERROR_CHECKSUM = 0x12
@@ -302,7 +304,9 @@ XBEE3_HW_VERSIONS = (HardwareVersion.XBEE3.code,
                      HardwareVersion.XBEE3_SMT.code,
                      HardwareVersion.XBEE3_TH.code,
                      HardwareVersion.XBEE3_RR.code,
-                     HardwareVersion.XBEE3_RR_TH.code)
+                     HardwareVersion.XBEE3_RR_TH.code,
+                     HardwareVersion.XBEE_BLU.code,
+                     HardwareVersion.XBEE_BLU_TH.code)
 
 XR_HW_VERSIONS = (HardwareVersion.XBEE3_DM_LR.code,
                   HardwareVersion.XBEE3_DM_LR_868.code,

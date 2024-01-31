@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -316,12 +316,7 @@ class XBee64BitAddress:
         if len(address) > 8:
             raise ValueError("Address cannot contain more than 8 bytes")
 
-        self.__address = bytearray(8)
-        diff = 8 - len(address)
-        for i in range(diff):
-            self.__address[i] = 0
-        for i in range(diff, 8):
-            self.__address[i] = address[i - diff]
+        self.__address = bytearray(address.rjust(8, b'\x00'))
 
     @classmethod
     def from_hex_string(cls, address):
@@ -617,3 +612,168 @@ class XBeeIMEIAddress:
             return False
 
         return self.address == other.address
+
+
+class XBeeBLEAddress:
+    """
+    This class represents a 48-bit address (also known as MAC address).
+
+    The 48-bit address is a unique device address assigned during
+    manufacturing.
+    This address is unique to each physical device.
+    """
+
+    PATTERN = "^(0[xX])?[0-9a-fA-F]{1,12}$"
+    """
+    48-bit address string pattern.
+    """
+
+    __REGEXP = re.compile(PATTERN)
+
+    def __init__(self, address):
+        """
+        Class constructor. Instantiates a new :class:`.XBeeBLEAddress` object
+        with the provided parameters.
+
+        Args:
+            address (Bytearray): the XBee BLE 48-bit address as byte array.
+
+        Raise:
+            ValueError: if `address` is `None` or its length less than 1
+            or greater than 6.
+        """
+        if not address:
+            raise ValueError("Address must contain at least 1 byte")
+        if len(address) > 6:
+            raise ValueError("Address cannot contain more than 6 bytes")
+
+        self.__address = bytearray(address.rjust(6, b'\x00'))
+
+    @classmethod
+    def from_hex_string(cls, address):
+        """
+        Class constructor. Instantiates a new :class:`.XBeeBLEAddress`
+        object from the provided hex string.
+
+        Args:
+            address (String): The XBee BLE 48-bit address as a string.
+
+        Raises:
+            ValueError: if the address' length is less than 1 or does not match
+                with the pattern: `(0[xX])?[0-9a-fA-F]{1,12}`.
+        """
+        if not address:
+            raise ValueError("Address must contain at least 1 byte")
+        if not cls.__REGEXP.match(address):
+            raise ValueError("Address must follow this pattern: " +
+                             cls.PATTERN)
+
+        return cls(utils.hex_string_to_bytes(address))
+
+    @classmethod
+    def from_bytes(cls, *args):
+        """
+        Class constructor. Instantiates a new :class:`.XBeeBLEAddress`
+        object from the provided bytes.
+
+        Args:
+            args (6 Integers): 6 integers that represent the bytes 1 to 6 of
+                this XBeeBLEAddress.
+
+        Raises:
+            ValueError: if the amount of arguments is not 6 or if any of the
+                arguments is not between 0 and 255.
+        """
+        if len(args) != 6:
+            raise ValueError("Number of bytes given as arguments must be 6.")
+        for i, val in enumerate(args):
+            if val > 255 or val < 0:
+                raise ValueError("Byte " + str(i + 1) +
+                                 " must be between 0 and 255")
+
+        return cls(bytearray(args))
+
+    @classmethod
+    def is_valid(cls, address):
+        """
+        Checks if the provided hex string is a valid BLE 48-bit address.
+
+        Args:
+            address (String, Bytearray, or :class:`.XBeeBLEAddress`):
+                String: String with the address only with hex digits without
+                blanks. Minimum 1 character, maximum 12 (48-bit).
+                Bytearray: Address as byte array. Must be 1-6 digits.
+
+        Returns
+            Boolean: `True` for a valid BLE 48-bit address, `False` otherwise.
+        """
+        if isinstance(address, XBeeBLEAddress):
+            return True
+
+        if isinstance(address, bytearray):
+            return 1 <= len(address) <= 6
+
+        if isinstance(address, str):
+            return bool(cls.__REGEXP.match(address))
+
+        return False
+
+    def __str__(self):
+        """
+        Called by the str() built-in function and by the print statement to
+        compute the "informal" string representation of an object. This differs
+        from __repr__() in that it does not have to be a valid Python
+        expression: a more convenient or concise representation may be
+        used instead.
+
+        Returns:
+            String: "informal" representation of this XBeeBLEAddress.
+        """
+        return utils.hex_to_string(self.__address, pretty=False)
+
+    def __hash__(self):
+        """
+        Returns a hash code value for the object.
+
+        Returns:
+            Integer: hash code value for the object.
+        """
+        res = 23
+        for byte in self.__address:
+            res = 31 * (res + byte)
+        return res
+
+    def __eq__(self, other):
+        """
+        Operator ==
+
+        Args:
+            other: another XBeeBLEAddress.
+
+        Returns:
+            Boolean: `True` if self and other have the same value and type,
+                     `False` in other case.
+        """
+        if not isinstance(other, XBeeBLEAddress):
+            return False
+
+        return self.address == other.address
+
+    def __iter__(self):
+        """
+        Gets an iterator class of this instance address.
+
+        Returns:
+            Iterator: iterator of this address.
+        """
+        return self.__address.__iter__()
+
+    @property
+    def address(self):
+        """
+        Returns a bytearray representation of this XBeeBLEAddress.
+
+        Returns:
+            Bytearray: bytearray representation of this XBeeBLEAddress.
+        """
+        return bytearray(self.__address)

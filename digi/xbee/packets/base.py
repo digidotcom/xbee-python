@@ -1,4 +1,4 @@
-# Copyright 2017-2022, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -35,6 +35,13 @@ class DictKeys(Enum):
     API_DATA = "api_spec_data"
     AT_CMD_STATUS = "at_command_status"
     BROADCAST_RADIUS = "broadcast_radius"
+    BLE_ADDRESS = "ble_address"
+    BLE_ADDRESS_TYPE = "ble_address_type"
+    BLE_ADVERTISEMENT_FLAGS = "advertisement_flags"
+    BLE_SCAN_FILTER_TYPE = "scan_filter_type"
+    BLE_SCAN_INTERVAL = "scan_interval"
+    BLE_SCAN_START = "scan_start"
+    BLE_SCAN_WINDOW = "scan_window"
     BLOCK_NUMBER = "block_number"
     BOOTLOADER_MSG_TYPE = "bootloader_msg_type"
     BYTES_USED = "bytes_used"

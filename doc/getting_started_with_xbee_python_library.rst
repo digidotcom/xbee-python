@@ -129,12 +129,8 @@ Zigbee, DigiMesh, Point-to-Multipoint, or Wi-Fi) and must be configured to
 operate in the same network.
 
 .. note::
-   If you are getting started with cellular, you only need to configure one
-   device. Cellular protocol devices are connected directly to the Internet, 
-   so there is no network of remote devices to communicate with them. For
-   the cellular protocol, the XBee application demonstrated in the getting
-   started guide differs from other protocols. The cellular protocol sends and
-   reads data from an echo server.
+   If you are getting started with cellular or BLU, you only need to configure
+   one device since there is no network of remote devices to communicate with.
 
 Use XCTU to configure the devices. Plug the devices into the XBee adapters and
 connect them to your computer’s USB or serial ports.
@@ -155,6 +151,7 @@ Repeat these steps to configure your XBee devices using XCTU.
 * :ref:`gsgConfigDPdevices`
 * :ref:`gsgConfigCellulardevices`
 * :ref:`gsgConfigWiFidevices`
+* :ref:`gsgConfigBludevices`
 
 
 .. _gsgConfig802devices:
@@ -324,6 +321,20 @@ Wi-Fi devices
    verifying it has a value different than **0.0.0.0**.
 
 
+.. _gsgConfigBludevices:
+
+BLU devices
+```````````
+
+#. Click **Load default firmware settings** in the **Radio Configuration**
+   toolbar to load the default values for the device firmware.
+#. Ensure the API mode (API1 or API2) is enabled. To do so, the **AP**
+   parameter value must be **1** (API mode without escapes) or **2** (API mode
+   with escapes).
+#. Click **Write radio settings** in the **Radio Configuration** toolbar to
+   apply the new values to the module.
+
+
 .. _gsgRunApp:
 
 Run your first XBee Python application
@@ -341,6 +352,7 @@ the corresponding steps depending on the protocol of your XBee devices.
 * :ref:`gsgAppZBDMDP802`
 * :ref:`gsgAppWiFi`
 * :ref:`gsgAppCellular`
+* :ref:`gsgAppBlu`
 
 
 .. _gsgAppZBDMDP802:
@@ -562,4 +574,69 @@ execute it:
 
       .. code::
 
+        > device.close()
+
+
+.. _gsgAppBlu:
+
+BLU devices
+```````````
+
+BLU devices are stand alone devices, so there is no network
+of remote devices to communicate with them. For the BLE
+protocol, the application demonstrated in this guide differs from other
+protocols.
+
+The application issues a GAP Scan request and displays the received responses:
+
+#. Open the Python interpreter and write the application commands.
+
+   #. Import the ``BluDevice`` class by executing the following command:
+
+      .. code::
+
+        > from digi.xbee.devices import BluDevice
+
+   #. Instantiate a Blu XBee device:
+
+      .. code::
+
+        > device = BluDevice("COM1", 9600)
+
+      .. note::
+         Remember to replace the COM port with the one your XBee device
+         is connected to. In UNIX-based systems, the port usually starts with
+         ``/dev/tty``.
+
+   #. Open the connection with the device:
+
+      .. code::
+
+        > ble_manager = device.get_ble_manager()
+        > device.open()
+
+   #. Create a callback function for live GAP scan results:
+
+      .. code::
+
+        > def scan_callback(data):
+        >     print(data.to_dict())
+
+   #. Register a callback to receive live GAP scan results:
+
+      .. code::
+
+        > ble_manager.add_ble_gap_advertisement_received_callback(scan_callback)
+
+   #. Start a 30 seconds BLE Gap scan:
+
+      .. code::
+
+        > ble_manager.start_ble_gap_scan(30, 10000, 10000, False, "")
+
+   #. Remove the callback and close the connection with the device:
+
+      .. code::
+
+        > ble_manager.del_ble_gap_advertisement_received_callback(scan_callback)
         > device.close()

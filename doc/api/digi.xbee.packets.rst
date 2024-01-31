@@ -13,6 +13,7 @@ Submodules
 
    digi.xbee.packets.aft
    digi.xbee.packets.base
+   digi.xbee.packets.bluetooth
    digi.xbee.packets.cellular
    digi.xbee.packets.common
    digi.xbee.packets.devicecloud

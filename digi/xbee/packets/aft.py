@@ -1,4 +1,4 @@
-# Copyright 2017-2020, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -43,6 +43,7 @@ class ApiFrameType(Enum):
     SEND_DATA_REQUEST = (0x28, "Send Data Request")
     DEVICE_RESPONSE = (0x2A, "Device Response")
     USER_DATA_RELAY_REQUEST = (0x2D, "User Data Relay Request")
+    BLUETOOTH_GAP_SCAN_REQUEST = (0x34, "Bluetooth GAP Scan Request")
     FILE_SYSTEM_REQUEST = (0x3B, "File System Request")
     REMOTE_FILE_SYSTEM_REQUEST = (0x3C, "Remote File System Request")
     SOCKET_CREATE = (0x40, "Socket Create")
@@ -75,6 +76,11 @@ class ApiFrameType(Enum):
     REGISTER_JOINING_DEVICE_STATUS = (0xA4, "Register Joining Device Status")
     USER_DATA_RELAY_OUTPUT = (0xAD, "User Data Relay Output")
     RX_IPV4 = (0xB0, "RX IPv4")
+    BLUETOOTH_GAP_SCAN_LEGACY_ADVERTISEMENT_RESPONSE = (
+        0xB4, "Bluetooth GAP Scan Legacy Advertisement Response")
+    BLUETOOTH_GAP_SCAN_EXTENDED_ADVERTISEMENT_RESPONSE = (
+        0xB7, "Bluetooth GAP Scan Extended Advertisement Response")
+    BLUETOOTH_GAP_SCAN_STATUS = (0xB5, "Bluetooth GAP Scan Status")
     SEND_DATA_RESPONSE = (0xB8, "Send Data Response")
     DEVICE_REQUEST = (0xB9, "Device Request")
     DEVICE_RESPONSE_STATUS = (0xBA, "Device Response Status")

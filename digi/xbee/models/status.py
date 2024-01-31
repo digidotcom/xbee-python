@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -1351,3 +1351,123 @@ class UpdateProgressStatus:
                 `False` otherwise.
         """
         return self.__finished
+
+
+@unique
+class BLEMACAddressType(Enum):
+    """
+    This class lists all the possible types of BLE Mac Addresses.
+
+    | Inherited properties:
+    |     **name** (String): The name of the BLEMACAddressType.
+    |     **value** (Integer): The ID of the BLEMACAddressType.
+    """
+    PUBLIC = (0x00, "Public")
+    STATIC = (0x01, "Static")
+    RANDOM_RESOLVABLE = (0x02, "Random Resolvable")
+    RANDOM_NONRESOLVABLE = (0x03, "Random Nonresolvable")
+    UNKNOWN = (0xFF, "Unknown")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__desc = description
+
+    @property
+    def code(self):
+        """
+        Returns the code of the BLEMACAddressType element.
+
+        Returns:
+            Integer: the code of the BLEMACAddressType element.
+        """
+        return self.__code
+
+    @property
+    def description(self):
+        """
+        Returns the description of the BLEMACAddressType element.
+
+        Returns:
+            String: The description of the BLEMACAddressType element.
+
+        """
+        return self.__desc
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the address type for the given code.
+
+        Args:
+            code (Integer): the code of the address type to get.
+
+        Returns:
+            :class:`.BLEMACAddressType`: the address type with the given code.
+        """
+        for addr_type in cls:
+            if code == addr_type.code:
+                return addr_type
+        return BLEMACAddressType.UNKNOWN
+
+
+BLEMACAddressType.__doc__ += utils.doc_enum(BLEMACAddressType)
+
+
+@unique
+class BLEGAPScanStatus(Enum):
+    """
+    This class lists all the possible statuses of a BLE GAP scan
+
+    | Inherited properties:
+    |     **name** (String): The name of the BLEGAPScanStatus.
+    |     **value** (Integer): The ID of the BLEGAPScanStatus.
+    """
+    STARTED = (0x00, "Scanner has started")
+    RUNNING = (0x01, "Scanner is running")
+    STOPPED = (0x02, "Scanner has stopped")
+    ERROR = (0x03, "Scanner was unable to start or stop")
+    INVALID_PARAM = (0x04, "Invalid Parameters")
+
+    def __init__(self, code, description):
+        self.__code = code
+        self.__desc = description
+
+    @property
+    def code(self):
+        """
+        Returns the code of the BLEGAPScanStatus element.
+
+        Returns:
+            Integer: the code of the BLEGAPScanStatus element.
+        """
+        return self.__code
+
+    @property
+    def description(self):
+        """
+        Returns the description of the BLEGAPScanStatus element.
+
+        Returns:
+            String: The description of the BLEGAPScanStatus element.
+
+        """
+        return self.__desc
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the address type for the given code.
+
+        Args:
+            code (Integer): the code of the gap scan status.
+
+        Returns:
+            :class:`.BLEGAPScanStatus`: the status type with the given code.
+        """
+        for status in cls:
+            if code == status.code:
+                return status
+        return BLEGAPScanStatus.ERROR
+
+
+BLEGAPScanStatus.__doc__ += utils.doc_enum(BLEGAPScanStatus)
