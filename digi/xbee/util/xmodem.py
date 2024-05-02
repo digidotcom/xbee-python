@@ -55,6 +55,7 @@ _XMODEM_BLOCK_SIZE_128 = 128
 _XMODEM_BLOCK_SIZE_1K = 1024
 _XMODEM_READ_HEADER_TIMEOUT = 3  # Seconds
 _XMODEM_READ_DATA_TIMEOUT = 1  # Seconds.
+_XMODEM_READ_DATA_TIMEOUT_EXTENDED = 5  # Seconds.
 _XMODEM_READ_RETRIES = 10
 _XMODEM_WRITE_RETRIES = 10
 
@@ -540,7 +541,14 @@ class _XModemTransferSession:
             if not self._write_cb(packet):
                 retries -= 1
                 continue
-            answer = self._read_cb(1, timeout=_XMODEM_READ_DATA_TIMEOUT)
+            answer = self._read_cb(1, timeout=(
+                # On XBee 3 Cellular, XBee RR, XBee 3 BLU, and XBee XR,
+                # the first XModem chunk of a firmware upload to the bootloader
+                # takes about 4 seconds.
+                _XMODEM_READ_DATA_TIMEOUT_EXTENDED
+                if self._transfer_file.chunk_index == 1
+                else _XMODEM_READ_DATA_TIMEOUT
+            ))
             if not answer:
                 retries -= 1
                 continue
