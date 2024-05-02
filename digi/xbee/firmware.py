@@ -39,7 +39,7 @@ from digi.xbee.models.atcomm import ATStringCommand
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.models.mode import APIOutputModeBit
 from digi.xbee.models.options import RemoteATCmdOptions
-from digi.xbee.models.protocol import XBeeProtocol, Role, Region
+from digi.xbee.models.protocol import XBeeProtocol, Role, Region, OTAMethod
 from digi.xbee.models.status import TransmitStatus, ATCommandStatus, \
     EmberBootloaderMessageType, ModemStatus, UpdateProgressStatus, NodeUpdateType
 from digi.xbee.packets.aft import ApiFrameType
@@ -81,12 +81,17 @@ _PATTERN_GECKO_BOOTLOADER_VERSION = \
 
 _XBEE3_BL_DEF_PREFIX = "xb3-boot-rf_"
 _XBEE3_RR_BL_DEF_PREFIX = "xb3-boot-rr_"
+_XBEE3_XR_BL_DEF_PREFIX = "xb3-boot-lr_"
 _XBEE3_BOOTLOADER_FILE_PREFIX = {
     HardwareVersion.XBEE3.code: _XBEE3_BL_DEF_PREFIX,
     HardwareVersion.XBEE3_SMT.code: _XBEE3_BL_DEF_PREFIX,
     HardwareVersion.XBEE3_TH.code: _XBEE3_BL_DEF_PREFIX,
     HardwareVersion.XBEE3_RR.code: _XBEE3_RR_BL_DEF_PREFIX,
-    HardwareVersion.XBEE3_RR_TH.code: _XBEE3_RR_BL_DEF_PREFIX
+    HardwareVersion.XBEE3_RR_TH.code: _XBEE3_RR_BL_DEF_PREFIX,
+    HardwareVersion.XBEE3_DM_LR.code: _XBEE3_XR_BL_DEF_PREFIX,
+    HardwareVersion.XBEE3_DM_LR_868.code: _XBEE3_XR_BL_DEF_PREFIX,
+    HardwareVersion.XBEE_XR_900_TH.code: _XBEE3_XR_BL_DEF_PREFIX,
+    HardwareVersion.XBEE_XR_868_TH.code: _XBEE3_XR_BL_DEF_PREFIX,
 }
 
 _GEN3_BOOTLOADER_ERROR_CHECKSUM = 0x12
@@ -297,14 +302,15 @@ XBEE3_HW_VERSIONS = (HardwareVersion.XBEE3.code,
                      HardwareVersion.XBEE3_SMT.code,
                      HardwareVersion.XBEE3_TH.code,
                      HardwareVersion.XBEE3_RR.code,
-                     HardwareVersion.XBEE3_RR_TH.code,
-                     HardwareVersion.XBEE3_DM_LR.code,
-                     HardwareVersion.XBEE3_DM_LR_868.code,
-                     HardwareVersion.XBEE_XR_900_TH.code,
-                     HardwareVersion.XBEE_XR_868_TH.code)
+                     HardwareVersion.XBEE3_RR_TH.code)
 
-LOCAL_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS
-REMOTE_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + S2C_HW_VERSIONS
+XR_HW_VERSIONS = (HardwareVersion.XBEE3_DM_LR.code,
+                  HardwareVersion.XBEE3_DM_LR_868.code,
+                  HardwareVersion.XBEE_XR_900_TH.code,
+                  HardwareVersion.XBEE_XR_868_TH.code)
+
+LOCAL_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + XR_HW_VERSIONS
+REMOTE_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + S2C_HW_VERSIONS + XR_HW_VERSIONS
 
 _log = logging.getLogger(__name__)
 
@@ -1118,13 +1124,15 @@ class _BootloaderType(Enum):
     |     **name** (String): The name of this _BootloaderType.
     |     **value** (Integer): The ID of this _BootloaderType.
     """
-    GEN3_BOOTLOADER = (0x01, "Generation 3 bootloader")
-    GECKO_BOOTLOADER = (0x02, "Gecko bootloader")
-    EMBER_BOOTLOADER = (0x03, "Ember bootloader")
+    GEN3_BOOTLOADER = (0x01, "Generation 3 bootloader", OTAMethod.GPM)
+    GECKO_BOOTLOADER = (0x02, "Gecko bootloader", OTAMethod.ZCL)
+    EMBER_BOOTLOADER = (0x03, "Ember bootloader", OTAMethod.EMBER)
+    GECKO_BOOTLOADER_XR = (0x04, "Gecko bootloader with GPM OTA", OTAMethod.GPM)
 
-    def __init__(self, identifier, description):
+    def __init__(self, identifier, description, ota_method):
         self.__id = identifier
         self.__desc = description
+        self.__ota_method = ota_method
 
     @classmethod
     def get(cls, identifier):
@@ -1160,6 +1168,8 @@ class _BootloaderType(Enum):
             return _BootloaderType.GEN3_BOOTLOADER
         if hw_version in XBEE3_HW_VERSIONS:
             return _BootloaderType.GECKO_BOOTLOADER
+        if hw_version in XR_HW_VERSIONS:
+            return _BootloaderType.GECKO_BOOTLOADER_XR
         if hw_version in S2C_HW_VERSIONS:
             return _BootloaderType.EMBER_BOOTLOADER
 
@@ -1184,6 +1194,16 @@ class _BootloaderType(Enum):
             String: Description of the _BootloaderType element.
         """
         return self.__desc
+
+    @property
+    def ota_method(self):
+        """
+        Returns the over-the-air update method for this bootloader type.
+
+        Returns:
+            :class:`OTAMethod`: OTA method to use with this bootloader.
+        """
+        return self.__ota_method
 
 
 @unique
@@ -1225,7 +1245,7 @@ class _Gen3BootloaderCmd(Enum):
             :class:`._Gen3BootloaderCommand`: _Gen3BootloaderCommand with the
                 given identifier, `None` if not found.
         """
-        for value in _BootloaderType:
+        for value in _Gen3BootloaderCmd:
             if value.identifier == identifier:
                 return value
 
@@ -5760,7 +5780,8 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
     __DEFAULT_TIMEOUT = 20  # Seconds.
 
     def __init__(self, remote, xml_fw_file, xbee_fw_file=None,
-                 timeout=__DEFAULT_TIMEOUT, progress_cb=None):
+                 timeout=__DEFAULT_TIMEOUT, progress_cb=None,
+                 bootloader_type=_BootloaderType.GEN3_BOOTLOADER):
         """
         Class constructor. Instantiates a new
         :class:`._RemoteGPMFirmwareUpdater` with the given parameters.
@@ -5776,6 +5797,9 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
                 * The current update task as a String
                 * The current update task percentage as an Integer
 
+            bootloader_type (:class:`_BootloaderType`): Bootloader type of the
+                remote node.
+
         Raises:
             FirmwareUpdateException: If there is any error performing the
                 remote firmware update.
@@ -5787,6 +5811,7 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         self._gpm_frame_sent = False
         self._gpm_frame_received = False
         self._num_bytes_per_blocks = 0
+        self._bootloader_type = bootloader_type
 
     def _get_default_reset_timeout(self):
         """
@@ -5808,7 +5833,15 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         # same folder as the XML firmware file.
         if self._fw_file is None:
             path = Path(self._xml_fw_file)
-            self._fw_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_EBIN))
+            self._fw_file = str(
+                Path(path.parent).joinpath(
+                    path.stem + (
+                        EXTENSION_EBIN
+                        if self._bootloader_type == _BootloaderType.GEN3_BOOTLOADER
+                        else EXTENSION_GBL
+                    )
+                )
+            )
 
         if not _file_exists(self._fw_file):
             self._exit_with_error(_ERROR_FILE_XBEE_FW_NOT_FOUND
@@ -7103,7 +7136,9 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
         hw_version = target.get_hardware_version()
         if hw_version and hw_version.code not in LOCAL_SUPPORTED_HW_VERSIONS:
             raise OperationNotSupportedException(
-                "Firmware update only supported in XBee 3 and XBee SX 868/900")
+                "Firmware update only supported in XBee 3, XBee SX 868/900, "
+                "and XBee XR 868/900"
+            )
 
     # Launch the update process.
     if not timeout:
@@ -7120,7 +7155,10 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
     if isinstance(target, XBeeDevice) and not target._active_update_type:
         target._active_update_type = NodeUpdateType.FIRMWARE
     bootloader_type = _determine_bootloader_type(target)
-    if bootloader_type == _BootloaderType.GECKO_BOOTLOADER:
+    if bootloader_type in (
+        _BootloaderType.GECKO_BOOTLOADER,
+        _BootloaderType.GECKO_BOOTLOADER_XR,
+    ):
         update_process = _LocalXBee3FirmwareUpdater(
             target, xml_fw_file, xbee_fw_file=xbee_firmware_file,
             bootloader_fw_file=bootloader_firmware_file,
@@ -7196,7 +7234,9 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
     hw_version = remote.get_hardware_version()
     if hw_version and hw_version.code not in REMOTE_SUPPORTED_HW_VERSIONS:
         raise OperationNotSupportedException(
-            "Firmware update only supported in XBee 3, XBee SX 868/900, and XBee S2C devices")
+            "Firmware update only supported in XBee 3, XBee SX 868/900, "
+            "XBee S2C, and XBee XR 868/900 devices"
+        )
 
     # Launch the update process.
     if not timeout:
@@ -7217,16 +7257,17 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
     remote.set_sync_ops_timeout(max(orig_op_timeout, timeout))
     bootloader_type = _determine_bootloader_type(remote)
     remote.set_sync_ops_timeout(orig_op_timeout)
-    if bootloader_type == _BootloaderType.GECKO_BOOTLOADER:
+    if bootloader_type.ota_method == OTAMethod.ZCL:
         update_process = _RemoteXBee3FirmwareUpdater(
             remote, xml_fw_file, ota_fw_file=firmware_file,
             otb_fw_file=bootloader_file, timeout=timeout,
             max_block_size=max_block_size, progress_cb=progress_callback)
-    elif bootloader_type == _BootloaderType.GEN3_BOOTLOADER:
+    elif bootloader_type.ota_method == OTAMethod.GPM:
         update_process = _RemoteGPMFirmwareUpdater(
             remote, xml_fw_file, xbee_fw_file=firmware_file,
-            timeout=timeout, progress_cb=progress_callback)
-    elif bootloader_type == _BootloaderType.EMBER_BOOTLOADER:
+            timeout=timeout, progress_cb=progress_callback,
+            bootloader_type=bootloader_type)
+    elif bootloader_type.ota_method == OTAMethod.EMBER:
         update_process = _RemoteEmberFirmwareUpdater(
             remote, xml_fw_file, xbee_fw_file=firmware_file,
             timeout=timeout, force_update=True, progress_cb=progress_callback)
@@ -7474,6 +7515,10 @@ def _get_bootloader_version(xbee):
                                                      _PARAM_READ_RETRIES)
     if bootloader_version is None or len(bootloader_version) < 2:
         return None
+    if len(bootloader_version) == 3:
+        # XR returns VH value as three bytes: 0XYYZZ.
+        return bootloader_version
+
     bootloader_version_array[0] = bootloader_version[0] & 0x0F
     bootloader_version_array[1] = (bootloader_version[1] & 0xF0) >> 4
     bootloader_version_array[2] = bootloader_version[1] & 0x0F

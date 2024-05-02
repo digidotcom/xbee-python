@@ -12,7 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from enum import Enum, unique
+from enum import Enum, unique, auto
 from digi.xbee.models.hw import HardwareVersion
 from digi.xbee.util import utils
 
@@ -521,3 +521,15 @@ class Region(Enum):
 
 
 Region.__doc__ += utils.doc_enum(Region)
+
+
+@unique
+class OTAMethod(Enum):
+    """
+    Enumerates the over-the-air firmware update mechanisms of XBee modules.
+    """
+
+    UNDEFINED = auto()
+    EMBER = auto()
+    GPM = auto()
+    ZCL = auto()

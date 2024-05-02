@@ -17,6 +17,7 @@ v1.4.2 - XX/XX/202X
 * Support to retrieve XBee statistics.
 * Send/receive explicit data in 802.15.4.
   (XBee 3 modules support this feature)
+* Support for local and remote firmware update of XBee XR 868 and 900.
 * Bug fixing:
 
   * Fix order of nodes when creating a Zigbee source route (#278)
@@ -29,8 +30,8 @@ v1.4.1 - 12/22/2021
   * XBee 3 Cellular LTE-M/NB-IoT (Telit)
   * XBee 3 Reduced RAM
   * S2C P5
-  * XB3-DMLR
-  * XB3-DMLR868
+  * XBee XR 900
+  * XBee XR 868
 * OTA firmware update:
 
   * Implementation of considerations for versions 1009, 300A, 200A or prior
