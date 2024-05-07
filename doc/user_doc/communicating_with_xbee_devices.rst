@@ -515,8 +515,9 @@ network:
 +--------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                                                                                 | Description                                                                                                                                                                                           |
 +========================================================================================================+=======================================================================================================================================================================================================+
-| **send_expl_data(RemoteXBeeDevice, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies remote XBee destination object, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send, and, optionally, the transmit options. |
+| **send_expl_data(RemoteXBeeDevice, String or Bytearray, Integer, Integer, Integer, Integer, Integer)** | Specifies remote XBee destination object, the data to send, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), and, optionally, the transmit options. |
 +--------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
 
 **Send unicast explicit data synchronously**
 
@@ -532,7 +533,7 @@ network:
   remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send explicit data using the remote object.
-  xbee.send_expl_data(remote, 0xA0, 0xA1, 0x1554, 0xC105, "Hello XBee!")
+  xbee.send_expl_data(remote, "Hello XBee!", 0xA0, 0xA1, 0x1554, 0xC105)
 
   [...]
 
@@ -576,7 +577,7 @@ of the network:
 +--------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                                                                                       | Description                                                                                                                                                                                          |
 +==============================================================================================================+======================================================================================================================================================================================================+
-| **send_expl_data_async(RemoteXBeeDevice, Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies remote XBee destination object, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send and, optionally, the transmit options. |
+| **send_expl_data_async(RemoteXBeeDevice, String or Bytearray, Integer, Integer, Integer, Integer, Integer)** | Specifies remote XBee destination object, the data to send, four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), and, optionally, the transmit options. |
 +--------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send unicast explicit data asynchronously**
@@ -593,7 +594,7 @@ of the network:
   remote = RemoteXBeeDevice(xbee, XBee64BitAddress.from_hex_string("0013A20040XXXXXX"))
 
   # Send explicit data asynchronously using the remote object.
-  xbee.send_expl_data_async(remote, 0xA0, 0xA1, 0x1554, 0xC105, "Hello XBee!")
+  xbee.send_expl_data_async(remote, "Hello XBee!", 0xA0, 0xA1, 0x1554, 0xC105)
 
   [...]
 
@@ -629,7 +630,7 @@ data provide the same method to send broadcast explicit data:
 +------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Method                                                                                         | Description                                                                                                                                                               |
 +================================================================================================+===========================================================================================================================================================================+
-| **send_expl_data_broadcast(Integer, Integer, Integer, Integer, String or Bytearray, Integer)** | Specifies the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), the data to send, and, optionally, the transmit options. |
+| **send_expl_data_broadcast(String or Bytearray, Integer, Integer, Integer, Integer, Integer)** | Specifies the data to send, the four application layer fields (source endpoint, destination endpoint, cluster ID, and profile ID), and, optionally, the transmit options. |
 +------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 **Send broadcast data**
@@ -643,7 +644,7 @@ data provide the same method to send broadcast explicit data:
   xbee.open()
 
   # Send broadcast data.
-  xbee.send_expl_data_broadcast(0xA0, 0xA1, 0x1554, 0xC105, "Hello XBees!")
+  xbee.send_expl_data_broadcast("Hello XBees!", 0xA0, 0xA1, 0x1554, 0xC105)
 
   [...]
 
