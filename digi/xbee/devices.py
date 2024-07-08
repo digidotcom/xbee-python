@@ -1,4 +1,4 @@
-# Copyright 2017-2022, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -1780,12 +1780,10 @@ class AbstractXBeeDevice:
         if not isinstance(new_password, (str, bytes, bytearray)):
             raise ValueError("Password must be a string, bytes, or bytearray")
 
-        import srp
-
-        # Generate the salt and verifier using the SRP library.
-        salt, verifier = srp.create_salted_verification_key(
-            self._BLE_API_USERNAME, new_password, hash_alg=srp.SHA256,
-            ng_type=srp.NG_1024, salt_len=4)
+        import digi.xbee.util.srp
+        salt, verifier = digi.xbee.util.srp.create_salted_verification_key(
+            self._BLE_API_USERNAME, new_password, hash_alg=digi.xbee.util.srp.HAType.SHA256,
+            ng_type=digi.xbee.util.srp.NgGroupParams.NG_1024, salt_len=4)
 
         self.update_bluetooth_salt_verifier(salt, verifier, apply=apply, save=save)
 

@@ -18,9 +18,18 @@ v1.4.2 - XX/XX/202X
 * Send/receive explicit data in 802.15.4.
   (XBee 3 modules support this feature)
 * Support for local and remote firmware update of XBee XR 868 and 900.
+* Remove 'pysrp' dependency:
+
+  * The library includes support to generate salt and verifier required to
+    configure '$S', '$V', '$W', '$X', and '$Y' XBee parameters to establish
+    Bluetooth password.
 * Bug fixing:
 
   * Fix order of nodes when creating a Zigbee source route (#278)
+  * Salt/verifier generation using 'pysrp' was not working with certain
+    passwords (see https://github.com/cocagne/pysrp/issues/55)
+    Solved by removing 'pysrp' dependency and implementing the code to
+    generate them.
 
 v1.4.1 - 12/22/2021
 -------------------

@@ -55,16 +55,3 @@ You can install PySerial running this command in your terminal application:
 For further information about the installation of PySerial, refer to the
 `PySerial installation guide
 <http://pythonhosted.org/pyserial/pyserial.html#installation>`_.
-
-
-I get the Python error ``ImportError: No module named 'srp'``
--------------------------------------------------------------
-
-This error means that Python cannot find the ``srp`` module, which is used by
-the library to authenticate with XBee devices over Bluetooth Low Energy.
-
-You can install SRP running this command in your terminal application:
-
-.. code::
-
-  $ pip install srp

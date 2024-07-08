@@ -12,7 +12,6 @@ from setuptools import setup, find_namespace_packages
 
 DEPENDENCIES = (
     'pyserial>=3',
-    'srp',
 )
 
 # 'setup.py build' shortcut.
@@ -56,7 +55,6 @@ setup(
         'pyserial>=3',
     ],
     extras_require={
-        "SRP":  ["srp"],
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

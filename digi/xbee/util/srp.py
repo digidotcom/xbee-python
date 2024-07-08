@@ -1,0 +1,410 @@
+# Copyright 2024, Digi International Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+import os
+
+import hashlib
+
+from enum import unique, Enum
+
+from digi.xbee.util import utils
+
+@unique
+class HAType(Enum):
+    """
+    This class lists the available hash algorithms.
+
+    | Inherited properties:
+    |     **name** (String): the name (id) of the HAType.
+    |     **value** (String): the value of the HAType.
+    """
+    SHA1 = (0, hashlib.sha1)
+    SHA224 = (1, hashlib.sha224)
+    SHA256 = (2, hashlib.sha256)
+    SHA384 = (3, hashlib.sha384)
+    SHA512 = (4, hashlib.sha512)
+
+    def __init__(self, code, alg):
+        self.__code = code
+        self.__alg = alg
+
+    @property
+    def code(self):
+        """
+        Returns the code of the HAType element.
+
+        Returns:
+            Integer: the code of the HAType element.
+        """
+        return self.__code
+
+    @property
+    def alg(self):
+        """
+        Returns the algorithm of the HAType element.
+
+        Returns:
+            String: the algorithm of the HAType element.
+        """
+        return self.__alg
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the hash algorithm type for the given code.
+
+        Args:
+            code (Integer): the code of the hash algorithm to get.
+
+        Returns:
+            :class:`.HAType`: the type with the given code, `None` if not found.
+        """
+        for hs_type in cls:
+            if code == hs_type.code:
+                return hs_type
+        return None
+
+
+HAType.__doc__ += utils.doc_enum(HAType)
+
+@unique
+class NgGroupParams(Enum):
+    """
+    This class lists the available group parameters (N, g) algorithms.
+
+    | Inherited properties:
+    |     **name** (String): the name (id) of the HAType.
+    |     **value** (String): the value of the HAType.
+    """
+    NG_1024 = (0, '''\
+EEAF0AB9ADB38DD69C33F80AFA8FC5E86072618775FF3C0B9EA2314C\
+9C256576D674DF7496EA81D3383B4813D692C6E0E0D5D8E250B98BE4\
+8E495C1D6089DAD15DC7D7B46154D6B6CE8EF4AD69B15D4982559B29\
+7BCF1885C529F566660E57EC68EDBC3C05726CC02FD4CBF4976EAA9A\
+FD5138FE8376435B9FC61D2FC0EB06E3\
+''',
+               '0x2')
+    NG_1536 = (1, '''\
+9DEF3CAFB939277AB1F12A8617A47BBBDBA51DF499AC4C80BEEEA961\
+4B19CC4D5F4F5F556E27CBDE51C6A94BE4607A291558903BA0D0F843\
+80B655BB9A22E8DCDF028A7CEC67F0D08134B1C8B97989149B609E0B\
+E3BAB63D47548381DBC5B1FC764E3F4B53DD9DA1158BFD3E2B9C8CF5\
+6EDF019539349627DB2FD53D24B7C48665772E437D6C7F8CE442734A\
+F7CCB7AE837C264AE3A9BEB87F8A2FE9B8B5292E5A021FFF5E91479E\
+8CE7A28C2442C6F315180F93499A234DCF76E3FED135F9BB\
+    ''',
+               '0x2')
+    NG_2048 = (1, '''\
+AC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC319294\
+3DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310D\
+CD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FB\
+D5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF74\
+7359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A\
+436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D\
+5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E73\
+03CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB6\
+94B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F\
+9E4AFF73\
+''',
+               '0x2')
+    NG_3072 = (2, '''\
+FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E08\
+8A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B\
+302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9\
+A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE6\
+49286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8\
+FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D\
+670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C\
+180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF695581718\
+3995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D\
+04507A33A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7D\
+B3970F85A6E1E4C7ABF5AE8CDB0933D71E8C94E04A25619DCEE3D226\
+1AD2EE6BF12FFA06D98A0864D87602733EC86A64521F2B18177B200C\
+BBE117577A615D6C770988C0BAD946E208E24FA074E5AB3143DB5BFC\
+E0FD108E4B82D120A93AD2CAFFFFFFFFFFFFFFFF\
+''',
+               '0x5')
+    NG_4096 = (2, '''\
+FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E08\
+8A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B\
+302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9\
+A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE6\
+49286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8\
+FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D\
+670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C\
+180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF695581718\
+3995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D\
+04507A33A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7D\
+B3970F85A6E1E4C7ABF5AE8CDB0933D71E8C94E04A25619DCEE3D226\
+1AD2EE6BF12FFA06D98A0864D87602733EC86A64521F2B18177B200C\
+BBE117577A615D6C770988C0BAD946E208E24FA074E5AB3143DB5BFC\
+E0FD108E4B82D120A92108011A723C12A787E6D788719A10BDBA5B26\
+99C327186AF4E23C1A946834B6150BDA2583E9CA2AD44CE8DBBBC2DB\
+04DE8EF92E8EFC141FBECAA6287C59474E6BC05D99B2964FA090C3A2\
+233BA186515BE7ED1F612970CEE2D7AFB81BDD762170481CD0069127\
+D5B05AA993B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934063199\
+FFFFFFFFFFFFFFFF\
+''',
+               '0x5')
+    NG_6144 = (3, '''\
+FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E08\
+8A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B\
+302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9\
+A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE6\
+49286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8\
+FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D\
+670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C\
+180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF695581718\
+3995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D\
+04507A33A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7D\
+B3970F85A6E1E4C7ABF5AE8CDB0933D71E8C94E04A25619DCEE3D226\
+1AD2EE6BF12FFA06D98A0864D87602733EC86A64521F2B18177B200C\
+BBE117577A615D6C770988C0BAD946E208E24FA074E5AB3143DB5BFC\
+E0FD108E4B82D120A92108011A723C12A787E6D788719A10BDBA5B26\
+99C327186AF4E23C1A946834B6150BDA2583E9CA2AD44CE8DBBBC2DB\
+04DE8EF92E8EFC141FBECAA6287C59474E6BC05D99B2964FA090C3A2\
+233BA186515BE7ED1F612970CEE2D7AFB81BDD762170481CD0069127\
+D5B05AA993B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934028492\
+36C3FAB4D27C7026C1D4DCB2602646DEC9751E763DBA37BDF8FF9406\
+AD9E530EE5DB382F413001AEB06A53ED9027D831179727B0865A8918\
+DA3EDBEBCF9B14ED44CE6CBACED4BB1BDB7F1447E6CC254B33205151\
+2BD7AF426FB8F401378CD2BF5983CA01C64B92ECF032EA15D1721D03\
+F482D7CE6E74FEF6D55E702F46980C82B5A84031900B1C9E59E7C97F\
+BEC7E8F323A97A7E36CC88BE0F1D45B7FF585AC54BD407B22B4154AA\
+CC8F6D7EBF48E1D814CC5ED20F8037E0A79715EEF29BE32806A1D58B\
+B7C5DA76F550AA3D8A1FBFF0EB19CCB1A313D55CDA56C9EC2EF29632\
+387FE8D76E3C0468043E8F663F4860EE12BF2D5B0B7474D6E694F91E\
+6DCC4024FFFFFFFFFFFFFFFF\
+''',
+               '0x5')
+    NG_8192 = (3, '''\
+FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E08\
+8A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B\
+302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9\
+A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE6\
+49286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8\
+FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D\
+670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C\
+180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF695581718\
+3995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D\
+04507A33A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7D\
+B3970F85A6E1E4C7ABF5AE8CDB0933D71E8C94E04A25619DCEE3D226\
+1AD2EE6BF12FFA06D98A0864D87602733EC86A64521F2B18177B200C\
+BBE117577A615D6C770988C0BAD946E208E24FA074E5AB3143DB5BFC\
+E0FD108E4B82D120A92108011A723C12A787E6D788719A10BDBA5B26\
+99C327186AF4E23C1A946834B6150BDA2583E9CA2AD44CE8DBBBC2DB\
+04DE8EF92E8EFC141FBECAA6287C59474E6BC05D99B2964FA090C3A2\
+233BA186515BE7ED1F612970CEE2D7AFB81BDD762170481CD0069127\
+D5B05AA993B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934028492\
+36C3FAB4D27C7026C1D4DCB2602646DEC9751E763DBA37BDF8FF9406\
+AD9E530EE5DB382F413001AEB06A53ED9027D831179727B0865A8918\
+DA3EDBEBCF9B14ED44CE6CBACED4BB1BDB7F1447E6CC254B33205151\
+2BD7AF426FB8F401378CD2BF5983CA01C64B92ECF032EA15D1721D03\
+F482D7CE6E74FEF6D55E702F46980C82B5A84031900B1C9E59E7C97F\
+BEC7E8F323A97A7E36CC88BE0F1D45B7FF585AC54BD407B22B4154AA\
+CC8F6D7EBF48E1D814CC5ED20F8037E0A79715EEF29BE32806A1D58B\
+B7C5DA76F550AA3D8A1FBFF0EB19CCB1A313D55CDA56C9EC2EF29632\
+387FE8D76E3C0468043E8F663F4860EE12BF2D5B0B7474D6E694F91E\
+6DBE115974A3926F12FEE5E438777CB6A932DF8CD8BEC4D073B931BA\
+3BC832B68D9DD300741FA7BF8AFC47ED2576F6936BA424663AAB639C\
+5AE4F5683423B4742BF1C978238F16CBE39D652DE3FDB8BEFC848AD9\
+22222E04A4037C0713EB57A81A23F0C73473FC646CEA306B4BCBC886\
+2F8385DDFA9D4B7FA2C087E879683303ED5BDD3A062B3CF5B3A278A6\
+6D2A13F83F44F82DDF310EE074AB6A364597E899A0255DC164F31CC5\
+0846851DF9AB48195DED7EA1B1D510BD7EE74D73FAF36BC31ECFA268\
+359046F4EB879F924009438B481C6CD7889A002ED5EE382BC9190DA6\
+FC026E479558E4475677E9AA9E3050E2765694DFC81F56E880B96E71\
+60C980DD98EDD3DFFFFFFFFFFFFFFFFF\
+''',
+               '0x13')
+    NG_CUSTOM = (9999, "", -1)
+
+    def __init__(self, code, n, g):
+        self.__code = code
+        self.__n = n
+        self.__g = g
+
+    @property
+    def code(self):
+        """
+        Returns the code of the NgGroupParams element.
+
+        Returns:
+            Integer: the code of the NgGroupParams element.
+        """
+        return self.__code
+
+    @property
+    def n(self):
+        """
+        Returns N of the NgGroupParams element.
+
+        Returns:
+            String: N of the NgGroupParams element.
+        """
+        return self.__n
+
+    @property
+    def g(self):
+        """
+        Returns g of the NgGroupParams element.
+
+        Returns:
+            String: g of the NgGroupParams element.
+        """
+        return self.__g
+
+    @classmethod
+    def get(cls, code):
+        """
+        Returns the group parameters for the given code.
+
+        Args:
+            code (Integer): the code of the group parameters to get.
+
+        Returns:
+            :class:`.NgGroupParams`: the parameters with the given code, `None` if not found.
+        """
+        for group in cls:
+            if code == group.code:
+                return group
+        return None
+
+
+NgGroupParams.__doc__ += utils.doc_enum(NgGroupParams)
+
+
+def create_salted_verification_key(user, password, hash_alg=HAType.SHA256,
+                 ng_type=NgGroupParams.NG_1024, salt_len=4):
+    """
+    Generates a salted verification key for the provided username and password.
+
+    Params:
+        user (String): Username string.
+        password (String): Plain text password.
+        hash_alg (:class:`.HAType`, optional, default=`HAType.SHA256`): Hash algorithm.
+        ng_type (:class:`.NgGroupParams`, optional, default=`NgGroupParams.NG_1024`):
+            Prime generator type.
+        salt_len (Integer, optional, default=`4`): Number of bytes of generated salt.
+
+    Returns:
+        Tuple (bytes, bytes): Tuple with salt and verifier.
+    """
+    s = generate_salt(l=salt_len)
+    v = generate_verifier(user, password, hash_alg=hash_alg, ng_type=ng_type,
+                          salt=s, sep=":")
+
+    return s, v
+
+
+def generate_salt(l=4):
+    """
+    Generates new salt.
+
+    Params:
+        l (Integer, optional, default=`4`): Number of bytes.
+
+    Returns:
+        Bytes: The generated salt.
+    """
+    return os.urandom(l)
+
+
+def generate_verifier(user, password, salt, hash_alg=HAType.SHA256,
+                      ng_type=NgGroupParams.NG_1024, sep=":"):
+    """
+    Calculates a verifier for the provided salt and configured password.
+
+    Params:
+        user (String): Username string.
+        password (String): Plain text password.
+        salt (bytes): Salt to generate a verifier.
+        hash_alg (:class:`.HAType`, optional, default=`HAType.SHA256`): Hash algorithm.
+        ng_type (:class:`.NgGroupParams`, optional, default=`NgGroupParams.NG_1024`):
+            Prime generator type.
+        sep (String, optional, default= `:`): Separator string.
+
+    Returns:
+        Bytes: The generated verifier.
+    """
+    x = __calculate_x(user, password, salt, hash_alg=hash_alg, sep=sep)
+    n_val = int(ng_type.n, 16)  # N
+    g_val = int(ng_type.g, 16)  # g
+
+    # v = g^x
+    v = pow(g_val, x, n_val)
+
+    return bytes(utils.int_to_bytes(v))
+
+
+def __calculate_x(user, password, salt, hash_alg=HAType.SHA256, sep=":"):
+    """
+    Calculates the user secret parameter.
+
+    Params:
+        user (String): Username string.
+        password (String): Plain text password.
+        salt (bytes): Salt byte array.
+        hash_alg (:class:`.HAType`, optional, default=`HAType.SHA256`): Hash algorithm.
+        sep (String, optional, default= `:`): Separator string.
+
+    Returns:
+        Integer: The user secret value.
+    """
+    if None in (user, password, salt):
+        raise ValueError("User, password, and salt must be specified")
+
+    # x = H(s | H (I | ":" | p))
+    h_up = __hash(hash_alg, user, sep, password)
+
+    return int.from_bytes(
+        __hash(hash_alg, utils.bytes_to_int(salt), h_up), "big")
+
+
+def __hash(hash_alg, *args):
+    """
+    Calculates the hash of the provided arguments.
+
+    Params:
+        args: Variable argument list of object to use for hash.
+
+    Returns:
+        Bytes: The calculated hash.
+    """
+    hash_obj = hash_alg.alg()
+    for i in args:
+        hash_obj.update(__to_bytes(i))
+
+    return hash_obj.digest()
+
+
+def __to_bytes(obj):
+    """
+    Converts object to byte array, with optional context.
+
+    Params:
+        obj: Object to convert.
+
+    Returns:
+        Bytes: Bytes representation of object.
+    """
+    if isinstance(obj, bytes):
+        return obj
+    if isinstance(obj, bytearray):
+        return bytes(obj)
+    if isinstance(obj, int):
+        return bytes(utils.int_to_bytes(obj))
+    if isinstance(obj, str):
+        return bytes(obj, 'utf-8')
+    return None

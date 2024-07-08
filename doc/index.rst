@@ -55,7 +55,6 @@ properly:
   the `PySerial installation guide
   <http://pythonhosted.org/pyserial/pyserial.html#installation>`_ for further
   information about getting PySerial.
-* **SRP**  Install it with pip (``pip install srp``).
 
 
 Contents
