@@ -106,8 +106,8 @@ class HardwareVersion(Enum):
     CELLULAR_3_NA_CAT4 = (0x59, "XBee 3 Cellular North America Cat 4")
     XBEE_XR_900_TH = (0x5A, "XBee XR 900 TH")
     XBEE_XR_868_TH = (0x5B, "XBee XR 868 TH")
-    XBEE_BLU = (0x5C, "XBee BLU")
-    XBEE_BLU_TH = (0x5D, "XBee BLU TH")
+    XBEE_BLU = (0x5C, "XBee 3 BLU")
+    XBEE_BLU_TH = (0x5D, "XBee 3 BLU TH")
 
     def __init__(self, code, description):
         self.__code = code

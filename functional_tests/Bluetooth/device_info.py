@@ -20,9 +20,9 @@ BAUD_RATE_LOCAL = 9600
 
 
 def main():
-    print(" +---------------------------+")
-    print(" | XBee BLU device info test |")
-    print(" +---------------------------+\n")
+    print(" +-----------------------------+")
+    print(" | XBee 3 BLU device info test |")
+    print(" +-----------------------------+\n")
 
     local = BluDevice(PORT_LOCAL, BAUD_RATE_LOCAL)
 

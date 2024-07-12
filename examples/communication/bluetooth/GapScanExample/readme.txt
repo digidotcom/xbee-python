@@ -9,7 +9,7 @@
   and also registers a callback to be notified when the GAP scan status
   changes.
 
-  NOTE: This example is currently only supported on the XBee BLU device
+  NOTE: This example is currently only supported on the XBee 3 BLU device
         which uses 'XBeeBLU' device class.
 
 
@@ -17,7 +17,7 @@
   ------------
   To run this example you will need:
 
-    * One XBee BLU module in API mode and its corresponding carrier board
+    * One XBee 3 BLU module in API mode and its corresponding carrier board
       (XBIB or equivalent).
     * The XCTU application (available at www.digi.com/xctu).
 
@@ -29,18 +29,18 @@
 
   Example setup
   -------------
-    1) Plug the XBee BLU radio into the XBee adapter and connect it to your
+    1) Plug the XBee 3 BLU radio into the XBee adapter and connect it to your
        computer's USB or serial port.
 
     2) Ensure that the module is in API mode.
        For further information on how to perform this task, read the
        'Configuring Your XBee Modules' topic of the Getting Started guide.
 
-    3) Enable the Bluetooth interface of the XBee BLU device using XCTU.
+    3) Enable the Bluetooth interface of the XBee 3 BLU device using XCTU.
        For further information on how to perform this task, refer to the
        XCTU user manual.
 
-    4) Set the port and baud rate of the XBee BLU radio in the example file.
+    4) Set the port and baud rate of the XBee 3 BLU radio in the example file.
        If you configured the module in the previous step with XCTU, you will
        see the port number and baud rate in the 'Port' label of the device
        on the left view.

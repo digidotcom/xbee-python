@@ -14,7 +14,7 @@ v1.4.2 - XX/XX/202X
   * XBee 3 Cellular North America Cat 4
   * XBee XR 900 TH
   * XBee XR 868 TH
-  * XBee BLU
+  * XBee 3 BLU
 * Support to retrieve XBee statistics.
 * Send/receive explicit data in 802.15.4.
   (XBee 3 modules support this feature)
@@ -25,7 +25,7 @@ v1.4.2 - XX/XX/202X
     configure '$S', '$V', '$W', '$X', and '$Y' XBee parameters to establish
     Bluetooth password.
 * Support for sending BLE Generic Access Profile (GAP) scans.
-  (Only XBee BLU modules support this feature)
+  (Only XBee 3 BLU modules support this feature)
 * Bug fixing:
 
   * Fix order of nodes when creating a Zigbee source route (#278)
