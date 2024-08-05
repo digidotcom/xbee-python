@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -291,7 +291,7 @@ class ATCommand:
             String: representation of this ATCommand.
         """
         return "Command: %s - Parameter: %s" \
-               % (self.__cmd, utils.hex_to_string(self.__param))
+               % (self.__cmd, utils.hex_to_string(self.__param) if self.__param else "-")
 
     def __len__(self):
         """
