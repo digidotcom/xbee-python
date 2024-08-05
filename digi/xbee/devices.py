@@ -4128,14 +4128,10 @@ class XBeeDevice(AbstractXBeeDevice):
         Raises:
             SerialTimeoutException: If there is any error trying to write to
                 the serial port.
-            InvalidOperatingModeException: If the XBee is in API mode.
         """
         if not self._serial_port:
             raise XBeeException(
                 "Command mode is only supported for local XBee devices using a serial connection")
-        if self._operating_mode in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
-            raise InvalidOperatingModeException(
-                message="Invalid mode. Command mode can be only accessed while in AT mode")
 
         from digi.xbee.recovery import enter_at_command_mode
         return enter_at_command_mode(self._serial_port)
@@ -4147,15 +4143,10 @@ class XBeeDevice(AbstractXBeeDevice):
         Raises:
             SerialTimeoutException: If there is any error trying to write to
                 the serial port.
-            InvalidOperatingModeException: If the XBee is in API mode.
         """
         if not self._serial_port:
             raise XBeeException(
                 "Command mode is only supported for local XBee devices using a serial connection")
-
-        if self._operating_mode in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
-            raise InvalidOperatingModeException(
-                message="Invalid mode. Command mode can be only be exited while in AT mode")
 
         self._serial_port.write("ATCN\r".encode("utf8"))
         time.sleep(self.__DEFAULT_GUARD_TIME)
