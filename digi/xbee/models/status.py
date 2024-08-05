@@ -163,6 +163,7 @@ class TransmitStatus(Enum):
         0x04, "Transceiver was unable to complete the transmission")
     INVALID_DESTINATION = (0x15, "Invalid destination endpoint")
     NO_BUFFERS = (0x18, "No buffers")
+    CONNECTION_NOT_FOUND = (0x20, "Connection not found")
     NETWORK_ACK_FAILURE = (0x21, "Network ACK Failure")
     NOT_JOINED_NETWORK = (0x22, "Not joined to network")
     SELF_ADDRESSED = (0x23, "Self-addressed")
@@ -214,6 +215,9 @@ class TransmitStatus(Enum):
               "more certificates is invalid")
     SOCKET_NOT_CONNECTED = (0x87, "Socket not connected")
     SOCKET_NOT_BOUND = (0x88, "Socket not bound")
+    SOCKET_INACTIVITY_TIMEOUT = (0x89, "Socket inactivity timeout")
+    PDP_CONTEXT_DEACTIVATED = (0x8A, "PDP context deactivated by network")
+    TLS_AUTHENTICATION_ERROR = (0x8B, "TLS Socket Authentication Error")
     KEY_NOT_AUTHORIZED = (0xBB, "Key not authorized")
     UNKNOWN = (0xFF, "Unknown")
 
@@ -308,6 +312,9 @@ class ModemStatus(Enum):
     ROUTER_PAN_ID_CHANGED = (
         0x40, "Router PAN ID was changed by coordinator due to a conflict")
     NET_WATCHDOG_EXPIRED = (0x42, "Network watchdog timeout expired")
+    OPEN_JOIN_WINDOW = (0x43, "Joining window open")
+    CLOSE_JOIN_WINDOW = (0x44, "Joining window closed")
+    NETWORK_KEY_CHANGE_INIT = (0x45, "Network security key change initiated")
     ERROR_STACK = (0x80, "Stack error")
     ERROR_AP_NOT_CONNECTED = (
         0x82, "Send/join command issued without connecting from AP")
@@ -481,6 +488,12 @@ class AssociationIndicationStatus(Enum):
     COORDINATOR_START_FAILED = (0x2A, "Coordinator Start attempt failed")
     CHECKING_FOR_COORDINATOR = (0x2B, "Checking for an existing coordinator")
     NETWORK_LEAVE_FAILED = (0x2C, "Attempt to leave the network failed")
+    SEC_JOIN_ATTACHED_TO_NETWORK = (
+        0x40, "Secure Join - Successfully attached to network, waiting for new link key")
+    SEC_JOIN_SUCCESS_LINK_KEY = (
+        0x41, "Secure Join - Successfully received new link key from the trust center")
+    SEC_JOIN_FAILED_LINK_KEY = (
+        0x44, "Secure Join - Failed to receive new link key from the trust center")
     DEVICE_DIDNT_RESPOND = (
         0xAB, "Attempted to join a device that did not respond")
     UNSECURED_KEY_RECEIVED = (
@@ -554,7 +567,11 @@ class CellularAssociationIndicationStatus(Enum):
     USB_DIRECT = (0x2B, "USB Direct mode is active")
     PSM_LOW_POWER = (
         0x2C, "The cellular component is in the PSM low-power state")
+    MODEM_SHUT_DOWN = (0x2D, "Modem shut down")
+    LOW_VOLTAGE_SHUT_DOWN = (0x2E, "Low voltage shut down")
     BYPASS_MODE = (0x2F, "Bypass mode active")
+    UPGRADE_IN_PROCESS = (0x30, "An upgrade is in process")
+    REGULATORY_TESTING_ENABLED = (0x31, "Regulatory testing has been enabled")
     INITIALIZING = (0xFF, "Initializing")
 
     def __init__(self, code, description):
@@ -854,10 +871,12 @@ class ZigbeeRegisterStatus(Enum):
     """
     SUCCESS = (0x00, "Success")
     KEY_TOO_LONG = (0x01, "Key too long")
+    TRANSIENT_KEY_TABLE_FULL = (0x18, "Transient key table is full")
     ADDRESS_NOT_FOUND = (0xB1, "Address not found in the key table")
     INVALID_KEY = (0xB2, "Key is invalid (00 and FF are reserved)")
     INVALID_ADDRESS = (0xB3, "Invalid address")
     KEY_TABLE_FULL = (0xB4, "Key table is full")
+    INVALID_SECURITY_DATA = (0xBD, "Security data is invalid (Install code CRC fails)")
     KEY_NOT_FOUND = (0xFF, "Key not found")
     UNKNOWN = (0xEE, "Unknown")
 
@@ -979,6 +998,9 @@ class SocketStatus(Enum):
     INTERNAL_ERROR = (0x31, "Internal error")
     RESOURCE_ERROR = (0x32, "Resource error: retry the operation later")
     INVALID_PROTOCOL = (0x7B, "Invalid protocol")
+    MODEM_UPDATE_IN_PROGRESS = (0x7E, "A modem update is in process. Try again after update completion")
+    UNKNOWN_ERROR_2 = (0x85, "Unknown error")
+    INVALID_TLS_CFG = (0x86, "Invalid TLS configuration")
     UNKNOWN = (0xFF, "Unknown")
 
     def __init__(self, code, description):
@@ -1043,6 +1065,9 @@ class SocketState(Enum):
     UNKNOWN_SERVER = (0x09, "Unknown server")
     RESOURCE_ERROR = (0x0A, "Resource error")
     LISTENER_CLOSED = (0x0B, "Listener closed")
+    RST_CLOSE_BY_PEER = (0x0C, "RST Close by peer")
+    CLOSED_INACTIVITY_TIMEOUT = (0x0D, "Closed due to inactivity timeout")
+    PDP_CONTEXT_DEACTIVATED = (0x0E, "PDP context deactivated by network")
     UNKNOWN = (0xFF, "Unknown")
 
     def __init__(self, code, description):
