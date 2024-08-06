@@ -95,7 +95,10 @@ LOCAL_SUPPORTED_HW_VERSIONS = REMOTE_SUPPORTED_HW_VERSIONS \
 XB3_MIN_FW_VERSION_FS_API_SUPPORT = {
     XBeeProtocol.ZIGBEE: 0x10FF,
     XBeeProtocol.DIGI_MESH: 0x30FF,
-    XBeeProtocol.RAW_802_15_4: 0x20FF
+    XBeeProtocol.RAW_802_15_4: 0x20FF,
+    # XBeeProtocol.BLE, specify so:
+    #  * FileSystemManager() is NOT supported until FS API frames are added
+    XBeeProtocol.BLE: 0x40FF
 }
 
 # Update this values when the File System OTA support is deprecated
@@ -103,6 +106,9 @@ XB3_MAX_FW_VERSION_FS_OTA_SUPPORT = {
     XBeeProtocol.ZIGBEE: 0x10FF,
     XBeeProtocol.DIGI_MESH: 0x30FF,
     XBeeProtocol.RAW_802_15_4: 0x20FF
+    # XBeeProtocol.BLE, do not specify so:
+    #  * LocalXBeeFileSystemManager() is SUPPORTED
+    #  * update_remote_filesystem_image() is NOT supported (remotes do not exist)
 }
 
 _DEFAULT_BLOCK_SIZE = 64
@@ -3385,8 +3391,8 @@ def check_fs_support(xbee, min_fw_vers=None, max_fw_vers=None):
     if not fw_version:
         return True
 
-    min_fw_version = min_fw_vers[xbee.get_protocol()] if min_fw_vers else None
-    max_fw_version = max_fw_vers[xbee.get_protocol()] if max_fw_vers else None
+    min_fw_version = min_fw_vers.get(xbee.get_protocol(), None) if min_fw_vers else None
+    max_fw_version = max_fw_vers.get(xbee.get_protocol(), None) if max_fw_vers else None
 
     version = utils.bytes_to_int(fw_version)
     if min_fw_version and version < min_fw_version:
