@@ -16,15 +16,22 @@ profiles:
         * Local and remote firmware updates
         * Local and remote file system updates
         * Local and remote profile updates
+    * **XBee 3 BLU**:
+        * Local firmware updates
+        * Local file system updates
+        * Local profile updates
+    * **XBee RR**
+        * Local and remote firmware updates
+        * Local and remote profile updates
+    * **XBee XR 868/900**
+        * Local and remote firmware updates
+        * Local and remote profile updates
     * **XBee SX 868/900 MHz**
         * Local and remote firmware updates
         * Local and remote profile updates
     * **XBee S2C**
         * Remote firmware updates
         * Remote profile updates
-    * **XBee XR 868/900**
-        * Local and remote firmware updates
-        * Local and remote profile updates
 
 
 .. _updateFirmware:
@@ -45,9 +52,11 @@ and remote devices:
 .. warning::
   At the moment, firmware update is only supported in:
     * **XBee 3**: Local and remote firmware updates
+    * **XBee 3 BLU**: Local firmware updates
+    * **XBee RR**: Local and remote firmware updates
+    * **XBee XR 868/900**: Local and remote firmware updates
     * **XBee SX 868/900 MHz**: Local and remote firmware updates
     * **XBee S2C**: Remote firmware updates
-    * **XBee XR 868/900**: Local and remote firmware updates
 
 
 .. _updateFirmwareLocal:
@@ -71,7 +80,8 @@ connection. For this operation, you need the following components:
 
 .. warning::
   At the moment, local firmware update is only supported in **XBee 3**,
-  **XBee SX 868/900 MHz** and **XBee XR 868/900** devices.
+  **XBee 3 BLU**, **XBee RR**, **XBee XR 868/900**, and **XBee SX 868/900 MHz**
+  devices.
 
 
 +------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -225,7 +235,8 @@ components:
 
 .. warning::
   At the moment, remote firmware update is only supported in **XBee 3**,
-  **XBee SX 868/900 MHz**, **XBee S2C**, and **XBee XR 868/900** devices.
+  **XBee RR**, **XBee XR 868/900**, **XBee SX 868/900 MHz**,
+  and **XBee S2C** devices.
 
 To perform the remote firmware update, call the ``update_firmware()`` method of
 the ``RemoteXBeeDevice`` class providing the required parameters:
@@ -303,16 +314,16 @@ The ``update_firmware()`` method may fail for the following reasons:
 Update the XBee file system
 ---------------------------
 
-XBee 3 devices feature file system capabilities, meaning that they are able to
-persistently store files and folders in flash. The XBee Python Library provides
-classes and methods to manage these files.
+XBee 3 and XBee RR devices feature file system capabilities, meaning that they
+are able to persistently store files and folders in flash. The XBee Python
+Library provides classes and methods to manage these files.
 
 * :ref:`filesystemManager`
 * :ref:`filesystemOperations`
 
 .. warning::
-  At the moment file system capabilities are only supported in **XBee 3**
-  devices.
+  At the moment file system capabilities are only supported in **XBee 3** and
+  **XBee RR** devices.
 
 
 .. _filesystemManager:
@@ -491,9 +502,11 @@ To configure individual settings see :ref:`configureXBee`.
 .. warning::
   At the moment, firmware update is only supported in:
     * **XBee 3**: Local and remote profile updates
+    * **XBee 3 BLU**: Local profile updates
+    * **XBee RR**: Local and remote profile updates
+    * **XBee XR 868/900**: Local and remote profile updates
     * **XBee SX 868/900 MHz**: Local and remote profile updates
     * **XBee S2C**: Remote profile updates
-    * **XBee XR 868/900**: Local and remote profile updates
 
 
 .. _readXBeeProfile:
@@ -647,7 +660,8 @@ Applying a profile to a local XBee requires the following components:
 
 .. warning::
   At the moment, local profile update is only supported in **XBee 3**,
-  **XBee SX 868/900 MHz**, and **XBee XR 868/900** devices.
+  **XBee 3 BLU**, **XBee RR**, **XBee XR 868/900**, and **XBee SX 868/900 MHz**
+  devices.
 
 To apply the XBee profile to a local XBee, call the ``apply_profile()`` method
 of the ``XBeeDevice`` class providing the required parameters:
@@ -721,7 +735,8 @@ Applying a profile to a remote XBee requires the following components:
 
 .. warning::
   At the moment, remote profile update is only supported in **XBee 3**,
-  **XBee SX 868/900 MHz**, **XBee S2C**, and **XBee XR 868/900** devices.
+  **XBee RR**, **XBee XR 868/900**, **XBee SX 868/900 MHz** and
+  **XBee S2C** devices.
 
 To apply the XBee profile to a remote XBee, call the ``apply_profile()`` method
 of the ``RemoteXBeeDevice`` class providing the required parameters:
