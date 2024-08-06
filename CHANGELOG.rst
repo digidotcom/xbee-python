@@ -40,21 +40,21 @@ v1.4.1 - 12/22/2021
 * Support for new hardware variants:
 
   * XBee 3 Cellular LTE-M/NB-IoT (Telit)
-  * XBee 3 Reduced RAM
+  * XBee RR MMT/SMT
   * S2C P5
-  * XBee XR 900
-  * XBee XR 868
+  * XBee XR 900 MMT/SMT
+  * XBee XR 868 MMT/SMT
 * OTA firmware update:
 
-  * Implementation of considerations for versions 1009, 300A, 200A or prior
+  * Implementation of considerations for versions 1009, 300A, 200A, or prior
     (XBPL-375)
     See:
 
       * `Zigbee (1009 an prior) considerations <https://www.digi.com/resources/documentation/digidocs/90001539/#reference/r_considerations.htm>`_
       * `DigiMesh (older than 300A) considerations <https://www.digi.com/resources/documentation/Digidocs/90002277/#Reference/r_considerations.htm>`_
       * `802.15.4 (older than 200A) considerations <https://www.digi.com/resources/documentation/digidocs/90002273/#reference/r_considerations.htm>`_
-  * When updating a remote profile, let the library calculate the `*.otb`
-    file path based on the `*.xml` firmware file, as it does for the `*.ota`.
+  * When updating a remote profile, let the library calculate the ``*.otb``
+    file path based on the ``*.xml`` firmware file, as it does for the ``*.ota``.
 * XBee Cellular:
 
   * Do not work with network if the XBee does not support it (XBPL-374)
@@ -65,14 +65,17 @@ v1.4.1 - 12/22/2021
   * Add info about the ``force_settings`` parameter of ``open`` method (#241)
   * Add missing ``exportutils`` module to documentation.
 * Set exclusive access mode to the XBee serial port (#222, #252)
-* Do not stop frames reader if a serial buffer empty exception occurs (#222, #252)
-* Do not use 'os.path.join()' for relative paths of zip entries (#247)
+* Do not stop frames reader if a serial buffer empty exception occurs
+  (#222, #252)
+* Do not use ``os.path.join()`` for relative paths of zip entries (#247)
 * Fix bad conditions when checking for a received packet (#242)
 * Fix attribute name in find neighbors debug message (#122)
 * Fix remote firmware update issue with binary file on SX devices.
 * Fix protocol change issues during firmware update operation on SX devices.
-* Do not reconfigure SP and SN values after a firmware update operation in P2MP protocol.
-* Add new method to update salt and verifier values of Bluetooth password SRP authentication.
+* Do not reconfigure SP and SN values after a firmware update operation in P2MP
+  protocol.
+* Add new method to update salt and verifier values of Bluetooth password SRP
+  authentication.
 * Several minor bug fixes.
 
 v1.4.0 - 03/18/2021
@@ -111,14 +114,16 @@ v1.4.0 - 03/18/2021
     ``set_many_to_one_broadcasting_time()``.
   * Support for source route creation: ``create_source_route()``.
   * New frames:
-    * 'Route Record Indicator' (0xA1)
-    * 'Create Source Route Packet' (0x21)
+
+    * Route Record Indicator (0xA1)
+    * Create Source Route Packet (0x21)
 * DigiMesh:
 
   * Method to get node neighbors: ``get_neighbors()``.
   * Method to build aggregate route: ``build_aggregate_routes()``.
   * New frames:
-    * 'Route Information Packet' (0x8D)
+
+    * Route Information Packet (0x8D)
 * Documentation update
 * Bug fixing:
 
@@ -136,7 +141,7 @@ v1.4.0 - 03/18/2021
     * Use requested file offset and size instead of fixed chunks (XBPL-344)
     * Mechanism to calculate the proper block size based on the maximum size
       received by the client and the maximum payload size (XBPL-346)
-    * For asyncronous sleeping nodes (Zigbee, DigiMesh, 802.15.4) and
+    * For asynchronous sleeping nodes (Zigbee, DigiMesh, 802.15.4) and
       synchronous sleeping networks (DigiMesh), configure a minimum sleep time
       before update and restore settings at the end.
       For DigiMesh synchronous sleeping network, the local XBee must be a
@@ -147,7 +152,7 @@ v1.4.0 - 03/18/2021
       extra processing time and required space when retrieving profile info.
     * Remove profile extracted files. A profile is opened to access to its
       contents, and must be closed when done with it.
-    * Fixed the application of XBee profiles with 'AP' setting changes
+    * Fixed the application of XBee profiles with ``AP`` setting changes
       (XBPL-340)
     * Fixed bootloader update from profile due to bootloader image path
       mismatch (XBPL-338)
@@ -193,8 +198,8 @@ v1.2.0 - 04/05/2019
   * Callbacks are now executed in parallel.
   * Internal callbacks are now defined when needed to avoid issues when more
     than one callback of the same type is defined.
-* Add missing 'Transmit Status', 'Modem Status' and 'Cellular Association
-  Indication Status' values to cover all XBee Cellular/XBee3 Cellular features.
+* Add missing ``Transmit Status``, ``Modem Status``, and ``Cellular Association
+  Indication Status`` values to cover all XBee Cellular/XBee3 Cellular features.
 * Bug Fixing:
 
   * Fix some bugs related to package spec data.
@@ -225,12 +230,12 @@ v1.1.0 - 01/19/2018
 * Add support for new hardware variants:
 
   * XB8X
-* Add missing 'Modem Status' values for Remote Manager connect and disconnect
+* Add missing ``Modem Status`` values for Remote Manager connect and disconnect
   events.
 * Bug Fixing:
 
   * Fix timeouts on Unix platforms.
-  * Fix the return source endpoint method from the 'ExplicitRXIndicatorPacket'
+  * Fix the return source endpoint method from the ``ExplicitRXIndicatorPacket``
     class.
   * Perform general bug fixing when working in API escaped mode.
 
