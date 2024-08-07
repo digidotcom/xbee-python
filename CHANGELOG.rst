@@ -1,7 +1,7 @@
 Changelog
 =========
 
-v1.4.2 - XX/XX/202X
+v1.5.0 - 08/08/2024
 -------------------
 
 * Support for new hardware variants:
@@ -12,27 +12,42 @@ v1.4.2 - XX/XX/202X
   * XBee RR TH Pro/Non-Pro
   * XBee 3 Cellular Global Cat 4
   * XBee 3 Cellular North America Cat 4
-  * XBee XR 900 TH
   * XBee XR 868 TH
+  * XBee XR 900 TH
   * XBee 3 BLU
 * Support to retrieve XBee statistics.
 * Send/receive explicit data in 802.15.4.
   (XBee 3 modules support this feature)
-* Support for local and remote firmware update of XBee XR 868 and 900.
-* Remove 'pysrp' dependency:
+* Firmware/profile update support for:
 
-  * The library includes support to generate salt and verifier required to
-    configure '$S', '$V', '$W', '$X', and '$Y' XBee parameters to establish
-    Bluetooth password.
+  * XBee RR MMT/SMT/TH Pro/Non-Pro (XBPL-384)
+  * XBee XR 868 MMT/SMT/TH, local and remote (LCG-398)
+  * XBee XR 900 MMT/SMT/TH, local and remote (LCG-398)
+  * XBee 3 BLU, local (XBPL-391)
 * Support for sending BLE Generic Access Profile (GAP) scans.
-  (Only XBee 3 BLU modules support this feature)
+  (Only XBee 3 BLU modules support this feature) (XBPL-391)
+* Remove ``pysrp`` dependency.
+
+  The library includes support to generate salt and verifier required to
+  configure ``$S``, ``$V``, ``$W``, ``$X``, and ``$Y`` XBee parameters to
+  establish Bluetooth password.
 * Bug fixing:
 
+  * Fix ``TransmitOptions.ENABLE_UNICAST_TRACE_ROUTE`` value.
+  * Python 3.10 compatibility: Fix removed deprecated ``collections`` module.
+    See `collections.abc <https://docs.python.org/3.10/whatsnew/3.10.html#collections-abc>`_,
+    `Removed <https://docs.python.org/3.10/whatsnew/3.10.html#removed>`_, and
+    `Changes in the Python API <https://docs.python.org/3.10/whatsnew/3.10.html#changes-in-the-python-api>`_
+    sections at `What’s New In Python 3.10 <https://docs.python.org/3.10/whatsnew/3.10.html>`_
+    (DAL-5918)
   * Fix order of nodes when creating a Zigbee source route (#278)
-  * Salt/verifier generation using 'pysrp' was not working with certain
+  * Firmware update: Do not check XBee region for 'skip' code in XML firmware
+    file (XBPL-394)
+  * Salt/verifier generation using ``pysrp`` was not working with certain
     passwords (see https://github.com/cocagne/pysrp/issues/55)
-    Solved by removing 'pysrp' dependency and implementing the code to
+    Solved by removing ``pysrp`` dependency and implementing the code to
     generate them.
+  * Several minor bug fixes.
 
 v1.4.1 - 12/22/2021
 -------------------

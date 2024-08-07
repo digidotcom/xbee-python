@@ -47,7 +47,7 @@ The contributing guidelines are in the `CONTRIBUTING.rst document
 License
 -------
 
-Copyright 2017-2021, Digi International Inc.
+Copyright 2017-2024, Digi International Inc.
 
 The `MPL 2.0 license <https://github.com/digidotcom/xbee-python/blob/master/LICENSE.txt>`_
 covers the majority of this project with the following exceptions:

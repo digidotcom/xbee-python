@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2024, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,11 +12,11 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-__version__ = '1.4.1'
+__version__ = '1.5.0'
 __title__ = 'digi-xbee'
 __description__ = 'Digi XBee Python library'
 __url__ = 'https://github.com/digidotcom/xbee-python'
 __author__ = 'Digi International Inc.'
 __author_email__ = 'tech.support@digi.com'
 __license__ = 'Mozilla Public License 2.0 (MPL 2.0)'
-__copyright__ = '2017-2021, Digi International Inc.'
+__copyright__ = '2017-2024, Digi International Inc.'
