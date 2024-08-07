@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright 2017-2020, Digi International Inc. All Rights Reserved.
+# Copyright 2017-2024, Digi International Inc. All Rights Reserved.
 import os
 import sys
 
@@ -59,9 +59,11 @@ setup(
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
-        'Intended Audience :: Telecommunications Industry',
+        'Intended Audience :: Education',
         'Intended Audience :: End Users/Desktop',
+        'Intended Audience :: Telecommunications Industry',
         'Topic :: Software Development :: Libraries',
+        'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Home Automation',
         'Topic :: Games/Entertainment',
         'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
@@ -72,11 +74,14 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Operating System :: OS Independent',
     ],
     project_urls={
         'Documentation': 'https://xbplib.readthedocs.io',
-        'Source': 'https://github.com/digidotcom/xbee-python',
-        'Tracker': 'https://github.com/digidotcom/xbee-python/issues',
+        'Source': about['__url__'],
+        'Tracker': '%s/issues' % about['__url__'],
+        'Changelog': '%s/blob/%s/CHANGELOG.rst' % (about['__url__'], about['__version__'])
     },
 )
