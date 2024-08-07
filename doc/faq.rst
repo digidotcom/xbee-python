@@ -36,8 +36,15 @@ the **Port** label.
 Can I use the XBee Python Library with modules in AT operating mode?
 --------------------------------------------------------------------
 
-No, the XBee Python Library only supports **API** and **API Escaped** operating
+The XBee Python Library only supports **API** and **API Escaped** operating
 modes.
+
+If your devices are using a different operating mode, or even a different
+serial communication configuration (baud rate, stop bits, etc.), use
+`force_settings=True` in the `open()` method. This parameter tells the library
+to establish the provided serial settings and change the operating mode to
+**API** to be able to work with connected XBee devices.
+See :ref:`openXBeeConnection`.
 
 
 I get the Python error ``ImportError: No module named 'serial'``
