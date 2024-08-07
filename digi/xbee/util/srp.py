@@ -20,6 +20,7 @@ from enum import unique, Enum
 
 from digi.xbee.util import utils
 
+
 @unique
 class HAType(Enum):
     """
@@ -77,6 +78,7 @@ class HAType(Enum):
 
 
 HAType.__doc__ += utils.doc_enum(HAType)
+
 
 @unique
 class NgGroupParams(Enum):
@@ -286,11 +288,11 @@ NgGroupParams.__doc__ += utils.doc_enum(NgGroupParams)
 
 
 def create_salted_verification_key(user, password, hash_alg=HAType.SHA256,
-                 ng_type=NgGroupParams.NG_1024, salt_len=4):
+                                   ng_type=NgGroupParams.NG_1024, salt_len=4):
     """
     Generates a salted verification key for the provided username and password.
 
-    Params:
+    Args:
         user (String): Username string.
         password (String): Plain text password.
         hash_alg (:class:`.HAType`, optional, default=`HAType.SHA256`): Hash algorithm.
@@ -301,24 +303,24 @@ def create_salted_verification_key(user, password, hash_alg=HAType.SHA256,
     Returns:
         Tuple (bytes, bytes): Tuple with salt and verifier.
     """
-    s = generate_salt(l=salt_len)
+    s = generate_salt(length=salt_len)
     v = generate_verifier(user, password, hash_alg=hash_alg, ng_type=ng_type,
                           salt=s, sep=":")
 
     return s, v
 
 
-def generate_salt(l=4):
+def generate_salt(length=4):
     """
     Generates new salt.
 
-    Params:
-        l (Integer, optional, default=`4`): Number of bytes.
+    Args:
+        length (Integer, optional, default=`4`): Number of bytes.
 
     Returns:
         Bytes: The generated salt.
     """
-    return os.urandom(l)
+    return os.urandom(length)
 
 
 def generate_verifier(user, password, salt, hash_alg=HAType.SHA256,
@@ -326,14 +328,14 @@ def generate_verifier(user, password, salt, hash_alg=HAType.SHA256,
     """
     Calculates a verifier for the provided salt and configured password.
 
-    Params:
+    Args:
         user (String): Username string.
         password (String): Plain text password.
         salt (bytes): Salt to generate a verifier.
         hash_alg (:class:`.HAType`, optional, default=`HAType.SHA256`): Hash algorithm.
         ng_type (:class:`.NgGroupParams`, optional, default=`NgGroupParams.NG_1024`):
             Prime generator type.
-        sep (String, optional, default= `:`): Separator string.
+        sep (String, optional): Separator string.
 
     Returns:
         Bytes: The generated verifier.
@@ -352,12 +354,12 @@ def __calculate_x(user, password, salt, hash_alg=HAType.SHA256, sep=":"):
     """
     Calculates the user secret parameter.
 
-    Params:
+    Args:
         user (String): Username string.
         password (String): Plain text password.
         salt (bytes): Salt byte array.
         hash_alg (:class:`.HAType`, optional, default=`HAType.SHA256`): Hash algorithm.
-        sep (String, optional, default= `:`): Separator string.
+        sep (String, optional): Separator string.
 
     Returns:
         Integer: The user secret value.
@@ -376,7 +378,7 @@ def __hash(hash_alg, *args):
     """
     Calculates the hash of the provided arguments.
 
-    Params:
+    Args:
         args: Variable argument list of object to use for hash.
 
     Returns:
@@ -393,7 +395,7 @@ def __to_bytes(obj):
     """
     Converts object to byte array, with optional context.
 
-    Params:
+    Args:
         obj: Object to convert.
 
     Returns:

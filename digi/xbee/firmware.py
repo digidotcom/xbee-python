@@ -6440,7 +6440,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         Returns a list of updater candidates extracted from the current
         network connections or from a neighbor discover.
 
-        Params:
+        Args:
             net_discover (Boolean, optional, default=False): `True` to perform
                 a neighbor discover, `False` to use current network connections.
 
@@ -6497,7 +6497,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         Checks if the provided node is a valid candidate to be the updater node
         for the update process of the remote.
 
-        Params:
+        Args:
             node (:class: `.RemoteXBeeDevice`): The node to check if it is a
                 possible updater.
         """
@@ -6522,7 +6522,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         Determines which is the best updater node of the given list for a
         Zigbee network.
 
-        Params:
+        Args:
             candidates (List): List of possible XBee updater devices.
 
         Returns:
@@ -6546,7 +6546,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         Determines which is the best updater node of the given list for a
         DigiMesh network.
 
-        Params:
+        Args:
             candidates (List): List of possible XBee updater devices.
 
         Returns:
@@ -6701,7 +6701,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         """
         Callback used to receive OTA firmware update process status frames.
 
-        Params:
+        Args:
             frame (:class:`.XBeePacket`): Received XBee packet.
         """
         # If frame was already received, ignore this frame, just notify.
@@ -6737,7 +6737,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         Creates and returns an OTA firmware update explicit packet using the
         given parameters.
 
-        Params:
+        Args:
             frame_id (Integer): Frame ID of the packet.
             payload (Bytearray): Packet payload.
 
@@ -6832,7 +6832,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
         """
         Sends the given firmware data to the updater device.
 
-        Params:
+        Args:
             Bytearray: Firmware data to send.
             ebl_file (:class:`._EBLFile`): Ebl file being transferred.
 

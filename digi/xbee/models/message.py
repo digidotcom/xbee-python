@@ -320,7 +320,7 @@ class SMSMessage:
     This class is used within the library to read SMS sent to Cellular devices.
     """
 
-    __PHONE_NUMBER_PATTERN = "^\+?\d+$"
+    __PHONE_NUMBER_PATTERN = r"^\+?\d+$"
 
     def __init__(self, phone_number, data):
         """

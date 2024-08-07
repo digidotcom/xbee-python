@@ -42,7 +42,6 @@ from digi.xbee.util import utils
 from digi.xbee.exception import TimeoutException, InvalidPacketException
 from digi.xbee.io import IOSample
 
-
 # Maximum number of parallel callbacks.
 MAX_PARALLEL_CALLBACKS = 50
 
@@ -65,6 +64,7 @@ class XBeeEvent(list):
     .. seealso::
        | list (Python standard class)
     """
+
     def __call__(self, *args, **kwargs):
         for func in self:
             future = EXECUTOR.submit(func, *args, **kwargs)
@@ -510,7 +510,7 @@ class PacketListener(threading.Thread):
     Here are the parameters which will be received by the event callbacks,
     depending on which event it is in each case:
 
-    The following parameters are passed via \*\*kwargs to event callbacks of:
+    The following parameters are passed via \\*\\*kwargs to event callbacks of:
 
     1. PacketReceived:
         1.1 received_packet (:class:`.XBeeAPIPacket`): Received packet.
@@ -1659,11 +1659,11 @@ class PacketListener(threading.Thread):
         # Bluetooth BLE GAP Scan Legacy Advertisement Response
         elif f_type == ApiFrameType.BLUETOOTH_GAP_SCAN_LEGACY_ADVERTISEMENT_RESPONSE:
             self.__ble_gap_scan_received(BLEGAPScanLegacyAdvertisementMessage(
-                                         packet.address,
-                                         packet.address_type,
-                                         packet.advertisement_flags,
-                                         packet.rssi,
-                                         packet.payload))
+                packet.address,
+                packet.address_type,
+                packet.advertisement_flags,
+                packet.rssi,
+                packet.payload))
             self._log.debug(self._LOG_PATTERN.format(
                 comm_iface=str(self.__xbee.comm_iface), event="RECEIVED",
                 fr_type="BLE GAP SCAN LEGACY", sender=str(packet.address),
@@ -1672,17 +1672,17 @@ class PacketListener(threading.Thread):
         # Bluetooth BLE GAP Scan Extended Advertisement Response
         elif f_type == ApiFrameType.BLUETOOTH_GAP_SCAN_EXTENDED_ADVERTISEMENT_RESPONSE:
             self.__ble_gap_scan_received(BLEGAPScanExtendedAdvertisementMessage(
-                                         packet.address,
-                                         packet.address_type,
-                                         packet.advertisement_flags,
-                                         packet.rssi,
-                                         packet.advertisement_set_id,
-                                         packet.primary_phy,
-                                         packet.secondary_phy,
-                                         packet.tx_power,
-                                         packet.periodic_interval,
-                                         packet.data_completeness,
-                                         packet.payload))
+                packet.address,
+                packet.address_type,
+                packet.advertisement_flags,
+                packet.rssi,
+                packet.advertisement_set_id,
+                packet.primary_phy,
+                packet.secondary_phy,
+                packet.tx_power,
+                packet.periodic_interval,
+                packet.data_completeness,
+                packet.payload))
             self._log.debug(self._LOG_PATTERN.format(
                 comm_iface=str(self.__xbee.comm_iface), event="RECEIVED",
                 fr_type="BLE GAP SCAN EXTENDED", sender=str(packet.address),
@@ -1691,7 +1691,7 @@ class PacketListener(threading.Thread):
         # Bluetooth BLE GAP Scan Status Response
         elif f_type == ApiFrameType.BLUETOOTH_GAP_SCAN_STATUS:
             self.__ble_gap_scan_status_received(BLEGAPScanStatusMessage(
-                                                packet.scan_status))
+                packet.scan_status))
             self._log.debug(self._LOG_PATTERN.format(
                 comm_iface=str(self.__xbee.comm_iface), event="RECEIVED",
                 fr_type="BLE GAP SCAN STATUS", sender="None",

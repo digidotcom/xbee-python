@@ -30,7 +30,7 @@ def generate_network_xml(xbee, date_now=None, name=None, desc=None):
     """
     Generates the XML hierarchy representing the network of the given XBee.
 
-    Params:
+    Args:
         xbee (:class:`.XBeeDevice`): Local XBee node.
         date_now (:class: `datetime.datetime`, optional, default=`None`): Date
             to set in the XML.
@@ -69,7 +69,7 @@ def _generate_nodes_xml(xbee, level=0):
     """
     Generates the XML element representing the network of the given XBee.
 
-    Params:
+    Args:
         xbee (:class:`.XBeeDevice`): Local XBee node.
         level (Integer, optional, default=0): Indentation level.
 
@@ -96,7 +96,7 @@ def _generate_node_xml(node, level=0):
     """
     Generates the XML element representing the given XBee node.
 
-    Params:
+    Args:
         xbee (:class:`.AbstractXBeeDevice`): XBee node.
         level (Integer, optional, default=0): Indentation level.
 
@@ -146,7 +146,7 @@ def _generate_serial_config_xml(serial_port, level=0):
     """
     Generates the XML element representing the given serial port.
 
-    Params:
+    Args:
         serial_port (:class:`serial.serialutil.SerialBase`): Serial port.
         level (Integer, optional, default=0): Indentation level.
 
@@ -189,7 +189,7 @@ def _generate_connections_xml(node, connections, level=0):
     """
     Generates the XML node representing the given connections.
 
-    Params:
+    Args:
         xbee (:class:`.AbstractXBeeDevice`): XBee node.
         connections (List): List of :class:`.Connection`.
         level (Integer, optional, default=0): Indentation level.

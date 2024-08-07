@@ -1387,7 +1387,7 @@ class ProfileUpdateTask:
     @property
     def profile_path(self):
         """
-        Gets the *.xpro file path.
+        Gets the `*.xpro` file path.
 
         Returns:
             String: The profile path for the update task.

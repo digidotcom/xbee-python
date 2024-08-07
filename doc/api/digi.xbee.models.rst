@@ -21,5 +21,6 @@ Submodules
    digi.xbee.models.message
    digi.xbee.models.options
    digi.xbee.models.protocol
+   digi.xbee.models.statistics
    digi.xbee.models.status
    digi.xbee.models.zdo

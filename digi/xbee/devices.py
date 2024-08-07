@@ -9002,7 +9002,7 @@ class XBeeNetwork:
 
         If the provided path already exists the file is removed.
 
-        Params:
+        Args:
             dir_path (String, optional, default=`None`): Absolute path of the
                 directory to export the network. It should not include the file
                 name. If not defined home directory is used.
@@ -9052,7 +9052,7 @@ class XBeeNetwork:
         """
         Performs the provided update tasks. It blocks until all tasks finish.
 
-        Params:
+        Args:
             task_list (List or tuple): List of update tasks
                 (:class:`.FwUpdateTask` or :class:`.ProfileUpdateTask`)
 

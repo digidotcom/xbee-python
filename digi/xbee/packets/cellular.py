@@ -22,7 +22,7 @@ from digi.xbee.models.options import TransmitOptions
 from digi.xbee.util import utils
 
 
-PATTERN_PHONE_NUMBER = "^\+?\d+$"
+PATTERN_PHONE_NUMBER = r"^\+?\d+$"
 """Pattern used to validate the phone number parameter of SMS packets."""
 
 

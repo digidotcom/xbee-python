@@ -44,8 +44,8 @@ The data frame structure is defined as follows:
     +----------------+  +-------------------+  +--------------------------- +  +----------------+
     |      0x7E      |  |   MSB   |   LSB   |  |   API-specific Structure   |  |     1 Byte     |
     +----------------+  +-------------------+  +----------------------------+  +----------------+
-                        \___________________________________  _________________________________/
-                                                            \/
+                        \\___________________________________  ________________________________/
+                                                            \\/
                                                 Characters Escaped If Needed
 
                    MSB = Most Significant Byte, LSB = Least Significant Byte
@@ -121,7 +121,7 @@ from digi.xbee.packets.socket import SocketCreatePacket, \
     SocketReceiveFromPacket, SocketStatePacket
 from digi.xbee.packets.wifi import RemoteATCommandWifiPacket, \
     RemoteATCommandResponseWifiPacket, IODataSampleRxIndicatorWifiPacket
-from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket,\
+from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, \
     RegisterDeviceStatusPacket, RouteRecordIndicatorPacket, OTAFirmwareUpdateStatusPacket
 from digi.xbee.packets.bluetooth import BluetoothGAPScanLegacyAdvertisementResponsePacket, \
     BluetoothGAPScanExtendedAdvertisementResponsePacket, BluetoothGAPScanStatusPacket
