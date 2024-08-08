@@ -2048,8 +2048,7 @@ class AbstractXBeeDevice:
         def dec_function(self, *args, **kwargs):
             if not self._comm_iface.is_interface_open:
                 raise XBeeException("XBee device's communication interface closed.")
-            if (self._operating_mode != OperatingMode.API_MODE
-                    and self._operating_mode != OperatingMode.ESCAPED_API_MODE):
+            if self._operating_mode not in (OperatingMode.API_MODE, OperatingMode.ESCAPED_API_MODE):
                 raise InvalidOperatingModeException(op_mode=self._operating_mode)
             return func(self, *args, **kwargs)
         return dec_function
@@ -2063,8 +2062,8 @@ class AbstractXBeeDevice:
         @wraps(func)
         def dec_function(*args, **kwargs):
             response = func(*args, **kwargs)
-            if (response.transmit_status != TransmitStatus.SUCCESS
-                    and response.transmit_status != TransmitStatus.SELF_ADDRESSED):
+            if response.transmit_status not in (TransmitStatus.SUCCESS,
+                                                TransmitStatus.SELF_ADDRESSED):
                 raise TransmitException(transmit_status=response.transmit_status)
             return response
         return dec_function
@@ -7831,7 +7830,7 @@ class WiFiDevice(IPDevice):
             elif signal_strength >= -50:
                 quality = 100
             else:
-                quality = (2 * (signal_strength + 100))
+                quality = 2 * (signal_strength + 100)
         else:
             quality = 2 * signal_strength
 
@@ -10419,14 +10418,14 @@ class XBeeNetwork:
 
         return code
 
-    def _check_not_discovered_nodes(self, devices_list, nodes_queue):
+    def _check_not_discovered_nodes(self, devices_list, _nodes_queue):
         """
         Checks not discovered nodes in the current scan, and add them to the
         FIFO if necessary.
 
         Args:
             devices_list (List): List of nodes to check.
-            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to
+            _nodes_queue (:class:`queue.Queue`): FIFO where the nodes to
                 discover their neighbors are stored.
         """
         # Check for nodes in the network not discovered in this scan and ensure
@@ -10451,16 +10450,16 @@ class XBeeNetwork:
                 self._log.debug("     - Reachable: %s (scan %d)",
                                 n_item._reachable, self.__scan_counter)
 
-    def _discover_neighbors(self, requester, nodes_queue, active_processes, node_timeout):
+    def _discover_neighbors(self, _requester, _nodes_queue, _active_processes, _node_timeout):
         """
         Starts the process to discover the neighbors of the given node.
 
         Args:
-            requester(:class:`.AbstractXBeeDevice`): XBee to discover its neighbors.
-            nodes_queue (:class:`queue.Queue`): FIFO where the nodes to
+            _requester(:class:`.AbstractXBeeDevice`): XBee to discover its neighbors.
+            _nodes_queue (:class:`queue.Queue`): FIFO where the nodes to
                 discover their neighbors are stored.
-            active_processes (List): List of active discovery processes.
-            node_timeout (Float): Timeout to discover neighbors (seconds).
+            _active_processes (List): List of active discovery processes.
+            _node_timeout (Float): Timeout to discover neighbors (seconds).
 
         Returns:
             :class:`.NetworkDiscoveryStatus`: Resulting status of the process.
@@ -11126,8 +11125,8 @@ class XBeeNetwork:
         connections_to_remove = []
         with self.__conn_lock:
             for conn in self.__connections:
-                if (conn.scan_counter_a2b != self.__scan_counter
-                        and conn.scan_counter_b2a != self.__scan_counter):
+                if self.__scan_counter not in (conn.scan_counter_a2b,
+                                               conn.scan_counter_b2a):
                     conn.lq_a2b = LinkQuality.UNKNOWN
                     conn.lq_b2a = LinkQuality.UNKNOWN
                     connections_to_remove.append(conn)
@@ -11601,8 +11600,8 @@ class ZigBeeNetwork(XBeeNetwork):
                 connection = Connection(node, requester, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
                                         status_b2a=RouteStatus.UNKNOWN)
-            elif (neighbor.relationship == NeighborRelationship.CHILD
-                  or neighbor.relationship == NeighborRelationship.UNDETERMINED):
+            elif neighbor.relationship in (NeighborRelationship.CHILD,
+                                           NeighborRelationship.UNDETERMINED):
                 connection = Connection(requester, node, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
                                         status_b2a=RouteStatus.UNKNOWN)

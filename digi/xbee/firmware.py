@@ -5596,8 +5596,8 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
                                 and self._remote.get_protocol() == XBeeProtocol.DIGI_MESH
                                 and self._target_fw_version <= 0x3004)
                 raw_802_error = (st_frame.transmit_status == TransmitStatus.NO_ACK
-                                and self._remote.get_protocol() == XBeeProtocol.RAW_802_15_4
-                                and self._target_fw_version <= 0x2002)
+                                 and self._remote.get_protocol() == XBeeProtocol.RAW_802_15_4
+                                 and self._target_fw_version <= 0x2002)
                 zb_addr_error = (st_frame.transmit_status == TransmitStatus.ADDRESS_NOT_FOUND
                                  and self._remote.get_protocol() == XBeeProtocol.ZIGBEE
                                  and self._target_fw_version <= 0x1009)
@@ -7305,7 +7305,7 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
     finally:
         configurer.restore_after_update(
             restore_settings=not update_process.check_protocol_changed_by_fw(orig_protocol))
-        finished = (remote._active_update_type == NodeUpdateType.FIRMWARE)
+        finished = remote._active_update_type == NodeUpdateType.FIRMWARE
         if finished or msg != "Success":
             update_process._notify_progress(msg, 100, finished=finished)
 
@@ -7370,7 +7370,7 @@ def update_remote_filesystem(remote, ota_fs_file, max_block_size=0, timeout=None
         raise exc
     finally:
         configurer.restore_after_update()
-        finished = (remote._active_update_type == NodeUpdateType.FILESYSTEM)
+        finished = remote._active_update_type == NodeUpdateType.FILESYSTEM
         if finished or msg != "Success":
             update_process._notify_progress(msg, 100, finished=finished)
 
