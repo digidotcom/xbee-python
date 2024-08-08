@@ -108,7 +108,7 @@ class BluetoothGAPScanRequestPacket(XBeeAPIPacket):
             raise ValueError("The scan duration cannot be None")
 
         if not (self.INDEFINITE_SCAN_DURATION <= scan_duration <= self.__SCAN_DURATION_MAXIMUM):
-            raise ValueError(f"scan_duration must be between {self.__SCAN_DURATION_INDEFINITELY} and {self.__SCAN_DURATION_MAXIMUM}")
+            raise ValueError(f"scan_duration must be between {self.INDEFINITE_SCAN_DURATION} and {self.__SCAN_DURATION_MAXIMUM}")
 
         if scan_window is None:
             raise ValueError("The scan window cannot be None")
