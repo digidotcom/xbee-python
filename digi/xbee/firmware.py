@@ -139,13 +139,8 @@ _ERROR_DEFAULT_RESPONSE_UNKNOWN_ERROR = "Unknown error"
 _ERROR_DETERMINE_BOOTLOADER_TYPE = "Could not determine the bootloader type: %s"
 _ERROR_DEVICE_PROGRAMMING_MODE = "Could not put XBee device into programming mode"
 _ERROR_END_DEVICE_ORPHAN = "Could not find the parent node of the end device"
-_ERROR_FILE_OTA_FS_NOT_FOUND = "OTA filesystem image file does not exist"
-_ERROR_FILE_OTA_FS_NOT_SPECIFIED = "OTA filesystem image file must be specified"
-_ERROR_FILE_XBEE_FW_NOT_FOUND = "Could not find XBee binary firmware file '%s'"
-_ERROR_FILE_XML_FW_NOT_FOUND = "XML firmware file does not exist"
-_ERROR_FILE_XML_FW_NOT_SPECIFIED = "XML firmware file must be specified"
-_ERROR_FILE_BOOTLOADER_FW_NOT_FOUND = "Could not find bootloader binary " \
-                                      "firmware file '%s'"
+_ERROR_FILE_NOT_FOUND = "%s file '%s' not found"
+_ERROR_FILE_NOT_SPECIFIED = "%s file must be specified"
 _ERROR_FINISH_PROCESS = "Could not finish firmware update process"
 _ERROR_FW_START = "Could not start the new firmware"
 _ERROR_FW_UPDATE_BOOTLOADER = "Bootloader update error: %s"
@@ -2971,7 +2966,7 @@ class _LocalFirmwareUpdater(_XBeeFirmwareUpdater):
                 path.stem + self._get_fw_binary_file_extension()))
 
         if not _file_exists(self._fw_file):
-            self._exit_with_error(_ERROR_FILE_XBEE_FW_NOT_FOUND % self._fw_file,
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("XBee firmware", self._fw_file),
                                   restore_updater=False)
 
     def _enter_bootloader_mode_with_break(self):
@@ -3768,8 +3763,8 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
                 + EXTENSION_GBL))
 
         if not _file_exists(self._bootloader_fw_file):
-            self._exit_with_error(_ERROR_FILE_BOOTLOADER_FW_NOT_FOUND %
-                                  self._bootloader_fw_file, restore_updater=False)
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("booloader firmware", self._bootloader_fw_file),
+                                  restore_updater=False)
 
     def _transfer_firmware(self):
         """
@@ -4450,7 +4445,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             self._ota_fw_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_OTA))
 
         if not _file_exists(self._ota_fw_file):
-            self._exit_with_error(_ERROR_FILE_XBEE_FW_NOT_FOUND % self._ota_fw_file,
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("XBee firmware", self._ota_fw_file),
                                   restore_updater=False)
 
         self._ota_file = _OTAFile(self._ota_fw_file)
@@ -4471,7 +4466,7 @@ class _RemoteXBee3FirmwareUpdater(_RemoteFirmwareUpdater):
             self._otb_fw_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_OTB))
 
         if not _file_exists(self._otb_fw_file):
-            self._exit_with_error(_ERROR_FILE_XBEE_FW_NOT_FOUND % self._otb_fw_file,
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("XBee firmware", self._otb_fw_file),
                                   restore_updater=False)
 
         # If asked to check the bootloader file, replace the OTA file with the
@@ -5724,7 +5719,8 @@ class _RemoteFilesystemUpdater(_RemoteXBee3FirmwareUpdater):
         """
         # Verify the filesystem OTA image file.
         if not _file_exists(self._fs_ota_file):
-            self._exit_with_error(_ERROR_FILE_OTA_FS_NOT_FOUND, restore_updater=False)
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("OTA filesystem image", self._fs_ota_file),
+                                  restore_updater=False)
 
         self._ota_file = _OTAFile(self._fs_ota_file)
         try:
@@ -5850,8 +5846,8 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
             )
 
         if not _file_exists(self._fw_file):
-            self._exit_with_error(_ERROR_FILE_XBEE_FW_NOT_FOUND
-                                  % self._fw_file, restore_updater=False)
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("XBee firmware", self._fw_file),
+                                  restore_updater=False)
 
     def _check_bootloader_binary_file(self):
         """
@@ -6248,7 +6244,7 @@ class _RemoteEmberFirmwareUpdater(_RemoteFirmwareUpdater):
             self._fw_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_EBL))
 
         if not _file_exists(self._fw_file):
-            self._exit_with_error(_ERROR_FILE_XBEE_FW_NOT_FOUND % self._fw_file,
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("XBee firmware", self._fw_file),
                                   restore_updater=False)
 
     def _check_bootloader_binary_file(self):
@@ -7020,13 +7016,13 @@ class FwUpdateTask:
         if not isinstance(xbee, (XBeeDevice, RemoteXBeeDevice)):
             raise ValueError("Invalid XBee")
         if xml_fw_path is None:
-            raise ValueError(_ERROR_FILE_XML_FW_NOT_SPECIFIED)
+            raise ValueError(_ERROR_FILE_NOT_SPECIFIED % "XML firmware")
         if not _file_exists(xml_fw_path):
-            raise ValueError(_ERROR_FILE_XML_FW_NOT_FOUND)
+            raise ValueError(_ERROR_FILE_NOT_FOUND % ("XML firmware", xml_fw_path))
         if fw_path is not None and not _file_exists(fw_path):
-            raise ValueError(_ERROR_FILE_XBEE_FW_NOT_FOUND % fw_path)
+            raise ValueError(_ERROR_FILE_NOT_FOUND % ("XBee firmware", fw_path))
         if bl_fw_path is not None and not _file_exists(bl_fw_path):
-            raise ValueError(_ERROR_FILE_BOOTLOADER_FW_NOT_FOUND % bl_fw_path)
+            raise ValueError(_ERROR_FILE_NOT_FOUND % ("booloader firmware", bl_fw_path))
 
         self.__xbee = xbee
         self.__xml_path = xml_fw_path
@@ -7126,17 +7122,21 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
         _log.error("ERROR: %s", _ERROR_TARGET_INVALID)
         raise FirmwareUpdateException(_ERROR_TARGET_INVALID)
     if xml_fw_file is None:
-        _log.error("ERROR: %s", _ERROR_FILE_XML_FW_NOT_SPECIFIED)
-        raise FirmwareUpdateException(_ERROR_FILE_XML_FW_NOT_SPECIFIED)
+        error = _ERROR_FILE_NOT_SPECIFIED % "XML firmware"
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if not _file_exists(xml_fw_file):
-        _log.error("ERROR: %s", _ERROR_FILE_XML_FW_NOT_FOUND)
-        raise FirmwareUpdateException(_ERROR_FILE_XML_FW_NOT_FOUND)
+        error = _ERROR_FILE_NOT_FOUND % ("XML firmware", xml_fw_file)
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if xbee_firmware_file is not None and not _file_exists(xbee_firmware_file):
-        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FW_NOT_FOUND % xbee_firmware_file)
-        raise FirmwareUpdateException(_ERROR_FILE_XBEE_FW_NOT_FOUND % xbee_firmware_file)
+        error = _ERROR_FILE_NOT_FOUND % ("XBee firmware", xbee_firmware_file)
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if bootloader_firmware_file is not None and not _file_exists(bootloader_firmware_file):
-        _log.error("ERROR: %s", _ERROR_FILE_BOOTLOADER_FW_NOT_FOUND % bootloader_firmware_file)
-        raise FirmwareUpdateException(_ERROR_FILE_BOOTLOADER_FW_NOT_FOUND % bootloader_firmware_file)
+        error = _ERROR_FILE_NOT_FOUND % ("bootloader firmware", bootloader_firmware_file)
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
 
     if isinstance(target, XBeeDevice):
         hw_version = target.get_hardware_version()
@@ -7221,17 +7221,21 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
         _log.error("ERROR: %s", _ERROR_REMOTE_DEVICE_INVALID)
         raise FirmwareUpdateException(_ERROR_TARGET_INVALID)
     if xml_fw_file is None:
-        _log.error("ERROR: %s", _ERROR_FILE_XML_FW_NOT_SPECIFIED)
-        raise FirmwareUpdateException(_ERROR_FILE_XML_FW_NOT_SPECIFIED)
+        error = _ERROR_FILE_NOT_SPECIFIED % "XML firmware"
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if not _file_exists(xml_fw_file):
-        _log.error("ERROR: %s", _ERROR_FILE_XML_FW_NOT_FOUND)
-        raise FirmwareUpdateException(_ERROR_FILE_XML_FW_NOT_FOUND)
+        error = _ERROR_FILE_NOT_FOUND % ("XML firmware", xml_fw_file)
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if firmware_file is not None and not _file_exists(firmware_file):
-        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FW_NOT_FOUND % firmware_file)
-        raise FirmwareUpdateException(_ERROR_FILE_XBEE_FW_NOT_FOUND % firmware_file)
+        error = _ERROR_FILE_NOT_FOUND % ("XBee firmware", firmware_file)
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if bootloader_file is not None and not _file_exists(bootloader_file):
-        _log.error("ERROR: %s", _ERROR_FILE_XBEE_FW_NOT_FOUND % bootloader_file)
-        raise FirmwareUpdateException(_ERROR_FILE_XBEE_FW_NOT_FOUND % bootloader_file)
+        error = _ERROR_FILE_NOT_FOUND % ("XBee firmware", bootloader_file)
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if not isinstance(max_block_size, int):
         raise ValueError("Maximum block size must be an integer")
     if max_block_size < 0 or max_block_size > 255:
@@ -7331,11 +7335,13 @@ def update_remote_filesystem(remote, ota_fs_file, max_block_size=0, timeout=None
         _log.error("ERROR: %s", _ERROR_REMOTE_DEVICE_INVALID)
         raise FirmwareUpdateException(_ERROR_REMOTE_DEVICE_INVALID)
     if ota_fs_file is None:
-        _log.error("ERROR: %s", _ERROR_FILE_OTA_FS_NOT_SPECIFIED)
-        raise FirmwareUpdateException(_ERROR_FILE_OTA_FS_NOT_SPECIFIED)
+        error = _ERROR_FILE_NOT_SPECIFIED % "OTA filesystem image"
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if not _file_exists(ota_fs_file):
-        _log.error("ERROR: %s", _ERROR_FILE_OTA_FS_NOT_FOUND)
-        raise FirmwareUpdateException(_ERROR_FILE_OTA_FS_NOT_FOUND)
+        error = _ERROR_FILE_NOT_FOUND % ("OTA filesystem image", ota_fs_file)
+        _log.error("ERROR: %s", error)
+        raise FirmwareUpdateException(error)
     if not isinstance(max_block_size, int):
         raise ValueError("Maximum block size must be an integer")
     if max_block_size < 0 or max_block_size > 255:
