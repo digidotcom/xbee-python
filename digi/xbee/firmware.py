@@ -218,6 +218,7 @@ EXTENSION_GBL = ".gbl"
 EXTENSION_EHX2 = ".ehx2"
 EXTENSION_OTA = ".ota"
 EXTENSION_OTB = ".otb"
+EXTENSION_FSOTA = ".fsota"
 EXTENSION_XML = ".xml"
 
 _IMAGE_BLOCK_REQUEST_PACKET_PAYLOAD_SIZE = 17
@@ -513,8 +514,9 @@ class _OTAFile:
         """
         _log.debug("Parsing OTA firmware file %s:", self._file_path)
         if (not _file_exists(self._file_path)
-                or (not self._file_path.endswith(EXTENSION_OTA)
-                    and not self._file_path.endswith(EXTENSION_OTB))):
+                or os.path.splitext(self._file_path)[1] not in (EXTENSION_OTA,
+                                                                EXTENSION_OTB,
+                                                                EXTENSION_FSOTA)):
             raise _ParsingOTAException(_ERROR_INVALID_OTA_FILE % self._file_path)
 
         try:
