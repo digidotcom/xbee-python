@@ -2410,7 +2410,7 @@ class XBeeDevice(AbstractXBeeDevice):
         self.__modem_status_received = False
 
         self.__tmp_dm_routes_to = {}
-        self.__tmp_dm_to_insert = []
+        self.__tmp_dm_to_insert = {}
         self.__tmp_dm_routes_lock = threading.Lock()
         self.__route_received = RouteReceived()
         self.__stats = Statistics()
@@ -4510,17 +4510,34 @@ class XBeeDevice(AbstractXBeeDevice):
 
             return True
 
+        def insert_hop(rcv_hop, dst_list):
+            for idx, lst_hop in enumerate(dst_list):
+                rvc_responder, rcv_successor = rcv_hop
+                lst_responder, lst_successor = lst_hop
+
+                # Successor in the list is the received responder
+                if lst_successor == rvc_responder:
+                    dst_list.insert(idx + 1, rcv_hop)
+                    break
+                # Responder in the list is the received successor
+                if lst_responder == rcv_successor:
+                    dst_list.insert(idx, rcv_hop)
+                    break
+            return rcv_hop in dst_list
+
         with self.__tmp_dm_routes_lock:
             addr_key = str(dst_addr)
             if addr_key not in self.__tmp_dm_routes_to:
                 self.__tmp_dm_routes_to[addr_key] = []
+            if addr_key not in self.__tmp_dm_to_insert:
+                self.__tmp_dm_to_insert[addr_key] = []
 
             dm_hops_list = self.__tmp_dm_routes_to.get(addr_key)
+            dm_to_insert = self.__tmp_dm_to_insert.get(addr_key)
 
             # There is no guarantee that Route Information Packet frames
             # arrive in the same order as the route taken by the unicast packet.
             hop = (responder_addr, successor_addr)
-
             if hop in dm_hops_list:
                 return
 
@@ -4529,29 +4546,21 @@ class XBeeDevice(AbstractXBeeDevice):
             elif successor_addr == dst_addr or not dm_hops_list:
                 dm_hops_list.append(hop)
             else:
-                self.__tmp_dm_to_insert.insert(0, hop)
+                dm_to_insert.insert(0, hop)
 
-            aux_list = []
-            for to_insert in self.__tmp_dm_to_insert:
-                for idx, lst_hop in enumerate(dm_hops_list):
-                    insert_responder, insert_successor = to_insert
-                    lst_responder, lst_successor = lst_hop
+            # Ensure the maximum number of hops in 'dm_to_insert' are
+            # added in order in 'dm_hops_list'
+            n_hops_to_insert = len(dm_to_insert)
+            for _ in range(n_hops_to_insert):
+                dm_to_insert = [h for h in dm_to_insert if not insert_hop(h, dm_hops_list)]
+                # If all hops are added or none of them, do not continue trying
+                if not dm_to_insert or len(dm_to_insert) == n_hops_to_insert:
+                    break
 
-                    # Successor in the list is the received responder
-                    if lst_successor == insert_responder:
-                        dm_hops_list.insert(idx + 1, to_insert)
-                        break
-                    # Responder in the list is the received successor
-                    if lst_responder == insert_successor:
-                        dm_hops_list.insert(idx, to_insert)
-                        break
-                    # Cannot order it, save it for later
-                    aux_list.append(to_insert)
-
-            self.__tmp_dm_to_insert = aux_list
+            self.__tmp_dm_to_insert[addr_key] = dm_to_insert
 
             # Check if this is the latest packet of the Trace Route process
-            if (self.__tmp_dm_to_insert
+            if (dm_to_insert
                     or not check_dm_route_complete(src_addr, dst_addr, dm_hops_list)):
                 return
 
@@ -4577,8 +4586,10 @@ class XBeeDevice(AbstractXBeeDevice):
                     RemoteDigiMeshDevice(self, x64bit_addr=dst_addr),
                     NetworkEventReason.ROUTE)
 
-            self.__tmp_dm_to_insert.clear()
-            self.__tmp_dm_routes_to.clear()
+            dm_to_insert.clear()
+            dm_hops_list.clear()
+            self.__tmp_dm_to_insert.pop(addr_key)
+            self.__tmp_dm_routes_to.pop(addr_key)
 
         # Remove the source node (first one in list) from the hops
         self.__route_received(self, dest_node, node_list[1:])
