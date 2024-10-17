@@ -165,21 +165,13 @@ class AbstractXBeeDevice:
             If at least one XBee has 64-bit address (not `None`), this method
                 returns `True` if both XBee addresses are equal, `False` otherwise.
 
-            If at least one XBee has 16-bit address (not `None`), this method
-                returns `True` if both XBee addresses are equal, `False` otherwise.
-
-            If at least one XBee has node id (not `None`), this method returns
-                `True` if both XBee IDs are equal, `False` otherwise.
-
             Else (all parameters of both devices are `None`) returns `True`.
         """
         if other is None:
             return False
-        if not isinstance(self, AbstractXBeeDevice) or not isinstance(other, AbstractXBeeDevice):
+        if not isinstance(other, AbstractXBeeDevice):
             return False
-        if self.get_64bit_addr() is not None and other.get_64bit_addr() is not None:
-            return self.get_64bit_addr() == other.get_64bit_addr()
-        return False
+        return self.get_64bit_addr() == other.get_64bit_addr()
 
     def __hash__(self):
         return hash((23, self.get_64bit_addr()))
@@ -233,7 +225,7 @@ class AbstractXBeeDevice:
                 updated = True
 
         new_role = device.get_role()
-        if (new_role is not None
+        if (new_role
                 and new_role != Role.UNKNOWN
                 and new_role != self._role):
             self._role = new_role
@@ -768,7 +760,7 @@ class AbstractXBeeDevice:
                 and XBee64BitAddress.is_known_node_addr(self._64bit_addr)
                 and self._node_id is not None
                 and is_16bit_init
-                and self._role is not None and self._role != Role.UNKNOWN)
+                and self._role and self._role != Role.UNKNOWN)
 
     def _determine_role(self):
         """
@@ -1540,7 +1532,7 @@ class AbstractXBeeDevice:
            | :class:`.IOLine`
         """
         flags = bytearray(2)
-        if io_lines_set is not None:
+        if io_lines_set:
             for io_line in io_lines_set:
                 i = io_line.index
                 if i < 8:
@@ -2549,13 +2541,13 @@ class XBeeDevice(AbstractXBeeDevice):
         This method guarantees that all threads running are stopped and the
         serial port is closed.
         """
-        if self._network is not None:
+        if self._network:
             self._network.stop_discovery_process()
 
-        if self._packet_listener is not None:
+        if self._packet_listener:
             self._packet_listener.stop()
 
-        if self._comm_iface is not None and self._comm_iface.is_interface_open:
+        if self._comm_iface and self._comm_iface.is_interface_open:
             self._comm_iface.close()
             self._log.info("%s closed", self._comm_iface)
 
@@ -2825,19 +2817,19 @@ class XBeeDevice(AbstractXBeeDevice):
 
         protocol = self.get_protocol()
         if protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.DIGI_POINT):
-            if (remote_xbee.get_64bit_addr() is not None
-                    and remote_xbee.get_16bit_addr() is not None):
+            if (remote_xbee.get_64bit_addr()
+                    and remote_xbee.get_16bit_addr()):
                 return self._send_data_64_16(remote_xbee.get_64bit_addr(),
                                              remote_xbee.get_16bit_addr(),
                                              data, transmit_options=transmit_options)
-            if remote_xbee.get_64bit_addr() is not None:
+            if remote_xbee.get_64bit_addr():
                 return self._send_data_64(remote_xbee.get_64bit_addr(), data,
                                           transmit_options=transmit_options)
             return self._send_data_64_16(XBee64BitAddress.UNKNOWN_ADDRESS,
                                          remote_xbee.get_16bit_addr(),
                                          data, transmit_options=transmit_options)
         if protocol == XBeeProtocol.RAW_802_15_4:
-            if remote_xbee.get_64bit_addr() is not None:
+            if remote_xbee.get_64bit_addr():
                 return self._send_data_64(remote_xbee.get_64bit_addr(), data,
                                           transmit_options=transmit_options)
             return self._send_data_16(remote_xbee.get_16bit_addr(), data,
@@ -4167,7 +4159,7 @@ class XBeeDevice(AbstractXBeeDevice):
             return OperatingMode.get(response[0])
         except TimeoutException:
             self._operating_mode = OperatingMode.AT_MODE
-            listening = self._packet_listener is not None and self._packet_listener.is_running()
+            listening = self._packet_listener and self._packet_listener.is_running()
             try:
                 # Stop listening for packets.
                 if listening:
@@ -4281,7 +4273,7 @@ class XBeeDevice(AbstractXBeeDevice):
             x16addr = packet.x16bit_source_addr
         if hasattr(packet, "x64bit_source_addr"):
             x64addr = packet.x64bit_source_addr
-        if x64addr is not None or x16addr is not None:
+        if x64addr or x16addr:
             remote = RemoteXBeeDevice(self, x64bit_addr=x64addr, x16bit_addr=x16addr)
 
         if explicit:
@@ -4387,7 +4379,7 @@ class XBeeDevice(AbstractXBeeDevice):
     def add_route_received_callback(self, callback):
         """
         Adds a callback for the event :class:`.RouteReceived`.
-        This works for Zigbee and Digimesh devices.
+        This works for Zigbee and DigiMesh devices.
 
         Args:
             callback (Function): The callback. Receives three arguments.
@@ -4487,7 +4479,7 @@ class XBeeDevice(AbstractXBeeDevice):
             src_addr (:class:`.XBee64BitAddress`): 64-bit address of
                 the source node.
             responder_addr (:class:`.XBee64BitAddress`): 64-bit address of the
-                the node that generates this packet after it sends (or attempts
+                node that generates this packet after it sends (or attempts
                 to send) the packet to the next hop (successor node)
             successor_addr (:class:`.XBee64BitAddress`): 64-bit address of the
                 next node after the responder in the route towards the destination.
@@ -4501,25 +4493,29 @@ class XBeeDevice(AbstractXBeeDevice):
             if not length:
                 return False
 
+            # No route source node in list
             if hops_list[0][0] != src:
                 return False
 
+            # No route destination node in list
             if hops_list[length - 1][1] != dst:
                 return False
 
-            for idx in range(len(hops_list)):
+            for idx, hop_in_lst in enumerate(hops_list):
                 if length < idx + 2:
                     break
-                if hops_list[idx][1] != hops_list[idx + 1][0]:
+                # Missing intermediate hop
+                if hop_in_lst[1] != hops_list[idx + 1][0]:
                     return False
 
             return True
 
         with self.__tmp_dm_routes_lock:
-            if str(dst_addr) not in self.__tmp_dm_routes_to:
-                self.__tmp_dm_routes_to.update({str(dst_addr): []})
+            addr_key = str(dst_addr)
+            if addr_key not in self.__tmp_dm_routes_to:
+                self.__tmp_dm_routes_to[addr_key] = []
 
-            dm_hops_list = self.__tmp_dm_routes_to.get(str(dst_addr))
+            dm_hops_list = self.__tmp_dm_routes_to.get(addr_key)
 
             # There is no guarantee that Route Information Packet frames
             # arrive in the same order as the route taken by the unicast packet.
@@ -4537,14 +4533,17 @@ class XBeeDevice(AbstractXBeeDevice):
 
             aux_list = []
             for to_insert in self.__tmp_dm_to_insert:
-                for element in dm_hops_list:
+                for idx, lst_hop in enumerate(dm_hops_list):
+                    insert_responder, insert_successor = to_insert
+                    lst_responder, lst_successor = lst_hop
+
                     # Successor in the list is the received responder
-                    if element[1] == to_insert[0]:
-                        dm_hops_list.insert(dm_hops_list.index(element) + 1, to_insert)
+                    if lst_successor == insert_responder:
+                        dm_hops_list.insert(idx + 1, to_insert)
                         break
                     # Responder in the list is the received successor
-                    if element[0] == to_insert[1]:
-                        dm_hops_list.insert(dm_hops_list.index(element), to_insert)
+                    if lst_responder == insert_successor:
+                        dm_hops_list.insert(idx, to_insert)
                         break
                     # Cannot order it, save it for later
                     aux_list.append(to_insert)
@@ -4559,26 +4558,24 @@ class XBeeDevice(AbstractXBeeDevice):
             # Generate the list of ordered hops
             node_list = []
             network = self.get_network()
-            for i in range(len(dm_hops_list)):
-                address = dm_hops_list[i][0]
-                node = network.get_device_by_64(address)
+            for hop in dm_hops_list:
+                h_address = hop[0]
+                node = network.get_device_by_64(h_address)
+                # If the intermediate hop is not yet in the network, add it
                 if not node:
-                    # If the intermediate hop is not yet in the network, add it
-                    if not node:
-                        node = network._add_remote(
-                            RemoteDigiMeshDevice(self, x64bit_addr=address),
-                            NetworkEventReason.ROUTE)
+                    node = network._add_remote(
+                        RemoteDigiMeshDevice(self, x64bit_addr=h_address),
+                        NetworkEventReason.ROUTE)
 
-                if node not in node_list and address != dst_addr:
+                if node not in node_list and h_address != dst_addr:
                     node_list.append(node)
 
             dest_node = network.get_device_by_64(dst_addr)
+            # If the destination is not yet in the network, add it
             if not dest_node:
-                # If the destination is not yet in the network, add it
-                if not dest_node:
-                    dest_node = network._add_remote(
-                        RemoteDigiMeshDevice(self, x64bit_addr=dst_addr),
-                        NetworkEventReason.ROUTE)
+                dest_node = network._add_remote(
+                    RemoteDigiMeshDevice(self, x64bit_addr=dst_addr),
+                    NetworkEventReason.ROUTE)
 
             self.__tmp_dm_to_insert.clear()
             self.__tmp_dm_routes_to.clear()
@@ -9080,9 +9077,9 @@ class XBeeNetwork:
                 elif isinstance(task, ProfileUpdateTask):
                     task.xbee.apply_profile(task.profile_path, timeout=task.timeout,
                                             progress_callback=task.callback)
-                result.update({str(task.xbee.get_64bit_addr()): (task.xbee, None)})
+                result[str(task.xbee.get_64bit_addr())] = (task.xbee, None)
             except XBeeException as exc:
-                result.update({str(task.xbee.get_64bit_addr()): (task.xbee, exc)})
+                result[str(task.xbee.get_64bit_addr())] = (task.xbee, exc)
 
         return result
 
@@ -9188,7 +9185,7 @@ class XBeeNetwork:
         cbs = self.__packet_received_from.get(str(node.get_64bit_addr()))
         if not cbs:
             cbs = XBeeEvent()
-            self.__packet_received_from.update({str(node.get_64bit_addr()): cbs})
+            self.__packet_received_from[str(node.get_64bit_addr())] = cbs
 
         cbs += callback
 
@@ -9687,7 +9684,7 @@ class XBeeNetwork:
 
         with self.__lock:
             for device in self.__devices_list:
-                if device.get_64bit_addr() is not None and device.get_64bit_addr() == x64bit_addr:
+                if device.get_64bit_addr() == x64bit_addr:
                     return device
 
         return None
@@ -9720,7 +9717,7 @@ class XBeeNetwork:
 
         with self.__lock:
             for device in self.__devices_list:
-                if device.get_16bit_addr() is not None and device.get_16bit_addr() == x16bit_addr:
+                if device.get_16bit_addr() == x16bit_addr:
                     return device
 
         return None
@@ -9995,18 +9992,19 @@ class XBeeNetwork:
 
         if force:
             self.del_packet_received_from_callback(found_node, callb=None)
-        else:
-            # Only for Zigbee, mark non-reachable end devices
-            if (remote_xbee.get_protocol() in (XBeeProtocol.ZIGBEE,
-                                               XBeeProtocol.SMART_ENERGY)
-                    and remote_xbee.get_role() == Role.END_DEVICE):
-                for conn in node_b_connections:
-                    # End devices do not have connections from them (not asking
-                    # for their routing and neighbor tables), but if their
-                    # parent is not reachable, they are not either
-                    if not conn.node_a.reachable:
-                        self._set_node_reachable(remote_xbee, False)
-                        break
+            return
+
+        # Only for Zigbee, mark non-reachable end devices
+        if (remote_xbee.get_protocol() in (XBeeProtocol.ZIGBEE,
+                                           XBeeProtocol.SMART_ENERGY)
+                and remote_xbee.get_role() == Role.END_DEVICE):
+            for conn in node_b_connections:
+                # End devices do not have connections from them (not asking
+                # for their routing and neighbor tables), but if their
+                # parent is not reachable, they are not either
+                if not conn.node_a.reachable:
+                    self._set_node_reachable(remote_xbee, False)
+                    break
 
     def remove_device(self, remote_xbee):
         """
@@ -10049,7 +10047,7 @@ class XBeeNetwork:
                 remote = self.__create_remote(x64bit_addr=x64, x16bit_addr=x16,
                                               node_id=n_id, role=role,
                                               parent_addr=x64_parent)
-                if remote is not None:
+                if remote:
                     # If remote was successfully created and it is not in the
                     # XBee list, add it and notify callbacks.
                     self._log.debug("     o Discovered neighbor of %s: %s",
@@ -10501,7 +10499,7 @@ class XBeeNetwork:
                              else bytearray(node_id, encoding='utf8', errors='ignore')),
                 sync=False)
 
-            self.__nd_processes.update({str(self._local_xbee.get_64bit_addr()): self})
+            self.__nd_processes[str(self._local_xbee.get_64bit_addr())] = self
 
             op_times_out = not self._stop_event.wait(timeout)
 
@@ -11415,20 +11413,20 @@ class ZigBeeNetwork(XBeeNetwork):
             routes_list = self.__discovered_routes.get(str(xbee.get_64bit_addr()))
             if not routes_list:
                 routes_list = {}
-                self.__discovered_routes.update({str(xbee.get_64bit_addr()): routes_list})
+                self.__discovered_routes[str(xbee.get_64bit_addr())] = routes_list
 
             # Add the new route
-            if str(route.next_hop) not in routes_list:
-                routes_list.update({str(route.next_hop): route})
+            r_in_list = routes_list.get(str(route.next_hop), None)
+            if not r_in_list:
+                routes_list[str(route.next_hop)] = route
             else:
-                r_in_list = routes_list.get(str(route.next_hop))
                 self._log.debug("       - ROUTE already found %s - %s -> %s",
                                 r_in_list.destination, r_in_list.next_hop, r_in_list.status)
                 from digi.xbee.models.zdo import RouteStatus
                 if r_in_list.status != RouteStatus.ACTIVE and route.status == RouteStatus.ACTIVE:
                     self._log.debug("       - Updating route %s - %s -> %s",
                                     route.destination, route.next_hop, route.status)
-                    routes_list.update({str(route.next_hop): route})
+                    routes_list[str(route.next_hop)] = route
 
             # Check for cancel
             if self._stop_event.is_set():
@@ -11471,8 +11469,8 @@ class ZigBeeNetwork(XBeeNetwork):
         processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
         if not processes:
             processes = {}
-            self.__zdo_processes.update({str(requester.get_64bit_addr()): processes})
-        processes.update({self.__ROUTE_TABLE_TYPE: reader})
+            self.__zdo_processes[str(requester.get_64bit_addr())] = processes
+        processes[self.__ROUTE_TABLE_TYPE] = reader
 
         return NetworkDiscoveryStatus.SUCCESS
 
@@ -11531,8 +11529,8 @@ class ZigBeeNetwork(XBeeNetwork):
         processes = self.__zdo_processes.get(str(requester.get_64bit_addr()))
         if not processes:
             processes = {}
-            self.__zdo_processes.update({str(requester.get_64bit_addr()): processes})
-        processes.update({self.__NEIGHBOR_TABLE_TYPE: reader})
+            self.__zdo_processes[str(requester.get_64bit_addr())] = processes
+        processes[self.__NEIGHBOR_TABLE_TYPE] = reader
 
         return NetworkDiscoveryStatus.SUCCESS
 
@@ -11841,7 +11839,7 @@ class DigiMeshNetwork(XBeeNetwork):
                              finished_cb=__neighbor_discover_finished_cb)
 
         active_processes.append(str(requester.get_64bit_addr()))
-        self.__neighbor_finders.update({str(requester.get_64bit_addr()): finder})
+        self.__neighbor_finders[str(requester.get_64bit_addr())] = finder
 
         return NetworkDiscoveryStatus.SUCCESS
 
