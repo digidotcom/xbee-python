@@ -2361,6 +2361,11 @@ class XBeeDevice(AbstractXBeeDevice):
     Timeout to read packets.
     """
 
+    MAX_DM_HOPS = 32
+    """
+    Maximum number of hops between two nodes in a DigiMesh network.
+    """
+
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
                  stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
                  flow_control=FlowControl.NONE,
@@ -4461,14 +4466,14 @@ class XBeeDevice(AbstractXBeeDevice):
 
         self.__route_received(self, src, node_list)
 
-    def __route_info_callback(self, _src_event, _timestamp, _ack_timeout_count,
+    def __route_info_callback(self, src_event, _timestamp, _ack_timeout_count,
                               _tx_block_count, dst_addr, src_addr,
                               responder_addr, successor_addr):
         """
         Callback method to receive route information (0x8D) frames.
 
         Args:
-            _src_event (Integer): The source event (0x11: NACK, 0x12: Trace route)
+            src_event (Integer): The source event (0x11: NACK, 0x12: Trace route)
             _timestamp (Integer): The system timer value on the node generating
                 this package. The timestamp is in microseconds.
             _ack_timeout_count (Integer): Number of MAC ACK timeouts that occur.
@@ -4484,8 +4489,16 @@ class XBeeDevice(AbstractXBeeDevice):
             successor_addr (:class:`.XBee64BitAddress`): 64-bit address of the
                 next node after the responder in the route towards the destination.
         """
-        self._log.debug("Trace route for %s: responder %s >>> successor %s",
+        self._log.debug("Trace route (%s) for %s: responder %s >>> successor %s",
+                        "Trace Route" if src_event == 0x12 else "NACK",
                         dst_addr, responder_addr, successor_addr)
+
+        # Do not use NACK event route information as it is not valid data to
+        # complete DigiMesh routes.
+        # (generated when a MAC acknowledgment failure occurs on a hop to the
+        # destination node)
+        if src_event == 0x11:
+            return
 
         def check_dm_route_complete(src, dst, hops_list):
             length = len(hops_list)
@@ -4535,12 +4548,21 @@ class XBeeDevice(AbstractXBeeDevice):
             dm_hops_list = self.__tmp_dm_routes_to.get(addr_key)
             dm_to_insert = self.__tmp_dm_to_insert.get(addr_key)
 
+            hop = (responder_addr, successor_addr)
+
+            # Clear all entries if:
+            #   * The number of hops is already the maximum
+            #     (Stored hops are not valid since the complete route cannot
+            #     include more than the maximum allowed hops)
+            #   * The hop was already received, so the route is being sent again
+            #     (If a hop is repeated, the route is being sent again)
+            if (len(dm_hops_list) + len(dm_to_insert) >= self.MAX_DM_HOPS
+                    or hop in dm_hops_list or hop in dm_to_insert):
+                dm_to_insert.clear()
+                dm_hops_list.clear()
+
             # There is no guarantee that Route Information Packet frames
             # arrive in the same order as the route taken by the unicast packet.
-            hop = (responder_addr, successor_addr)
-            if hop in dm_hops_list:
-                return
-
             if responder_addr == src_addr:
                 dm_hops_list.insert(0, hop)
             elif successor_addr == dst_addr or not dm_hops_list:
