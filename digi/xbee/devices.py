@@ -2366,6 +2366,21 @@ class XBeeDevice(AbstractXBeeDevice):
     Maximum number of hops between two nodes in a DigiMesh network.
     """
 
+    # Maximum live time to wait for a complete route:
+    #   max_live_time = <hop_time> * (<total_hops_in_longest_route> + <initial_packet_max_hops>)
+    # Where:
+    #    * <hop_time>: One hop time timeout.
+    #    * <total_hops_in_longest_route>: The amount of hops in the longest route
+    #      (32 hops) to get a complete route, that is a route information packet
+    #      per node in that max route.
+    #          (MAX_DM_HOPS * (MAX_DM_HOPS + 1)) / 2
+    #    * <initial_packet_max_hops>: Maximum number of hops of the packet with
+    #      the trace route option enabled (self.MAX_DM_HOPS)
+    MAX_DM_HOPS_LIVE_TIME = 65 * (((MAX_DM_HOPS + 1) * MAX_DM_HOPS) / 2 + MAX_DM_HOPS) / 1000
+    """
+    Maximum number of seconds that stored hop information is valid in a DigiMesh network.
+    """
+
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
                  stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
                  flow_control=FlowControl.NONE,
@@ -4541,11 +4556,11 @@ class XBeeDevice(AbstractXBeeDevice):
         with self.__tmp_dm_routes_lock:
             addr_key = str(dst_addr)
             if addr_key not in self.__tmp_dm_routes_to:
-                self.__tmp_dm_routes_to[addr_key] = []
+                self.__tmp_dm_routes_to[addr_key] = (time.monotonic(), [])
             if addr_key not in self.__tmp_dm_to_insert:
                 self.__tmp_dm_to_insert[addr_key] = []
 
-            dm_hops_list = self.__tmp_dm_routes_to.get(addr_key)
+            timestamp, dm_hops_list = self.__tmp_dm_routes_to.get(addr_key)
             dm_to_insert = self.__tmp_dm_to_insert.get(addr_key)
 
             hop = (responder_addr, successor_addr)
@@ -4556,10 +4571,13 @@ class XBeeDevice(AbstractXBeeDevice):
             #     include more than the maximum allowed hops)
             #   * The hop was already received, so the route is being sent again
             #     (If a hop is repeated, the route is being sent again)
+            #   * The maximum live time for stored data expires.
             if (len(dm_hops_list) + len(dm_to_insert) >= self.MAX_DM_HOPS
-                    or hop in dm_hops_list or hop in dm_to_insert):
+                    or hop in dm_hops_list or hop in dm_to_insert
+                    or time.monotonic() - timestamp > self.MAX_DM_HOPS_LIVE_TIME):
                 dm_to_insert.clear()
                 dm_hops_list.clear()
+                self.__tmp_dm_routes_to[addr_key] = (time.monotonic(), dm_hops_list)
 
             # There is no guarantee that Route Information Packet frames
             # arrive in the same order as the route taken by the unicast packet.
