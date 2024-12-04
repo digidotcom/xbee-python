@@ -4420,13 +4420,16 @@ class XBeeDevice(AbstractXBeeDevice):
                 "Cannot register route received callback for %s XBee devices"
                 % self._protocol.description)
 
-        self.__route_received += callback
+        if callback not in self.__route_received:
+            self.__route_received += callback
 
         if (self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                                XBeeProtocol.SMART_ENERGY)
                 and self.__route_record_callback not in self._packet_listener.get_route_record_received_callbacks()):
             self._packet_listener.add_route_record_received_callback(self.__route_record_callback)
-        elif self.__route_info_callback not in self._packet_listener.get_route_info_callbacks():
+        elif (self._protocol in (XBeeProtocol.DIGI_MESH,
+                                 XBeeProtocol.DIGI_POINT, XBeeProtocol.SX)
+                and self.__route_info_callback not in self._packet_listener.get_route_info_callbacks()):
             self._packet_listener.add_route_info_received_callback(self.__route_info_callback)
 
     def del_route_received_callback(self, callback):
@@ -4439,14 +4442,21 @@ class XBeeDevice(AbstractXBeeDevice):
         .. seealso::
            | :meth:`.XBeeDevice.add_route_received_callback`
         """
-        if callback in self.__route_received:
-            self.__route_received -= callback
+        if callback not in self.__route_received:
+            return
+
+        self.__route_received -= callback
+
+        if len(self.__route_received) > 0:
+            return
 
         if (self._protocol in (XBeeProtocol.ZIGBEE, XBeeProtocol.ZNET,
                                XBeeProtocol.SMART_ENERGY)
                 and self.__route_record_callback in self._packet_listener.get_route_record_received_callbacks()):
             self._packet_listener.del_route_record_received_callback(self.__route_record_callback)
-        elif self.__route_info_callback in self._packet_listener.get_route_info_callbacks():
+        elif (self._protocol in (XBeeProtocol.DIGI_MESH,
+                                 XBeeProtocol.DIGI_POINT, XBeeProtocol.SX)
+                and self.__route_info_callback in self._packet_listener.get_route_info_callbacks()):
             self._packet_listener.del_route_info_callback(self.__route_info_callback)
 
     def __route_record_callback(self, src, hops):
