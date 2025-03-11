@@ -14,7 +14,7 @@
 import logging
 import threading
 
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address
 
 from digi.xbee.exception import TimeoutException
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress
@@ -232,8 +232,12 @@ class PacketSender:
                 node_fut_apply.update({param: value})
         # 16-bit address / IP address
         elif param == ATStringCommand.MY.command:
-            if XBeeProtocol.is_ip_protocol(node.get_protocol()):
-                ip_addr = IPv4Address(utils.bytes_to_int(value))
+            protocol = node.get_protocol()
+            if XBeeProtocol.is_ip_protocol(protocol):
+                if XBeeProtocol.is_ipv6_protocol(protocol):
+                    ip_addr = IPv6Address(utils.bytes_to_int(value))
+                else:
+                    ip_addr = IPv4Address(utils.bytes_to_int(value))
                 changed = node.get_ip_addr() != ip_addr
                 updated = changed and apply
                 if updated:

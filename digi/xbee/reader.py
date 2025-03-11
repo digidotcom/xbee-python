@@ -1,4 +1,4 @@
-# Copyright 2017-2024, Digi International Inc.
+# Copyright 2017-2025, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -1597,7 +1597,8 @@ class PacketListener(threading.Thread):
                 more_data=utils.hex_to_string(packet.payload)))
 
         # Socket receive data from
-        elif f_type == ApiFrameType.SOCKET_RECEIVE_FROM:
+        elif f_type in (ApiFrameType.SOCKET_RECEIVE_FROM,
+                        ApiFrameType.SOCKET_RECEIVE_FROM_IPV6):
             address = (str(packet.source_address), packet.source_port)
             self.__socket_data_received_from(packet.socket_id, address, packet.payload)
             self._log.debug(self._LOG_PATTERN.format(

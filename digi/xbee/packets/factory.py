@@ -1,4 +1,4 @@
-# Copyright 2017-2021, Digi International Inc.
+# Copyright 2017-2025, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -118,7 +118,8 @@ from digi.xbee.packets.socket import SocketCreatePacket, \
     SocketConnectResponsePacket, SocketClosePacket, SocketCloseResponsePacket, \
     SocketSendPacket, SocketSendToPacket, SocketBindListenPacket, \
     SocketListenResponsePacket, SocketNewIPv4ClientPacket, SocketReceivePacket, \
-    SocketReceiveFromPacket, SocketStatePacket
+    SocketReceiveFromPacket, SocketStatePacket, SocketReceiveFromIPv6Packet, SocketNewIPv6ClientPacket, \
+    SocketSendToIPv6Packet
 from digi.xbee.packets.wifi import RemoteATCommandWifiPacket, \
     RemoteATCommandResponseWifiPacket, IODataSampleRxIndicatorWifiPacket
 from digi.xbee.packets.zigbee import RegisterJoiningDevicePacket, \
@@ -288,8 +289,14 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
     if frame_type == ApiFrameType.SOCKET_BIND:
         return SocketBindListenPacket.create_packet(packet_bytearray, operating_mode)
 
+    if frame_type == ApiFrameType.SOCKET_SENDTO_IPV6:
+        return SocketSendToIPv6Packet.create_packet(packet_bytearray, operating_mode)
+
     if frame_type == ApiFrameType.SOCKET_LISTEN_RESPONSE:
         return SocketListenResponsePacket.create_packet(packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.SOCKET_RECEIVE_FROM_IPV6:
+        return SocketReceiveFromIPv6Packet.create_packet(packet_bytearray, operating_mode)
 
     if frame_type == ApiFrameType.SOCKET_NEW_IPV4_CLIENT:
         return SocketNewIPv4ClientPacket.create_packet(packet_bytearray, operating_mode)
@@ -302,6 +309,9 @@ def build_frame(packet_bytearray, operating_mode=OperatingMode.API_MODE):
 
     if frame_type == ApiFrameType.SOCKET_STATE:
         return SocketStatePacket.create_packet(packet_bytearray, operating_mode)
+
+    if frame_type == ApiFrameType.SOCKET_NEW_IPV6_CLIENT:
+        return SocketNewIPv6ClientPacket.create_packet(packet_bytearray, operating_mode)
 
     if frame_type == ApiFrameType.DIGIMESH_ROUTE_INFORMATION:
         return RouteInformationPacket.create_packet(packet_bytearray, operating_mode)
