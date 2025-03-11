@@ -263,8 +263,8 @@ class FileSystemElement:
 
         Args:
             element_path (String): File system element absolute path.
-         """
-        self._path = element_path
+        """
+        self._path = element_path.encode(encoding='ascii')
 
     @property
     def is_dir(self):
