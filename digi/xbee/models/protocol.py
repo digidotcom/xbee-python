@@ -1,4 +1,4 @@
-# Copyright 2017-2024, Digi International Inc.
+# Copyright 2017-2025, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -46,6 +46,7 @@ class XBeeProtocol(Enum):
     CELLULAR = (15, "Cellular")
     CELLULAR_NBIOT = (16, "Cellular NB-IoT")
     BLE = (17, "BLE")
+    WISUN = (18, "Wi-SUN")
     UNKNOWN = (99, "Unknown")
 
     def __init__(self, code, description):
@@ -100,7 +101,34 @@ class XBeeProtocol(Enum):
             Boolean: `True` if it is an IP protocol, `False` otherwise.
         """
         return protocol in (XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT,
+                            XBeeProtocol.XBEE_WIFI, XBeeProtocol.WISUN)
+
+    @staticmethod
+    def is_ipv4_protocol(protocol):
+        """
+        Checks if the provided protocol is an IPv4 protocol.
+
+        Args:
+            protocol (:class: `.XBeeProtocol`): The protocol to check.
+
+        Returns:
+            Boolean: `True` if it is an IPv4 protocol, `False` otherwise.
+        """
+        return protocol in (XBeeProtocol.CELLULAR, XBeeProtocol.CELLULAR_NBIOT,
                             XBeeProtocol.XBEE_WIFI)
+
+    @staticmethod
+    def is_ipv6_protocol(protocol):
+        """
+        Checks if the provided protocol is an IPv6 protocol.
+
+        Args:
+            protocol (:class: `.XBeeProtocol`): The protocol to check.
+
+        Returns:
+            Boolean: `True` if it is an IPv6 protocol, `False` otherwise.
+        """
+        return protocol in (XBeeProtocol.WISUN, )
 
     @staticmethod
     def determine_protocol(hw_version, fw_version, br_value=None):
@@ -300,6 +328,10 @@ class XBeeProtocol(Enum):
         if hw_version in (HardwareVersion.XBEE_BLU.code,
                           HardwareVersion.XBEE_BLU_TH.code):
             return XBeeProtocol.BLE
+
+        if hw_version in (HardwareVersion.XBEE_WISUN.code,
+                          HardwareVersion.XBEE_WISUN_TH.code):
+            return XBeeProtocol.WISUN
 
         return XBeeProtocol.ZIGBEE
 

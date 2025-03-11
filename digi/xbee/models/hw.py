@@ -1,4 +1,4 @@
-# Copyright 2017-2024, Digi International Inc.
+# Copyright 2017-2025, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -108,6 +108,8 @@ class HardwareVersion(Enum):
     XBEE_XR_868_TH = (0x5B, "XBee XR 868 TH")
     XBEE_BLU = (0x5C, "XBee 3 BLU")
     XBEE_BLU_TH = (0x5D, "XBee 3 BLU TH")
+    XBEE_WISUN = (0x60, "XBee Wi-SUN")
+    XBEE_WISUN_TH = (0x61, "XBee Wi-SUN TH")
 
     def __init__(self, code, description):
         self.__code = code

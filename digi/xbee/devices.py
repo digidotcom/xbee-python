@@ -1,4 +1,4 @@
-# Copyright 2017-2024, Digi International Inc.
+# Copyright 2017-2025, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -19,8 +19,10 @@ import time
 from abc import ABCMeta, abstractmethod
 from enum import Enum, unique
 from functools import wraps
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address
 from queue import Queue, Empty
+from socket import AddressFamily
+from typing import List
 
 from digi.xbee import serial
 from digi.xbee.filesystem import FileSystemManager
@@ -6308,11 +6310,11 @@ class IPDevice(XBeeDevice):
     This class provides common functionality for XBee IP devices.
     """
 
-    BROADCAST_IP = "255.255.255.255"
-
     __DEFAULT_SOURCE_PORT = 9750
 
     __OPERATION_EXCEPTION = "Operation not supported in this module."
+
+    _ATMY_ADDR_CLASS = IPv4Address
 
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
                  stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
@@ -6359,7 +6361,7 @@ class IPDevice(XBeeDevice):
         # Read the module's IP address.
         if init or self._ip_addr is None:
             resp = self.get_parameter(ATStringCommand.MY, apply=False)
-            ip_addr = IPv4Address(utils.bytes_to_int(resp))
+            ip_addr = self._ATMY_ADDR_CLASS(bytes(resp))
             if self._ip_addr != ip_addr:
                 updated = True
                 self._ip_addr = ip_addr
@@ -6919,11 +6921,23 @@ class IPDevice(XBeeDevice):
         """
         raise AttributeError(self.__OPERATION_EXCEPTION)
 
+    @staticmethod
+    def get_supported_ip_versions() -> List[AddressFamily]:
+        """
+        Returns the list of IP versions (address families) supported by this protocol.
+
+        Returns:
+            List: List of :class:`socket.AddressFamily`.
+        """
+        return [AddressFamily.AF_INET]
+
 
 class CellularDevice(IPDevice):
     """
     This class represents a local Cellular device.
     """
+
+    BROADCAST_IP = "255.255.255.255"
 
     def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
                  stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
@@ -7469,6 +7483,8 @@ class WiFiDevice(IPDevice):
     """
     This class represents a local Wi-Fi XBee.
     """
+
+    BROADCAST_IP = "255.255.255.255"
 
     # Timeout to connect, disconnect, and scan access points
     __DEFAULT_ACCESS_POINT_TIMEOUT = 15
@@ -8091,6 +8107,281 @@ class WiFiDevice(IPDevice):
         """
         self.set_parameter(ATStringCommand.NS, dns_address.packed,
                            apply=self.is_apply_changes_enabled())
+
+
+class WiSUNDevice(IPDevice):
+    """
+    This class represents a local Wi-SUN device.
+    """
+
+    _ATMY_ADDR_CLASS = IPv6Address
+
+    __OPERATION_EXCEPTION = "Operation not supported in this module."
+
+    def __init__(self, port=None, baud_rate=None, data_bits=serial.EIGHTBITS,
+                 stop_bits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE,
+                 flow_control=FlowControl.NONE,
+                 _sync_ops_timeout=AbstractXBeeDevice._DEFAULT_TIMEOUT_SYNC_OPERATIONS,
+                 comm_iface=None):
+        """
+        Class constructor. Instantiates a new :class:`.WiSUNDevice` with the
+        provided parameters.
+
+        Args:
+            port (String): Serial port identifier. Depends on operating system.
+                e.g. '/dev/ttyUSB0' on 'GNU/Linux' or 'COM3' on Windows.
+            baud_rate (Integer): Serial port baud rate.
+            data_bits (Integer, default: :attr:`.serial.EIGHTBITS`): Port bitsize.
+            stop_bits (Integer, default: :attr:`.serial.STOPBITS_ONE`): Port stop bits.
+            parity (Character, default: :attr:`.serial.PARITY_NONE`): Port parity.
+            flow_control (Integer, default: :attr:`.FlowControl.NONE`): Port flow control.
+            _sync_ops_timeout (Integer, default: 3): Read timeout (in seconds).
+            comm_iface (:class:`.XBeeCommunicationInterface`): Communication interface.
+
+        Raises:
+            All exceptions raised by :meth:`.XBeeDevice.__init__` constructor.
+
+        .. seealso::
+           | :class:`.XBeeDevice`
+           | :meth:`.XBeeDevice.__init__`
+        """
+        super().__init__(port, baud_rate, data_bits=data_bits, stop_bits=stop_bits,
+                         parity=parity, flow_control=flow_control,
+                         _sync_ops_timeout=_sync_ops_timeout, comm_iface=comm_iface)
+
+    def open(self, force_settings=False):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.open`
+        """
+        super().open(force_settings=force_settings)
+        if self._protocol not in (XBeeProtocol.WISUN,):
+            self.close()
+            raise XBeeException(_ERROR_INCOMPATIBLE_PROTOCOL
+                                % (self.get_protocol(), XBeeProtocol.WISUN))
+
+    def get_protocol(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice.get_protocol`
+        """
+        if not self._protocol or self._protocol == XBeeProtocol.UNKNOWN:
+            return XBeeProtocol.WISUN
+
+        return self._protocol
+
+    def get_ip_addr(self):
+        """
+        Returns the IP address of this IP XBee.
+
+        To refresh this value use the method :meth:`.IPDevice.read_device_info`.
+
+        Returns:
+            :class:`ipaddress.IPv6Address`: The IP address of this IP device.
+
+        .. seealso::
+           | :class:`ipaddress.IPv6Address`
+        """
+        return self._ip_addr
+
+    def set_dest_ip_addr(self, address):
+        """
+        Sets the destination IP address.
+
+        Args:
+            address (:class:`ipaddress.IPv6Address`): Destination IP address.
+
+        Raises:
+            ValueError: If `address` is `None`.
+            TimeoutException: If there is a timeout setting the destination IP address.
+            XBeeException: If there is any other XBee related exception.
+
+        .. seealso::
+           | :class:`ipaddress.IPv6Address`
+        """
+        if address is None:
+            raise ValueError("Destination IP address cannot be None")
+
+        self.set_parameter(ATStringCommand.DL,
+                           bytes(address),
+                           apply=self.is_apply_changes_enabled())
+
+    def get_dest_ip_addr(self):
+        """
+        Returns the destination IP address.
+
+        Returns:
+            :class:`ipaddress.IPv6Address`: Configured destination IP address.
+
+        Raises:
+            TimeoutException: If there is a timeout getting the destination IP address.
+            XBeeException: If there is any other XBee related exception.
+
+        .. seealso::
+           | :class:`ipaddress.IPv6Address`
+        """
+        return IPv6Address(
+            bytes(self.get_parameter(ATStringCommand.DL, apply=False)))
+
+    @AbstractXBeeDevice._before_send_method
+    @AbstractXBeeDevice._after_send_method
+    def send_ip_data(self, ip_addr, dest_port, protocol, data, close_socket=False):
+        """
+        Sends the provided IP data to the given IP address and port using the
+        specified IP protocol. For TCP and TCP SSL protocols, you can also
+        indicate if the socket should be closed when data is sent.
+
+        This method blocks until a success or error response arrives or the
+        configured receive timeout expires.
+
+        Args:
+            ip_addr (:class:`ipaddress.IPv6Address`): The IP address to send IP data to.
+            dest_port (Integer): The destination port of the transmission.
+            protocol (:class:`.IPProtocol`): The IP protocol used for the transmission.
+            data (String or Bytearray): The IP data to be sent.
+            close_socket (Boolean, optional, default=`False`): `True` to close
+                the socket just after the transmission. `False` to keep it open.
+
+        Raises:
+            ValueError: If `ip_addr` or `protocol` or `data` is `None` or
+                `dest_port` is less than 0 or greater than 65535.
+            OperationNotSupportedException: If the XBee is remote.
+            TimeoutException: If there is a timeout sending the data.
+            XBeeException: If there is any other XBee related exception.
+        """
+        # Needs TX_IPV6
+        raise NotImplementedError("TODO - implement")
+
+    @AbstractXBeeDevice._before_send_method
+    def send_ip_data_async(self, ip_addr, dest_port, protocol, data, close_socket=False):
+        """
+        Sends the provided IP data to the given IP address and port
+        asynchronously using the specified IP protocol. For TCP and TCP SSL
+        protocols, you can also indicate if the socket should be closed when
+        data is sent.
+
+        Asynchronous transmissions do not wait for answer from the remote
+        device or for transmit status packet.
+
+        Args:
+            ip_addr (:class:`ipaddress.IPv6Address`): The IP address to send IP data to.
+            dest_port (Integer): The destination port of the transmission.
+            protocol (:class:`.IPProtocol`): The IP protocol used for the transmission.
+            data (String or Bytearray): The IP data to be sent.
+            close_socket (Boolean, optional, default=`False`): `True` to close
+                the socket just after the transmission. `False` to keep it open.
+
+        Raises:
+            ValueError: If `ip_addr` or `protocol` or `data` is `None` or
+                `dest_port` is less than 0 or greater than 65535.
+            OperationNotSupportedException: If the XBee is remote.
+            XBeeException: If there is any other XBee related exception.
+        """
+        # Needs TX_IPV6
+        raise NotImplementedError("TODO - implement")
+
+    def send_ip_data_broadcast(self, dest_port, data):
+        """
+        Deprecated.
+
+        This protocol does not support broadcast functionality.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    @AbstractXBeeDevice._before_send_method
+    def read_ip_data(self, timeout=XBeeDevice.TIMEOUT_READ_PACKET):
+        """
+        Deprecated.
+
+        This protocol does not support this functionality.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    @AbstractXBeeDevice._before_send_method
+    def read_ip_data_from(self, ip_addr, timeout=XBeeDevice.TIMEOUT_READ_PACKET):
+        """
+        Deprecated.
+
+        This protocol does not support this functionality.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def get_network(self):
+        """
+        Deprecated.
+
+        This protocol does not support the network functionality yet.
+        """
+        # TODO
+        return None
+
+    def _init_network(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`.XBeeDevice._init_network`
+        """
+        return None
+
+    def add_io_sample_received_callback(self, callback):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def del_io_sample_received_callback(self, callback):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def set_dio_change_detection(self, io_lines_set):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def get_io_sampling_rate(self):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    def set_io_sampling_rate(self, rate):
+        """
+        Deprecated.
+
+        Operation not supported in this protocol. This method raises an
+        :class:`.AttributeError`.
+        """
+        raise AttributeError(self.__OPERATION_EXCEPTION)
+
+    @staticmethod
+    def get_supported_ip_versions() -> List[AddressFamily]:
+        """
+        Override.
+
+        .. seealso:
+           | :meth:`.IPDevice.get_supported_ip_versions`
+        """
+        return [AddressFamily.AF_INET6]
 
 
 class RemoteXBeeDevice(AbstractXBeeDevice):

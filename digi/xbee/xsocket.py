@@ -1,4 +1,4 @@
-# Copyright 2019-2021, Digi International Inc.
+# Copyright 2019-2025, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,20 +11,22 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
 import threading
 import time
 from collections import OrderedDict
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address, ip_address
+from socket import AddressFamily
+from typing import Optional
 
-from digi.xbee.devices import CellularDevice
+from digi.xbee.devices import CellularDevice, WiSUNDevice
 from digi.xbee.exception import TimeoutException, XBeeSocketException, XBeeException
 from digi.xbee.models.protocol import IPProtocol
 from digi.xbee.models.status import SocketState, SocketStatus, TransmitStatus
 from digi.xbee.packets.raw import TXStatusPacket
 from digi.xbee.packets.socket import SocketConnectPacket, SocketCreatePacket, \
     SocketSendPacket, SocketClosePacket, SocketBindListenPacket, \
-    SocketNewIPv4ClientPacket, SocketOptionRequestPacket, SocketSendToPacket
+    SocketNewIPv4ClientPacket, SocketOptionRequestPacket, SocketSendToPacket, SocketNewIPv6ClientPacket, \
+    SocketSendToIPv6Packet
 
 
 class socket:
@@ -36,7 +38,12 @@ class socket:
     __DEFAULT_TIMEOUT = 5
     __MAX_PAYLOAD_BYTES = 1500
 
-    def __init__(self, xbee_device, ip_protocol=IPProtocol.TCP):
+    def __init__(
+        self,
+        xbee_device,
+        ip_protocol=IPProtocol.TCP,
+        address_family: Optional[AddressFamily] = None,
+    ):
         """
         Class constructor. Instantiates a new XBee socket object for the given
         XBee device.
@@ -44,17 +51,19 @@ class socket:
         Args:
             xbee_device (:class:`.XBeeDevice`): XBee device of the socket.
             ip_protocol (:class:`.IPProtocol`): protocol of the socket.
+            address_family (:class:`socket.AddressFamily`): address family (AF_INET or AF_INET6) of the socket.
+                                                            If None, the family will be chosen based on the XBee type.
 
         Raises:
             ValueError: if `xbee_device` is `None` or if `xbee_device` is not
-                an instance of `CellularDevice`.
+                an instance of `CellularDevice` or `WiSUNDevice`.
             ValueError: if `ip_protocol` is `None`.
             XBeeException: if the connection with the XBee device is not open.
         """
         if xbee_device is None:
             raise ValueError("XBee device cannot be None")
-        if not isinstance(xbee_device, CellularDevice):
-            raise ValueError("XBee device must be a Cellular device")
+        if not isinstance(xbee_device, (CellularDevice, WiSUNDevice)):
+            raise ValueError("XBee device must be a Cellular or Wi-SUN device")
         if ip_protocol is None:
             raise ValueError("IP protocol cannot be None")
         if not xbee_device.is_open():
@@ -77,6 +86,11 @@ class socket:
         self.__socket_state_cb = None
         self.__data_received_cb = None
         self.__data_received_from_cb = None
+        if address_family is None:
+            address_family = xbee_device.get_supported_ip_versions()[0]
+        if address_family not in (AddressFamily.AF_INET, AddressFamily.AF_INET6):
+            raise ValueError("Invalid address_family, must be socket.AF_INET or socket.AF_INET6")
+        self.__address_family = address_family
 
     def __enter__(self):
         return self
@@ -90,8 +104,8 @@ class socket:
 
         Args:
             address (Tuple): A pair `(host, port)` where `host` is the domain
-                name or string representation of an IPv4 and `port` is the
-                numeric port value.
+                name or string representation of an IPv4 or IPv6,
+                and `port` is the numeric port value.
 
         Raises:
             TimeoutException: If the connect response is not received in the
@@ -104,10 +118,14 @@ class socket:
         # Check address and its contents.
         if address is None or len(address) != 2:
             raise ValueError("Invalid address, it must be a pair (host, port)")
+        if isinstance(address[0], IPv6Address) and self.__address_family != AddressFamily.AF_INET6:
+            raise ValueError("Invalid address, it must be a pair (IPv4, port)")
+        if isinstance(address[0], IPv4Address) and self.__address_family == AddressFamily.AF_INET6:
+            raise ValueError("Invalid address, it must be a pair (IPv6, port)")
 
         host = address[0]
         port = address[1]
-        if isinstance(host, IPv4Address):
+        if isinstance(host, (IPv4Address, IPv6Address)):
             host = str(host)
         if port < 1 or port > 65535:
             raise ValueError("Port number must be between 1 and 65535")
@@ -135,11 +153,16 @@ class socket:
         self.__xbee.add_socket_state_received_callback(
             socket_state_received_callback)
 
+        addr_type = (
+            SocketConnectPacket.DEST_ADDRESS_V6_STRING
+            if isinstance(address[0], IPv6Address)
+            else SocketConnectPacket.DEST_ADDRESS_STRING
+        )
         try:
             # Create, send and check the socket connect packet.
             connect_packet = SocketConnectPacket(
                 self.__xbee.get_next_frame_id(), self.__socket_id, port,
-                SocketConnectPacket.DEST_ADDRESS_STRING, host)
+                addr_type, host)
             response_packet = self.__xbee.send_packet_sync_and_get_response(
                 connect_packet, timeout=self.__get_timeout())
             self.__check_response(response_packet)
@@ -253,9 +276,9 @@ class socket:
         lock = threading.Condition()
         received_packet = []
 
-        # Define the IPv4 client callback.
-        def ipv4_client_callback(packet):
-            if (not isinstance(packet, SocketNewIPv4ClientPacket)
+        # Define the client callback.
+        def client_callback(packet):
+            if (not isinstance(packet, (SocketNewIPv4ClientPacket, SocketNewIPv6ClientPacket))
                     or packet.socket_id != self.__socket_id):
                 return
 
@@ -265,11 +288,11 @@ class socket:
             lock.notify()
             lock.release()
 
-        # Add the socket IPv4 client callback.
-        self.__xbee.add_packet_received_callback(ipv4_client_callback)
+        # Add the socket new-client callback.
+        self.__xbee.add_packet_received_callback(client_callback)
 
         try:
-            # Wait until an IPv4 client packet is received.
+            # Wait until a new-client packet is received.
             lock.acquire()
             lock.wait()
             lock.release()
@@ -284,8 +307,8 @@ class socket:
 
             return conn, (received_packet[0].remote_address, received_packet[0].remote_port)
         finally:
-            # Always remove the socket IPv4 client callback.
-            self.__xbee.del_packet_received_callback(ipv4_client_callback)
+            # Always remove the socket client callback.
+            self.__xbee.del_packet_received_callback(client_callback)
 
     def gettimeout(self):
         """
@@ -371,7 +394,7 @@ class socket:
             Tuple (Bytearray, Tuple): Pair containing the data received
                 (Bytearray) and the address of the socket sending the data. The
                 address is also a pair `(host, port)` where `host` is the string
-                representation of an IPv4 and `port` is the numeric port value.
+                representation of an IPv4 or IPv6, and `port` is the numeric port value.
 
         Raises:
             ValueError: If `bufsize` is less than `1`.
@@ -461,7 +484,8 @@ class socket:
             data (Bytearray): The data to send.
             address (Tuple): The address of the destination socket. It must be
                 a pair `(host, port)` where `host` is the domain name or string
-                representation of an IPv4 and `port` is the numeric port value.
+                representation of an IPv4 or IPv6 address and `port` is the
+                numeric port value.
 
         Returns:
             Integer: The number of bytes sent.
@@ -471,6 +495,7 @@ class socket:
                 the configured timeout.
             ValueError: If the data to send is `None`.
             ValueError: If the number of bytes to send is `0`.
+            ValueError: If the host is not compatible with the socket's address family.
             XBeeException: If the connection with the XBee device is not open.
             XBeeSocketException: If the socket is already open.
             XBeeSocketException: If the send status is not `SUCCESS`.
@@ -485,15 +510,31 @@ class socket:
             raise XBeeSocketException(message="Socket is already connected")
 
         sent_bytes = 0
+        ip_addr = ip_address(address[0])
+        if (
+            self.__address_family == AddressFamily.AF_INET
+            and not isinstance(ip_addr, IPv4Address)
+        ):
+            raise ValueError("Invalid address, it must be an IPv4 address")
+        elif (
+            self.__address_family == AddressFamily.AF_INET6
+            and not isinstance(ip_addr, IPv6Address)
+        ):
+            raise ValueError("Invalid address, it must be an IPv6 address")
 
         # If the socket is not created, create it first.
         if self.__socket_id is None:
             self.__create_socket()
         # Send as many packets as needed to deliver all the provided data.
         for chunk in self.__split_payload(data):
-            send_packet = SocketSendToPacket(
-                self.__xbee.get_next_frame_id(), self.__socket_id,
-                IPv4Address(address[0]), address[1], chunk)
+            if isinstance(ip_addr, IPv4Address):
+                send_packet = SocketSendToPacket(
+                    self.__xbee.get_next_frame_id(), self.__socket_id,
+                    ip_addr, address[1], chunk)
+            else:
+                send_packet = SocketSendToIPv6Packet(
+                    self.__xbee.get_next_frame_id(), self.__socket_id,
+                    ip_addr, address[1], chunk)
             response_packet = self.__xbee.send_packet_sync_and_get_response(
                 send_packet, timeout=self.__get_timeout())
             self.__check_response(response_packet)

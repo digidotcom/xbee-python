@@ -1,6 +1,16 @@
 Changelog
 =========
 
+v1.5.1 - xx/xx/xxxx
+-------------------
+
+* Support for new hardware variants:
+
+  * XBee Wi-SUN
+
+* Support for IPv6 within xsockets (XBPL-427).
+  IPv6 is only currently supported with the XBee Wi-SUN.
+
 v1.5.0 - 08/08/2024
 -------------------
 

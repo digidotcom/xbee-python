@@ -1,4 +1,4 @@
-# Copyright 2019-2021, Digi International Inc.
+# Copyright 2019-2025, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,7 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address
 
 from digi.xbee.exception import InvalidOperatingModeException, InvalidPacketException
 from digi.xbee.models.mode import OperatingMode
@@ -791,7 +791,14 @@ class SocketConnectPacket(XBeeAPIPacket):
 
     DEST_ADDRESS_STRING = 1
     """Indicates the destination address field is a string containing either a
-    dotted quad value or a domain name to be resolved."""
+    IPv4 dotted quad value or a domain name to be resolved."""
+
+    DEST_ADDRESS_V6_BINARY = 2
+    """Indicates the destination address field is a binary IPv6 address in network byte order."""
+
+    DEST_ADDRESS_V6_STRING = 3
+    """Indicates the destination address field is a string containing either a
+    IPv6 dotted decimal value or a domain name to be resolved."""
 
     def __init__(self, frame_id, socket_id, dest_port, dest_address_type,
                  dest_address, op_mode=OperatingMode.API_MODE):
@@ -805,7 +812,9 @@ class SocketConnectPacket(XBeeAPIPacket):
             dest_port (Integer): the destination port number.
             dest_address_type (Integer): the destination address type. One of
                                          :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` or
-                                         :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
+                                         :attr:`SocketConnectPacket.DEST_ADDRESS_STRING` or
+                                         :attr:`SocketConnectPacket.DEST_ADDRESS_V6_BINARY` or
+                                         :attr:`SocketConnectPacket.DEST_ADDRESS_V6_STRING`.
             dest_address (Bytearray or String): the destination address.
             op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
                 The mode in which the frame was captured.
@@ -813,6 +822,8 @@ class SocketConnectPacket(XBeeAPIPacket):
         .. seealso::
            | :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY`
            | :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`
+           | :attr:`SocketConnectPacket.DEST_ADDRESS_V6_BINARY`
+           | :attr:`SocketConnectPacket.DEST_ADDRESS_V6_STRING`
            | :class:`.XBeeAPIPacket`
 
         Raises:
@@ -821,7 +832,9 @@ class SocketConnectPacket(XBeeAPIPacket):
             ValueError: if `dest_port` is less than 0 or greater than 65535.
             ValueError: if `dest_address_type` is different than
                 :attr:`SocketConnectPacket.DEST_ADDRESS_BINARY` and
-                :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
+                :attr:`SocketConnectPacket.DEST_ADDRESS_STRING` and
+                :attr:`SocketConnectPacket.DEST_ADDRESS_V6_BINARY` and
+                :attr:`SocketConnectPacket.DEST_ADDRESS_V6_STRING`.
             ValueError: if `dest_address` is `None` or does not follow the
                 format specified in the configured type.
         """
@@ -832,13 +845,22 @@ class SocketConnectPacket(XBeeAPIPacket):
         if dest_port < 0 or dest_port > 65535:
             raise ValueError("Destination port must be between 0 and 65535")
         if dest_address_type not in (SocketConnectPacket.DEST_ADDRESS_BINARY,
-                                     SocketConnectPacket.DEST_ADDRESS_STRING):
-            raise ValueError("Destination address type must be %d or %d" % (
-                SocketConnectPacket.DEST_ADDRESS_BINARY, SocketConnectPacket.DEST_ADDRESS_STRING))
+                                     SocketConnectPacket.DEST_ADDRESS_STRING,
+                                     SocketConnectPacket.DEST_ADDRESS_V6_BINARY,
+                                     SocketConnectPacket.DEST_ADDRESS_V6_STRING):
+            raise ValueError("Destination address type must be %d or %d or %d or %d" % (
+                SocketConnectPacket.DEST_ADDRESS_BINARY,
+                SocketConnectPacket.DEST_ADDRESS_STRING,
+                SocketConnectPacket.DEST_ADDRESS_V6_BINARY,
+                SocketConnectPacket.DEST_ADDRESS_V6_STRING))
         if (dest_address is None
                 or (dest_address_type == SocketConnectPacket.DEST_ADDRESS_BINARY
                     and (not isinstance(dest_address, bytearray) or len(dest_address) != 4))
                 or (dest_address_type == SocketConnectPacket.DEST_ADDRESS_STRING
+                    and (not isinstance(dest_address, str) or len(dest_address) < 1))
+                or (dest_address_type == SocketConnectPacket.DEST_ADDRESS_V6_BINARY
+                    and (not isinstance(dest_address, bytearray) or len(dest_address) != 16))
+                or (dest_address_type == SocketConnectPacket.DEST_ADDRESS_V6_STRING
                     and (not isinstance(dest_address, str) or len(dest_address) < 1))):
             raise ValueError("Invalid destination address")
 
@@ -889,7 +911,9 @@ class SocketConnectPacket(XBeeAPIPacket):
 
         addr_type = raw[8]
         address = raw[9:-1]
-        if address is not None and addr_type == SocketConnectPacket.DEST_ADDRESS_STRING:
+
+        if addr_type in (SocketConnectPacket.DEST_ADDRESS_STRING,
+                         SocketConnectPacket.DEST_ADDRESS_V6_STRING):
             address = address.decode(encoding="utf8", errors='ignore')
 
         return SocketConnectPacket(raw[4], raw[5], utils.bytes_to_int(raw[6:8]),
@@ -941,7 +965,7 @@ class SocketConnectPacket(XBeeAPIPacket):
     @property
     def socket_id(self):
         """
-        Returns the the socket ID.
+        Returns the socket ID.
 
         Returns:
             Integer: the socket ID.
@@ -1012,9 +1036,14 @@ class SocketConnectPacket(XBeeAPIPacket):
                 :attr:`SocketConnectPacket.DEST_ADDRESS_STRING`.
         """
         if dest_address_type not in (SocketConnectPacket.DEST_ADDRESS_BINARY,
-                                     SocketConnectPacket.DEST_ADDRESS_STRING):
-            raise ValueError("Destination address type must be %d or %d" % (
-                SocketConnectPacket.DEST_ADDRESS_BINARY, SocketConnectPacket.DEST_ADDRESS_STRING))
+                                     SocketConnectPacket.DEST_ADDRESS_STRING,
+                                     SocketConnectPacket.DEST_ADDRESS_V6_BINARY,
+                                     SocketConnectPacket.DEST_ADDRESS_V6_STRING):
+            raise ValueError("Destination address type must be %d or %d or %d or %d" % (
+                SocketConnectPacket.DEST_ADDRESS_BINARY,
+                SocketConnectPacket.DEST_ADDRESS_STRING,
+                SocketConnectPacket.DEST_ADDRESS_V6_BINARY,
+                SocketConnectPacket.DEST_ADDRESS_V6_STRING))
         self.__dest_addr_type = dest_address_type
 
     @property
@@ -1044,6 +1073,10 @@ class SocketConnectPacket(XBeeAPIPacket):
                 or (self.__dest_addr_type == SocketConnectPacket.DEST_ADDRESS_BINARY
                     and (not isinstance(dest_address, bytearray) or len(dest_address) != 4))
                 or (self.__dest_addr_type == SocketConnectPacket.DEST_ADDRESS_STRING
+                    and (not isinstance(dest_address, str) or len(dest_address) < 1))
+                or (self.__dest_addr_type == SocketConnectPacket.DEST_ADDRESS_V6_BINARY
+                    and (not isinstance(dest_address, bytearray) or len(dest_address) != 16))
+                or (self.__dest_addr_type == SocketConnectPacket.DEST_ADDRESS_V6_STRING
                     and (not isinstance(dest_address, str) or len(dest_address) < 1))):
             raise ValueError("Invalid destination address")
         self.__dest_addr = dest_address
@@ -2123,6 +2156,247 @@ class SocketBindListenPacket(XBeeAPIPacket):
         self.__src_port = source_port
 
 
+class SocketSendToIPv6Packet(XBeeAPIPacket):
+    """
+    This class represents a Socket Send packet for IPv6. It uses IPv6 addresses
+    and ports to transmit data.
+
+    A Socket SendTo (Transmit Explicit Data) message causes the device to
+    transmit data using an IPv6 address and port. For a non-zero frame ID,
+    this will elicit a Transmit (TX) Status - 0x89 frame
+    (:class:`.TransmitStatusPacket`).
+
+    .. seealso::
+       | :class:`.TransmitStatusPacket`
+       | :class:`.XBeeAPIPacket`
+    """
+
+    __MIN_PACKET_LENGTH = 26
+
+    def __init__(self, frame_id, socket_id, dest_address, dest_port,
+                 payload=None, op_mode=OperatingMode.API_MODE):
+        """
+        Class constructor. Instantiates a new :class:`.SocketSendToIPv6Packet`
+        object with the provided parameters.
+
+        Args:
+            frame_id (Integer): the frame ID of the packet.
+            socket_id (Integer): the socket identifier.
+            dest_address (:class:`.IPv6Address`): IPv6 address of the destination device.
+            dest_port (Integer): destination port number.
+            payload (Bytearray, optional): data that is sent.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
+
+        Raises:
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+            ValueError: if `dest_port` is less than 0 or greater than 65535.
+
+        .. seealso::
+           | :class:`.XBeeAPIPacket`
+        """
+        if frame_id < 0 or frame_id > 255:
+            raise ValueError("Frame ID must be between 0 and 255.")
+        if socket_id < 0 or socket_id > 255:
+            raise ValueError("Socket ID must be between 0 and 255.")
+        if dest_port < 0 or dest_port > 65535:
+            raise ValueError("Destination port must be between 0 and 65535")
+
+        super().__init__(ApiFrameType.SOCKET_SENDTO_IPV6, op_mode=op_mode)
+        self._frame_id = frame_id
+        self.__socket_id = socket_id
+        self.__dest_addr = dest_address
+        self.__dest_port = dest_port
+        self.__payload = payload
+
+    @staticmethod
+    def create_packet(raw, operating_mode):
+        """
+        Override method.
+
+        Returns:
+            :class:`.SocketSendToIPv6Packet`.
+
+        Raises:
+            InvalidPacketException: if the bytearray length is less than 26.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket ID + dest address (16 bytes) + dest port (2 bytes)
+                + transmit options + Checksum = 26 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_SENDTO_IPV6`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
+
+        .. seealso::
+           | :meth:`.XBeePacket.create_packet`
+           | :meth:`.XBeeAPIPacket._check_api_packet`
+        """
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
+            raise InvalidOperatingModeException(op_mode=operating_mode)
+
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketSendToIPv6Packet.__MIN_PACKET_LENGTH)
+
+        if raw[3] != ApiFrameType.SOCKET_SENDTO_IPV6.code:
+            raise InvalidPacketException(
+                "This packet is not a Socket SendTo (Transmit Explicit Data): "
+                "IPv6 packet.")
+
+        dest_address = IPv6Address(bytes(raw[6:22]))
+        dest_port = utils.bytes_to_int(raw[22:24])
+
+        return SocketSendToIPv6Packet(
+            raw[4], raw[5], dest_address, dest_port,
+            payload=raw[25:-1] if len(raw) > SocketSendToIPv6Packet.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
+
+    def needs_id(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.needs_id`
+        """
+        return True
+
+    def _get_api_packet_spec_data(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
+        """
+        ret = bytearray()
+        ret.append(self.__socket_id)
+        ret += self.__dest_addr.packed
+        ret += utils.int_to_bytes(self.__dest_port, num_bytes=2)
+        ret.append(0)  # Transmit options (Reserved)
+        if self.__payload is not None:
+            ret += self.__payload
+        return ret
+
+    def _get_api_packet_spec_data_dict(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
+        """
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.DEST_IPV6_ADDR.value: "%s (%s)" % (utils.hex_to_string(self.__dest_addr.packed, True),
+                                                        self.__dest_addr.exploded),
+            DictKeys.DEST_PORT.value: "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__dest_port,
+                                                                                          num_bytes=2)),
+                                                   self.__dest_port),
+            DictKeys.TRANSMIT_OPTIONS.value: "00",
+            DictKeys.PAYLOAD.value: utils.hex_to_string(self.__payload,
+                                                        True) if self.__payload is not None else None}
+
+    @property
+    def socket_id(self):
+        """
+        Returns the socket ID.
+
+        Returns:
+            Integer: the socket ID.
+        """
+        return self.__socket_id
+
+    @socket_id.setter
+    def socket_id(self, socket_id):
+        """
+        Sets the socket ID.
+
+        Args:
+            socket_id (Integer): the new socket ID.
+
+        Raises:
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+        """
+        if socket_id < 0 or socket_id > 255:
+            raise ValueError("Socket ID must be between 0 and 255.")
+        self.__socket_id = socket_id
+
+    @property
+    def dest_address(self):
+        """
+        Returns the destination address.
+
+        Returns:
+            :class:`ipaddress.IPv6Address`: the destination address.
+        """
+        return self.__dest_addr
+
+    @dest_address.setter
+    def dest_address(self, dest_address):
+        """
+        Sets the destination address.
+
+        Args:
+            dest_address (:class:`ipaddress.IPv6Address`): the new destination address.
+        """
+        if dest_address is not None:
+            self.__dest_addr = dest_address
+
+    @property
+    def dest_port(self):
+        """
+        Returns the destination port.
+
+        Returns:
+            Integer: the destination port.
+        """
+        return self.__dest_port
+
+    @dest_port.setter
+    def dest_port(self, dest_port):
+        """
+        Sets the destination port.
+
+        Args:
+            dest_port (Integer): the new destination port.
+
+        Raises:
+            ValueError: if `dest_port` is less than 0 or greater than 65535.
+        """
+        if dest_port < 0 or dest_port > 65535:
+            raise ValueError("Destination port must be between 0 and 65535")
+        self.__dest_port = dest_port
+
+    @property
+    def payload(self):
+        """
+        Returns the payload to send.
+
+        Returns:
+            Bytearray: the payload to send.
+        """
+        if self.__payload is None:
+            return None
+        return self.__payload.copy()
+
+    @payload.setter
+    def payload(self, payload):
+        """
+        Sets the payload to send.
+
+        Args:
+            payload (Bytearray): the new payload to send.
+        """
+        if payload is None:
+            self.__payload = None
+        else:
+            self.__payload = payload.copy()
+
+
 class SocketListenResponsePacket(XBeeAPIPacket):
     """
     This class represents a Socket Listen Response packet. Packet is built using
@@ -2291,6 +2565,472 @@ class SocketListenResponsePacket(XBeeAPIPacket):
            | :class:`.SocketStatus`
         """
         self.__status = status
+
+
+class SocketNewIPv6ClientPacket(XBeeAPIPacket):
+    """
+    This class represents a Socket New IPv6 Client packet. Packet is built using
+    the parameters of the constructor.
+
+    XBee Wi-SUN uses this frame when an incoming connection is
+    accepted on a listener socket.
+
+    This frame contains the original listener's socket ID and a new socket ID
+    of the incoming connection, along with the connection's remote address
+    information.
+
+    .. seealso::
+       | :class:`.XBeeAPIPacket`
+    """
+
+    __MIN_PACKET_LENGTH = 25
+
+    def __init__(self, socket_id, client_socket_id, remote_address,
+                 remote_port, op_mode=OperatingMode.API_MODE):
+        """
+        Class constructor. Instantiates a new :class:`.SocketNewIPv6ClientPacket`
+        object with the provided parameters.
+
+        Args:
+            socket_id (Integer): the socket ID of the listener socket.
+            client_socket_id (Integer): the socket ID of the new connection.
+            remote_address (:class:`.IPv6Address`): the remote IPv6 address.
+            remote_port (Integer): the remote port number.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
+
+        Raises:
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+            ValueError: if `client_socket_id` is less than 0 or greater than 255.
+            ValueError: if `remote_port` is less than 0 or greater than 65535.
+
+        .. seealso::
+           | :class:`.XBeeAPIPacket`
+        """
+        if socket_id < 0 or socket_id > 255:
+            raise ValueError("Socket ID must be between 0 and 255")
+        if client_socket_id < 0 or client_socket_id > 255:
+            raise ValueError("Client socket ID must be between 0 and 255")
+        if remote_port < 0 or remote_port > 65535:
+            raise ValueError("Remote port must be between 0 and 65535")
+
+        super().__init__(ApiFrameType.SOCKET_NEW_IPV6_CLIENT, op_mode=op_mode)
+        self.__socket_id = socket_id
+        self.__client_sock_id = client_socket_id
+        self.__remote_addr = remote_address
+        self.__remote_port = remote_port
+
+    @staticmethod
+    def create_packet(raw, operating_mode):
+        """
+        Override method.
+
+        Returns:
+            :class:`.SocketNewIPv6ClientPacket`.
+
+        Raises:
+            InvalidPacketException: if the bytearray length is less than 25.
+                (start delim. + length (2 bytes) + frame type + socket ID
+                + client socket ID + remote address (16 bytes)
+                + remote port (2 bytes) + checksum = 25 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_NEW_IPV6_CLIENT`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
+
+        .. seealso::
+           | :meth:`.XBeePacket.create_packet`
+           | :meth:`.XBeeAPIPacket._check_api_packet`
+        """
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
+            raise InvalidOperatingModeException(op_mode=operating_mode)
+
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketNewIPv6ClientPacket.__MIN_PACKET_LENGTH)
+
+        if raw[3] != ApiFrameType.SOCKET_NEW_IPV6_CLIENT.code:
+            raise InvalidPacketException(
+                "This packet is not a Socket New IPv6 Client packet.")
+
+        remote_addr = IPv6Address(bytes(raw[6:22]))
+        remote_port = utils.bytes_to_int(raw[22:24])
+
+        return SocketNewIPv6ClientPacket(raw[4], raw[5], remote_addr, remote_port, op_mode=operating_mode)
+
+    def needs_id(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.needs_id`
+        """
+        return False
+
+    def _get_api_packet_spec_data(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
+        """
+        ret = bytearray()
+        ret.append(self.__socket_id)
+        ret.append(self.__client_sock_id)
+        ret += self.__remote_addr.packed
+        ret += utils.int_to_bytes(self.__remote_port, num_bytes=2)
+        return ret
+
+    def _get_api_packet_spec_data_dict(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
+        """
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.CLIENT_SOCKET_ID.value: "%02X" % self.__client_sock_id,
+            DictKeys.REMOTE_ADDR.value: "%s" % self.__remote_addr.exploded,
+            DictKeys.REMOTE_PORT.value: "%s" % self.__remote_port
+        }
+
+    @property
+    def socket_id(self):
+        """
+        Returns the socket ID.
+
+        Returns:
+            Integer: the socket ID.
+        """
+        return self.__socket_id
+
+    @socket_id.setter
+    def socket_id(self, socket_id):
+        """
+        Sets the socket ID.
+
+        Args:
+            socket_id (Integer): the new socket ID.
+
+        Raises:
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+        """
+        if socket_id < 0 or socket_id > 255:
+            raise ValueError("Socket ID must be between 0 and 255")
+        self.__socket_id = socket_id
+
+    @property
+    def client_socket_id(self):
+        """
+        Returns the socket ID of the newly-created client socket.
+
+        Returns:
+            Integer: the socket ID of the newly-created client socket.
+        """
+        return self.__client_sock_id
+
+    @client_socket_id.setter
+    def client_socket_id(self, client_socket_id):
+        """
+        Sets the client socket ID.
+
+        Args:
+            client_socket_id (Integer): the new client socket ID.
+
+        Raises:
+            ValueError: if `client_socket_id` is less than 0 or greater than 255.
+        """
+        if client_socket_id < 0 or client_socket_id > 255:
+            raise ValueError("Socket ID must be between 0 and 255")
+        self.__client_sock_id = client_socket_id
+
+    @property
+    def remote_address(self):
+        """
+        Returns the IPv6 address of the new client.
+
+        Returns:
+            :class:`ipaddress.IPv6Address`: the address of the client.
+        """
+        return self.__remote_addr
+
+    @remote_address.setter
+    def remote_address(self, remote_address):
+        """
+        Sets the IPv6 address of the new client.
+
+        Returns:
+            remote_address (:class:`ipaddress.IPv6Address`): the address of the client.
+        """
+        if remote_address is not None:
+            self.__remote_addr = remote_address
+
+    @property
+    def remote_port(self):
+        """
+        Returns the source port of the new client.
+
+        Returns:
+            Integer: the source port.
+        """
+        return self.__remote_port
+
+    @remote_port.setter
+    def remote_port(self, remote_port):
+        """
+        Sets the source port of the new client.
+
+        Args:
+            remote_port (Integer): the new source port.
+
+        Raises:
+            ValueError: if `remote_port` is less than 0 or greater than 65535.
+        """
+        if remote_port < 0 or remote_port > 65535:
+            raise ValueError("Remote port must be between 0 and 65535")
+        self.__remote_port = remote_port
+
+
+class SocketReceiveFromIPv6Packet(XBeeAPIPacket):
+    """
+    This class represents a Socket Receive From packet for IPv6. Packet is built
+    using the parameters of the constructor.
+
+    The XBee uses this frame when it receives RF data on the specified socket.
+    The frame also contains addressing information about the source.
+
+    .. seealso::
+       | :class:`.XBeeAPIPacket`
+    """
+
+    __MIN_PACKET_LENGTH = 26
+
+    def __init__(self, frame_id, socket_id, src_address, src_port,
+                 payload=None, op_mode=OperatingMode.API_MODE):
+        """
+        Class constructor. Instantiates a new :class:`.SocketReceiveFromIPv6Packet`
+        object with the provided parameters.
+
+        Args:
+            frame_id (Integer): the frame ID of the packet.
+            socket_id (Integer): the ID of the socket the data has been received on.
+            src_address (:class:`.IPv6Address`): IPv6 address of the source device.
+            src_port (Integer): source port number.
+            payload (Bytearray, optional): data that is received.
+            op_mode (:class:`.OperatingMode`, optional, default=`OperatingMode.API_MODE`):
+                The mode in which the frame was captured.
+
+        Raises:
+            ValueError: if `frame_id` is less than 0 or greater than 255.
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+            ValueError: if `source_port` is less than 0 or greater than 65535.
+
+        .. seealso::
+           | :class:`.XBeeAPIPacket`
+        """
+        if frame_id < 0 or frame_id > 255:
+            raise ValueError("Frame ID must be between 0 and 255.")
+        if socket_id < 0 or socket_id > 255:
+            raise ValueError("Socket ID must be between 0 and 255.")
+        if src_port < 0 or src_port > 65535:
+            raise ValueError("Source port must be between 0 and 65535")
+
+        super().__init__(ApiFrameType.SOCKET_RECEIVE_FROM_IPV6, op_mode=op_mode)
+        self._frame_id = frame_id
+        self.__socket_id = socket_id
+        self.__src_addr = src_address
+        self.__src_port = src_port
+        self.__payload = payload
+
+    @staticmethod
+    def create_packet(raw, operating_mode):
+        """
+        Override method.
+
+        Returns:
+            :class:`.SocketReceiveFromIPv6Packet`.
+
+        Raises:
+            InvalidPacketException: if the bytearray length is less than 26.
+                (start delim. + length (2 bytes) + frame type + frame id
+                + socket ID + source address (16 bytes) + source port (2 bytes)
+                + status + Checksum = 26 bytes).
+            InvalidPacketException: if the length field of 'raw' is different
+                from its real length. (length field: bytes 2 and 3)
+            InvalidPacketException: if the first byte of 'raw' is not the
+                header byte. See :class:`.SpecialByte`.
+            InvalidPacketException: if the calculated checksum is different
+                from the checksum field value (last byte).
+            InvalidPacketException: if the frame type is not
+                :attr:`.ApiFrameType.SOCKET_RECEIVE_FROM_IPV6`.
+            InvalidOperatingModeException: if `operating_mode` is not supported.
+
+        .. seealso::
+           | :meth:`.XBeePacket.create_packet`
+           | :meth:`.XBeeAPIPacket._check_api_packet`
+        """
+        if operating_mode not in (OperatingMode.ESCAPED_API_MODE,
+                                  OperatingMode.API_MODE):
+            raise InvalidOperatingModeException(op_mode=operating_mode)
+
+        XBeeAPIPacket._check_api_packet(
+            raw, min_length=SocketReceiveFromIPv6Packet.__MIN_PACKET_LENGTH)
+
+        if raw[3] != ApiFrameType.SOCKET_RECEIVE_FROM_IPV6.code:
+            raise InvalidPacketException(
+                "This packet is not a Socket Receive From packet.")
+
+        src_address = IPv6Address(bytes(raw[6:22]))
+        src_port = utils.bytes_to_int(raw[22:24])
+
+        return SocketReceiveFromIPv6Packet(
+            raw[4], raw[5], src_address, src_port,
+            payload=raw[25:-1] if len(raw) > SocketReceiveFromIPv6Packet.__MIN_PACKET_LENGTH else None,
+            op_mode=operating_mode)
+
+    def needs_id(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket.needs_id`
+        """
+        return True
+
+    def _get_api_packet_spec_data(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data`
+        """
+        ret = bytearray()
+        ret.append(self.__socket_id)
+        ret += self.__src_addr.packed
+        ret += utils.int_to_bytes(self.__src_port, num_bytes=2)
+        ret.append(0)  # Status (Reserved)
+        if self.__payload is not None:
+            ret += self.__payload
+        return ret
+
+    def _get_api_packet_spec_data_dict(self):
+        """
+        Override method.
+
+        .. seealso::
+           | :meth:`.XBeeAPIPacket._get_api_packet_spec_data_dict`
+        """
+        return {
+            DictKeys.SOCKET_ID.value: "%02X" % self.__socket_id,
+            DictKeys.SRC_IPV6_ADDR.value: "%s" % self.__src_addr.exploded,
+            DictKeys.SRC_PORT.value: "%s (%s)" % (utils.hex_to_string(utils.int_to_bytes(self.__src_port,
+                                                                                         num_bytes=2)),
+                                                  self.__src_port),
+            DictKeys.STATUS.value: "00",
+            DictKeys.PAYLOAD.value: utils.hex_to_string(self.__payload,
+                                                        True) if self.__payload is not None else None}
+
+    @property
+    def socket_id(self):
+        """
+        Returns the socket ID.
+
+        Returns:
+            Integer: the socket ID.
+        """
+        return self.__socket_id
+
+    @socket_id.setter
+    def socket_id(self, socket_id):
+        """
+        Sets the socket ID.
+
+        Args:
+            socket_id (Integer): the new socket ID.
+
+        Raises:
+            ValueError: if `socket_id` is less than 0 or greater than 255.
+        """
+        if socket_id < 0 or socket_id > 255:
+            raise ValueError("Socket ID must be between 0 and 255.")
+        self.__socket_id = socket_id
+
+    @property
+    def source_address(self):
+        """
+        Returns the IPv6 address of the source.
+
+        Returns:
+            :class:`ipaddress.IPv6Address`: the IPv6 address of the source device.
+        """
+        return self.__src_addr
+
+    @source_address.setter
+    def source_address(self, source_address):
+        """
+        Sets the IPv6 source address.
+
+        Args:
+            source_address (:class:`ipaddress.IPv6Address`): The new IPv6 source address.
+        """
+        if source_address is not None:
+            self.__src_addr = source_address
+
+    @property
+    def source_port(self):
+        """
+        Returns the source port.
+
+        Returns:
+            Integer: the source port.
+        """
+        return self.__src_port
+
+    @source_port.setter
+    def source_port(self, source_port):
+        """
+        Sets the destination port.
+
+        Args:
+            source_port (Integer): the new source port.
+
+        Raises:
+            ValueError: if `source_port` is less than 0 or greater than 65535.
+        """
+        if source_port < 0 or source_port > 65535:
+            raise ValueError("Source port must be between 0 and 65535")
+        self.__src_port = source_port
+
+    @property
+    def payload(self):
+        """
+        Returns the payload to send.
+
+        Returns:
+            Bytearray: the payload that has been received.
+        """
+        if self.__payload is None:
+            return None
+        return self.__payload.copy()
+
+    @payload.setter
+    def payload(self, payload):
+        """
+        Sets the payload to send.
+
+        Args:
+            payload (Bytearray): the new payload that has been received.
+        """
+        if payload is None:
+            self.__payload = None
+        else:
+            self.__payload = payload.copy()
 
 
 class SocketNewIPv4ClientPacket(XBeeAPIPacket):

@@ -1,4 +1,4 @@
-# Copyright 2017-2024, Digi International Inc.
+# Copyright 2017-2025, Digi International Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -53,6 +53,7 @@ class ApiFrameType(Enum):
     SOCKET_SEND = (0x44, "Socket Send (Transmit)")
     SOCKET_SENDTO = (0x45, "Socket SendTo (Transmit Explicit Data): IPv4")
     SOCKET_BIND = (0x46, "Socket Bind/Listen")
+    SOCKET_SENDTO_IPV6 = (0x47, "Socket SendTo (Transmit Explicit Data): IPv6")
     RX_64 = (0x80, "RX (Receive) Packet 64-bit Address")
     RX_16 = (0x81, "RX (Receive) Packet 16-bit Address")
     RX_IO_64 = (0x82, "IO Data Sample RX 64-bit Address Indicator")
@@ -91,6 +92,8 @@ class ApiFrameType(Enum):
     SOCKET_CONNECT_RESPONSE = (0xC2, "Socket Connect Response")
     SOCKET_CLOSE_RESPONSE = (0xC3, "Socket Close Response")
     SOCKET_LISTEN_RESPONSE = (0xC6, "Socket Listen Response")
+    SOCKET_NEW_IPV6_CLIENT = (0xCA, "Socket New IPv6 Client")
+    SOCKET_RECEIVE_FROM_IPV6 = (0xCB, "Socket Receive From IPv6")
     SOCKET_NEW_IPV4_CLIENT = (0xCC, "Socket New IPv4 Client")
     SOCKET_RECEIVE = (0xCD, "Socket Receive")
     SOCKET_RECEIVE_FROM = (0xCE, "Socket Receive From")
