@@ -129,6 +129,8 @@ _DEVICE_CONNECTION_RETRIES = 3
 
 _ERROR_BOOTLOADER_MODE = "Could not enter in bootloader mode"
 _ERROR_BOOTLOADER_NOT_SUPPORTED = "XBee does not support firmware update process"
+_ERROR_BOOTLOADER_UPDATE_REQUIRED = "Bootloader update required, '%s' does not include the bootloader"
+_ERROR_CHECKING_GBL_FILE = "Error checking GBL file: %s"
 _ERROR_COMPATIBILITY_NUMBER = "Device compatibility number (%d) is greater " \
                               "than the firmware one (%d)"
 _ERROR_COMMUNICATION_LOST = "Communication with the device was lost"
@@ -157,6 +159,7 @@ _ERROR_HW_VERSION_DIFFER = "Device hardware version (%d) differs from the " \
                            "firmware one (%d)"
 _ERROR_IMAGE_VERIFICATION = "Image verification error"
 _ERROR_INITIALIZE_PROCESS = "Could not initialize firmware update process"
+_ERROR_INVALID_GBL_FILE = "Invalid gbl file: %s"
 _ERROR_INVALID_OTA_FILE = "Invalid OTA file: %s"
 _ERROR_INVALID_BLOCK = "Requested block index '%s' does not exits"
 _ERROR_INVALID_GPM_ANSWER = "Invalid GPM frame answer"
@@ -210,6 +213,7 @@ _EXPL_PACKET_EXTENDED_TIMEOUT = 0x40
 EXTENSION_EBIN = ".ebin"
 EXTENSION_EBL = ".ebl"
 EXTENSION_GBL = ".gbl"
+EXTENSION_APPONLY_GBL = ".apponly.gbl"
 EXTENSION_EHX2 = ".ehx2"
 EXTENSION_OTA = ".ota"
 EXTENSION_OTB = ".otb"
@@ -233,6 +237,8 @@ _OTA_FILE_IDENTIFIER = 0x0BEEF11E
 _OTA_DEFAULT_BLOCK_SIZE = 64
 _OTA_DEFAULT_BLOCK_SIZE_ENC = 44
 _OTA_GBL_SIZE_BYTE_COUNT = 6
+
+_GBL_FILE_IDENTIFIER = 0x03A617EB
 
 _PACKET_DEFAULT_SEQ_NUMBER = 0x01
 
@@ -395,6 +401,32 @@ class _EbinFile:
             Integer: Transfer progress percent.
         """
         return ((self._page_index + 1) * 100) // self._num_pages
+
+
+class _GBLFile(_EbinFile):
+    """
+    Helper class that represents a local firmware file in 'GBL' format.
+    """
+
+    @staticmethod
+    def check_format(file_path):
+        """
+        Verifies that the file is a GBL file.
+
+        Raises:
+            _GBLFormatException: If the file in not a GBL file.
+        """
+        _log.debug("Checking GBL file %s:", file_path)
+        if os.path.splitext(file_path.lower())[1] != EXTENSION_GBL:
+            raise _GBLFormatException(_ERROR_INVALID_GBL_FILE % file_path)
+        try:
+            with open(file_path, "rb") as file:
+                identifier = utils.bytes_to_int(_reverse_bytearray(file.read(_BUFFER_SIZE_INT)))
+                if identifier != _GBL_FILE_IDENTIFIER:
+                    raise _GBLFormatException(_ERROR_INVALID_GBL_FILE % file_path)
+                _log.debug(" - Identifier: %04X (%d)", identifier, identifier)
+        except IOError as exc:
+            raise _GBLFormatException(_ERROR_CHECKING_GBL_FILE % str(exc)) from exc
 
 
 class _EBLFile:
@@ -759,6 +791,16 @@ class _OTAFile:
              Integer: The maximum firmware version.
         """
         return self._max_hw_version
+
+
+class _GBLFormatException(Exception):
+    """
+    This exception will be thrown when any problem related with the parsing of
+    GBL files occurs.
+
+    All functionality of this class is the inherited from `Exception
+    <https://docs.python.org/2/library/exceptions.html?highlight=exceptions.exception#exceptions.Exception>`_.
+    """
 
 
 class _XBee3OTAClientDescription:
@@ -3617,6 +3659,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
     """
 
     def __init__(self, target, xml_fw_file, xbee_fw_file=None, bootloader_fw_file=None,
+                 bootloader_type=_BootloaderType.GECKO_BOOTLOADER,
                  timeout=_READ_DATA_TIMEOUT, progress_cb=None):
         """
         Class constructor. Instantiates a new
@@ -3629,6 +3672,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
             xml_fw_file (String): Location of the XML firmware file.
             xbee_fw_file (String, optional): Location of the XBee binary firmware file.
             bootloader_fw_file (String, optional): Location of the bootloader binary firmware file.
+            bootloader_type (:class:`_BootloaderType`): Bootloader type of the node.
             timeout (Integer, optional): Serial port read data operation timeout.
             progress_cb (Function, optional): Function to receive progress
                 information. Receives two arguments:
@@ -3640,6 +3684,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
                          timeout=timeout, progress_cb=progress_cb)
 
         self._bootloader_fw_file = bootloader_fw_file
+        self._bootloader_type = bootloader_type
 
     def _is_bootloader_active(self):
         """
@@ -3740,7 +3785,23 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
         .. seealso::
            | :meth:`._LocalFirmwareUpdater._get_fw_binary_file_extension`
         """
+        if self._bootloader_type == _BootloaderType.GECKO_BOOTLOADER_XR:
+            return EXTENSION_APPONLY_GBL
         return EXTENSION_GBL
+
+    def _check_fw_binary_file(self):
+        """
+        Override.
+
+        .. seealso::
+           | :meth:`._LocalFirmwareUpdater._check_fw_binary_file`
+        """
+        super()._check_fw_binary_file()
+
+        try:
+            _GBLFile.check_format(self._fw_file)
+        except _GBLFormatException as exc:
+            self._exit_with_error(str(exc), restore_updater=False)
 
     def _check_bootloader_binary_file(self):
         """
@@ -3749,6 +3810,39 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
         .. seealso::
            | :meth:`._XBeeFirmwareUpdater._check_bootloader_binary_file`
         """
+        # For XR devices, the bootloader is not a separated file. There are:
+        #    - '*.apponly.gbl' file with only the application
+        #    - '*.gbl' file with the bootloader and the application
+        # Make sure the '*.gbl' file is used and not the '*.apponly.gbl' file
+        if self._bootloader_type == _BootloaderType.GECKO_BOOTLOADER_XR:
+            if self._bootloader_fw_file is None:
+                path = Path(self._xml_fw_file)
+                self._bootloader_fw_file = str(
+                    Path(path.parent).joinpath(path.stem + EXTENSION_GBL))
+
+            if not _file_exists(self._bootloader_fw_file):
+                self._exit_with_error(
+                    _ERROR_FILE_NOT_FOUND % ("XBee firmware", self._bootloader_fw_file),
+                    restore_updater=False)
+
+            try:
+                _GBLFile.check_format(self._bootloader_fw_file)
+            except _GBLFormatException as exc:
+                self._exit_with_error(str(exc), restore_updater=False)
+
+            # File '*.apponly.gbl' does not include the bootloader
+            if self._bootloader_fw_file.lower().endswith(EXTENSION_APPONLY_GBL):
+                self._exit_with_error(
+                    _ERROR_BOOTLOADER_UPDATE_REQUIRED % self._bootloader_fw_file,
+                    restore_updater=False)
+
+            # Checking the bootloader file means a bootloader update is required, so
+            # replace the firmware file ('*.apponly.gbl') with the bootloader one ('*.gbl')
+            self._fw_file = self._bootloader_fw_file
+            self._bootloader_fw_file = None
+            self._bootloader_update_required = False
+            return
+
         # If not already specified, the bootloader firmware file is usually in
         # the same folder as the XML firmware file.
         # The file filename starts with a fixed prefix and includes the
@@ -3763,7 +3857,7 @@ class _LocalXBee3FirmwareUpdater(_LocalFirmwareUpdater):
                 + EXTENSION_GBL))
 
         if not _file_exists(self._bootloader_fw_file):
-            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("booloader firmware", self._bootloader_fw_file),
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("bootloader firmware", self._bootloader_fw_file),
                                   restore_updater=False)
 
     def _transfer_firmware(self):
@@ -5782,6 +5876,7 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
     __DEFAULT_TIMEOUT = 20  # Seconds.
 
     def __init__(self, remote, xml_fw_file, xbee_fw_file=None,
+                 bootloader_file=None,
                  timeout=__DEFAULT_TIMEOUT, progress_cb=None,
                  bootloader_type=_BootloaderType.GEN3_BOOTLOADER):
         """
@@ -5792,6 +5887,7 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
             remote (:class:`.RemoteXBeeDevice`): Remote XBee to upload its firmware.
             xml_fw_file (String): Path of the XML file that describes the firmware.
             xbee_fw_file (String, optional): Path of the binary firmware file.
+            bootloader_file (String, optional): Path of the binary bootloader file.
             timeout (Integer, optional): Timeout to wait for remote frame answers.
             progress_cb (Function, optional): Function to receive progress
                 information. Receives two arguments:
@@ -5809,6 +5905,7 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         super().__init__(remote, xml_fw_file, timeout=timeout, progress_cb=progress_cb)
 
         self._fw_file = xbee_fw_file
+        self._bl_fw_file = bootloader_file
         self._gpm_answer_payload = None
         self._gpm_frame_sent = False
         self._gpm_frame_received = False
@@ -5840,7 +5937,7 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
                     path.stem + (
                         EXTENSION_EBIN
                         if self._bootloader_type == _BootloaderType.GEN3_BOOTLOADER
-                        else EXTENSION_GBL
+                        else EXTENSION_APPONLY_GBL
                     )
                 )
             )
@@ -5849,6 +5946,12 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
             self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("XBee firmware", self._fw_file),
                                   restore_updater=False)
 
+        if self._bootloader_type == _BootloaderType.GECKO_BOOTLOADER_XR:
+            try:
+                _GBLFile.check_format(self._fw_file)
+            except _GBLFormatException as exc:
+                self._exit_with_error(str(exc), restore_updater=False)
+
     def _check_bootloader_binary_file(self):
         """
         Override.
@@ -5856,7 +5959,35 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         .. seealso::
            | :meth:`._XBeeFirmwareUpdater._check_bootloader_binary_file`
         """
-        # General Purpose Memory devices do not have bootloader update file.
+        if self._bootloader_type != _BootloaderType.GECKO_BOOTLOADER_XR:
+            # General Purpose Memory devices do not have bootloader update file.
+            return
+
+        # For XR devices, the bootloader is not a separated file. There are:
+        #    - '*.apponly.gbl' file with only the application
+        #    - '*.gbl' file with the bootloader and the application
+        # Make sure the '*.gbl' file is used and not the '*.apponly.gbl' file
+        if self._bl_fw_file is None:
+            path = Path(self._xml_fw_file)
+            self._bl_fw_file = str(Path(path.parent).joinpath(path.stem + EXTENSION_GBL))
+
+        if not _file_exists(self._bl_fw_file):
+            self._exit_with_error(_ERROR_FILE_NOT_FOUND % ("XBee firmware", self._bl_fw_file),
+                                  restore_updater=False)
+        try:
+            _GBLFile.check_format(self._bl_fw_file)
+        except _GBLFormatException as exc:
+            self._exit_with_error(str(exc), restore_updater=False)
+
+        # File '*.apponly.gbl' does not include the bootloader
+        if self._bl_fw_file.lower().endswith(EXTENSION_APPONLY_GBL):
+            self._exit_with_error(_ERROR_BOOTLOADER_UPDATE_REQUIRED % self._bl_fw_file,
+                                  restore_updater=False)
+
+        # Checking the bootloader file means a bootloader update is required, so
+        # replace the firmware file ('*.apponly.gbl') with the bootloader one ('*.gbl')
+        self._fw_file = self._bl_fw_file
+        self._bl_fw_file = None
 
     def _configure_ao_parameter(self):
         """
@@ -6143,16 +6274,19 @@ class _RemoteGPMFirmwareUpdater(_RemoteFirmwareUpdater):
         _log.info("%s - %s", self._remote, _PROGRESS_TASK_UPDATE_REMOTE_XBEE)
         self._progress_task = _PROGRESS_TASK_UPDATE_REMOTE_XBEE
         # Perform file transfer.
-        ebin_file = _EbinFile(self._fw_file, self.__DEFAULT_PAGE_SIZE)
+        if self._bootloader_type == _BootloaderType.GECKO_BOOTLOADER_XR:
+            fw_file = _GBLFile(self._fw_file, self.__DEFAULT_PAGE_SIZE)
+        else:
+            fw_file = _EbinFile(self._fw_file, self.__DEFAULT_PAGE_SIZE)
         previous_percent = None
         block_index = 0
         byte_index = 0
-        for data_chunk in ebin_file.get_next_mem_page():
-            if ebin_file.percent != previous_percent:
-                self._notify_progress(self._progress_task, ebin_file.percent)
-                previous_percent = ebin_file.percent
-            _log.debug("Sending chunk %d/%d %d%%", ebin_file.page_index + 1,
-                       ebin_file.num_pages, ebin_file.percent)
+        for data_chunk in fw_file.get_next_mem_page():
+            if fw_file.percent != previous_percent:
+                self._notify_progress(self._progress_task, fw_file.percent)
+                previous_percent = fw_file.percent
+            _log.debug("Sending chunk %d/%d %d%%", fw_file.page_index + 1,
+                       fw_file.num_pages, fw_file.percent)
             self._write_data(block_index, byte_index, data_chunk, 3)
             byte_index += len(data_chunk)
             # Increment block index if required.
@@ -7168,6 +7302,7 @@ def update_local_firmware(target, xml_fw_file, xbee_firmware_file=None,
         update_process = _LocalXBee3FirmwareUpdater(
             target, xml_fw_file, xbee_fw_file=xbee_firmware_file,
             bootloader_fw_file=bootloader_firmware_file,
+            bootloader_type=bootloader_type,
             timeout=timeout, progress_cb=progress_callback)
     elif bootloader_type == _BootloaderType.GEN3_BOOTLOADER:
         update_process = _LocalXBeeGEN3FirmwareUpdater(
@@ -7275,6 +7410,7 @@ def update_remote_firmware(remote, xml_fw_file, firmware_file=None, bootloader_f
     elif bootloader_type.ota_method == OTAMethod.GPM:
         update_process = _RemoteGPMFirmwareUpdater(
             remote, xml_fw_file, xbee_fw_file=firmware_file,
+            bootloader_file=bootloader_file,
             timeout=timeout, progress_cb=progress_callback,
             bootloader_type=bootloader_type)
     elif bootloader_type.ota_method == OTAMethod.EMBER:
