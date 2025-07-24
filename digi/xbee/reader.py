@@ -577,6 +577,8 @@ class PacketListener(threading.Thread):
         self.__ble_gap_scan_received = BLEGAPScanReceived()
         self.__ble_gap_scan_status_received = BLEGAPScanStatusReceived()
 
+        self.__error_callbacks = []
+
         # API internal callbacks:
         self.__packet_received_api = xbee_device.get_xbee_device_callbacks()
 
@@ -591,6 +593,25 @@ class PacketListener(threading.Thread):
         self.__data_xbee_queue = XBeeQueue(self.__queue_max_size)
         self.__explicit_xbee_queue = XBeeQueue(self.__queue_max_size)
         self.__ip_xbee_queue = XBeeQueue(self.__queue_max_size)
+
+    def _trigger_error_callbacks(self, error):
+        """Call all registered error callbacks with the exception."""
+        for callback in self.__error_callbacks:
+            try:
+                callback(error)
+            except Exception as e:
+                # Log errors in user callbacks without crashing
+                self._log.error("Error in callback: %s", str(e))
+
+    def add_error_callback(self, callback):
+        """Public method to let users register error callbacks."""
+        if callback not in self.__error_callbacks:
+            self.__error_callbacks.append(callback)
+
+    def remove_error_callback(self, callback):
+        """Public method to remove a callback."""
+        if callback in self.__error_callbacks:
+            self.__error_callbacks.remove(callback)
 
     def wait_until_started(self, timeout=None):
         """
@@ -620,10 +641,13 @@ class PacketListener(threading.Thread):
                 except SerialException as exc:
                     # SerialException: device reports readiness to read but
                     # returned no data (device disconnected or multiple access on port?)
-                    if "device reports readiness to read but returned no data" in str(exc):
-                        self._log.warning("Serial exception while reading: %s", exc)
-                        continue
-                    raise exc
+                    # if "device reports readiness to read but returned no data" in str(exc):
+                    #     self._log.warning("Serial exception while reading: %s", exc)
+                    #     continue
+                    # raise exc
+                    self._trigger_error_callbacks(exec)
+                    self.__stop = True
+                    break
 
                 if raw_packet is not None:
                     # If the current protocol is 802.15.4, the packet may have

@@ -2437,6 +2437,14 @@ class XBeeDevice(AbstractXBeeDevice):
         self.__route_received = RouteReceived()
         self.__stats = Statistics()
 
+    def add_error_callback(self, callback):
+        """Public method to handle serial errors (e.g., disconnections)."""
+        self._packet_listener.add_error_callback(callback)
+
+    def remove_error_callback(self, callback):
+        """Remove an error callback."""
+        self._packet_listener.remove_error_callback(callback)
+
     @classmethod
     def create_xbee_device(cls, comm_port_data):
         """
