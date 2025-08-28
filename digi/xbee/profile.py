@@ -894,7 +894,7 @@ class XBeeProfile:
             if fw_xml_file_element is None:
                 self._throw_read_exception(_ERROR_PROFILE_XML_INVALID
                                            % "missing firmware file element")
-            self._fw_xml_filename = fw_xml_file_element.text
+            self._fw_xml_filename = fw_xml_file_element.text.lstrip("/")
             # Store XML firmware file name.
             self._fw_xml_file = _FW_DIR_NAME + "/" + self._fw_xml_filename
             _log.debug(" - XML firmware file: %s", self._fw_xml_file)
