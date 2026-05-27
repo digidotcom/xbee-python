@@ -108,8 +108,8 @@ class HardwareVersion(Enum):
     XBEE_XR_868_TH = (0x5B, "XBee XR 868 TH")
     XBEE_BLU = (0x5C, "XBee 3 BLU")
     XBEE_BLU_TH = (0x5D, "XBee 3 BLU TH")
-    XBEE_WISUN = (0x60, "XBee Wi-SUN")
-    XBEE_WISUN_TH = (0x61, "XBee Wi-SUN TH")
+    XBEE_WISUN = (0x62, "XBee for Wi-SUN")
+    XBEE_WISUN_TH = (0x63, "XBee for Wi-SUN TH")
 
     def __init__(self, code, description):
         self.__code = code
