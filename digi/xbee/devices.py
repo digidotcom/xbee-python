@@ -12044,6 +12044,33 @@ class DigiMeshNetwork(XBeeNetwork):
     local one and stores them.
     """
 
+    _REMOTE_NEIGHBOR_TIMEOUT_FACTOR = 2
+    """
+    Multiplier applied to the local node timeout ('N?') when waiting for a
+    *remote* node's 'FN' (find neighbors) answer.
+
+    'N?' is the time the local node needs for its own neighbor discovery. A
+    remote 'FN' takes longer: the request must travel to the remote node, the
+    remote runs its own neighbor scan (up to its own discovery time) before it
+    can answer, and the answer must travel back. Waiting only 'N?' would time
+    out an online but slow-to-answer remote and wrongly mark it non-reachable,
+    so remote requesters are given this many times the local timeout.
+
+    The value starts at 2, chosen as a safe upper limit. If we assume every node
+    is set up the same way ('NT'/'NN'/'NH'), as '_calculate_timeout' already
+    does, a remote 'FN' takes at most two things: the remote doing the same
+    neighbor scan the local node does (about 'N?'), plus the time for the request
+    to reach it and the answer to come back (also no more than about 'N?'). That
+    adds up to about 2 x 'N?', so 2 is a safe ceiling, not a tight figure.
+
+    We multiply 'N?' instead of adding a fixed amount on purpose: the radio works
+    out 'N?' from the maximum number of hops ('NH'), so multiplying it makes the
+    extra time grow on its own as the network gets deeper. The downside is that a
+    bigger factor makes discovery slower when a node is really gone (most of all
+    in CASCADE mode, where each node's wait time adds up). The exact number is a
+    best guess and can be tuned later.
+    """
+
     def __init__(self, device):
         """
         Class constructor. Instantiates a new `DigiMeshNetwork`.
@@ -12195,8 +12222,18 @@ class DigiMeshNetwork(XBeeNetwork):
             while not awake.wait(timeout=node_timeout):
                 pass
 
+        # 'self.__real_node_timeout' is based on the local node's 'N?' and only
+        # covers a local neighbor discovery. A remote 'FN' also needs time to
+        # reach the remote node, for the remote to run its own neighbor scan,
+        # and for the answer to travel back, so give remote requesters extra
+        # time to avoid timing out (and wrongly marking as non-reachable) a node
+        # that is online but slow to answer.
+        finder_timeout = self.__real_node_timeout
+        if requester.is_remote():
+            finder_timeout *= self._REMOTE_NEIGHBOR_TIMEOUT_FACTOR
+
         from digi.xbee.models.zdo import NeighborFinder
-        finder = NeighborFinder(requester, timeout=self.__real_node_timeout)
+        finder = NeighborFinder(requester, timeout=finder_timeout)
         finder.get_neighbors(neighbor_cb=__new_neighbor_cb,
                              finished_cb=__neighbor_discover_finished_cb)
 
