@@ -1239,7 +1239,8 @@ class NeighborTableReader(_ZDOCommand):
             # The coordinator is already received with its real 64-bit address
             if neighbor and neighbor.node.get_64bit_addr() != XBee64BitAddress.COORDINATOR_ADDRESS:
                 self._logger.debug("Neighbor of '%s': %s (relation: %s, depth: %s, lqi: %s)",
-                                   self._xbee, neighbor.node, neighbor.relationship.name,
+                                   self._xbee, neighbor.node,
+                                   neighbor.relationship.name if neighbor.relationship else None,
                                    neighbor.depth, neighbor.lq)
                 self.__neighbors.append(neighbor)
                 if self.__cb:

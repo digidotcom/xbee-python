@@ -11900,7 +11900,8 @@ class ZigBeeNetwork(XBeeNetwork):
                 discover their neighbors are stored.
         """
         self._log.debug("     o Discovered neighbor of %s: %s (%s)",
-                        requester, neighbor.node, neighbor.relationship.name)
+                        requester, neighbor.node,
+                        neighbor.relationship.name if neighbor.relationship else None)
 
         # Requester node is clearly reachable
         self._set_node_reachable(requester, True)
@@ -11940,18 +11941,25 @@ class ZigBeeNetwork(XBeeNetwork):
                                     lq_b2a=LinkQuality.UNKNOWN, status_a2b=route.status,
                                     status_b2a=RouteStatus.UNKNOWN)
             self._log.debug("       - Using route for the connection: %d", route.status.id)
-        elif (neighbor.node.get_role() != Role.UNKNOWN
-              and neighbor.relationship != NeighborRelationship.PREVIOUS_CHILD
-              and neighbor.relationship != NeighborRelationship.SIBLING):
+        elif neighbor.relationship not in (NeighborRelationship.PREVIOUS_CHILD, None):
+            # Build a connection from the neighbor entry even when no route exists.
+            # The XCTU Java implementation applies no role check here: connections
+            # are created for PARENT/CHILD/SIBLING/UNDETERMINED regardless of the
+            # neighbor node's cached role. This is important because ZDO neighbor
+            # entries sometimes report device_type=3 (UNKNOWN), which would leave
+            # the cached role as UNKNOWN even for a fully functioning router, and
+            # silently dropping the measured LQI causes the reverse direction of
+            # an existing connection to stay UNKNOWN (LQI -9999, status -1).
             self._log.debug(
                 "       - No route for this node, using relationship for the connection: %s",
-                neighbor.relationship.name)
+                neighbor.relationship.name if neighbor.relationship else None)
             if neighbor.relationship == NeighborRelationship.PARENT:
                 connection = Connection(node, requester, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
                                         status_b2a=RouteStatus.UNKNOWN)
             elif neighbor.relationship in (NeighborRelationship.CHILD,
-                                           NeighborRelationship.UNDETERMINED):
+                                           NeighborRelationship.UNDETERMINED,
+                                           NeighborRelationship.SIBLING):
                 connection = Connection(requester, node, lq_a2b=neighbor.lq,
                                         lq_b2a=LinkQuality.UNKNOWN, status_a2b=RouteStatus.ACTIVE,
                                         status_b2a=RouteStatus.UNKNOWN)
@@ -12275,7 +12283,8 @@ class DigiMeshNetwork(XBeeNetwork):
                 discover their neighbors are stored.
         """
         self._log.debug("     o Discovered neighbor of %s: %s (%s)",
-                        requester, neighbor.node, neighbor.relationship.name)
+                        requester, neighbor.node,
+                        neighbor.relationship.name if neighbor.relationship else None)
 
         # Requester node is clearly reachable
         self._set_node_reachable(requester, True)
