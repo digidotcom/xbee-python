@@ -1771,4 +1771,6 @@ class NeighborFinder:
                 self.stop()
                 return
 
-            self.__parse_data(frame.command_value)
+            # Parse message data only if the command has value
+            if frame.command_value:
+                self.__parse_data(frame.command_value)

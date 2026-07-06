@@ -12126,7 +12126,9 @@ class DigiMeshNetwork(XBeeNetwork):
             if utils.is_bit_enabled(self.__saved_no[0], 2):
                 self.__saved_no = None
             else:
-                self.set_discovery_options({DiscoveryOptions.APPEND_RSSI})
+                no_value = bytearray(self.__saved_no)
+                no_value[0] = no_value[0] | DiscoveryOptions.APPEND_RSSI
+                self._local_xbee.set_parameter(ATStringCommand.NO, no_value, apply=True)
 
             self._log.debug("[*] Preconfiguring %s", ATStringCommand.SO.command)
             self.__saved_so = self._local_xbee.get_parameter(
