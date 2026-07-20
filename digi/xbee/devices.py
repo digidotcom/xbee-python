@@ -35,7 +35,7 @@ from digi.xbee.models.mode import OperatingMode, APIOutputMode, \
     IPAddressingMode, NeighborDiscoveryMode, APIOutputModeBit
 from digi.xbee.models.address import XBee64BitAddress, XBee16BitAddress, \
     XBeeIMEIAddress
-from digi.xbee.models.info import SocketInfo
+from digi.xbee.models.info import SocketInfo, XBeeLocation
 from digi.xbee.models.message import XBeeMessage, ExplicitXBeeMessage, IPMessage
 from digi.xbee.models.options import TransmitOptions, RemoteATCmdOptions, \
     DiscoveryOptions, XBeeLocalInterface, RegisterKeyOptions
@@ -144,6 +144,7 @@ class AbstractXBeeDevice:
         self._node_id = None
         self._role = Role.UNKNOWN
         self._br = None
+        self._location = None
 
         self._packet_listener = None
         self._packet_sender = None
@@ -240,6 +241,11 @@ class AbstractXBeeDevice:
         new_hw = device.get_hardware_version()
         if new_hw:
             self._hardware_version = new_hw
+
+        new_location = device.get_location()
+        if new_location is not None and new_location != self._location:
+            self._location = new_location
+            updated = True
 
         new_br = device.br
         if new_br != self._br:
@@ -681,6 +687,19 @@ class AbstractXBeeDevice:
                 if self._role != role:
                     self._role = role
                     updated = True
+
+            # Location (LX/LY): optional, not supported by all devices/firmware.
+            # A failed read (AT error, timeout) means the device has no location.
+            # Empty or non-numeric responses are also treated as no location.
+            try:
+                lx_raw = self.get_parameter(ATStringCommand.LX, apply=False)
+                ly_raw = self.get_parameter(ATStringCommand.LY, apply=False)
+                location = XBeeLocation.from_raw(lx_raw, ly_raw)
+            except XBeeException:
+                location = None
+            if self._location != location:
+                self._location = location
+                updated = True
         except XBeeException:
             raise
         else:
@@ -894,6 +913,25 @@ class AbstractXBeeDevice:
             Bytearray: Firmware version of the XBee.
         """
         return self._firmware_version
+
+    def get_location(self):
+        """
+        Returns the location of the XBee device as read from its LX/LY AT parameters,
+        or ``None`` if the device does not support location or has not been initialized.
+
+        Returns:
+            :class:`.XBeeLocation`: Location of the XBee, or ``None``.
+        """
+        return self._location
+
+    def has_location(self):
+        """
+        Returns whether a valid location is available for this device.
+
+        Returns:
+            Boolean: ``True`` if the device has a known location, ``False`` otherwise.
+        """
+        return self._location is not None
 
     def get_protocol(self):
         """

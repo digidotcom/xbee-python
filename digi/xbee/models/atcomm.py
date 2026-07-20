@@ -83,6 +83,8 @@ class ATStringCommand(Enum):
     JN = ("JN", "Join notification")
     JV = ("JV", "Join verification")
     KY = ("KY", "Link/Encryption key")
+    LX = ("LX", "Latitude")
+    LY = ("LY", "Longitude")
     MA = ("MA", "IP addressing mode")
     MK = ("MK", "IP address mask")
     MP = ("MP", "16-bit parent address")
