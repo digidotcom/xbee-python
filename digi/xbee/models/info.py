@@ -17,6 +17,79 @@ from digi.xbee.models.status import SocketInfoState
 from digi.xbee.util import utils
 
 
+class XBeeLocation:
+    """
+    Stores the GPS location of an XBee device as reported by its LX/LY AT parameters.
+    Both latitude and longitude are kept as strings to preserve the original precision.
+    """
+
+    def __init__(self, latitude, longitude):
+        """
+        Args:
+            latitude (String): Latitude value (decimal degrees).
+            longitude (String): Longitude value (decimal degrees).
+        """
+        self._latitude = latitude
+        self._longitude = longitude
+
+    @property
+    def latitude(self):
+        return self._latitude
+
+    @property
+    def longitude(self):
+        return self._longitude
+
+    @classmethod
+    def from_raw(cls, lx_raw, ly_raw):
+        """
+        Class constructor. Instantiates a new :class:`.XBeeLocation` from raw
+        AT-command response bytes for the LX and LY parameters.
+
+        Returns ``None`` if either value is missing, empty, or cannot be
+        interpreted as a decimal number. Commas are normalized to dots before
+        validation so that locale-specific separators (e.g. ``"-2,437977"``)
+        are accepted and stored as ``"-2.437977"``.
+
+        Args:
+            lx_raw (Bytearray): Raw response for the LX (latitude) parameter.
+            ly_raw (Bytearray): Raw response for the LY (longitude) parameter.
+
+        Returns:
+            :class:`.XBeeLocation`: Location instance, or ``None``.
+        """
+        lat = cls._parse_coord(lx_raw)
+        lon = cls._parse_coord(ly_raw)
+        if lat is None or lon is None:
+            return None
+        return cls(lat, lon)
+
+    @staticmethod
+    def _parse_coord(raw):
+        if not raw:
+            return None
+        try:
+            s = raw.decode('utf-8').strip()
+        except (AttributeError, UnicodeDecodeError):
+            return None
+        if not s:
+            return None
+        s = s.replace(',', '.')
+        try:
+            float(s)
+        except ValueError:
+            return None
+        return s
+
+    def __eq__(self, other):
+        if not isinstance(other, XBeeLocation):
+            return False
+        return self._latitude == other._latitude and self._longitude == other._longitude
+
+    def __repr__(self):
+        return "XBeeLocation(lat=%s, long=%s)" % (self._latitude, self._longitude)
+
+
 class SocketInfo:
     """
     This class represents the information of an XBee socket:
