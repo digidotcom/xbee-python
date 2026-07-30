@@ -12420,6 +12420,7 @@ class NetworkEventType(Enum):
     DEL = (0x01, "XBee removed from the network")
     UPDATE = (0x02, "XBee in the network updated")
     CLEAR = (0x03, "Network cleared")
+    NETWORK_CHANGED = (0x04, "Network changed")
 
     def __init__(self, code, description):
         self.__code = code
