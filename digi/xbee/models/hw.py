@@ -110,6 +110,8 @@ class HardwareVersion(Enum):
     XBEE_BLU_TH = (0x5D, "XBee 3 BLU TH")
     XBEE_WISUN = (0x62, "XBee for Wi-SUN")
     XBEE_WISUN_TH = (0x63, "XBee for Wi-SUN TH")
+    XBEE_SS_SMT = (0x72, "XBee SmartSense Z-Gateway SMT")
+    XBEE_SS_TH = (0x73, "XBee SmartSense Z-Gateway TH")
 
     def __init__(self, code, description):
         self.__code = code
