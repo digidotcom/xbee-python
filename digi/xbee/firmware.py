@@ -318,9 +318,12 @@ XR_HW_VERSIONS = (HardwareVersion.XBEE3_DM_LR.code,
 WISUN_HW_VERSIONS = (HardwareVersion.XBEE_WISUN.code,
                      HardwareVersion.XBEE_WISUN_TH.code)
 
-LOCAL_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + XR_HW_VERSIONS + WISUN_HW_VERSIONS
+SMARTSENSE_HW_VERSIONS = (HardwareVersion.XBEE_SS_SMT.code,
+                          HardwareVersion.XBEE_SS_TH.code)
+
+LOCAL_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + XR_HW_VERSIONS + WISUN_HW_VERSIONS + SMARTSENSE_HW_VERSIONS
 REMOTE_SUPPORTED_HW_VERSIONS = SX_HW_VERSIONS + XBEE3_HW_VERSIONS + S2C_HW_VERSIONS + XR_HW_VERSIONS
-_LOCAL_HW_VERSIONS_STRING = "XBee 3, XBee SX 868/900, XBee XR 868/900, and XBee for Wi-SUN"
+_LOCAL_HW_VERSIONS_STRING = "XBee 3, XBee SX 868/900, XBee XR 868/900, XBee for Wi-SUN, and XBee SmartSense Z-Gateway"
 
 _log = logging.getLogger(__name__)
 
@@ -1215,7 +1218,11 @@ class _BootloaderType(Enum):
             return _BootloaderType.GEN3_BOOTLOADER
         if hw_version in XBEE3_HW_VERSIONS:
             return _BootloaderType.GECKO_BOOTLOADER
-        if hw_version in XR_HW_VERSIONS or hw_version in WISUN_HW_VERSIONS:
+        if (
+            hw_version in XR_HW_VERSIONS
+            or hw_version in WISUN_HW_VERSIONS
+            or hw_version in SMARTSENSE_HW_VERSIONS
+        ):
             return _BootloaderType.GECKO_BOOTLOADER_XR
         if hw_version in S2C_HW_VERSIONS:
             return _BootloaderType.EMBER_BOOTLOADER

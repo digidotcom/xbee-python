@@ -333,6 +333,10 @@ class XBeeProtocol(Enum):
                           HardwareVersion.XBEE_WISUN_TH.code):
             return XBeeProtocol.WISUN
 
+        if hw_version in (HardwareVersion.XBEE_SS_SMT.code,
+                          HardwareVersion.XBEE_SS_TH.code):
+            return XBeeProtocol.ZIGBEE
+
         return XBeeProtocol.ZIGBEE
 
 

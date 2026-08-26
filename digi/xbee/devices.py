@@ -799,6 +799,12 @@ class AbstractXBeeDevice:
                 the operating mode.
             ATCommandException: If response is not as expected.
         """
+        if self._hardware_version in (HardwareVersion.XBEE_SS_SMT,
+                                      HardwareVersion.XBEE_SS_TH):
+            # SmartSense devices are always coordinators and do not
+            # implement the commands required for role detection
+            return Role.COORDINATOR
+
         if self._protocol in (XBeeProtocol.DIGI_MESH, XBeeProtocol.SX, XBeeProtocol.XTEND_DM):
             ce_val = utils.bytes_to_int(
                 self.get_parameter(ATStringCommand.CE, apply=False))
@@ -847,7 +853,9 @@ class AbstractXBeeDevice:
                     self.get_parameter(ATStringCommand.SM, apply=False))
 
                 return Role.ROUTER if sm_val == 0 else Role.END_DEVICE
-            except ATCommandException:
+            except (ATCommandException, TimeoutException):
+                # Non-Digi nodes do not answer Remote AT commands (timeout),
+                # fall back to the standard ZDO node descriptor
                 from digi.xbee.models.zdo import NodeDescriptorReader
                 n_desc = NodeDescriptorReader(
                     self, configure_ao=True,
