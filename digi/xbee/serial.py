@@ -271,6 +271,10 @@ class XBeeSerialPort(Serial, XBeeCommunicationInterface):
             return xbee_packet
         except TimeoutException:
             return None
+        
+        except SerialException as e:
+
+            raise
 
     def read_existing(self):
         """
