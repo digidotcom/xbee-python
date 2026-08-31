@@ -1375,9 +1375,6 @@ class WriteFileCmdRequest(FileIdCmd):
             raise ValueError("Offset must be between 0 and 0xFFFFFFFF")
         if data and not isinstance(data, bytearray):
             raise ValueError("Data must be a bytearray")
-        max_len = 255 - 7  # cmd_id (1) + f_id (2) + offset (4) = 7
-        if len(data) > max_len:
-            raise ValueError("Data cannot exceed %d chars" % max_len)
 
         super().__init__(FSCmdType.FILE_WRITE, fid, direction=self.REQUEST)
 
